@@ -1,0 +1,1 @@
+- [Model Registry architecture](registry-architecture.md) — 10 Drizzle tables, service/route/worker layout, key gotchas for future sessions
