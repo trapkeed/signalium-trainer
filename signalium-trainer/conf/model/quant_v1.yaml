@@ -1,0 +1,45 @@
+# QuantModelV1 Hydra configuration.
+# Every hyperparameter is explicit — no hidden defaults.
+
+model_version: "1.0.0"
+architecture_name: "QuantModelV1"
+
+encoder:
+  input_dim: 128            # Total engineered features per timestep
+  hidden_dim: 256           # Projection output dimension
+  use_layer_norm: true
+  use_projection: true
+  projection_dropout: 0.1
+
+backbone:
+  type: lstm                # lstm | gru
+  hidden_size: 256
+  num_layers: 2
+  dropout: 0.3
+  bidirectional: false
+  window_length: 60         # Number of historical timesteps per sample
+
+classification_head:
+  num_classes: 3
+  hidden_dim: 128
+  dropout: 0.3
+  label_names:
+    - BUY
+    - SELL
+    - NO_TRADE
+
+confidence_head:
+  hidden_dim: 64
+  dropout: 0.2
+
+loss:
+  type: cross_entropy       # cross_entropy | focal | weighted_cross_entropy
+  focal_gamma: 2.0
+  focal_alpha: null         # e.g. [0.25, 0.25, 0.5] for class-specific alpha
+  label_smoothing: 0.0
+  class_weights: null       # e.g. [1.0, 1.0, 0.5] to down-weight NO_TRADE
+
+balancing:
+  strategy: class_weights   # none | class_weights | weighted_sampler | oversample | undersample
+  oversample_ratio: 1.0
+  undersample_ratio: 1.0
