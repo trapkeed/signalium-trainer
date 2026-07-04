@@ -1,0 +1,69 @@
+# Root Hydra configuration.
+# Override individual sections by pointing --config-path and --config-name,
+# or by passing key=value overrides on the CLI.
+
+defaults:
+  - environment: development
+  - model: base
+  - training: default
+  - logging: default
+  - mlflow: default
+  - _self_
+
+environment: development
+
+api:
+  base_url: https://api.signalium.io
+  timeout: 60
+  max_retries: 5
+  retry_backoff_factor: 2.0
+
+data:
+  dataset_dir: data/datasets
+  output_dir: data/outputs
+  cache_dir: data/cache
+  validate_checksums: true
+  fail_on_validation_error: true
+
+dataloader:
+  batch_size: 32
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  drop_last: false
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+
+optimizer:
+  type: adamw
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  eps: 1.0e-8
+  betas: [0.9, 0.999]
+
+scheduler:
+  type: cosine
+  warmup_epochs: 0
+  T_max: 100
+  eta_min: 1.0e-6
+
+checkpoint:
+  checkpoint_dir: checkpoints
+  save_every_n_epochs: 1
+  keep_top_k: 3
+  save_best: true
+  save_latest: true
+  monitor_metric: val_loss
+  monitor_mode: min
+
+export:
+  output_dir: exports
+  export_torchscript: true
+  export_onnx: true
+  onnx_opset: 17
+  include_metadata: true
+  include_checksums: true
+  include_manifest: true
+  include_training_summary: true

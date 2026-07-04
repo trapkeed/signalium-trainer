@@ -1,0 +1,22 @@
+# Staging environment overrides.
+environment: staging
+
+api:
+  base_url: https://api-staging.signalium.io
+  timeout: 60
+  max_retries: 3
+
+logging:
+  level: INFO
+  format: json
+  log_dir: logs
+
+mlflow:
+  enabled: true
+  tracking_uri: https://mlflow-staging.signalium.io
+  experiment_name: signalium-trainer-staging
+
+gpu:
+  device: auto
+  cudnn_benchmark: true
+  cudnn_deterministic: false

@@ -1,0 +1,1 @@
+"""Signalium Trainer test suite."""

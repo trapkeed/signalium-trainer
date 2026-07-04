@@ -1,0 +1,22 @@
+# Development environment overrides.
+environment: development
+
+api:
+  base_url: http://localhost:8000
+  timeout: 30
+  max_retries: 2
+
+logging:
+  level: DEBUG
+  format: text
+  log_dir: logs
+
+mlflow:
+  enabled: true
+  tracking_uri: mlruns
+  experiment_name: signalium-trainer-dev
+
+gpu:
+  device: auto
+  cudnn_benchmark: false
+  cudnn_deterministic: true

@@ -1,0 +1,8 @@
+logging:
+  level: INFO
+  format: json
+  log_dir: logs
+  rotation: 100 MB
+  retention: 7 days
+  backtrace: true
+  diagnose: false

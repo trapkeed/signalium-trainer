@@ -1,0 +1,8 @@
+mlflow:
+  enabled: true
+  tracking_uri: mlruns
+  experiment_name: signalium-trainer
+  run_name: null
+  log_artifacts: true
+  log_models: true
+  tags: {}

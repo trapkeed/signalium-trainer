@@ -1,0 +1,547 @@
+We are building the Signalium Trainer from scratch.
+
+Repository:
+
+signalium-trainer
+
+This repository is completely independent from the existing Signalium production platform.
+
+The existing Node.js application remains unchanged.
+
+======================================================================
+MISSION
+======================================================================
+
+The Signalium Trainer is responsible for:
+
+• Downloading datasets exported by Signalium
+• Verifying dataset integrity
+• Training deep learning models
+• Evaluating trained models
+• Exporting production-ready model artifacts
+• Uploading results back to Signalium
+• Running entirely on RunPod GPU instances
+
+This repository must NEVER connect directly to PostgreSQL.
+
+It communicates ONLY with the Signalium REST API.
+
+======================================================================
+TECH STACK
+======================================================================
+
+Python 3.12
+
+PyTorch
+
+TorchMetrics
+
+NumPy
+
+Pandas
+
+PyArrow
+
+Scikit-learn
+
+MLflow
+
+Hydra
+
+FastAPI
+
+Pydantic
+
+Requests
+
+Loguru
+
+Rich
+
+PyYAML
+
+ONNX
+
+Docker
+
+GitHub Actions
+
+======================================================================
+PROJECT STRUCTURE
+======================================================================
+
+Create a professional modular architecture.
+
+trainer/
+    config/
+    api/
+    datasets/
+    dataloaders/
+    models/
+    training/
+    evaluation/
+    exporters/
+    registry/
+    checkpoints/
+    metrics/
+    logging/
+    utils/
+    cli/
+    tests/
+    docs/
+
+No monolithic files.
+
+Keep every module focused.
+
+======================================================================
+CONFIGURATION
+======================================================================
+
+Implement Hydra configuration.
+
+Support environments:
+
+development
+
+staging
+
+production
+
+runpod
+
+Allow configuration of:
+
+Dataset location
+
+Signalium API URL
+
+Authentication
+
+Batch size
+
+Epochs
+
+Learning rate
+
+Optimizer
+
+Scheduler
+
+Random seed
+
+Checkpoint frequency
+
+Logging
+
+MLflow
+
+GPU settings
+
+======================================================================
+COMMAND LINE
+======================================================================
+
+Create a CLI.
+
+Commands:
+
+trainer download
+
+trainer validate
+
+trainer train
+
+trainer evaluate
+
+trainer export
+
+trainer upload
+
+trainer resume
+
+trainer benchmark
+
+trainer clean
+
+trainer doctor
+
+trainer version
+
+======================================================================
+DATASET SUPPORT
+======================================================================
+
+Support:
+
+Parquet
+
+Compressed datasets
+
+Manifest.json
+
+Checksums
+
+Metadata
+
+Dataset validation
+
+Dataset versioning
+
+Do not train if validation fails.
+
+======================================================================
+DATA LOADING
+======================================================================
+
+Implement reusable PyTorch Dataset classes.
+
+Support:
+
+Streaming
+
+Large datasets
+
+Multi-worker loading
+
+Pinned memory
+
+Prefetching
+
+Batching
+
+Train/Validation/Test splitting
+
+Reproducible shuffling
+
+======================================================================
+MODEL ARCHITECTURE
+======================================================================
+
+Create ONLY abstract interfaces.
+
+Do NOT implement trading models.
+
+Create:
+
+BaseQuantModel
+
+BaseTrainer
+
+BaseEvaluator
+
+BaseExporter
+
+Future models will inherit from these classes.
+
+======================================================================
+TRAINING ENGINE
+======================================================================
+
+Implement generic training infrastructure.
+
+Support:
+
+Training loop
+
+Validation loop
+
+Metrics
+
+Early stopping
+
+Mixed precision
+
+Gradient clipping
+
+Learning-rate scheduling
+
+Checkpointing
+
+Resume training
+
+Seed reproducibility
+
+======================================================================
+CHECKPOINTS
+======================================================================
+
+Automatically save:
+
+latest.pt
+
+best.pt
+
+epoch checkpoints
+
+optimizer state
+
+scheduler state
+
+configuration snapshot
+
+training state
+
+======================================================================
+EVALUATION
+======================================================================
+
+Implement evaluation framework.
+
+Support:
+
+Accuracy
+
+Precision
+
+Recall
+
+F1
+
+ROC-AUC
+
+Confusion Matrix
+
+Loss curves
+
+Learning curves
+
+Prediction distribution
+
+Calibration metrics
+
+Generate reports.
+
+======================================================================
+MLFLOW
+======================================================================
+
+Track every experiment.
+
+Store:
+
+Run ID
+
+Dataset version
+
+Feature version
+
+Label version
+
+Configuration
+
+Metrics
+
+Artifacts
+
+Duration
+
+GPU information
+
+Git commit hash
+
+======================================================================
+MODEL EXPORT
+======================================================================
+
+Support exporting:
+
+TorchScript
+
+ONNX
+
+JSON metadata
+
+Manifest
+
+Checksums
+
+Training summary
+
+Version information
+
+======================================================================
+SIGNALIUM API CLIENT
+======================================================================
+
+Create a reusable API client.
+
+Support:
+
+Authentication
+
+Download dataset
+
+Upload model
+
+Upload metrics
+
+Upload manifest
+
+Upload logs
+
+Retry failed requests.
+
+Never connect to PostgreSQL.
+
+======================================================================
+LOGGING
+======================================================================
+
+Structured logging.
+
+Include:
+
+Epoch
+
+Loss
+
+Validation metrics
+
+GPU utilization
+
+Memory
+
+Download progress
+
+Upload progress
+
+Training duration
+
+Errors
+
+======================================================================
+DOCKER
+======================================================================
+
+Create:
+
+Dockerfile
+
+docker-compose.yml (development only)
+
+RunPod-ready configuration
+
+CUDA support
+
+Health checks
+
+Persistent volumes
+
+======================================================================
+GITHUB
+======================================================================
+
+Create:
+
+.gitignore
+
+README.md
+
+LICENSE
+
+.pre-commit-config.yaml
+
+GitHub Actions workflow
+
+Black
+
+isort
+
+ruff
+
+mypy
+
+pytest
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Unit tests
+
+Integration tests
+
+Mock Signalium server
+
+Mock datasets
+
+Mock uploads
+
+Coverage report
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Create:
+
+Architecture Guide
+
+Developer Guide
+
+RunPod Deployment Guide
+
+Configuration Guide
+
+Training Framework Guide
+
+Contribution Guide
+
+======================================================================
+CODE QUALITY
+======================================================================
+
+Use:
+
+SOLID principles
+
+Dependency Injection
+
+Type hints
+
+Docstrings
+
+Strict linting
+
+No duplicated code
+
+No placeholder implementations
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT implement any neural network.
+
+Do NOT implement LSTM.
+
+Do NOT implement Transformer.
+
+Do NOT implement GRU.
+
+Do NOT train anything.
+
+Do NOT create prediction logic.
+
+This phase builds ONLY the reusable training framework.
+
+At completion generate:
+
+1. Project Architecture Report
+
+2. Folder Structure Report
+
+3. Dependency Report
+
+4. API Client Report
+
+5. Docker Report
+
+6. Testing Report
+
+7. Infrastructure Readiness Score
+
+The trainer must be production-ready and capable of supporting multiple future quantitative models.

@@ -1,0 +1,44 @@
+# RunPod GPU instance overrides.
+environment: runpod
+
+api:
+  base_url: https://api.signalium.io
+  timeout: 300
+  max_retries: 10
+  retry_backoff_factor: 2.0
+
+data:
+  dataset_dir: /workspace/data/datasets
+  output_dir: /workspace/data/outputs
+  cache_dir: /workspace/data/cache
+
+checkpoint:
+  checkpoint_dir: /workspace/checkpoints
+  keep_top_k: 5
+
+export:
+  output_dir: /workspace/exports
+
+logging:
+  level: INFO
+  format: json
+  log_dir: /workspace/logs
+  rotation: 1 GB
+  retention: 7 days
+
+mlflow:
+  enabled: true
+  tracking_uri: https://mlflow.signalium.io
+  experiment_name: signalium-trainer-runpod
+
+gpu:
+  device: cuda
+  cudnn_benchmark: true
+  cudnn_deterministic: false
+  allow_tf32: true
+
+dataloader:
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 4
+  persistent_workers: true
