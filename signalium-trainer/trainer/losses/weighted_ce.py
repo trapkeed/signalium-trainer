@@ -8,8 +8,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from trainer.framework.abstractions.loss import BaseLoss
 
-class WeightedCrossEntropyLoss(nn.Module):
+
+class WeightedCrossEntropyLoss(BaseLoss):
     """Cross entropy loss with configurable per-class weights.
 
     Equivalent to nn.CrossEntropyLoss(weight=...) but with a cleaner

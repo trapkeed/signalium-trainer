@@ -1,43 +1,27 @@
-"""Sequence encoder backbone — abstract interface + concrete LSTM and GRU implementations.
+"""Sequence encoder backbone — framework interface + concrete LSTM and GRU implementations.
 
-Future backbones (Transformer, Temporal CNN, Hybrid) implement SequenceEncoder
-without any changes to the training pipeline.
+``SequenceEncoder`` now extends ``BaseSequenceEncoder`` from the Signalium Model Framework,
+making LSTM, GRU, and future backbones (Transformer, TCN, Hybrid) interchangeable
+without modifying the training pipeline.
 """
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-
 import torch
 import torch.nn as nn
 
+from trainer.framework.abstractions.sequence_encoder import BaseSequenceEncoder
 from trainer.models.quant_v1.config import BackboneConfig, BackboneType
 
 
-class SequenceEncoder(nn.Module, ABC):
-    """Abstract base for all temporal sequence encoders.
+class SequenceEncoder(BaseSequenceEncoder):
+    """Thin alias for ``BaseSequenceEncoder`` scoped to the quant_v1 package.
 
-    Concrete implementations must:
-    - Accept (batch, seq_len, input_dim) input
-    - Return (batch, output_dim) context vector (last timestep or pooled)
-    - Expose `output_dim` property
+    All quant_v1 backbone implementations inherit from this class, which in
+    turn inherits from the framework-level ``BaseSequenceEncoder``.  This
+    preserves the existing quant_v1 import surface while connecting the
+    backbone to the framework's abstract contract.
     """
-
-    @property
-    @abstractmethod
-    def output_dim(self) -> int:
-        """Dimensionality of the output context vector."""
-
-    @abstractmethod
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode a sequence of feature vectors into a single context vector.
-
-        Args:
-            x: Input tensor of shape (batch, seq_len, input_dim).
-
-        Returns:
-            Context tensor of shape (batch, output_dim).
-        """
 
 
 class LSTMBackbone(SequenceEncoder):

@@ -11,8 +11,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from trainer.framework.abstractions.loss import BaseLoss
 
-class FocalLoss(nn.Module):
+
+class FocalLoss(BaseLoss):
     """Focal Loss for multi-class classification.
 
     FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)

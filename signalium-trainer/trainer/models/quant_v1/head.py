@@ -1,14 +1,19 @@
-"""Classification and Confidence heads for QuantModelV1."""
+"""Classification and Confidence heads for QuantModelV1.
+
+Both heads implement their respective framework ABCs so they are
+interchangeable with future head architectures.
+"""
 
 from __future__ import annotations
 
 import torch
 import torch.nn as nn
 
+from trainer.framework.abstractions.head import BaseClassificationHead, BaseConfidenceHead
 from trainer.models.quant_v1.config import ClassificationHeadConfig, ConfidenceHeadConfig
 
 
-class ClassificationHead(nn.Module):
+class ClassificationHead(BaseClassificationHead):
     """Maps the sequence context vector to class logits.
 
     Architecture:
@@ -46,7 +51,7 @@ class ClassificationHead(nn.Module):
         return self.net(context)
 
 
-class ConfidenceHead(nn.Module):
+class ConfidenceHead(BaseConfidenceHead):
     """Produces a scalar confidence score for each prediction.
 
     The confidence head is trained jointly with the classification head.

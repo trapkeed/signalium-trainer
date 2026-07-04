@@ -1,10 +1,15 @@
-"""Input Encoder and Feature Normalizer for QuantModelV1."""
+"""Input Encoder and Feature Normalizer for QuantModelV1.
+
+Implements ``BaseFeatureEncoder`` from the Signalium Model Framework so the
+encoder is interchangeable with future encoder architectures.
+"""
 
 from __future__ import annotations
 
 import torch
 import torch.nn as nn
 
+from trainer.framework.abstractions.encoder import BaseFeatureEncoder
 from trainer.models.quant_v1.config import InputEncoderConfig
 
 
@@ -34,8 +39,10 @@ class FeatureNormalizer(nn.Module):
         return self.norm(x)
 
 
-class InputEncoder(nn.Module):
+class InputEncoder(BaseFeatureEncoder):
     """Projects raw engineered features into the model's hidden space.
+
+    Implements :class:`BaseFeatureEncoder` from the Signalium Model Framework.
 
     Architecture:
         FeatureNormalizer → Linear(input_dim → hidden_dim) → GELU → Dropout
@@ -50,7 +57,7 @@ class InputEncoder(nn.Module):
     def __init__(self, config: InputEncoderConfig) -> None:
         super().__init__()
         self._config = config
-        self.output_dim = config.hidden_dim if config.use_projection else config.input_dim
+        self._output_dim = config.hidden_dim if config.use_projection else config.input_dim
 
         self.normalizer: nn.Module = (
             FeatureNormalizer(config.input_dim)
@@ -66,6 +73,11 @@ class InputEncoder(nn.Module):
             )
         else:
             self.projection = nn.Identity()
+
+    @property
+    def output_dim(self) -> int:
+        """Dimensionality of the encoder output (passed to the backbone)."""
+        return self._output_dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Encode raw input features.
