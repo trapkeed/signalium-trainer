@@ -1,0 +1,411 @@
+We are implementing Phase 20 of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build Signalium's Institutional Portfolio Intelligence and
+Cross-Asset Decision Engine.
+
+The objective is to transform Signalium from a single-instrument
+forecasting system into a portfolio-aware quantitative intelligence
+platform.
+
+The engine must evaluate all model forecasts collectively before
+producing final portfolio recommendations.
+
+Maintain complete backward compatibility.
+
+Do NOT modify forecasting models.
+
+Consume existing model outputs.
+
+======================================================================
+PORTFOLIO INTELLIGENCE
+======================================================================
+
+Evaluate all available forecasts simultaneously.
+
+Examples:
+
+EURUSD
+
+GBPUSD
+
+USDJPY
+
+USDCHF
+
+USDCAD
+
+AUDUSD
+
+NZDUSD
+
+EURJPY
+
+GBPJPY
+
+XAUUSD
+
+XAGUSD
+
+NAS100
+
+US30
+
+SPX500
+
+BTCUSD
+
+ETHUSD
+
+Support unlimited future instruments.
+
+======================================================================
+CORRELATION ENGINE
+======================================================================
+
+Build dynamic correlation models.
+
+Support:
+
+Rolling Correlations
+
+Rank Correlations
+
+Tail Correlations
+
+Conditional Correlations
+
+Regime-aware Correlations
+
+Time-varying Correlations
+
+Correlation confidence.
+
+======================================================================
+EXPOSURE ENGINE
+======================================================================
+
+Calculate exposure across:
+
+Currencies
+
+Commodities
+
+Indices
+
+Crypto
+
+Regions
+
+Sectors (future)
+
+Detect:
+
+Over-concentration
+
+Hidden exposure
+
+Duplicated exposure
+
+Conflicting exposure
+
+======================================================================
+DEPENDENCY GRAPH
+======================================================================
+
+Create a live dependency graph.
+
+Represent:
+
+Instrument relationships
+
+Correlation clusters
+
+Risk clusters
+
+Market clusters
+
+Update continuously.
+
+======================================================================
+REGIME-AWARE PORTFOLIOS
+======================================================================
+
+Adjust portfolio recommendations depending on:
+
+Trending Markets
+
+Ranging Markets
+
+High Volatility
+
+Low Volatility
+
+Risk-On
+
+Risk-Off
+
+Liquidity Conditions
+
+======================================================================
+POSITION ALLOCATION
+======================================================================
+
+Recommend portfolio allocation.
+
+Consider:
+
+Forecast Confidence
+
+Expected Return
+
+Expected Risk
+
+Correlation
+
+Drawdown Contribution
+
+Risk Budget
+
+Portfolio Diversification
+
+Provide normalized allocation weights.
+
+======================================================================
+RISK BUDGETING
+======================================================================
+
+Support configurable risk budgets.
+
+Examples:
+
+Maximum USD Exposure
+
+Maximum Gold Exposure
+
+Maximum Crypto Exposure
+
+Maximum Index Exposure
+
+Maximum Correlated Exposure
+
+Maximum Total Risk
+
+======================================================================
+CONFLICT RESOLUTION
+======================================================================
+
+Detect conflicting forecasts.
+
+Examples:
+
+EURUSD BUY
+
+USDCHF BUY
+
+GBPUSD BUY
+
+Determine whether signals reinforce or offset each other.
+
+Recommend:
+
+Keep
+
+Reduce
+
+Ignore
+
+Delay
+
+======================================================================
+PORTFOLIO SCORING
+======================================================================
+
+Calculate:
+
+Expected Portfolio Return
+
+Expected Volatility
+
+Expected Drawdown
+
+Expected Sharpe
+
+Expected Sortino
+
+Diversification Score
+
+Correlation Risk
+
+Concentration Score
+
+======================================================================
+SCENARIO ANALYSIS
+======================================================================
+
+Simulate:
+
+Risk-On Markets
+
+Risk-Off Markets
+
+High Inflation
+
+Low Inflation
+
+Interest Rate Changes
+
+Commodity Shocks
+
+Volatility Spikes
+
+Estimate portfolio resilience.
+
+======================================================================
+OPTIMIZATION
+======================================================================
+
+Support configurable optimization objectives.
+
+Examples:
+
+Maximum Sharpe
+
+Minimum Volatility
+
+Maximum Diversification
+
+Maximum Risk-Adjusted Return
+
+Balanced Objective
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables for:
+
+Portfolio Recommendations
+
+Correlation Matrices
+
+Exposure History
+
+Optimization Results
+
+Scenario Results
+
+Allocation History
+
+======================================================================
+API
+======================================================================
+
+Create endpoints for:
+
+Portfolio Recommendations
+
+Exposure
+
+Correlation
+
+Optimization
+
+Scenario Analysis
+
+Allocation History
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate:
+
+Correlation Heatmaps
+
+Exposure Charts
+
+Risk Allocation Charts
+
+Dependency Graph
+
+Portfolio Timeline
+
+Optimization Dashboard
+
+Scenario Dashboard
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Correlation Tests
+
+Exposure Tests
+
+Optimization Tests
+
+Scenario Tests
+
+Allocation Tests
+
+Portfolio Scoring Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Portfolio Intelligence Guide
+
+Correlation Engine Guide
+
+Optimization Guide
+
+Scenario Analysis Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT modify forecasting models.
+
+Do NOT retrain models.
+
+Operate purely as a portfolio intelligence layer.
+
+Generate a complete Institutional Portfolio Intelligence Report.
+
+Include:
+
+Architecture
+
+Correlation Framework
+
+Exposure Framework
+
+Optimization Workflow
+
+Database Design
+
+API Design
+
+Scalability
+
+Operational Readiness
+
+Institutional Readiness

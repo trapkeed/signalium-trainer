@@ -1,0 +1,200 @@
+# ======================================================================
+# Phase 19.3 — HRSA Configuration
+# Hierarchical Research Scoring Architecture
+# ======================================================================
+
+# ── Scoring Architecture ───────────────────────────────────────────────
+scoring_architecture:
+  levels: 3
+  level1: raw_metrics
+  level2: category_scores
+  level3: institutional_research_score
+  hierarchy_enforced: true   # Level 3 computed from Level 2 only
+
+# ── Category Weights (must sum to 1.0) ────────────────────────────────
+category_weights:
+  validation_quality:       0.15
+  trading_performance:      0.15
+  calibration:              0.07
+  generalization:           0.10
+  robustness:               0.10
+  efficiency:               0.05
+  explainability:           0.05
+  operational_readiness:    0.05
+  risk_management:          0.08
+  data_quality:             0.05
+  feature_quality:          0.04
+  model_stability:          0.04
+  research_reproducibility: 0.04
+  security:                 0.02
+  compliance:               0.01
+
+# ── Normalisation Method (per category or global default) ─────────────
+normalisation:
+  global_default: min_max
+  per_category:
+    validation_quality:       min_max
+    trading_performance:      min_max
+    calibration:              min_max
+    generalization:           min_max
+    robustness:               min_max
+    efficiency:               min_max
+    explainability:           min_max
+    operational_readiness:    min_max
+    risk_management:          min_max
+    data_quality:             min_max
+    feature_quality:          min_max
+    model_stability:          min_max
+    research_reproducibility: min_max
+    security:                 min_max
+    compliance:               min_max
+
+# ── Institutional Grade Thresholds ────────────────────────────────────
+institutional_grades:
+  - label: Institutional Elite
+    min_score: 95.0
+    color: gold
+    description: Highest institutional standard. Full capital allocation eligible.
+  - label: Institutional
+    min_score: 90.0
+    color: green
+    description: Institutional grade. Production deployment eligible.
+  - label: Production Ready
+    min_score: 85.0
+    color: blue
+    description: Production ready. Limited deployment with monitoring.
+  - label: Candidate
+    min_score: 80.0
+    color: cyan
+    description: Strong candidate. Additional validation required.
+  - label: Experimental
+    min_score: 70.0
+    color: yellow
+    description: Experimental. Not production ready.
+  - label: Research Only
+    min_score: 0.0
+    color: red
+    description: Research phase only.
+  - label: Retired
+    min_score: -1.0
+    color: gray
+    description: Retired or invalidated.
+
+# ── Research Grade Thresholds ─────────────────────────────────────────
+research_grades:
+  - label: Exceptional Research
+    min_score: 90.0
+    color: gold
+  - label: High Quality Research
+    min_score: 80.0
+    color: green
+  - label: Standard Research
+    min_score: 65.0
+    color: blue
+  - label: Preliminary Research
+    min_score: 50.0
+    color: yellow
+  - label: Insufficient Research
+    min_score: 0.0
+    color: red
+
+# ── Promotion Rules ───────────────────────────────────────────────────
+promotion:
+  go_threshold: 85.0
+  go_max_grade_rank: 2         # Production Ready or better
+  review_threshold: 80.0
+  hold_threshold: 70.0
+  critical_categories:
+    - trading_performance
+    - robustness
+    - risk_management
+  critical_category_min_score: 50.0
+
+# ── Risk Rating Thresholds ────────────────────────────────────────────
+risk_rating:
+  categories_used:
+    - robustness
+    - risk_management
+    - model_stability
+    - calibration
+  thresholds:
+    LOW: 80.0
+    MEDIUM: 65.0
+    HIGH: 45.0
+    VERY_HIGH: 0.0
+
+# ── Regression Detection ──────────────────────────────────────────────
+regression_detection:
+  window: 5
+  threshold_pts: 5.0
+  severity:
+    critical: 15.0
+    high: 10.0
+    medium: 5.0
+    low: 0.0
+
+# ── Benchmark Roles ───────────────────────────────────────────────────
+benchmark_roles:
+  - champion
+  - previous_champion
+  - baseline
+  - current_generation
+  - previous_generation
+  - public_benchmark
+  - internal_benchmark
+  - candidate
+  - experimental
+
+# ── What-If Simulation ────────────────────────────────────────────────
+whatif:
+  default_target_score_per_category: 85.0
+  default_budget_categories: 3
+  max_estimated_gain: 15.0
+
+# ── Database ──────────────────────────────────────────────────────────
+database:
+  path: data/hrsa.db
+  wal_mode: true
+  tables:
+    - hrsa_raw_metrics
+    - hrsa_category_scores
+    - hrsa_score_history
+    - hrsa_normalization
+    - hrsa_benchmarks
+    - hrsa_grades
+    - hrsa_explanations
+    - hrsa_whatif
+
+# ── Dashboard ─────────────────────────────────────────────────────────
+dashboard:
+  charts:
+    - hierarchical_tree
+    - radar_chart
+    - category_heatmap
+    - metric_heatmap
+    - score_timeline
+    - improvement_timeline
+    - benchmark_comparison
+    - score_breakdown
+  colour_scale:
+    exceptional: gold
+    strong: green
+    good: blue
+    adequate: cyan
+    weak: yellow
+    critical: red
+
+# ── Confidence Factors ────────────────────────────────────────────────
+confidence:
+  coverage_weight: 0.40
+  metric_count_weight: 0.35
+  variance_weight: 0.25
+  max_metric_count_for_full_confidence: 10
+  max_std_for_full_confidence: 30.0   # pts
+
+# ── Explainability ────────────────────────────────────────────────────
+explanations:
+  top_n_positive: 5
+  top_n_negative: 5
+  max_recommendations: 10
+  improvement_potential_cap: 15.0

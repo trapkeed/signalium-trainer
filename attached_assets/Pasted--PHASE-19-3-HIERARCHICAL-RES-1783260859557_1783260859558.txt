@@ -1,0 +1,500 @@
+======================================================================
+PHASE 19.3
+HIERARCHICAL RESEARCH SCORING ARCHITECTURE (HRSA)
+======================================================================
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Upgrade the Institutional Research Scoring Engine.
+
+Replace the flat weighted scoring model with a hierarchical institutional
+research scoring architecture.
+
+The objective is to make the scoring engine transparent, extensible,
+auditable, deterministic and suitable for long-term quantitative
+research.
+
+Maintain complete backward compatibility.
+
+======================================================================
+SCORING ARCHITECTURE
+======================================================================
+
+Implement three scoring layers.
+
+LEVEL 1
+
+Raw Metrics
+
+↓
+
+LEVEL 2
+
+Category Scores
+
+↓
+
+LEVEL 3
+
+Institutional Research Score
+
+No overall score may be calculated directly from raw metrics.
+
+All scores must flow through the hierarchy.
+
+======================================================================
+LEVEL 1
+RAW METRICS
+======================================================================
+
+Collect every measurable metric.
+
+Examples include:
+
+Walk Forward Accuracy
+
+Precision
+
+Recall
+
+F1
+
+ROC AUC
+
+PR AUC
+
+Cross Entropy
+
+Profit Factor
+
+Expectancy
+
+Win Rate
+
+Sharpe
+
+Sortino
+
+Calmar
+
+Maximum Drawdown
+
+Recovery Factor
+
+Average Holding Time
+
+Average MFE
+
+Average MAE
+
+Calibration Error
+
+Brier Score
+
+Prediction Entropy
+
+Inference Latency
+
+GPU Usage
+
+CPU Usage
+
+RAM Usage
+
+Training Time
+
+Model Size
+
+Storage Usage
+
+Monte Carlo Stability
+
+Stress Test Results
+
+Noise Robustness
+
+Drift Resistance
+
+Cross Regime Stability
+
+Cross Asset Stability
+
+Cross Timeframe Stability
+
+Explainability Coverage
+
+Feature Attribution Quality
+
+Attention Quality
+
+Audit Coverage
+
+Deployment Readiness
+
+Rollback Readiness
+
+Health Monitoring
+
+Future metrics must be automatically supported.
+
+======================================================================
+LEVEL 2
+CATEGORY SCORING
+======================================================================
+
+Group raw metrics into categories.
+
+Validation Quality
+
+Trading Performance
+
+Generalization
+
+Calibration
+
+Robustness
+
+Efficiency
+
+Explainability
+
+Operational Readiness
+
+Risk Management
+
+Data Quality
+
+Feature Quality
+
+Model Stability
+
+Research Reproducibility
+
+Security
+
+Compliance
+
+Each category should have:
+
+Raw Metrics
+
+Category Weight
+
+Confidence Score
+
+Historical Trend
+
+Benchmark
+
+Category Grade
+
+Categories must be configurable.
+
+======================================================================
+CATEGORY NORMALIZATION
+======================================================================
+
+Implement normalization methods.
+
+Support:
+
+Min-Max
+
+Z Score
+
+Percentile
+
+Rank Scaling
+
+Robust Scaling
+
+Custom Scaling
+
+Category-specific normalization.
+
+======================================================================
+CATEGORY CONFIDENCE
+======================================================================
+
+Every category must compute confidence.
+
+Factors:
+
+Sample Count
+
+Market Diversity
+
+Instrument Coverage
+
+Timeframe Coverage
+
+Regime Coverage
+
+Statistical Significance
+
+Validation Consistency
+
+======================================================================
+LEVEL 3
+INSTITUTIONAL RESEARCH SCORE
+======================================================================
+
+Calculate the final score using category scores only.
+
+The overall score must include:
+
+Overall Score
+
+Confidence
+
+Institutional Grade
+
+Research Grade
+
+Promotion Recommendation
+
+Risk Rating
+
+Future Potential Rating
+
+======================================================================
+GRADE ENGINE
+======================================================================
+
+Implement configurable grading.
+
+Examples:
+
+Institutional Elite
+
+Institutional
+
+Production Ready
+
+Candidate
+
+Experimental
+
+Research Only
+
+Retired
+
+Allow organizations to define custom grades.
+
+======================================================================
+BENCHMARK ENGINE
+======================================================================
+
+Compare scores against:
+
+Champion
+
+Previous Champion
+
+Historical Average
+
+Current Generation
+
+Previous Generation
+
+Baseline Models
+
+Public Benchmarks
+
+Internal Benchmarks
+
+======================================================================
+TREND ENGINE
+======================================================================
+
+Track score evolution.
+
+Generate:
+
+Historical Score
+
+Category Trends
+
+Metric Trends
+
+Improvement Rate
+
+Regression Detection
+
+Score Stability
+
+======================================================================
+SCORING EXPLANATIONS
+======================================================================
+
+Generate explanations.
+
+Examples:
+
+Why this model scored higher.
+
+Largest positive contributors.
+
+Largest negative contributors.
+
+Weakest category.
+
+Strongest category.
+
+Recommendations for improvement.
+
+======================================================================
+WHAT-IF ANALYSIS
+======================================================================
+
+Implement simulation.
+
+Examples:
+
+What if calibration improved?
+
+What if drawdown reduced?
+
+What if latency doubled?
+
+Estimate resulting Research Score.
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables:
+
+Raw Metrics
+
+Category Scores
+
+Score History
+
+Normalization
+
+Benchmarks
+
+Grades
+
+Score Explanations
+
+What-If Simulations
+
+======================================================================
+API
+======================================================================
+
+Create APIs:
+
+Score Details
+
+Category Scores
+
+Metric Scores
+
+Benchmarks
+
+Historical Trends
+
+Recommendations
+
+What-If Simulations
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate:
+
+Hierarchical Score Tree
+
+Radar Charts
+
+Category Heatmaps
+
+Metric Heatmaps
+
+Score Timeline
+
+Improvement Timeline
+
+Benchmark Comparison
+
+Score Breakdown
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Metric Tests
+
+Normalization Tests
+
+Category Tests
+
+Benchmark Tests
+
+Trend Tests
+
+Grade Tests
+
+Simulation Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Hierarchical Scoring Guide
+
+Normalization Guide
+
+Benchmark Guide
+
+Simulation Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Every Research Score must be explainable.
+
+Every calculation must be reproducible.
+
+Every score must include confidence.
+
+Every score must include category breakdown.
+
+Generate a complete Hierarchical Research Scoring Report.
+
+Include:
+
+Architecture
+
+Scoring Pipeline
+
+Normalization
+
+Category Design
+
+Benchmark Design
+
+Simulation Design
+
+Operational Readiness
+
+Institutional Readiness
