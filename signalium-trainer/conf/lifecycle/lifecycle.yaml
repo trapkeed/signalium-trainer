@@ -1,0 +1,148 @@
+# ============================================================
+# Phase 21.5 — Trade Lifecycle Intelligence Engine Config
+# ============================================================
+
+lifecycle:
+  engine:
+    name: "Signalium Trade Lifecycle Intelligence Engine"
+    version: "21.5"
+    mode: "RECOMMENDATION_ONLY"   # never executes trades
+
+  # ── State machine ────────────────────────────────────────
+  state_machine:
+    total_states: 20
+    terminal_states:
+      - CLOSED
+      - INVALIDATED
+      - CANCELLED
+      - EXPIRED
+    closing_states:
+      - STOPPED
+      - FORCED_EXIT
+      - EMERGENCY_EXIT
+    position_open_states:
+      - ACTIVE
+      - POSITION_BUILDING
+      - PROTECTED
+      - PARTIAL_EXIT
+      - RUNNER
+      - TRAILING
+      - EXIT_READY
+      - CLOSING
+      - STOPPED
+      - FORCED_EXIT
+      - EMERGENCY_EXIT
+
+  # ── Transition thresholds ─────────────────────────────────
+  transitions:
+    min_confidence_watchlist:     0.50
+    min_confidence_preparation:   0.55
+    min_confidence_entry_ready:   0.65
+    min_confidence_pending_entry: 0.65
+    min_confidence_active:        0.60
+    min_confidence_scale_in:      0.75
+    min_confidence_runner:        0.70
+
+    # Emergency thresholds
+    emergency_news_risk:    0.80
+    emergency_volatility:   0.035
+    invalidation_confidence: 0.40
+
+    # Spread gate (fraction of ATR)
+    max_spread_atr_ratio:   0.30
+
+  # ── State timeout rules (hours) ──────────────────────────
+  timeouts:
+    IDEA:          72.0
+    WATCHLIST:     48.0
+    PREPARATION:   24.0
+    ENTRY_READY:    8.0
+    PENDING_ENTRY:  4.0
+    ACTIVE:       168.0
+    POSITION_BUILDING: 12.0
+    PROTECTED:    120.0
+    PARTIAL_EXIT:  72.0
+    RUNNER:       168.0
+    TRAILING:      72.0
+    EXIT_READY:     2.0
+    CLOSING:        1.0
+
+  # ── Confidence engine ────────────────────────────────────
+  confidence:
+    news_risk_failure_weight:   0.15
+    spread_duration_penalty:    0.20
+    volatility_duration_factor: 0.70
+    closed_session_trans_factor: 0.50
+    high_vol_threshold:         0.020
+    extreme_vol_threshold:      0.035
+
+  # ── Event engine thresholds ───────────────────────────────
+  events:
+    confidence_delta_threshold:  0.08
+    momentum_delta_threshold:    0.25
+    momentum_strong_threshold:   0.40
+    news_warn_threshold:         0.40
+    news_critical_threshold:     0.70
+    spread_atr_wide_ratio:       0.25
+    metrics_gain_threshold:      0.015
+    metrics_drawdown_threshold: -0.010
+
+  # ── Position monitor ─────────────────────────────────────
+  position_monitor:
+    news_exit_threshold:     0.75
+    volatility_reduce_threshold: 0.035
+    scale_in_confidence:     0.75
+    scale_in_momentum:       0.30
+    confidence_reduce_threshold: 0.50
+    reduce_amount_pct:       0.30
+    drawdown_warn_threshold: -0.015
+
+  # ── Optimisation targets ──────────────────────────────────
+  optimisation:
+    target_protected_rate:      0.40   # min fraction reaching PROTECTED
+    target_trailing_rate:       0.50   # min fraction of runners reaching TRAILING
+    target_expiry_rate_max:     0.20   # max acceptable expiry rate
+    target_emergency_rate_max:  0.05   # max acceptable emergency exit rate
+    runner_to_close_rate_good:  0.60   # "good" runner→CLOSED via TRAILING rate
+
+  # ── Database ──────────────────────────────────────────────
+  database:
+    default_path: ":memory:"
+    tables:
+      - trade_lifecycle
+      - lifecycle_events
+      - transition_rules
+      - state_history
+      - lifecycle_analytics
+      - optimisation_results
+
+  # ── API ───────────────────────────────────────────────────
+  api:
+    total_endpoints: 16
+    endpoints:
+      - create_lifecycle
+      - get_lifecycle
+      - transition
+      - auto_transition
+      - recommend_transition
+      - position_management
+      - lifecycle_confidence
+      - detect_events
+      - reasoning
+      - state_history
+      - lifecycle_analytics
+      - optimisation
+      - timeline_dashboard
+      - confidence_dashboard
+      - transition_dashboard
+      - statistics_dashboard
+
+  # ── Dashboard ─────────────────────────────────────────────
+  dashboard:
+    views:
+      - lifecycle_timeline
+      - state_transition_graph
+      - trade_journey
+      - confidence_timeline
+      - transition_matrix
+      - lifecycle_statistics

@@ -1,0 +1,540 @@
+======================================================================
+PHASE 21.6
+INSTITUTIONAL DECISION MEMORY
+SELF-EVALUATION ENGINE
+======================================================================
+
+Repository
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build the Institutional Decision Memory and Self-Evaluation Engine.
+
+Signalium must permanently remember every decision it has ever made.
+
+The objective is to enable institutional-grade decision analytics,
+decision auditing, continuous self-evaluation, and long-term decision
+quality improvement.
+
+This system is NOT intended to retrain models automatically.
+
+Instead, it becomes Signalium's permanent institutional memory of every
+forecast, recommendation, execution plan, lifecycle transition and
+outcome.
+
+Maintain complete backward compatibility.
+
+======================================================================
+DECISION MEMORY
+======================================================================
+
+Create a permanent Decision Memory database.
+
+Every recommendation produced by Signalium must generate a Decision
+Record.
+
+Examples:
+
+BUY
+
+SELL
+
+NO TRADE
+
+WAIT
+
+CANCEL
+
+SCALE IN
+
+SCALE OUT
+
+MOVE STOP
+
+MOVE TARGET
+
+PARTIAL CLOSE
+
+EXIT
+
+Each decision must receive a globally unique Decision ID.
+
+======================================================================
+DECISION SNAPSHOT
+======================================================================
+
+Capture the complete context at decision time.
+
+Store:
+
+Timestamp
+
+Instrument
+
+Timeframe
+
+Market Regime
+
+Volatility Regime
+
+Session
+
+Spread
+
+Liquidity Estimate
+
+Forecast
+
+Confidence
+
+Prediction Distribution
+
+Expected Move
+
+Expected Holding Time
+
+Expected TP Probability
+
+Expected SL Probability
+
+Execution Plan
+
+Risk Metrics
+
+Portfolio State
+
+Correlation Matrix
+
+Exposure Snapshot
+
+Research Score
+
+Model Version
+
+Champion Model
+
+Expert Weights
+
+Ensemble Output
+
+Feature Snapshot
+
+Market Memory Snapshot
+
+Decision Confidence
+
+Decision Explanation
+
+======================================================================
+DECISION REASONING
+======================================================================
+
+Generate structured reasoning.
+
+Store:
+
+Primary Reasons
+
+Supporting Factors
+
+Contradicting Factors
+
+Risk Factors
+
+Uncertainty Sources
+
+Alternative Actions Considered
+
+Final Decision Rationale
+
+Never store free-form chain-of-thought.
+
+Store structured decision summaries only.
+
+======================================================================
+OUTCOME TRACKING
+======================================================================
+
+Track every decision outcome.
+
+Examples:
+
+Correct Direction
+
+Incorrect Direction
+
+Hit TP
+
+Hit SL
+
+Cancelled
+
+Expired
+
+Missed Opportunity
+
+Partial Success
+
+No Trade
+
+Unexpected Market Event
+
+======================================================================
+DECISION QUALITY
+======================================================================
+
+Calculate a Decision Quality Score.
+
+Factors:
+
+Forecast Accuracy
+
+Execution Quality
+
+Risk Management
+
+Lifecycle Management
+
+Portfolio Impact
+
+Calibration
+
+Confidence Reliability
+
+Expected Value
+
+Consistency
+
+Decision Robustness
+
+======================================================================
+COUNTERFACTUAL ANALYSIS
+======================================================================
+
+For every completed decision evaluate:
+
+What if BUY had become WAIT?
+
+What if TP was larger?
+
+What if SL was tighter?
+
+What if entry was delayed?
+
+What if trailing activated earlier?
+
+What if no trade was taken?
+
+Estimate alternative outcomes.
+
+Store comparisons.
+
+======================================================================
+DECISION PATTERN DISCOVERY
+======================================================================
+
+Automatically discover patterns.
+
+Examples:
+
+Best decisions during trending markets.
+
+Worst decisions during low volatility.
+
+Most successful entry timing.
+
+Most profitable stop strategy.
+
+Weakest instruments.
+
+Weakest sessions.
+
+Weakest market regimes.
+
+======================================================================
+SELF-EVALUATION
+======================================================================
+
+Generate periodic AI self-assessments.
+
+Examples:
+
+Strengths
+
+Weaknesses
+
+Common Mistakes
+
+Recurring Failure Modes
+
+Best Performing Conditions
+
+Worst Performing Conditions
+
+Improvement Opportunities
+
+======================================================================
+DECISION KNOWLEDGE BASE
+======================================================================
+
+Create a searchable institutional knowledge base.
+
+Link:
+
+Decisions
+
+Trades
+
+Experiments
+
+Models
+
+Features
+
+Market Regimes
+
+Research Reports
+
+Lifecycle Events
+
+Portfolio States
+
+======================================================================
+DECISION LINEAGE
+======================================================================
+
+Every decision must be traceable.
+
+Decision
+
+↓
+
+Forecast
+
+↓
+
+Model
+
+↓
+
+Dataset
+
+↓
+
+Feature Set
+
+↓
+
+Training Run
+
+↓
+
+Research Experiment
+
+↓
+
+Git Commit
+
+======================================================================
+DECISION BENCHMARKING
+======================================================================
+
+Benchmark decisions.
+
+Compare:
+
+Current Champion
+
+Historical Champions
+
+Previous Generations
+
+Alternative Experts
+
+Alternative Ensembles
+
+Alternative Execution Plans
+
+======================================================================
+LONG-TERM MEMORY
+======================================================================
+
+Build persistent institutional memory.
+
+Support:
+
+Monthly Learning
+
+Quarterly Learning
+
+Annual Learning
+
+Lifetime Statistics
+
+Decision Evolution
+
+Knowledge Growth
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables.
+
+Decision Memory
+
+Decision Snapshots
+
+Decision Reasoning
+
+Decision Outcomes
+
+Counterfactual Analysis
+
+Decision Scores
+
+Decision Patterns
+
+Knowledge Base
+
+Decision Lineage
+
+======================================================================
+API
+======================================================================
+
+Create APIs.
+
+Decision History
+
+Decision Search
+
+Decision Details
+
+Decision Quality
+
+Counterfactual Reports
+
+Decision Analytics
+
+Pattern Discovery
+
+Knowledge Base
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate dashboards.
+
+Decision Timeline
+
+Decision Tree
+
+Decision Quality Distribution
+
+Failure Analysis
+
+Counterfactual Explorer
+
+Knowledge Graph
+
+Learning Timeline
+
+Decision Heatmaps
+
+======================================================================
+SEARCH ENGINE
+======================================================================
+
+Support institutional search.
+
+Examples:
+
+Show all incorrect BUY decisions on EURUSD.
+
+Show all profitable NO TRADE recommendations.
+
+Show decisions with confidence above 95%.
+
+Show all failed breakout trades.
+
+Show all successful pullback entries.
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Decision Tests
+
+Outcome Tests
+
+Pattern Tests
+
+Counterfactual Tests
+
+Knowledge Base Tests
+
+Lineage Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Decision Memory Guide
+
+Counterfactual Guide
+
+Knowledge Base Guide
+
+Self-Evaluation Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Never expose internal reasoning to end users.
+
+Store only structured decision summaries.
+
+No chain-of-thought storage.
+
+No automatic retraining.
+
+No automatic deployment.
+
+Decision Memory must be usable by future research modules.
+
+Generate a complete Institutional Decision Memory Architecture Report.
+
+Include:
+
+Architecture
+
+Decision Schema
+
+Memory Design
+
+Counterfactual Engine
+
+Knowledge Base
+
+Pattern Discovery
+
+Decision Analytics
+
+Operational Readiness
+
+Institutional Readiness
