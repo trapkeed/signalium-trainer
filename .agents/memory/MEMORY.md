@@ -1,0 +1,2 @@
+- [MIE test isolation pattern](mie-test-isolation.md) — spec_from_file_location requires sys.modules pre-registration + try/except loguru fallback
+- [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks

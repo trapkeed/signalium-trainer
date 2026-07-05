@@ -1,0 +1,603 @@
+We are implementing Signalium Quant Phase 24.9.
+
+====================================================================
+
+SIGNALIUM MARKET INTELLIGENCE ENGINE (MIE)
+
+====================================================================
+
+IMPORTANT
+
+This becomes one of the core enterprise intelligence systems of Signalium.
+
+Do NOT redesign the frontend.
+
+Do NOT modify existing APIs.
+
+Do NOT remove existing functionality.
+
+Do NOT replace existing components.
+
+Instead build a new Market Intelligence Engine (MIE).
+
+The MIE becomes the central intelligence layer responsible for understanding market conditions before predictions are made.
+
+Every AI prediction, every live analysis update, every API response, every EA response and every Android signal must pass through MIE.
+
+The MIE becomes an engineered feature provider for the Deep Learning model.
+
+====================================================================
+
+HIGH LEVEL ARCHITECTURE
+
+====================================================================
+
+Market Data
+
+↓
+
+Feature Store
+
+↓
+
+Market Memory
+
+↓
+
+Market Intelligence Engine
+
+↓
+
+Deep Learning Model
+
+↓
+
+Execution Intelligence
+
+↓
+
+Portfolio Intelligence
+
+↓
+
+Signal Builder
+
+↓
+
+Android
+
+API
+
+EA
+
+Website
+
+Telegram
+
+====================================================================
+
+MODULES
+
+====================================================================
+
+Build the following independent modules.
+
+Market Regime Intelligence
+
+Risk Intelligence
+
+Tradeability Intelligence
+
+Execution Intelligence
+
+Liquidity Intelligence
+
+Volatility Intelligence
+
+Momentum Intelligence
+
+Trend Intelligence
+
+Behavior Similarity Engine
+
+Prediction Reliability Engine
+
+Calibration Engine
+
+Portfolio Risk Engine
+
+Market Quality Engine
+
+AI Commentary Generator
+
+Session Intelligence
+
+News Intelligence
+
+====================================================================
+
+MARKET REGIMES
+
+====================================================================
+
+Support:
+
+Trending
+
+Strong Trend
+
+Weak Trend
+
+Range
+
+Compression
+
+Expansion
+
+Breakout
+
+False Breakout
+
+Reversal
+
+Accumulation
+
+Distribution
+
+Volatile
+
+Illiquid
+
+News Driven
+
+Black Swan
+
+Unknown
+
+====================================================================
+
+RISK REGIMES
+
+====================================================================
+
+Support:
+
+Optimal
+
+Low Risk
+
+Normal
+
+Elevated
+
+High Risk
+
+Extreme
+
+Flash Volatility
+
+Low Liquidity
+
+Market Stress
+
+News Event
+
+Black Swan
+
+Unknown
+
+====================================================================
+
+TRADEABILITY ENGINE
+
+====================================================================
+
+Create a new proprietary Signalium metric.
+
+Tradeability Score
+
+0–100
+
+Tradeability is NOT confidence.
+
+It measures how attractive the market currently is for trading.
+
+Factors:
+
+Prediction Confidence
+
+Expected RR
+
+Expected Move
+
+Expected Holding Time
+
+Risk Regime
+
+Market Regime
+
+Liquidity
+
+Execution Quality
+
+Spread
+
+Expected Slippage
+
+Historical Similarity
+
+Prediction Calibration
+
+Portfolio Exposure
+
+Economic Calendar
+
+Market Memory
+
+Trend Stability
+
+Momentum Stability
+
+Output:
+
+Tradeability Score
+
+Tradeability Grade
+
+A+
+
+A
+
+B
+
+C
+
+D
+
+Avoid
+
+Reasons
+
+Improvement Suggestions
+
+====================================================================
+
+MARKET QUALITY SCORE
+
+====================================================================
+
+Calculate:
+
+Market Quality
+
+Execution Quality
+
+Prediction Reliability
+
+Liquidity Quality
+
+Volatility Quality
+
+Momentum Quality
+
+Trend Quality
+
+Session Quality
+
+News Impact Score
+
+Each score:
+
+0–100
+
+====================================================================
+
+EXECUTION INTELLIGENCE
+
+====================================================================
+
+Return:
+
+Market Order
+
+Limit Order
+
+Wait
+
+Avoid
+
+Best Entry Zone
+
+Best Exit Zone
+
+Maximum Holding Time
+
+Expected Drawdown
+
+Optimal Stop
+
+Optimal Target
+
+====================================================================
+
+PORTFOLIO INTELLIGENCE
+
+====================================================================
+
+Influence:
+
+Risk Budget
+
+Position Size
+
+Maximum Exposure
+
+Correlation Limits
+
+Capital Allocation
+
+Diversification
+
+Maximum Open Trades
+
+====================================================================
+
+FEATURE ENGINEERING
+
+====================================================================
+
+Export every score into the Feature Store.
+
+The Deep Learning model automatically receives:
+
+Market Regime
+
+Risk Regime
+
+Tradeability
+
+Execution Quality
+
+Market Quality
+
+Prediction Reliability
+
+Behavior Similarity
+
+Calibration
+
+Historical Success
+
+Trend Quality
+
+Momentum Quality
+
+Liquidity Quality
+
+====================================================================
+
+LIVE ANALYSIS
+
+====================================================================
+
+Provide:
+
+AI Commentary
+
+Tradeability
+
+Risk
+
+Market Quality
+
+Execution Quality
+
+Expected Move
+
+Expected Holding
+
+Momentum
+
+Trend
+
+Liquidity
+
+Prediction Reliability
+
+Historical Similarity
+
+Confidence
+
+Trade Recommendation
+
+====================================================================
+
+EA API
+
+====================================================================
+
+Expose:
+
+Prediction
+
+Tradeability
+
+Execution Recommendation
+
+Expected Move
+
+Holding Time
+
+SL
+
+TP
+
+Market Regime
+
+Risk Regime
+
+Prediction Reliability
+
+Tradeability Grade
+
+====================================================================
+
+ANDROID APP
+
+====================================================================
+
+Display:
+
+Tradeability
+
+Market Quality
+
+AI Commentary
+
+Prediction Confidence
+
+Expected Move
+
+Holding Time
+
+Execution Recommendation
+
+====================================================================
+
+DATABASE
+
+====================================================================
+
+Create Drizzle schema.
+
+Tables:
+
+market_intelligence
+
+market_regime_history
+
+risk_history
+
+tradeability_history
+
+market_quality
+
+execution_quality
+
+prediction_reliability
+
+behavior_similarity
+
+ai_commentary
+
+market_scores
+
+All tables must support historical analytics.
+
+====================================================================
+
+BACKGROUND WORKERS
+
+====================================================================
+
+Create:
+
+Market Intelligence Worker
+
+Runs:
+
+Every new candle
+
+Every economic event
+
+Every prediction
+
+Every model update
+
+Every market regime transition
+
+Manual refresh
+
+====================================================================
+
+API
+
+====================================================================
+
+Create:
+
+GET
+
+/api/v1/intelligence/current
+
+GET
+
+/api/v1/intelligence/history
+
+GET
+
+/api/v1/intelligence/tradeability
+
+GET
+
+/api/v1/intelligence/risk
+
+GET
+
+/api/v1/intelligence/regime
+
+GET
+
+/api/v1/intelligence/execution
+
+GET
+
+/api/v1/intelligence/quality
+
+GET
+
+/api/v1/intelligence/commentary
+
+POST
+
+/api/v1/intelligence/recalculate
+
+====================================================================
+
+ENTERPRISE QUALITY
+
+====================================================================
+
+Generate:
+
+Architecture Report
+
+Database ER Diagram
+
+Sequence Diagram
+
+Mathematical Documentation
+
+Feature Engineering Documentation
+
+Performance Report
+
+Security Report
+
+Future AI Integration Roadmap
+
+Deployment Notes
+
+Testing Strategy
+
+No placeholder code.
+
+No duplicated logic.
+
+Follow SOLID principles.
+
+All modules must be independently testable.
+
+Reuse existing Signalium design system for any UI additions.
+
+Produce production-ready enterprise-grade implementation.

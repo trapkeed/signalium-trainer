@@ -1,0 +1,190 @@
+##
+## Signalium Market Intelligence Engine (MIE) — Configuration
+## Phase 24.9
+##
+
+mie:
+  version: "24.9.0"
+  description: "Market Intelligence Engine — central intelligence layer for all AI predictions"
+
+  # ── Market Regime Engine ──────────────────────────────────────────────────
+  market_regime:
+    adx_strong: 40.0         # ADX threshold for STRONG_TREND
+    adx_trending: 25.0       # ADX threshold for TRENDING
+    adx_weak: 15.0           # ADX threshold for WEAK_TREND (below = RANGE/COMPRESSION)
+    vol_extreme: 4.0         # vol_ratio above this → BLACK_SWAN candidate
+    vol_high: 2.5            # vol_ratio above this → VOLATILE
+    vol_compress: 0.5        # vol_ratio below this → COMPRESSION
+
+  # ── Risk Intelligence ─────────────────────────────────────────────────────
+  risk_intelligence:
+    vol_high_thresh: 2.0
+    vol_extreme_thresh: 4.0
+    spread_pct_warn: 0.002   # spread > 0.2% → elevated risk
+    spread_pct_extreme: 0.010
+
+  # ── Volatility Intelligence ───────────────────────────────────────────────
+  volatility:
+    optimal_vol_low: 0.5     # vol_ratio below this = too low
+    optimal_vol_high: 2.0    # vol_ratio above this = too high
+    extreme_ratio: 4.0
+
+  # ── Momentum Intelligence ─────────────────────────────────────────────────
+  momentum:
+    fast_period: 5
+    slow_period: 20
+    rsi_overbought: 70.0
+    rsi_oversold: 30.0
+
+  # ── Trend Intelligence ────────────────────────────────────────────────────
+  trend:
+    adx_strong: 40.0
+    adx_moderate: 25.0
+    adx_weak: 15.0
+    ema_fast: 9
+    ema_slow: 21
+
+  # ── Liquidity Intelligence ────────────────────────────────────────────────
+  liquidity:
+    vol_lookback: 20
+    illiquid_vol_ratio: 0.1    # volume < 10% of avg = ILLIQUID
+    poor_vol_ratio: 0.3
+    spread_illiquid_atr: 0.5   # spread > 50% of ATR = ILLIQUID
+    spread_poor_atr: 0.20
+
+  # ── Session Intelligence ──────────────────────────────────────────────────
+  session:
+    sessions:
+      OVERLAP:   [12, 16]
+      LONDON:    [7, 16]
+      NEW_YORK:  [12, 21]
+      ASIAN:     [0, 8]
+      OFF_HOURS: []            # catch-all
+
+  # ── News Intelligence ─────────────────────────────────────────────────────
+  news:
+    weights:
+      HIGH_upcoming:   25.0
+      HIGH_recent:     15.0
+      HIGH_past:        8.0
+      MEDIUM_upcoming: 10.0
+      MEDIUM_recent:    5.0
+      MEDIUM_past:      2.0
+      LOW_upcoming:     2.0
+      LOW_recent:       1.0
+      LOW_past:         0.5
+
+  # ── Behavior Similarity ───────────────────────────────────────────────────
+  behavior_similarity:
+    min_matches: 3
+    decay: 3.0
+
+  # ── Prediction Reliability ────────────────────────────────────────────────
+  prediction_reliability:
+    min_confidence: 0.30
+    max_confidence: 0.95
+
+  # ── Calibration Engine ────────────────────────────────────────────────────
+  calibration:
+    n_bins: 5
+
+  # ── Tradeability Engine ───────────────────────────────────────────────────
+  tradeability:
+    factor_weights:
+      prediction_confidence: 0.12
+      expected_rr:           0.10
+      expected_move:         0.06
+      expected_holding:      0.05
+      risk_regime:           0.10
+      market_regime:         0.10
+      liquidity:             0.08
+      execution_quality:     0.07
+      spread:                0.05
+      historical_similarity: 0.06
+      calibration:           0.06
+      portfolio_exposure:    0.05
+      news_calendar:         0.04
+      trend_stability:       0.04
+      momentum_stability:    0.02
+    grade_thresholds:
+      A_PLUS: 85
+      A:      70
+      B:      55
+      C:      40
+      D:      25
+      AVOID:  0
+
+  # ── Execution Intelligence ────────────────────────────────────────────────
+  execution:
+    tradeability_avoid: 30.0
+    tradeability_wait:  50.0
+    spread_limit_ratio: 0.10
+    atr_entry_buffer:   0.30
+    atr_stop_mult:      1.50
+    atr_target_mult:    3.00
+    atr_exit_buffer:    0.20
+    max_holding_bars:   40
+    drawdown_atr_mult:  0.80
+
+  # ── Market Quality Engine ─────────────────────────────────────────────────
+  market_quality:
+    weights:
+      execution_quality:  0.15
+      prediction_quality: 0.15
+      liquidity_quality:  0.15
+      volatility_quality: 0.15
+      momentum_quality:   0.10
+      trend_quality:      0.10
+      session_quality:    0.10
+      news_inv:           0.10
+
+  # ── Portfolio Risk Engine ─────────────────────────────────────────────────
+  portfolio_risk:
+    daily_risk_budget: 0.02
+    corr_limit_normal: 0.70
+    corr_limit_high:   0.40
+    base_position_frac: 0.02
+    max_exposure:
+      NORMAL:   0.40
+      ELEVATED: 0.25
+      HIGH:     0.15
+      EXTREME:  0.05
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  database:
+    path: ":memory:"        # override with file path in production
+    tables:
+      - market_intelligence
+      - market_regime_history
+      - risk_history
+      - tradeability_history
+      - market_quality
+      - execution_quality
+      - prediction_reliability
+      - behavior_similarity
+      - ai_commentary
+      - market_scores
+
+  # ── Worker ────────────────────────────────────────────────────────────────
+  worker:
+    max_queue: 100
+    triggers:
+      - NEW_CANDLE
+      - ECONOMIC_EVENT
+      - NEW_PREDICTION
+      - MODEL_UPDATE
+      - REGIME_TRANSITION
+      - MANUAL_REFRESH
+
+  # ── API ───────────────────────────────────────────────────────────────────
+  api:
+    endpoints:
+      - GET  /api/v1/intelligence/current
+      - GET  /api/v1/intelligence/history
+      - GET  /api/v1/intelligence/tradeability
+      - GET  /api/v1/intelligence/risk
+      - GET  /api/v1/intelligence/regime
+      - GET  /api/v1/intelligence/execution
+      - GET  /api/v1/intelligence/quality
+      - GET  /api/v1/intelligence/commentary
+      - POST /api/v1/intelligence/recalculate
