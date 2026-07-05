@@ -116,7 +116,7 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
-  apps/api-server:
+  apps/trainer-api:
     dependencies:
       '@workspace/api-zod':
         specifier: workspace:*
