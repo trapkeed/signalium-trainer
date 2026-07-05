@@ -1,0 +1,120 @@
+# Phase 16 — Institutional AutoML Platform Configuration
+#
+# All parameters are configurable here — no code changes required to:
+#   - Add parameters to the search space
+#   - Change the search strategy
+#   - Adjust objectives
+#   - Modify pruning rules
+#   - Change optimization budgets
+#   - Adjust promotion thresholds
+
+automl:
+  # -------------------------------------------------------------------------
+  # Search job identity
+  # -------------------------------------------------------------------------
+  name: signalium_automl_search
+  strategy: bayesian           # manual | grid | random | bayesian
+
+  # -------------------------------------------------------------------------
+  # Budget
+  # -------------------------------------------------------------------------
+  n_trials: 50
+  budget_type: trials          # trials | time | metric
+  budget_seconds: null         # used when budget_type: time
+  target_score: null           # used when budget_type: metric
+  seed: 42
+
+  # -------------------------------------------------------------------------
+  # Objectives
+  # -------------------------------------------------------------------------
+  objective: composite_research_score
+  objectives:
+    - composite_research_score
+    - sharpe_ratio
+    - max_drawdown
+    - profit_factor
+    - expected_calibration_error
+
+  # -------------------------------------------------------------------------
+  # Backbone search
+  # -------------------------------------------------------------------------
+  backbones:
+    - lstm
+    - gru
+    - transformer_encoder
+    - temporal_cnn
+    - hybrid_lstm_cnn
+    - hybrid_transformer_cnn
+
+  # -------------------------------------------------------------------------
+  # Search space
+  # -------------------------------------------------------------------------
+  search_space_name: signalium_standard
+  # Override individual parameters by adding custom_search_space:
+  # custom_search_space:
+  #   name: custom
+  #   parameters:
+  #     - type: float
+  #       name: learning_rate
+  #       low: 0.0001
+  #       high: 0.01
+  #       log: true
+
+  # -------------------------------------------------------------------------
+  # Strategy-specific config
+  # -------------------------------------------------------------------------
+  strategy_config:
+    n_initial_random: 8        # bayesian: random trials before GP kicks in
+    n_candidates: 100          # bayesian: candidates per acquisition step
+    exploration: 0.01          # bayesian: EI exploration factor xi
+    max_per_param: 5           # grid: values per parameter
+
+  # -------------------------------------------------------------------------
+  # Pruning
+  # -------------------------------------------------------------------------
+  pruner: median               # none | median | successive_halving
+  pruner_config:
+    n_startup_trials: 5        # median: trials before pruning activates
+    n_warmup_steps: 2          # median: steps before pruning within a trial
+    interval_steps: 1
+    percentile: 50.0           # median: prune below this percentile
+    # successive_halving:
+    # min_resource: 1
+    # reduction_factor: 3
+    # min_early_stopping_rate: 0
+
+  # -------------------------------------------------------------------------
+  # Resource management
+  # -------------------------------------------------------------------------
+  max_workers: 1
+  gpu_memory_gb: 0.0           # 0 = CPU-only
+  max_ram_gb: 32.0
+  max_retries: 2
+  checkpoint_frequency: 5
+
+  # -------------------------------------------------------------------------
+  # Database and export
+  # -------------------------------------------------------------------------
+  db_path: experiments/automl/automl.db
+  export_dir: experiments/automl/reports
+
+  # -------------------------------------------------------------------------
+  # Metadata
+  # -------------------------------------------------------------------------
+  dataset_version: ""
+  feature_version: ""
+  label_version: ""
+  git_commit: ""
+  hardware: CPU
+
+  # -------------------------------------------------------------------------
+  # Promotion
+  # -------------------------------------------------------------------------
+  auto_promote: false          # true = auto-promote best eligible trial
+  require_validation: true     # true = Phase 15 validation before promotion
+  promotion_thresholds:
+    min_validation_score: 0.55
+    min_sharpe_ratio: 0.5
+    max_max_drawdown: 0.35
+    min_profit_factor: 1.0
+    min_win_rate: 0.45
