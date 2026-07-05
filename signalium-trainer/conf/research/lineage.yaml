@@ -1,0 +1,139 @@
+# Phase 19.1 — Experiment Lineage & Reproducibility Configuration
+
+lineage:
+  # SQLite database path for lineage persistence
+  db_path: "experiments/research/lineage.db"
+
+  # Default researcher name when none is provided
+  default_researcher: "system"
+
+  # Automatically capture the execution environment on experiment registration
+  capture_environment_by_default: true
+
+  # Minimum reproducibility score required for promotion review (0.0-1.0)
+  min_reproducibility_score_for_promotion: 0.75
+
+  # Branch naming convention enforcement (advisory only)
+  allowed_branches:
+    - "main"
+    - "feature/*"
+    - "experiment/*"
+    - "hotfix/*"
+    - "ablation/*"
+    - "baseline/*"
+
+cost_tracking:
+  # GPU compute rate (USD per GPU-hour)
+  gpu_rate_per_hour: 2.00
+
+  # CPU compute rate (USD per CPU-hour)
+  cpu_rate_per_hour: 0.05
+
+  # Object storage rate (USD per GB-month, AWS S3-equivalent)
+  storage_rate_per_gb_month: 0.023
+
+  # Inference compute rate (USD per GPU-hour)
+  inference_rate_per_hour: 0.50
+
+  # Alert threshold — log warning when single experiment cost exceeds this
+  single_experiment_cost_alert_usd: 50.00
+
+  # Alert threshold — log warning when total platform cost exceeds this
+  platform_cost_alert_usd: 1000.00
+
+knowledge_graph:
+  # Maximum number of feature nodes to auto-register per experiment
+  # (prevents graph explosion for large feature sets)
+  max_features_per_experiment: 50
+
+  # Enable automatic PARENT_OF edges on experiment registration
+  auto_register_parent_edges: true
+
+  # Enable automatic USES_DATASET edges on snapshot attachment
+  auto_register_dataset_edges: true
+
+  # Enable automatic USES_FEATURE edges on snapshot attachment
+  auto_register_feature_edges: true
+
+  # Enable automatic HAS_MODEL edges on snapshot attachment
+  auto_register_model_edges: true
+
+timeline:
+  # Maximum events to return from get_recent_events() by default
+  default_recent_event_count: 20
+
+  # Persist timeline events to database after each record
+  persist_on_record: true
+
+reproducibility:
+  # Environment variable prefixes allowed for capture (non-sensitive)
+  allowed_env_prefixes:
+    - "LANG"
+    - "LC_"
+    - "TZ"
+    - "PATH"
+    - "PYTHONPATH"
+    - "CUDA_VISIBLE_DEVICES"
+    - "OMP_NUM_THREADS"
+    - "MKL_NUM_THREADS"
+    - "SIGNALIUM_"
+    - "TRAINER_"
+    - "TORCH_"
+    - "NCCL_"
+    - "HOSTNAME"
+
+  # Substrings that mark an env var as sensitive (never captured)
+  sensitive_substrings:
+    - "SECRET"
+    - "TOKEN"
+    - "PASSWORD"
+    - "PASSWD"
+    - "KEY"
+    - "CREDENTIAL"
+    - "API_KEY"
+    - "AUTH"
+    - "PRIVATE"
+    - "CERT"
+
+  # Maximum length of env var values to store
+  max_env_var_value_length: 256
+
+  # git command timeout in seconds
+  git_command_timeout_seconds: 5
+
+  # nvidia-smi command timeout in seconds
+  nvidia_smi_timeout_seconds: 5
+
+dashboards:
+  # Dashboard types enabled
+  enabled:
+    - "research_timeline"
+    - "knowledge_graph"
+    - "experiment_tree"
+    - "dataset_history"
+    - "champion_evolution"
+    - "training_cost"
+    - "feature_evolution"
+
+export:
+  # Default export format: "dict" or "markdown"
+  default_format: "dict"
+
+  # Include environment snapshot in experiment cards
+  include_environment_in_cards: true
+
+  # Include validation results in experiment cards
+  include_validation_in_cards: true
+
+  # Include cost estimates in experiment cards
+  include_cost_in_cards: true
+
+database:
+  # SQLite journal mode
+  journal_mode: "WAL"
+
+  # Enable foreign key enforcement
+  foreign_keys: true
+
+  # Thread-local connection isolation
+  thread_local_connections: true

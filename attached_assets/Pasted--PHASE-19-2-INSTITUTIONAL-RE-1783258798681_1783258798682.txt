@@ -1,0 +1,452 @@
+======================================================================
+PHASE 19.2
+INSTITUTIONAL RESEARCH SCORING ENGINE (IRSE)
+======================================================================
+
+Extend the Institutional Research Intelligence Platform.
+
+MISSION
+
+Build Signalium's Institutional Research Scoring Engine (IRSE).
+
+The objective is to create a standardized quantitative scoring framework
+used to evaluate every experiment, model, dataset, feature set,
+validation run, and production deployment.
+
+The Research Score becomes the official ranking metric across the
+entire Signalium ecosystem.
+
+Every experiment must receive a reproducible composite score.
+
+The scoring system must be configurable and transparent.
+
+Maintain complete backward compatibility.
+
+======================================================================
+RESEARCH SCORE
+======================================================================
+
+Implement a composite Research Score ranging from 0 to 100.
+
+The score must be calculated from configurable weighted categories.
+
+Example default weighting:
+
+Validation Quality ............... 25%
+
+Trading Performance .............. 25%
+
+Robustness ....................... 15%
+
+Calibration ...................... 10%
+
+Generalization ................... 10%
+
+Efficiency ....................... 5%
+
+Explainability ................... 5%
+
+Operational Readiness ............ 5%
+
+Allow administrators to change weights without modifying code.
+
+======================================================================
+VALIDATION QUALITY
+======================================================================
+
+Include:
+
+Walk Forward Score
+
+Cross-Regime Stability
+
+Cross-Instrument Stability
+
+Cross-Timeframe Stability
+
+Consistency
+
+Prediction Reliability
+
+======================================================================
+TRADING PERFORMANCE
+======================================================================
+
+Include:
+
+Profit Factor
+
+Expectancy
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Calmar Ratio
+
+Maximum Drawdown
+
+Win Rate
+
+Average R Multiple
+
+TP Before SL Accuracy
+
+Capital Efficiency
+
+======================================================================
+ROBUSTNESS
+======================================================================
+
+Evaluate:
+
+Monte Carlo Stability
+
+Stress Testing
+
+Noise Resistance
+
+Data Gap Tolerance
+
+Spread Expansion
+
+Execution Delay Tolerance
+
+Volatility Shift Tolerance
+
+======================================================================
+CALIBRATION
+======================================================================
+
+Measure:
+
+Expected Calibration Error
+
+Brier Score
+
+Confidence Reliability
+
+Prediction Entropy
+
+Probability Calibration
+
+======================================================================
+GENERALIZATION
+======================================================================
+
+Evaluate:
+
+Unseen Instruments
+
+Unseen Timeframes
+
+Unseen Regimes
+
+Out-of-Sample Performance
+
+Recent Data Performance
+
+Historical Stability
+
+======================================================================
+EFFICIENCY
+======================================================================
+
+Measure:
+
+Inference Latency
+
+Training Time
+
+GPU Utilization
+
+CPU Utilization
+
+RAM Usage
+
+Model Size
+
+Storage Footprint
+
+======================================================================
+EXPLAINABILITY
+======================================================================
+
+Score:
+
+Feature Attribution Coverage
+
+Attention Quality
+
+Prediction Traceability
+
+Decision Transparency
+
+Documentation Completeness
+
+======================================================================
+OPERATIONAL READINESS
+======================================================================
+
+Evaluate:
+
+Deployment Readiness
+
+Monitoring Coverage
+
+Health Checks
+
+Drift Monitoring
+
+Rollback Readiness
+
+Audit Completeness
+
+======================================================================
+CONFIDENCE SCORE
+======================================================================
+
+Generate an independent confidence score for the Research Score itself.
+
+This should reflect:
+
+Sample Size
+
+Validation Coverage
+
+Market Diversity
+
+Regime Diversity
+
+Statistical Confidence
+
+======================================================================
+GRADE SYSTEM
+======================================================================
+
+Assign grades.
+
+Example:
+
+95–100 = Institutional Elite
+
+90–94 = Institutional
+
+85–89 = Production Ready
+
+80–84 = Candidate
+
+70–79 = Experimental
+
+Below 70 = Research Only
+
+Grades must be configurable.
+
+======================================================================
+LEADERBOARDS
+======================================================================
+
+Create leaderboards ranked by:
+
+Research Score
+
+Validation Score
+
+Trading Score
+
+Efficiency Score
+
+Robustness Score
+
+Calibration Score
+
+Overall Grade
+
+Support filtering by:
+
+Instrument
+
+Timeframe
+
+Backbone
+
+Architecture
+
+Dataset Version
+
+Feature Version
+
+Model Family
+
+======================================================================
+TREND ANALYSIS
+======================================================================
+
+Track Research Score evolution over time.
+
+Generate:
+
+Score History
+
+Improvement Trend
+
+Regression Detection
+
+Champion Timeline
+
+Score Distribution
+
+======================================================================
+BENCHMARKING
+======================================================================
+
+Compare:
+
+Current Model
+
+Champion
+
+Historical Champions
+
+Baseline Models
+
+Experimental Models
+
+Generate detailed score breakdowns.
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables for:
+
+Research Scores
+
+Category Scores
+
+Historical Scores
+
+Weight Configurations
+
+Benchmark Results
+
+Score History
+
+======================================================================
+API
+======================================================================
+
+Create endpoints for:
+
+Research Scores
+
+Score Breakdown
+
+Leaderboards
+
+Benchmark Comparisons
+
+Historical Trends
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate dashboards:
+
+Research Score Timeline
+
+Radar Charts
+
+Category Breakdown
+
+Benchmark Comparison
+
+Leaderboard
+
+Score Heatmaps
+
+Historical Evolution
+
+======================================================================
+EXPORT
+======================================================================
+
+Support export to:
+
+JSON
+
+CSV
+
+HTML
+
+PDF
+
+Include complete score breakdowns.
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Score Calculation Tests
+
+Weight Validation Tests
+
+Benchmark Tests
+
+Leaderboard Tests
+
+Regression Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Institutional Research Score Guide
+
+Scoring Methodology
+
+Weight Configuration Guide
+
+Benchmark Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+The Research Score becomes the primary metric for ranking all
+experiments.
+
+Do NOT use accuracy alone to determine model quality.
+
+All category scores must remain individually accessible.
+
+All calculations must be deterministic and reproducible.
+
+Generate a complete Institutional Research Scoring Engine Report.
+
+Include:
+
+Scoring Formula
+
+Weighting Architecture
+
+Category Definitions
+
+Benchmark Methodology
+
+Leaderboard Design
+
+Historical Tracking
+
+Operational Readiness
+
+Institutional Readiness
