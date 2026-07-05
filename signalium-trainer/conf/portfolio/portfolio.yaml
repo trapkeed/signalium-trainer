@@ -1,0 +1,205 @@
+# ============================================================
+# Phase 20 — Portfolio Intelligence Engine Configuration
+# ============================================================
+
+portfolio:
+  # Default allocation method (equal_weight | confidence_weight | risk_parity |
+  #                             return_scaled | sharpe_scaled | minimum_variance | hybrid)
+  default_method: hybrid
+  risk_free_rate: 0.045
+  database_path: data/portfolio.db
+
+# ── Correlation Engine ──────────────────────────────────────
+correlation:
+  window: 60
+  decay: 0.94
+  default_method: rolling    # rolling | rank | tail_lower | tail_upper | exponential
+  high_correlation_threshold: 0.70
+  min_observations: 10
+
+# ── Regime Detector ─────────────────────────────────────────
+regime:
+  vol_window: 20
+  trend_window: 40
+  high_vol_percentile: 0.75
+  low_vol_percentile:  0.25
+  risk_on_instruments:  [NAS100, SPX500, BTCUSD, AUDUSD, NZDUSD]
+  safe_haven_instruments: [XAUUSD, USDJPY, USDCHF]
+
+# ── Risk Budget (default) ───────────────────────────────────
+risk_budget:
+  preset: default    # default | conservative | aggressive
+  max_usd_exposure: 0.60
+  max_gold_exposure: 0.25
+  max_crypto_exposure: 0.20
+  max_index_exposure: 0.35
+  max_single_instrument: 0.30
+  max_correlated_exposure: 0.50
+  max_total_gross: 1.50
+  max_forex_exposure: 0.70
+  max_commodity_exposure: 0.30
+  max_region_exposure: 0.65
+  max_long_only: 0.80
+  max_short_only: 0.80
+
+# ── Risk Budget Presets ─────────────────────────────────────
+risk_budget_presets:
+  conservative:
+    max_usd_exposure: 0.50
+    max_gold_exposure: 0.20
+    max_crypto_exposure: 0.10
+    max_index_exposure: 0.25
+    max_single_instrument: 0.20
+    max_correlated_exposure: 0.40
+    max_total_gross: 1.20
+    max_forex_exposure: 0.60
+    max_commodity_exposure: 0.20
+    max_region_exposure: 0.55
+  aggressive:
+    max_usd_exposure: 0.80
+    max_gold_exposure: 0.40
+    max_crypto_exposure: 0.35
+    max_index_exposure: 0.50
+    max_single_instrument: 0.45
+    max_correlated_exposure: 0.70
+    max_total_gross: 2.00
+    max_forex_exposure: 0.90
+    max_commodity_exposure: 0.45
+    max_region_exposure: 0.80
+
+# ── Conflict Resolver ───────────────────────────────────────
+conflict_resolver:
+  enabled: true
+  high_confidence_gap: 0.30
+  medium_confidence_gap: 0.10
+  safe_haven_risk_severity_scale: 0.70
+
+# ── Dependency Graph ────────────────────────────────────────
+dependency_graph:
+  edge_threshold: 0.30
+  cluster_threshold: 0.60
+  max_snapshots: 100
+
+# ── Exposure Engine ─────────────────────────────────────────
+exposure:
+  asset_class_limit: 0.70
+  currency_limit: 0.60
+  region_limit: 0.75
+  single_instrument_limit: 0.35
+  usd_net_limit: 0.55
+
+# ── Optimizer ───────────────────────────────────────────────
+optimizer:
+  default_objective: max_sharpe  # max_sharpe | min_volatility | max_diversification |
+                                  # max_risk_adjusted_return | balanced
+  max_iterations: 200
+  convergence_tol: 0.00001
+  max_weight: 0.40
+  min_weight: 0.01
+  long_only: true
+  efficient_frontier_points: 10
+
+# ── Scenario Analysis ───────────────────────────────────────
+scenario:
+  default_scenarios:
+    - risk_on
+    - risk_off
+    - high_inflation
+    - low_inflation
+    - rate_hike
+    - rate_cut
+    - volatility_spike
+    - usd_rally
+    - commodity_shock_up
+    - credit_crisis
+  min_stressed_sharpe_threshold: 0.0
+  resilience_floor: 0.50
+
+# ── Instruments ─────────────────────────────────────────────
+instruments:
+  defaults:
+    - symbol: EURUSD
+      asset_class: forex
+      base: EUR
+      quote: USD
+      region: europe
+    - symbol: GBPUSD
+      asset_class: forex
+      base: GBP
+      quote: USD
+      region: europe
+    - symbol: USDJPY
+      asset_class: forex
+      base: USD
+      quote: JPY
+      region: asia_pacific
+    - symbol: USDCHF
+      asset_class: forex
+      base: USD
+      quote: CHF
+      region: europe
+    - symbol: USDCAD
+      asset_class: forex
+      base: USD
+      quote: CAD
+      region: north_america
+    - symbol: AUDUSD
+      asset_class: forex
+      base: AUD
+      quote: USD
+      region: asia_pacific
+    - symbol: NZDUSD
+      asset_class: forex
+      base: NZD
+      quote: USD
+      region: asia_pacific
+    - symbol: EURJPY
+      asset_class: forex
+      base: EUR
+      quote: JPY
+      region: europe
+    - symbol: GBPJPY
+      asset_class: forex
+      base: GBP
+      quote: JPY
+      region: europe
+    - symbol: XAUUSD
+      asset_class: commodity
+      base: XAU
+      quote: USD
+      region: global
+    - symbol: XAGUSD
+      asset_class: commodity
+      base: XAG
+      quote: USD
+      region: global
+    - symbol: NAS100
+      asset_class: index
+      base: NAS
+      quote: USD
+      region: north_america
+    - symbol: US30
+      asset_class: index
+      base: DOW
+      quote: USD
+      region: north_america
+    - symbol: SPX500
+      asset_class: index
+      base: SPX
+      quote: USD
+      region: north_america
+    - symbol: BTCUSD
+      asset_class: crypto
+      base: BTC
+      quote: USD
+      region: global
+    - symbol: ETHUSD
+      asset_class: crypto
+      base: ETH
+      quote: USD
+      region: global
+
+# ── Logging ─────────────────────────────────────────────────
+logging:
+  level: INFO
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"

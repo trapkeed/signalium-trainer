@@ -2,5 +2,6 @@
 - [Traceability layer](traceability-layer.md) — TracedInferenceAdapter is a pure decorator; never modifies predictions; all metadata in PredictionMetadata alongside the dict.
 - [Phase 14.9B infrastructure gaps](phase-14-9b-gaps.md) — trainer/checkpoints/ package was entirely absent despite both engines importing from it; accumulate_grad_batches and warmup_epochs were in schema but unwired in engines.
 - [Phase 14.9C explainability design](phase-14-9c-explainability.md) — attribution methods use _grad_mode() context to re-enable grad/restore training state; attention hooks must be registered via context manager or they leak; PluginRegistry is class-level and must be cleared in test autouse fixtures.
-- [torch-free test imports](torch-free-test-imports.md) — all trainer.research module tests MUST use spec_from_file_location, never importlib.import_module.
-- [SQLite memory DB persistence](sqlite-memory-persistence.md) — HRSADatabase with :memory: keeps one persistent connection; each new connect() creates a fresh empty DB losing the schema.
+- [torch-free test imports](torch-free-test-imports.md) — all trainer.research module tests MUST use spec_from_file_location, never importlib.import_module. unittest discover shows 0 tests for these files; that is expected.
+- [SQLite memory DB persistence](sqlite-memory-persistence.md) — HRSADatabase with :memory: keeps one persistent connection; each new connect() creates a fresh empty DB losing the schema. Same pattern used in PortfolioDatabase.
+- [Phase 20 portfolio package](phase-20-portfolio.md) — trainer/portfolio/ is a 14-module stdlib+loguru-only package; weights must be renormalized after scale_to_budget() since individual caps can leave sum(abs) < 1.
