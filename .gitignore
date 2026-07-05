@@ -47,3 +47,84 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+junit*.xml
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Hydra outputs
+outputs/
+multirun/
+.hydra/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Data / datasets (never commit real datasets)
+data/datasets/
+data/cache/
+data/raw/
+*.parquet
+*.csv
+*.arrow
+*.feather
+
+# Checkpoints & exports
+checkpoints/
+exports/
+reports/
+
+# Logs
+logs/
+*.log
+
+# Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Docker build context
+.docker/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# RunPod
+runpod_*.json
+
+# ONNX / TorchScript compiled files (produced by export commands)
+*.onnx
+*.torchscript.pt
+
+# Generated documentation artifacts
+*.pdf
