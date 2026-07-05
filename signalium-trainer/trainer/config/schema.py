@@ -23,6 +23,8 @@ class OptimizerType(str, Enum):
     ADAMW = "adamw"
     SGD = "sgd"
     RMSPROP = "rmsprop"
+    ADAGRAD = "adagrad"
+    ADAMAX = "adamax"
 
 
 class SchedulerType(str, Enum):
@@ -32,6 +34,9 @@ class SchedulerType(str, Enum):
     STEP = "step"
     REDUCE_ON_PLATEAU = "reduce_on_plateau"
     EXPONENTIAL = "exponential"
+    COSINE_WARM_RESTARTS = "cosine_warm_restarts"
+    ONE_CYCLE = "one_cycle"
+    LINEAR = "linear"
     NONE = "none"
 
 
@@ -98,6 +103,13 @@ class SchedulerConfig:
     gamma: float = 0.1
     patience: int = 5
     factor: float = 0.5
+    T_0: int = 10
+    T_mult: int = 1
+    max_lr: float = 1e-2
+    pct_start: float = 0.3
+    div_factor: float = 25.0
+    final_div_factor: float = 1e4
+    total_steps: Optional[int] = None
 
 
 @dataclass
@@ -111,6 +123,22 @@ class CheckpointConfig:
     save_latest: bool = True
     monitor_metric: str = "val_loss"
     monitor_mode: str = "min"
+    save_optimizer_state: bool = True
+    save_scheduler_state: bool = True
+    save_rng_state: bool = True
+    save_training_config: bool = True
+
+
+@dataclass
+class ReproducibilityConfig:
+    """Reproducibility tracking settings."""
+
+    enabled: bool = True
+    fingerprint_dir: str = "checkpoints/fingerprints"
+    dataset_version: Optional[str] = None
+    feature_version: Optional[str] = None
+    label_version: Optional[str] = None
+    verify_on_resume: bool = True
 
 
 @dataclass
@@ -122,6 +150,7 @@ class TrainingConfig:
     mixed_precision: bool = True
     gradient_clip_val: float = 1.0
     accumulate_grad_batches: int = 1
+    gradient_checkpointing: bool = False
     early_stopping_patience: int = 10
     early_stopping_min_delta: float = 1e-4
     log_every_n_steps: int = 10
@@ -195,3 +224,4 @@ class TrainerConfig:
     mlflow: MLflowConfig = field(default_factory=MLflowConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     export: ExportConfig = field(default_factory=ExportConfig)
+    reproducibility: ReproducibilityConfig = field(default_factory=ReproducibilityConfig)

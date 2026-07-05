@@ -25,6 +25,9 @@ class BackboneType(str, Enum):
 
     LSTM = "lstm"
     GRU = "gru"
+    TRANSFORMER = "transformer"
+    TEMPORAL_CNN = "temporal_cnn"
+    HYBRID_LSTM_TRANSFORMER = "hybrid_lstm_transformer"
 
 
 class LossType(str, Enum):
@@ -95,7 +98,33 @@ class InputEncoderConfig:
 
 @dataclass
 class BackboneConfig:
-    """Configuration for the SequenceEncoder backbone."""
+    """Configuration for the SequenceEncoder backbone.
+
+    Fields common to all backbones
+    --------------------------------
+    type, hidden_size, num_layers, dropout, bidirectional, window_length
+
+    Transformer-specific
+    --------------------
+    num_heads   : Number of attention heads.
+    ff_dim      : Feed-forward inner dimension.
+    max_seq_len : Maximum sequence length for positional encoding.
+    pooling     : "last" | "mean" — how to aggregate the sequence.
+
+    Temporal CNN-specific
+    ---------------------
+    tcn_channels   : List of output channels per TCN layer.
+    tcn_kernel_size: Causal convolution kernel width.
+
+    Hybrid LSTM+Transformer
+    -----------------------
+    rnn_layers        : LSTM layers before Transformer.
+    transformer_layers: Transformer encoder layers after LSTM.
+
+    Gradient checkpointing
+    ----------------------
+    gradient_checkpointing: Trade compute for activation memory.
+    """
 
     type: BackboneType = BackboneType.LSTM
     hidden_size: int = 256
@@ -103,6 +132,15 @@ class BackboneConfig:
     dropout: float = 0.3
     bidirectional: bool = False
     window_length: int = 60
+    num_heads: int = 8
+    ff_dim: int = 1024
+    max_seq_len: int = 60
+    tcn_channels: list = field(default_factory=lambda: [64, 128, 256])
+    tcn_kernel_size: int = 3
+    rnn_layers: int = 1
+    transformer_layers: int = 1
+    pooling: str = "last"
+    gradient_checkpointing: bool = False
 
 
 @dataclass

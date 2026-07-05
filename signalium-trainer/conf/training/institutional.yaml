@@ -1,0 +1,96 @@
+# Institutional Training Configuration — Phase 14.9B
+# ====================================================
+# Production-grade defaults for institutional-standard training.
+# Optimised for GPU clusters, reproducibility, and maximum fidelity.
+
+training:
+  epochs: 200
+  seed: 42
+  mixed_precision: true
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 4        # Effective batch = batch_size * 4
+  gradient_checkpointing: false     # Enable for very large backbones
+  early_stopping_patience: 20
+  early_stopping_min_delta: 0.0001
+  log_every_n_steps: 10
+  val_every_n_epochs: 1
+
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  momentum: 0.9
+
+scheduler:
+  type: cosine
+  warmup_epochs: 10                 # Linear warmup before cosine decay
+  T_max: 190                        # Remaining epochs after warmup
+  eta_min: 1.0e-7
+  step_size: 30
+  gamma: 0.5
+  patience: 10
+  factor: 0.5
+  T_0: 20
+  T_mult: 2
+  max_lr: 0.001
+  pct_start: 0.3
+  div_factor: 25.0
+  final_div_factor: 10000.0
+  total_steps: null
+
+checkpoint:
+  checkpoint_dir: checkpoints/institutional
+  save_every_n_epochs: 1
+  keep_top_k: 5                     # Keep 5 best checkpoints
+  save_best: true
+  save_latest: true
+  monitor_metric: val_loss
+  monitor_mode: min
+  save_optimizer_state: true
+  save_scheduler_state: true
+  save_rng_state: true              # Enable exact resume
+  save_training_config: true
+
+dataloader:
+  batch_size: 64
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 4
+  persistent_workers: true
+  drop_last: true                   # For stable gradient accumulation
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+gpu:
+  device: auto
+  num_gpus: 1
+  allow_tf32: true
+  cudnn_benchmark: true
+  cudnn_deterministic: false        # Set true for bit-exact reproducibility
+
+reproducibility:
+  enabled: true
+  fingerprint_dir: checkpoints/fingerprints
+  dataset_version: null             # Override with actual version
+  feature_version: null
+  label_version: null
+  verify_on_resume: true
+
+mlflow:
+  enabled: true
+  tracking_uri: mlruns
+  experiment_name: signalium-institutional
+  log_artifacts: true
+  log_models: true
+
+logging:
+  level: INFO
+  format: json
+  log_dir: logs
+  rotation: 100 MB
+  retention: 30 days
+  backtrace: true
+  diagnose: false

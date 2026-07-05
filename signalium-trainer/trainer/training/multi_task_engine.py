@@ -1,13 +1,13 @@
-"""MultiTaskTrainingEngine — extends TrainingEngine for Phase 14.5 multi-task training.
+"""MultiTaskTrainingEngine — Phase 14.9B upgrade.
 
-Differences from the original TrainingEngine:
-  - Accepts dict-valued labels (y_direction, y_move, y_sl, etc.) instead of a
-    single label tensor.
-  - Uses MultiTaskLoss and tracks per-head loss components.
-  - Reports per-head validation metrics (MAE, RMSE, AUC-ROC, calibration).
-  - forward_multi_task() is called instead of forward() for the model.
-  - Mixed precision, gradient clipping, checkpointing, and early stopping are
-    all inherited unchanged from TrainingEngine.
+Extends TrainingEngine for Phase 14.5 multi-task training.
+
+Phase 14.9B additions (same as engine.py):
+  - Gradient accumulation (accumulate_grad_batches)
+  - Warmup scheduler (warmup_epochs)
+  - New optimizers: Adagrad, Adamax
+  - New schedulers: CosineAnnealingWarmRestarts, OneCycleLR, LinearLR
+  - CheckpointManager with full institutional state capture
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from trainer.losses.multi_task import MultiTaskLoss
 from trainer.metrics.tracker import MetricsTracker
 from trainer.models.base import BaseQuantModel
 from trainer.training.early_stopping import EarlyStopping
+from trainer.training.scheduler import WarmupScheduler
 from trainer.training.seed import set_seed
 from trainer.utils.device import resolve_device
 
@@ -38,10 +39,12 @@ class MultiTaskTrainingEngine:
     The engine handles:
     - Seeding and device placement
     - Optimizer and scheduler construction
+    - Warmup LR scheduling
+    - Gradient accumulation
     - Mixed-precision training with AMP
     - Gradient clipping
     - Per-head loss tracking
-    - Checkpoint saving / resuming
+    - Checkpoint saving / resuming (with RNG state)
     - Early stopping
 
     DataLoader batches must yield ``(x, labels_dict)`` where ``labels_dict``
@@ -68,7 +71,7 @@ class MultiTaskTrainingEngine:
 
         self._model = model.to(self._device)
         self._optimizer = self._build_optimizer()
-        self._scheduler = self._build_scheduler()
+        self._scheduler: Any = self._build_scheduler()
         self._scaler = GradScaler(enabled=config.training.mixed_precision)
 
         self._checkpoint_manager = CheckpointManager(
@@ -76,6 +79,10 @@ class MultiTaskTrainingEngine:
             keep_top_k=config.checkpoint.keep_top_k,
             monitor_metric=config.checkpoint.monitor_metric,
             monitor_mode=config.checkpoint.monitor_mode,
+            save_optimizer_state=config.checkpoint.save_optimizer_state,
+            save_scheduler_state=config.checkpoint.save_scheduler_state,
+            save_rng_state=config.checkpoint.save_rng_state,
+            save_training_config=config.checkpoint.save_training_config,
         )
         self._early_stopping = EarlyStopping(
             patience=config.training.early_stopping_patience,
@@ -160,12 +167,16 @@ class MultiTaskTrainingEngine:
         self._model.train()
         accum: dict[str, float] = {}
         n_batches = 0
+        accum_steps = max(1, self._config.training.accumulate_grad_batches)
+        n_loader = len(loader)
 
         for batch_idx, (x, labels) in enumerate(loader):
             x = x.to(self._device, non_blocking=True)
             labels = self._move_labels(labels)
 
-            self._optimizer.zero_grad(set_to_none=True)
+            # Zero grad at the start of each accumulation window
+            if batch_idx % accum_steps == 0:
+                self._optimizer.zero_grad(set_to_none=True)
 
             with torch.autocast(
                 device_type=self._device.type,
@@ -173,17 +184,22 @@ class MultiTaskTrainingEngine:
             ):
                 predictions = self._model.forward_multi_task(x)
                 loss_output = self._criterion(predictions, labels)
+                # Scale loss for accumulation
+                scaled_total = loss_output.total / accum_steps
 
-            self._scaler.scale(loss_output.total).backward()
+            self._scaler.scale(scaled_total).backward()
 
-            if self._config.training.gradient_clip_val > 0:
-                self._scaler.unscale_(self._optimizer)
-                nn.utils.clip_grad_norm_(
-                    self._model.parameters(), self._config.training.gradient_clip_val
-                )
+            is_last_in_window = (batch_idx + 1) % accum_steps == 0
+            is_last_batch = (batch_idx + 1) == n_loader
 
-            self._scaler.step(self._optimizer)
-            self._scaler.update()
+            if is_last_in_window or is_last_batch:
+                if self._config.training.gradient_clip_val > 0:
+                    self._scaler.unscale_(self._optimizer)
+                    nn.utils.clip_grad_norm_(
+                        self._model.parameters(), self._config.training.gradient_clip_val
+                    )
+                self._scaler.step(self._optimizer)
+                self._scaler.update()
 
             per_head = loss_output.to_dict()
             for k, v in per_head.items():
@@ -195,7 +211,7 @@ class MultiTaskTrainingEngine:
                     "Epoch {} | Batch {}/{} | Loss {:.4f}",
                     epoch,
                     batch_idx,
-                    len(loader),
+                    n_loader,
                     loss_output.total.item(),
                 )
 
@@ -241,7 +257,6 @@ class MultiTaskTrainingEngine:
                 accum[k] = accum.get(k, 0.0) + v
             n_batches += 1
 
-            # Accumulate for per-head metrics
             preds_cls = predictions["direction_logits"].argmax(dim=-1)
             direction_correct += (preds_cls == labels["y_direction"].long()).sum().item()
             direction_total += preds_cls.shape[0]
@@ -265,11 +280,9 @@ class MultiTaskTrainingEngine:
         n = max(n_batches, 1)
         metrics: dict[str, float] = {f"val_{k}": v / n for k, v in accum.items()}
 
-        # Direction accuracy
         if direction_total > 0:
             metrics["val_direction_accuracy"] = direction_correct / direction_total
 
-        # Regression MAE + RMSE helpers
         def _mae_rmse(preds: list, targets: list, prefix: str) -> None:
             if preds:
                 p = torch.cat(preds).squeeze(-1)
@@ -286,7 +299,6 @@ class MultiTaskTrainingEngine:
         _mae_rmse(tp_preds, tp_targets, "tp")
         _mae_rmse(ht_preds, ht_targets, "holding_time")
 
-        # TP probability ROC-AUC
         if tp_prob_preds:
             try:
                 from sklearn.metrics import roc_auc_score
@@ -307,6 +319,14 @@ class MultiTaskTrainingEngine:
 
     def _step_scheduler(self, val_loss: float) -> None:
         from trainer.config.schema import SchedulerType
+
+        if isinstance(self._scheduler, WarmupScheduler):
+            stype = self._config.scheduler.type
+            if stype == SchedulerType.REDUCE_ON_PLATEAU:
+                self._scheduler.step(metric=val_loss)
+            else:
+                self._scheduler.step()
+            return
 
         stype = self._config.scheduler.type
         if stype == SchedulerType.REDUCE_ON_PLATEAU:
@@ -346,13 +366,39 @@ class MultiTaskTrainingEngine:
                 params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
                 momentum=cfg.momentum,
             )
+        if cfg.type == OptimizerType.ADAGRAD:
+            return torch.optim.Adagrad(
+                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                eps=cfg.eps,
+            )
+        if cfg.type == OptimizerType.ADAMAX:
+            return torch.optim.Adamax(
+                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                betas=cfg.betas, eps=cfg.eps,
+            )
         raise ValueError(f"Unknown optimizer type: {cfg.type}")
 
-    def _build_scheduler(self) -> torch.optim.lr_scheduler.LRScheduler:
+    def _build_scheduler(self) -> Any:
         from trainer.config.schema import SchedulerType
 
         cfg = self._config.scheduler
         opt = self._optimizer
+        is_plateau = cfg.type == SchedulerType.REDUCE_ON_PLATEAU
+
+        base_scheduler = self._build_base_scheduler(opt, cfg)
+
+        if cfg.warmup_epochs > 0:
+            return WarmupScheduler(
+                optimizer=opt,
+                warmup_epochs=cfg.warmup_epochs,
+                base_scheduler=base_scheduler,
+                is_plateau=is_plateau,
+            )
+        return base_scheduler
+
+    @staticmethod
+    def _build_base_scheduler(opt: torch.optim.Optimizer, cfg: Any) -> Any:
+        from trainer.config.schema import SchedulerType
 
         if cfg.type == SchedulerType.COSINE:
             return torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -364,9 +410,26 @@ class MultiTaskTrainingEngine:
             )
         if cfg.type == SchedulerType.REDUCE_ON_PLATEAU:
             return torch.optim.lr_scheduler.ReduceLROnPlateau(
-                opt, mode=self._config.checkpoint.monitor_mode,
-                patience=cfg.patience, factor=cfg.factor,
+                opt, mode="min", patience=cfg.patience, factor=cfg.factor,
             )
         if cfg.type == SchedulerType.EXPONENTIAL:
             return torch.optim.lr_scheduler.ExponentialLR(opt, gamma=cfg.gamma)
+        if cfg.type == SchedulerType.COSINE_WARM_RESTARTS:
+            return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                opt, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min
+            )
+        if cfg.type == SchedulerType.LINEAR:
+            return torch.optim.lr_scheduler.LinearLR(
+                opt, start_factor=0.01, end_factor=1.0, total_iters=cfg.T_max,
+            )
+        if cfg.type == SchedulerType.ONE_CYCLE:
+            total_steps = cfg.total_steps if cfg.total_steps else cfg.T_max
+            return torch.optim.lr_scheduler.OneCycleLR(
+                opt,
+                max_lr=cfg.max_lr,
+                total_steps=total_steps,
+                pct_start=cfg.pct_start,
+                div_factor=cfg.div_factor,
+                final_div_factor=cfg.final_div_factor,
+            )
         return torch.optim.lr_scheduler.ConstantLR(opt, factor=1.0)

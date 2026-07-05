@@ -1,2 +1,3 @@
 - [Quant model phase architecture](quant-model-phases.md) — Phase 14.5 adds 5 heads; Phase 14.6 adds 15 institutional heads; all share backbone context vector; forward() unchanged.
 - [Traceability layer](traceability-layer.md) — TracedInferenceAdapter is a pure decorator; never modifies predictions; all metadata in PredictionMetadata alongside the dict.
+- [Phase 14.9B infrastructure gaps](phase-14-9b-gaps.md) — trainer/checkpoints/ package was entirely absent despite both engines importing from it; accumulate_grad_batches and warmup_epochs were in schema but unwired in engines.
