@@ -1,2 +1,3 @@
 - [MIE test isolation pattern](mie-test-isolation.md) — spec_from_file_location requires sys.modules pre-registration + try/except loguru fallback
 - [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks
+- [Cert operational scoring](cert-operational-scoring.md) — non-mandatory op failures → WARNING (weight 55), not FAIL; mandatory op failures → weight 0; test assertions must account for this
