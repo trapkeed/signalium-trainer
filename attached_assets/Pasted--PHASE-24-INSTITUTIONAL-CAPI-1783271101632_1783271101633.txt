@@ -1,0 +1,480 @@
+======================================================================
+PHASE 24
+INSTITUTIONAL CAPITAL ALLOCATION & RISK INTELLIGENCE (ICARI)
+======================================================================
+
+Repository
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build Signalium's Institutional Capital Allocation & Risk Intelligence
+Platform.
+
+The objective is to transform Signalium from a forecasting engine into
+an institutional portfolio management system capable of allocating
+capital dynamically according to model quality, market conditions,
+portfolio exposure, risk budgets and expected performance.
+
+This system consumes forecasts, execution recommendations and portfolio
+analytics but never changes the underlying forecasting models.
+
+Maintain complete backward compatibility.
+
+======================================================================
+CAPITAL ALLOCATION ENGINE
+======================================================================
+
+Implement a dynamic capital allocation engine.
+
+Determine allocation using:
+
+Forecast Confidence
+
+Research Score
+
+Execution Score
+
+Expected Value
+
+Expected Return
+
+Expected Drawdown
+
+Portfolio Exposure
+
+Correlation
+
+Market Regime
+
+Volatility
+
+Liquidity
+
+Historical Performance
+
+Recent Performance
+
+Model Confidence
+
+Ensemble Confidence
+
+Decision Quality
+
+======================================================================
+RISK BUDGET ENGINE
+======================================================================
+
+Support configurable risk budgets.
+
+Examples:
+
+Maximum Daily Risk
+
+Maximum Weekly Risk
+
+Maximum Monthly Risk
+
+Maximum Portfolio Risk
+
+Maximum Instrument Risk
+
+Maximum Currency Exposure
+
+Maximum Commodity Exposure
+
+Maximum Crypto Exposure
+
+Maximum Index Exposure
+
+Maximum Strategy Risk
+
+Maximum Correlated Exposure
+
+Maximum Open Trade Risk
+
+======================================================================
+POSITION SIZING ENGINE
+======================================================================
+
+Support multiple sizing methodologies.
+
+Examples:
+
+Fixed Fractional
+
+Fixed Risk
+
+ATR Adjusted
+
+Volatility Adjusted
+
+Expected Value Adjusted
+
+Confidence Adjusted
+
+Risk Budget Adjusted
+
+Kelly Criterion
+
+Fractional Kelly
+
+Custom Formula
+
+Administrators must be able to choose the sizing method.
+
+======================================================================
+DYNAMIC POSITION SIZING
+======================================================================
+
+Position size must adapt automatically according to:
+
+Forecast Quality
+
+Portfolio Exposure
+
+Current Drawdown
+
+Market Volatility
+
+Liquidity
+
+Correlation
+
+Spread
+
+Session
+
+Historical Strategy Performance
+
+Model Health
+
+======================================================================
+CAPITAL EFFICIENCY ENGINE
+======================================================================
+
+Estimate:
+
+Capital Utilization
+
+Idle Capital
+
+Risk Efficiency
+
+Return Efficiency
+
+Exposure Efficiency
+
+Capital Turnover
+
+======================================================================
+PORTFOLIO RISK ENGINE
+======================================================================
+
+Calculate:
+
+Portfolio VaR
+
+Conditional VaR (CVaR)
+
+Expected Shortfall
+
+Maximum Expected Drawdown
+
+Portfolio Volatility
+
+Risk Contribution
+
+Marginal Risk Contribution
+
+Diversification Ratio
+
+Risk Concentration
+
+======================================================================
+DRAWDOWN MANAGEMENT
+======================================================================
+
+Implement adaptive drawdown protection.
+
+Support:
+
+Soft Drawdown Limits
+
+Hard Drawdown Limits
+
+Dynamic Risk Reduction
+
+Capital Preservation Mode
+
+Recovery Mode
+
+Emergency Capital Lockdown
+
+======================================================================
+CORRELATION RISK
+======================================================================
+
+Evaluate:
+
+Rolling Correlations
+
+Dynamic Correlations
+
+Correlation Clusters
+
+Hidden Exposure
+
+Currency Concentration
+
+Cross-Asset Correlation
+
+Tail Correlation
+
+======================================================================
+SCENARIO ENGINE
+======================================================================
+
+Simulate:
+
+Flash Crash
+
+Liquidity Crisis
+
+Spread Expansion
+
+High Volatility
+
+Central Bank Announcement
+
+Risk-On
+
+Risk-Off
+
+Strong USD
+
+Weak USD
+
+Commodity Shock
+
+Crypto Crash
+
+Estimate portfolio resilience.
+
+======================================================================
+ALLOCATION OPTIMIZER
+======================================================================
+
+Optimize allocations for:
+
+Maximum Sharpe
+
+Maximum Sortino
+
+Minimum Drawdown
+
+Maximum Diversification
+
+Risk Parity
+
+Balanced Portfolio
+
+Capital Preservation
+
+Expected Utility
+
+======================================================================
+CAPITAL HEALTH SCORE
+======================================================================
+
+Generate:
+
+Capital Efficiency Score
+
+Risk Score
+
+Allocation Quality
+
+Diversification Score
+
+Portfolio Stability
+
+Capital Utilization Score
+
+Overall Capital Health Score
+
+======================================================================
+RECOMMENDATION ENGINE
+======================================================================
+
+Recommend:
+
+Increase Position
+
+Reduce Position
+
+Delay Entry
+
+Skip Trade
+
+Reduce Portfolio Risk
+
+Increase Diversification
+
+Reduce Correlated Exposure
+
+Activate Capital Preservation
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables.
+
+Capital Allocation
+
+Risk Budgets
+
+Allocation History
+
+Portfolio Risk
+
+Scenario Results
+
+Capital Health
+
+Optimization Results
+
+Drawdown Events
+
+======================================================================
+API
+======================================================================
+
+Create endpoints.
+
+Capital Allocation
+
+Position Sizing
+
+Portfolio Risk
+
+Capital Health
+
+Risk Budgets
+
+Optimization
+
+Scenario Analysis
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate dashboards.
+
+Capital Allocation Dashboard
+
+Risk Dashboard
+
+Exposure Dashboard
+
+Drawdown Dashboard
+
+Capital Health Dashboard
+
+Optimization Dashboard
+
+Scenario Analysis Dashboard
+
+======================================================================
+REPORTING
+======================================================================
+
+Generate:
+
+Daily Risk Report
+
+Weekly Capital Report
+
+Monthly Portfolio Report
+
+Drawdown Analysis
+
+Risk Budget Summary
+
+Capital Utilization Report
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Allocation Tests
+
+Risk Engine Tests
+
+Sizing Tests
+
+Scenario Tests
+
+Optimization Tests
+
+Portfolio Risk Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Capital Allocation Guide
+
+Risk Engine Guide
+
+Position Sizing Guide
+
+Portfolio Risk Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT modify forecasting models.
+
+Do NOT execute trades.
+
+Do NOT connect to brokers.
+
+Operate purely as an institutional capital intelligence layer.
+
+Generate a complete Institutional Capital Allocation &
+Risk Intelligence Architecture Report.
+
+Include:
+
+Architecture
+
+Allocation Engine
+
+Risk Framework
+
+Sizing Engine
+
+Optimization Pipeline
+
+Database Design
+
+API Design
+
+Operational Readiness
+
+Institutional Readiness

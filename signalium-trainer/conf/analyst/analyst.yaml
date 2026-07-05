@@ -1,0 +1,185 @@
+## Phase 23 — Signalium AI Quant Research Analyst (SAQRA) Configuration
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+identity:
+  name:        SAQRA
+  role:        Institutional Research Analyst
+  version:     "1.0"
+  description: AI-powered research assistant for the Signalium quantitative platform
+
+# ── Safety Guardrails ─────────────────────────────────────────────────────────
+safety:
+  prohibited_outputs:
+    - BUY
+    - SELL
+    - LONG
+    - SHORT
+    - ENTER TRADE
+    - EXIT TRADE
+    - PLACE ORDER
+    - EXECUTE ORDER
+  never_replace: production_forecasting
+  never_generate: live_trading_signals
+  grounding_required: true
+  citations_required: true
+  min_citations_per_response: 1
+
+# ── LLM Providers ────────────────────────────────────────────────────────────
+llm:
+  default_provider: MOCK
+  providers:
+    mock:
+      model_name: mock-research-v1
+      available:  true
+    openai:
+      model_name: gpt-4o
+      available:  false    # set to true when OPENAI_API_KEY is configured
+    anthropic:
+      model_name: claude-3-5-sonnet-20241022
+      available:  false
+    gemini:
+      model_name: gemini-1.5-pro
+      available:  false
+    ollama:
+      model_name: llama3
+      host:       http://localhost:11434
+      available:  false
+    azure:
+      model_name: gpt-4o
+      available:  false
+  temperature:  0.30
+  max_tokens:   1024
+
+# ── Knowledge Sources ─────────────────────────────────────────────────────────
+knowledge_sources:
+  - RESEARCH_REPORT
+  - EXPERIMENT
+  - TRAINING_RUN
+  - VALIDATION_REPORT
+  - WALK_FORWARD
+  - MODEL_REGISTRY
+  - RESEARCH_SCORE
+  - FEATURE_IMPORTANCE
+  - DATASET_VERSION
+  - DECISION_MEMORY
+  - COUNTERFACTUAL
+  - KNOWLEDGE_GRAPH
+  - CHAMPION_HISTORY
+  - MODEL_COMPARISON
+  - PORTFOLIO_ANALYTICS
+  - EXECUTION_ANALYTICS
+  - MARKET_MEMORY
+  - LIFECYCLE_ANALYTICS
+  - DRIFT_REPORT
+  - AUDIT_LOG
+  access_mode: read_only
+
+# ── RAG Architecture ──────────────────────────────────────────────────────────
+rag:
+  retrieval:
+    top_k:      5
+    algorithm:  bm25_approximate
+    bm25_k1:    1.5
+    bm25_b:     0.75
+    max_context_chars: 3000
+  grounding:
+    required:   true
+    min_chunks: 0   # 0 = graceful empty (LLM notes no context available)
+
+# ── Citation Framework ────────────────────────────────────────────────────────
+citations:
+  types:
+    - EXPERIMENT
+    - MODEL
+    - DATASET
+    - FEATURE
+    - VALIDATION
+    - REPORT
+    - DECISION
+    - AUDIT_LOG
+    - KNOWLEDGE
+  format:    "[TYPE:ID]"
+  example:   "[EXP:001] [MODEL:42] [DATASET:v18] [FEATURE:rsi_14]"
+  validated: true    # citations cross-referenced against retrieved chunks
+
+# ── Security ─────────────────────────────────────────────────────────────────
+security:
+  roles:
+    ADMIN:
+      permissions: [READ, EXPORT, SUMMARIZE, COMPARE, AUDIT]
+    RESEARCHER:
+      permissions: [READ, SUMMARIZE, COMPARE]
+    VIEWER:
+      permissions: [READ]
+
+# ── Query Types ───────────────────────────────────────────────────────────────
+query_types:
+  - CHAT
+  - COMPARISON
+  - ANALYSIS
+  - SEARCH
+  - SUMMARY
+  - RECOMMENDATION
+  - REPORT
+  - KNOWLEDGE
+
+# ── Report Types ──────────────────────────────────────────────────────────────
+report_types:
+  - DAILY_SUMMARY
+  - WEEKLY_REPORT
+  - MONTHLY_REPORT
+  - QUARTERLY_REVIEW
+  - ANNUAL_REPORT
+  - EXECUTIVE_SUMMARY
+  - MODEL_HEALTH
+  - EXPERIMENT_REVIEW
+  - PERFORMANCE_REVIEW
+  - DEPLOYMENT_READINESS
+  - FEATURE_ANALYSIS
+  - RESEARCH_PROGRESS
+
+# ── Recommendation Types ──────────────────────────────────────────────────────
+recommendation_types:
+  - DATA_COLLECTION
+  - FEATURE_ENGINEERING
+  - ARCHITECTURE_CHANGE
+  - CALIBRATION
+  - REGIME_SPECIALIZATION
+  - SEQUENCE_LENGTH
+  - VALIDATION
+  - STABILITY
+  - DIVERSITY
+
+# ── Database ──────────────────────────────────────────────────────────────────
+database:
+  path: ":memory:"
+  tables:
+    - chat_sessions
+    - research_queries
+    - generated_reports
+    - recommendation_history
+    - prompt_templates
+    - llm_usage
+
+# ── Dashboards ────────────────────────────────────────────────────────────────
+dashboards:
+  views:
+    - research_chat
+    - experiment_explorer
+    - knowledge_graph
+    - recommendation_queue
+    - executive_dashboard
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
+api:
+  endpoints:
+    - chat
+    - search
+    - compare
+    - report
+    - recommend
+    - knowledge_search
+    - get_dashboard
+    - system_stats
+    - index_document
+    - switch_provider
