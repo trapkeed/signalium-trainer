@@ -1,0 +1,214 @@
+# Phase 19.2 — IRSE Scoring Configuration
+# ============================================================
+# Institutional Research Scoring Engine default configuration.
+# All weights, grade thresholds, and normalization bounds are
+# configurable here without modifying code.
+# ============================================================
+
+version: "1.0"
+description: "Institutional Research Scoring Engine (IRSE) v1.0"
+
+# ------------------------------------------------------------------
+# Composite score weights (must sum to 1.0)
+# ------------------------------------------------------------------
+weights:
+  validation_quality:    0.25   # Walk-forward, regime/instrument/timeframe stability
+  trading_performance:   0.25   # Sharpe, drawdown, profit factor, expectancy
+  robustness:            0.15   # Monte Carlo, stress tests, noise tolerance
+  calibration:           0.10   # ECE, Brier score, confidence reliability
+  generalization:        0.10   # OOS, unseen instruments/timeframes/regimes
+  efficiency:            0.05   # Latency, model size, GPU/RAM usage
+  explainability:        0.05   # Feature attribution, attention, documentation
+  operational_readiness: 0.05   # Deployment readiness, monitoring, rollback
+
+# ------------------------------------------------------------------
+# Alternative weight presets (load by name in code)
+# ------------------------------------------------------------------
+weight_presets:
+  validation_heavy:
+    validation_quality:    0.40
+    trading_performance:   0.25
+    robustness:            0.15
+    calibration:           0.07
+    generalization:        0.07
+    efficiency:            0.02
+    explainability:        0.02
+    operational_readiness: 0.02
+
+  trading_heavy:
+    validation_quality:    0.20
+    trading_performance:   0.40
+    robustness:            0.15
+    calibration:           0.08
+    generalization:        0.08
+    efficiency:            0.03
+    explainability:        0.03
+    operational_readiness: 0.03
+
+  efficiency_focused:
+    validation_quality:    0.20
+    trading_performance:   0.20
+    robustness:            0.10
+    calibration:           0.10
+    generalization:        0.10
+    efficiency:            0.20
+    explainability:        0.05
+    operational_readiness: 0.05
+
+  production_balanced:
+    validation_quality:    0.25
+    trading_performance:   0.25
+    robustness:            0.15
+    calibration:           0.10
+    generalization:        0.10
+    efficiency:            0.05
+    explainability:        0.05
+    operational_readiness: 0.05
+
+# ------------------------------------------------------------------
+# Grade system (configurable thresholds)
+# ------------------------------------------------------------------
+grades:
+  - label: "Institutional Elite"
+    min_score: 95.0
+    max_score: 100.0
+    description: "Exceptional model meeting the highest institutional standards. Suitable for full capital allocation."
+    promotion_eligible: true
+    deployment_eligible: true
+    color: "gold"
+
+  - label: "Institutional"
+    min_score: 90.0
+    max_score: 94.999
+    description: "Institutional-grade model with strong validated performance. Eligible for production deployment."
+    promotion_eligible: true
+    deployment_eligible: true
+    color: "green"
+
+  - label: "Production Ready"
+    min_score: 85.0
+    max_score: 89.999
+    description: "Production-ready model with solid metrics. Eligible for limited deployment with monitoring."
+    promotion_eligible: true
+    deployment_eligible: true
+    color: "blue"
+
+  - label: "Candidate"
+    min_score: 80.0
+    max_score: 84.999
+    description: "Strong candidate requiring additional validation before production deployment."
+    promotion_eligible: true
+    deployment_eligible: false
+    color: "cyan"
+
+  - label: "Experimental"
+    min_score: 70.0
+    max_score: 79.999
+    description: "Experimental model showing promise. Not ready for production."
+    promotion_eligible: false
+    deployment_eligible: false
+    color: "yellow"
+
+  - label: "Research Only"
+    min_score: 0.0
+    max_score: 69.999
+    description: "Below production threshold. Research and development only."
+    promotion_eligible: false
+    deployment_eligible: false
+    color: "red"
+
+# ------------------------------------------------------------------
+# Category normalization bounds
+# (used by category scorers — modify with care)
+# ------------------------------------------------------------------
+normalization:
+  validation_quality:
+    walk_forward_accuracy_lo: 0.50
+    walk_forward_accuracy_hi: 0.75
+    fold_target: 12
+
+  trading_performance:
+    profit_factor_target: 2.0
+    sharpe_lo: 0.5
+    sharpe_hi: 2.5
+    sortino_lo: 0.5
+    sortino_hi: 3.0
+    calmar_lo: 0.5
+    calmar_hi: 3.0
+    drawdown_lo: 0.03
+    drawdown_hi: 0.25
+    win_rate_lo: 0.40
+    win_rate_hi: 0.65
+
+  robustness:
+    # All metrics are fractions (0–1), directly mapped to 0–100
+    pass
+
+  calibration:
+    ece_lo: 0.0
+    ece_hi: 0.10
+    brier_lo: 0.10
+    brier_hi: 0.30
+
+  efficiency:
+    latency_lo_ms: 5.0
+    latency_hi_ms: 100.0
+    training_lo_h: 1.0
+    training_hi_h: 48.0
+    ram_lo_gb: 2.0
+    ram_hi_gb: 64.0
+    model_lo_mb: 50.0
+    model_hi_mb: 2000.0
+
+# ------------------------------------------------------------------
+# Database
+# ------------------------------------------------------------------
+database:
+  path: "data/research/irse_scores.db"
+  journal_mode: "WAL"
+  synchronous: "NORMAL"
+
+# ------------------------------------------------------------------
+# Trend tracking
+# ------------------------------------------------------------------
+trends:
+  regression_window: 5
+  regression_threshold: 5.0       # score drop points to trigger alert
+  trend_window: 10                # number of experiments for trend slope
+  distribution_percentiles: [25, 50, 75, 90]
+
+# ------------------------------------------------------------------
+# Leaderboard
+# ------------------------------------------------------------------
+leaderboard:
+  default_top_n: 20
+  default_axis: "research_score"
+  ranking_axes:
+    - research_score
+    - validation_score
+    - trading_score
+    - robustness_score
+    - efficiency_score
+    - calibration_score
+    - generalization_score
+
+# ------------------------------------------------------------------
+# Export
+# ------------------------------------------------------------------
+export:
+  default_formats: ["json", "csv", "html"]
+  html_top_n: 20
+  csv_top_n: 100
+  include_sub_scores: true
+  include_confidence: true
+
+# ------------------------------------------------------------------
+# Confidence score
+# ------------------------------------------------------------------
+confidence:
+  fold_target: 12
+  sample_target: 20000
+  instrument_target: 5
+  timeframe_target: 3
+  p_value_threshold_high: 0.01
+  p_value_threshold_low: 0.10

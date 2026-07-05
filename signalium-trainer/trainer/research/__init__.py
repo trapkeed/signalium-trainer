@@ -29,6 +29,36 @@ Phase 19.1 — Experiment Lineage & Reproducibility::
         LineageDatabase,
         LineageAPI,
     )
+
+Phase 19.2 — Institutional Research Scoring Engine (IRSE)::
+
+    from trainer.research import (
+        # Weights & Grades
+        IRSEScoringWeights, GradeSystem, Grade, GradeResult,
+        # Category inputs & scorers
+        ValidationQualityInputs, ValidationQualityScorer,
+        TradingPerformanceInputs, TradingPerformanceScorer,
+        RobustnessInputs, RobustnessScorer,
+        CalibrationInputs, CalibrationScorer,
+        GeneralizationInputs, GeneralizationScorer,
+        EfficiencyInputs, EfficiencyScorer,
+        ExplainabilityInputs, ExplainabilityScorer,
+        OperationalReadinessInputs, OperationalReadinessScorer,
+        # Confidence
+        ConfidenceInputs, ConfidenceResult, ConfidenceCalculator,
+        # Core scorer
+        ResearchScoreInputs, CategoryScore, ResearchScore, ResearchScorer,
+        # Trends
+        ScoreTrendTracker, ScoreSnapshot, ChampionChange, RegressionAlert,
+        # Leaderboard
+        IRSELeaderboard, IRSELeaderboardEntry,
+        # Benchmarking
+        IRSEBenchmarker, ModelRole, BenchmarkRecord, BenchmarkComparison,
+        # Persistence
+        IRSEScoreDatabase,
+        # API / Dashboard / Export
+        IRSEApi, IRSEScoreDashboard, IRSEScoreExporter,
+    )
 """
 
 from trainer.research.benchmark import (
@@ -87,6 +117,59 @@ from trainer.research.dashboard import DashboardBuilder
 from trainer.research.export import ResearchExporter
 from trainer.research.lineage_database import LineageDatabase
 from trainer.research.lineage_api import LineageAPI
+
+# Phase 19.2 — Institutional Research Scoring Engine (IRSE)
+from trainer.research.weights import ScoringWeights as IRSEScoringWeights
+from trainer.research.grades import GradeSystem, Grade, GradeResult
+from trainer.research.categories import (
+    ValidationQualityInputs,
+    ValidationQualityScorer,
+    TradingPerformanceInputs,
+    TradingPerformanceScorer,
+    RobustnessInputs,
+    RobustnessScorer,
+    CalibrationInputs,
+    CalibrationScorer,
+    GeneralizationInputs,
+    GeneralizationScorer,
+    EfficiencyInputs,
+    EfficiencyScorer,
+    ExplainabilityInputs,
+    ExplainabilityScorer,
+    OperationalReadinessInputs,
+    OperationalReadinessScorer,
+)
+from trainer.research.confidence import (
+    ConfidenceInputs,
+    ConfidenceResult,
+    ConfidenceCalculator,
+)
+from trainer.research.scorer import (
+    ResearchScoreInputs,
+    CategoryScore,
+    ResearchScore,
+    ResearchScorer,
+)
+from trainer.research.trends import (
+    ScoreTrendTracker,
+    ScoreSnapshot,
+    ChampionChange,
+    RegressionAlert,
+)
+from trainer.research.leaderboard_irse import (
+    IRSELeaderboard,
+    IRSELeaderboardEntry,
+)
+from trainer.research.benchmarking import (
+    IRSEBenchmarker,
+    ModelRole,
+    BenchmarkRecord,
+    BenchmarkComparison,
+)
+from trainer.research.score_database import IRSEScoreDatabase
+from trainer.research.score_api import IRSEApi
+from trainer.research.score_dashboard import IRSEScoreDashboard
+from trainer.research.score_export import IRSEScoreExporter
 
 __all__ = [
     # Experiment (legacy)
@@ -154,4 +237,54 @@ __all__ = [
     "LineageDatabase",
     # Phase 19.1 — API
     "LineageAPI",
+    # Phase 19.2 — Weights & Grades
+    "IRSEScoringWeights",
+    "GradeSystem",
+    "Grade",
+    "GradeResult",
+    # Phase 19.2 — Category Inputs
+    "ValidationQualityInputs",
+    "ValidationQualityScorer",
+    "TradingPerformanceInputs",
+    "TradingPerformanceScorer",
+    "RobustnessInputs",
+    "RobustnessScorer",
+    "CalibrationInputs",
+    "CalibrationScorer",
+    "GeneralizationInputs",
+    "GeneralizationScorer",
+    "EfficiencyInputs",
+    "EfficiencyScorer",
+    "ExplainabilityInputs",
+    "ExplainabilityScorer",
+    "OperationalReadinessInputs",
+    "OperationalReadinessScorer",
+    # Phase 19.2 — Confidence
+    "ConfidenceInputs",
+    "ConfidenceResult",
+    "ConfidenceCalculator",
+    # Phase 19.2 — Core Scorer
+    "ResearchScoreInputs",
+    "CategoryScore",
+    "ResearchScore",
+    "ResearchScorer",
+    # Phase 19.2 — Trends
+    "ScoreTrendTracker",
+    "ScoreSnapshot",
+    "ChampionChange",
+    "RegressionAlert",
+    # Phase 19.2 — Leaderboard
+    "IRSELeaderboard",
+    "IRSELeaderboardEntry",
+    # Phase 19.2 — Benchmarking
+    "IRSEBenchmarker",
+    "ModelRole",
+    "BenchmarkRecord",
+    "BenchmarkComparison",
+    # Phase 19.2 — Persistence
+    "IRSEScoreDatabase",
+    # Phase 19.2 — API / Dashboard / Export
+    "IRSEApi",
+    "IRSEScoreDashboard",
+    "IRSEScoreExporter",
 ]
