@@ -1,0 +1,191 @@
+## Phase 21.6 — Institutional Decision Memory & Self-Evaluation Engine
+## Configuration
+
+# ── Decision Recording ────────────────────────────────────────────────────────
+recording:
+  # Minimum confidence required to create a decision record
+  min_confidence_threshold: 0.40
+  # Tag decisions automatically based on context
+  auto_tag: true
+  # Persist immediately to SQLite on record
+  persist_on_record: true
+
+# ── Database ──────────────────────────────────────────────────────────────────
+database:
+  path: ":memory:"               # Override with file path for production
+  tables:
+    - decision_memory
+    - decision_snapshots
+    - decision_reasoning
+    - decision_outcomes
+    - counterfactual_analysis
+    - decision_scores
+    - decision_patterns
+    - knowledge_base
+    - decision_lineage
+
+# ── Decision Types ────────────────────────────────────────────────────────────
+decision_types:
+  entry:     [BUY, SELL]
+  trade_management: [SCALE_IN, SCALE_OUT, MOVE_STOP, MOVE_TARGET, PARTIAL_CLOSE]
+  exit:      [EXIT, CANCEL]
+  passive:   [NO_TRADE, WAIT]
+
+# ── Outcome Types ─────────────────────────────────────────────────────────────
+outcome_types:
+  positive:  [CORRECT_DIRECTION, HIT_TP, PARTIAL_SUCCESS]
+  negative:  [INCORRECT_DIRECTION, HIT_SL, UNEXPECTED_MARKET_EVENT]
+  neutral:   [CANCELLED, EXPIRED, MISSED_OPPORTUNITY, NO_TRADE]
+
+# ── Quality Engine ────────────────────────────────────────────────────────────
+quality_engine:
+  factors:
+    FORECAST_ACCURACY:      0.20
+    EXECUTION_QUALITY:      0.15
+    RISK_MANAGEMENT:        0.15
+    LIFECYCLE_MANAGEMENT:   0.10
+    PORTFOLIO_IMPACT:       0.10
+    CALIBRATION:            0.10
+    CONFIDENCE_RELIABILITY: 0.08
+    EXPECTED_VALUE:         0.07
+    CONSISTENCY:            0.03
+    DECISION_ROBUSTNESS:    0.02
+  grade_thresholds:
+    EXCELLENT:  0.85
+    GOOD:       0.70
+    ACCEPTABLE: 0.55
+    POOR:       0.40
+    REJECT:     0.00
+
+# ── Counterfactual Engine ─────────────────────────────────────────────────────
+counterfactual_engine:
+  scenarios:
+    - WAIT
+    - NO_TRADE
+    - LARGER_TP
+    - TIGHTER_SL
+    - DELAYED_ENTRY
+    - EARLY_TRAIL
+  larger_tp_factor:  1.50   # TP multiplied by this factor
+  tight_sl_factor:   0.70   # SL multiplied by this factor
+  wait_probability:  0.50   # P(market improves if we wait)
+
+# ── Pattern Discovery ─────────────────────────────────────────────────────────
+pattern_discovery:
+  min_sample_size:   3      # Minimum decisions per group to discover a pattern
+  categories:
+    - REGIME
+    - SESSION
+    - INSTRUMENT
+    - TIMING
+    - STOP
+    - ENTRY
+  strength_thresholds:
+    STRONG:   {min_sample: 10, min_edge: 0.20}
+    MODERATE: {min_sample: 5,  min_edge: 0.10}
+    WEAK:     {min_sample: 3,  min_edge: 0.00}
+
+# ── Self-Evaluation ───────────────────────────────────────────────────────────
+self_evaluation:
+  periods:
+    - CURRENT
+    - MONTHLY
+    - QUARTERLY
+    - ANNUAL
+    - LIFETIME
+  win_rate_strong_threshold:  0.60
+  win_rate_weak_threshold:    0.45
+  overconfidence_threshold:   0.80   # Confidence level that triggers overconfidence check
+  sl_rate_alert_threshold:    0.40   # SL hit rate above this triggers alert
+
+# ── Benchmarking ──────────────────────────────────────────────────────────────
+benchmarking:
+  default_baselines:
+    RANDOM:
+      win_rate:    0.50
+      avg_quality: 0.50
+      description: "Random strategy — theoretical baseline"
+    GOOD_TRADER:
+      win_rate:    0.60
+      avg_quality: 0.70
+      description: "Good institutional trader benchmark"
+    EXCELLENT_TRADER:
+      win_rate:    0.70
+      avg_quality: 0.85
+      description: "Excellent institutional trader benchmark"
+  verdict_thresholds:
+    improvement_threshold: 0.02    # Delta > this = improvement
+    min_improvements_for_better: 2 # Need 2 of 3 metrics improved
+
+# ── Memory Search ─────────────────────────────────────────────────────────────
+search:
+  default_limit: 100
+  sort_options:
+    - timestamp
+    - confidence
+    - pnl
+    - quality
+
+# ── Dashboards ────────────────────────────────────────────────────────────────
+dashboards:
+  views:
+    - decision_timeline
+    - decision_tree
+    - quality_distribution
+    - failure_analysis
+    - counterfactual_explorer
+    - knowledge_graph
+    - learning_timeline
+    - decision_heatmaps
+  granularity_options:
+    - hour
+    - day
+    - month
+    - quarter
+    - year
+
+# ── Knowledge Base ────────────────────────────────────────────────────────────
+knowledge_base:
+  entry_types:
+    - DECISION
+    - TRADE
+    - EXPERIMENT
+    - MODEL
+    - FEATURE
+    - REGIME
+    - RESEARCH
+    - LIFECYCLE_EVENT
+    - PORTFOLIO_STATE
+  auto_index_decisions: true
+
+# ── Lineage ───────────────────────────────────────────────────────────────────
+lineage:
+  node_types:
+    - DECISION
+    - FORECAST
+    - MODEL
+    - DATASET
+    - FEATURE_SET
+    - TRAINING_RUN
+    - EXPERIMENT
+    - GIT_COMMIT
+  full_depth: 8   # Decision → Forecast → Model → Dataset → FeatureSet → TrainingRun → Experiment → GitCommit
+
+# ── Long-term Memory ──────────────────────────────────────────────────────────
+long_term_memory:
+  evaluation_periods:
+    monthly:   30
+    quarterly: 91
+    annual:    365
+    lifetime:  -1    # -1 = all time
+  stats_tracked:
+    - total_decisions
+    - win_rate
+    - avg_quality
+    - grade_distribution
+    - best_instrument
+    - best_regime
+    - worst_regime
+    - direction_accuracy
+    - tp_hit_rate
+    - sl_hit_rate
