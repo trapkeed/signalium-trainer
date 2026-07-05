@@ -1,0 +1,193 @@
+## Phase 22 — Institutional Market Microstructure Intelligence Engine (MMIE)
+## Configuration
+
+# ── Data Sources ──────────────────────────────────────────────────────────────
+data_sources:
+  primary: OHLC              # Always available
+  future:
+    - TICK                   # Pending integration
+    - LEVEL2                 # Pending integration
+    - EXECUTION              # Pending integration
+  degradation: graceful      # System works with any subset of sources
+
+# ── Microstructure Layer ──────────────────────────────────────────────────────
+layer:
+  position: between_feature_store_and_forecasting
+  enriches: true             # Enriches existing features — does not replace them
+  backward_compatible: true
+
+# ── Price Action Analyzer ─────────────────────────────────────────────────────
+price_action:
+  features:
+    - body_ratio
+    - upper_wick_ratio
+    - lower_wick_ratio
+    - close_position
+    - open_position
+    - candle_efficiency
+    - directional_efficiency
+    - compression
+    - expansion
+    - impulse_strength
+    - retracement_quality
+    - continuation_probability
+  min_bars_for_retracement: 2
+  min_bars_for_continuation: 3
+
+# ── Volatility Microstructure ─────────────────────────────────────────────────
+volatility:
+  atr_period: 14
+  expansion_threshold:   1.30   # ratio > 1.30 = expansion
+  compression_threshold: 0.70   # ratio < 0.70 = compression
+  shock_z_score:         2.50   # Z-score for shock detection
+  large_candle_multiple: 1.50
+  features:
+    - atr_expansion
+    - atr_compression
+    - volatility_clustering
+    - volatility_persistence
+    - volatility_shock
+    - noise_ratio
+    - range_compression
+    - range_expansion
+
+# ── Momentum Microstructure ────────────────────────────────────────────────────
+momentum:
+  features:
+    - momentum_acceleration
+    - momentum_deceleration
+    - momentum_exhaustion
+    - directional_persistence
+    - trend_energy
+    - impulse_decay
+
+# ── Liquidity Proxies ─────────────────────────────────────────────────────────
+liquidity:
+  large_candle_multiple: 1.50
+  gap_threshold_atr_fraction: 0.10
+  features:
+    - spread_proxy
+    - gap_frequency
+    - large_candle_frequency
+    - compression_zone_score
+    - reaction_zone_score
+    - breakout_strength
+    - reversal_strength
+    - liquidity_vacuum_probability
+
+# ── Market Efficiency ─────────────────────────────────────────────────────────
+efficiency:
+  features:
+    - trend_efficiency
+    - mean_reversion_probability
+    - randomness_index
+    - fractal_dimension
+    - directional_stability
+    - noise_level
+
+# ── Tick Features (future) ────────────────────────────────────────────────────
+tick_features:
+  available: false           # Will be true when tick data is integrated
+  features:
+    - tick_velocity
+    - tick_density
+    - tick_imbalance
+    - tick_momentum
+    - tick_volatility
+    - tick_acceleration
+    - tick_entropy
+
+# ── Order Flow Interfaces (future) ────────────────────────────────────────────
+order_flow:
+  available: false           # Will be true when broker data is integrated
+  features:
+    - volume_delta
+    - bid_ask_imbalance
+    - cumulative_delta
+    - footprint_data
+    - order_book_imbalance
+    - market_depth
+    - absorption
+    - iceberg_detection
+
+# ── Embedding ─────────────────────────────────────────────────────────────────
+embedding:
+  total_dim: 32
+  sub_dims:
+    price_action: 8
+    liquidity:    6
+    momentum:     6
+    volatility:   6
+    efficiency:   6
+  activation: clamp    # values normalised to [0, 1]
+
+# ── Market States ─────────────────────────────────────────────────────────────
+market_states:
+  states:
+    - TRENDING
+    - STRONG_TREND
+    - WEAK_TREND
+    - RANGE
+    - COMPRESSION
+    - EXPANSION
+    - BREAKOUT
+    - FAKE_BREAKOUT
+    - REVERSAL
+    - HIGH_VOLATILITY
+    - LOW_VOLATILITY
+    - TRANSITION
+  thresholds:
+    high_volatility:  0.75
+    low_volatility:   0.25
+    strong_trend:     0.75
+    trend:            0.55
+    weak_trend:       0.35
+    compression:      0.65
+    expansion:        0.65
+    breakout:         0.70
+    reversal:         0.60
+
+# ── Microstructure Scores ─────────────────────────────────────────────────────
+scorer:
+  overall_weights:
+    trend:       0.25
+    momentum:    0.20
+    efficiency:  0.20
+    volatility:  0.15
+    liquidity:   0.10
+    compression: 0.05
+    expansion:   0.05
+
+# ── Database ──────────────────────────────────────────────────────────────────
+database:
+  path: ":memory:"           # Override with file path for production
+  tables:
+    - microstructure_features
+    - microstructure_embeddings
+    - market_states
+    - microstructure_scores
+    - liquidity_estimates
+    - momentum_metrics
+
+# ── Dashboards ────────────────────────────────────────────────────────────────
+dashboards:
+  views:
+    - microstructure_timeline
+    - market_state_timeline
+    - momentum_evolution
+    - volatility_evolution
+    - liquidity_estimates
+    - microstructure_heatmaps
+    - embedding_explorer
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
+api:
+  endpoints:
+    - analyse
+    - current_state
+    - scores
+    - embedding
+    - historical
+    - get_dashboard
+    - system_stats
+    - order_flow_status
