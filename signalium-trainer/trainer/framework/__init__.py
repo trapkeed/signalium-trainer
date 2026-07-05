@@ -43,6 +43,7 @@ from trainer.framework.contracts import (
 from trainer.framework.factory import ModelFactory
 from trainer.framework.inference import InferenceAdapterFactory
 from trainer.framework.metrics import MetricsEngine
+from trainer.framework.traced_inference import TracedInferenceAdapter
 
 __all__ = [
     # Abstractions
@@ -68,4 +69,5 @@ __all__ = [
     "ModelFactory",
     "MetricsEngine",
     "InferenceAdapterFactory",
+    "TracedInferenceAdapter",
 ]
