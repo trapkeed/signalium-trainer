@@ -1,0 +1,179 @@
+# QuantModelV1 Phase 14.9A — Hybrid Representation Learning configuration.
+# All streams and fusion settings are fully configurable.
+# Set hybrid_encoder.enabled: true to activate the hybrid architecture.
+# Set to false (default) for backward-compatible original mode.
+
+model_version: "3.0.0"
+architecture_name: "QuantModelV1-Hybrid"
+
+# ──────────────────────────────────────────────────────────────────────────
+# Hybrid Encoder — master switch
+# ──────────────────────────────────────────────────────────────────────────
+
+hybrid_encoder:
+  enabled: true
+
+  # ── Stream 1: Raw Market Sequence ───────────────────────────────────────
+  raw_market:
+    enabled: true
+    input_features:
+      - open
+      - high
+      - low
+      - close
+      - volume
+      - tick_volume
+      - spread
+    input_dim: 7
+    hidden_dim: 128
+    num_layers: 1
+    out_dim: 128
+    backbone_type: lstm
+    dropout: 0.2
+    use_layer_norm: true
+
+  # ── Stream 2: Multi-Timeframe ────────────────────────────────────────────
+  multi_timeframe:
+    enabled: true
+    pooling: attention           # mean | attention
+    out_dim: 128
+    dropout: 0.2
+    timeframes:
+      1m:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      5m:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      15m:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      30m:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      1h:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      4h:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+      1d:
+        enabled: true
+        input_dim: 7
+        hidden_dim: 64
+        out_dim: 64
+
+  # ── Stream 3: Engineered Features ───────────────────────────────────────
+  engineered_features:
+    enabled: true
+    input_dim: 64           # total number of engineered features
+    hidden_dim: 128
+    out_dim: 128
+    dropout: 0.2
+    use_layer_norm: true
+    num_layers: 2
+
+  # ── Stream 4: Context Embeddings ────────────────────────────────────────
+  context_embeddings:
+    enabled: true
+    out_dim: 64
+    dropout: 0.1
+    embeddings:
+      instrument:
+        vocab_size: 64
+        embed_dim: 16
+        enabled: true
+      timeframe:
+        vocab_size: 8
+        embed_dim: 8
+        enabled: true
+      session:
+        vocab_size: 8
+        embed_dim: 8
+        enabled: true
+      hour:
+        vocab_size: 24
+        embed_dim: 8
+        enabled: true
+      day:
+        vocab_size: 7
+        embed_dim: 4
+        enabled: true
+      week:
+        vocab_size: 54
+        embed_dim: 8
+        enabled: true
+      month:
+        vocab_size: 12
+        embed_dim: 4
+        enabled: true
+      regime:
+        vocab_size: 8
+        embed_dim: 8
+        enabled: true
+
+  # ── Stream 5: Market Memory ──────────────────────────────────────────────
+  market_memory:
+    enabled: true
+    memory_dim: 64
+    hidden_dim: 64
+    out_dim: 64
+    dropout: 0.1
+
+  # ── Stream 6: Dynamic Feature Gate ──────────────────────────────────────
+  feature_gate:
+    enabled: true
+    context_dim: 128          # must match raw_market.out_dim (gate context source)
+    hidden_dim: 64
+
+  # ── Stream 7: Adaptive Fusion ────────────────────────────────────────────
+  fusion:
+    strategy: weighted          # concat | weighted | attention
+    num_attention_heads: 4      # used when strategy=attention
+    latent_dim: 256             # MUST equal backbone.hidden_size for head compatibility
+    dropout: 0.1
+    track_contributions: true
+
+# ──────────────────────────────────────────────────────────────────────────
+# Original backbone (used when hybrid_encoder.enabled: false)
+# ──────────────────────────────────────────────────────────────────────────
+
+encoder:
+  input_dim: 128
+  hidden_dim: 256
+  use_layer_norm: true
+  use_projection: true
+  projection_dropout: 0.1
+
+backbone:
+  type: lstm
+  hidden_size: 256
+  num_layers: 2
+  dropout: 0.3
+  bidirectional: false
+  window_length: 60
+
+classification_head:
+  num_classes: 3
+  hidden_dim: 128
+  dropout: 0.3
+  label_names:
+    - BUY
+    - SELL
+    - NO_TRADE
+
+confidence_head:
+  hidden_dim: 64
+  dropout: 0.2

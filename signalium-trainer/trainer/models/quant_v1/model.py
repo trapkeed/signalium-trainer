@@ -1,4 +1,4 @@
-"""QuantModelV1 — Phase 14.6 Institutional Trade Analytics Model.
+"""QuantModelV1 — Phase 14.9A Hybrid Representation Learning Model.
 
 Single forward pass produces the complete quantitative trade profile:
 
@@ -6,24 +6,36 @@ Single forward pass produces the complete quantitative trade profile:
     Direction (BUY/SELL/NO TRADE) · Confidence · Expected Move
     Stop Loss · Take Profit · Holding Time · TP Probability
 
-  Phase 14.6 (new):
+  Phase 14.6 (preserved):
     MFE · MAE Excursion · Trade Efficiency · Reward/Risk
     Trade Survival · SL Resilience · TP Achievability
     Entry Quality · Exit Quality · Market Stability
     Trade Decay · Profit Distribution · Loss Distribution
     Position Size Quality · Uncertainty (Epistemic + Aleatoric)
 
+  Phase 14.9A (new — optional):
+    Hybrid Encoder: 5 independent streams fused into the shared latent:
+      Stream 1 — Raw Market Sequence (OHLCV via LSTM/GRU)
+      Stream 2 — Multi-Timeframe (7 independent timeframe encoders)
+      Stream 3 — Engineered Features (MLP + independent normalisation)
+      Stream 4 — Context Embeddings (instrument, session, hour, regime …)
+      Stream 5 — Market Memory (Market Memory Engine state)
+      Stream 6 — Dynamic Feature Gate (context-conditioned gating)
+      Stream 7 — Adaptive Fusion (concat / weighted / attention)
+
 Backward compatibility is fully preserved:
-  - forward()           → returns direction logits only (unchanged)
+  - forward(tensor)     → returns direction logits only (unchanged)
+  - forward(HybridInput)→ returns direction logits via hybrid encoder
   - predict()           → returns MultiTaskQuantModelOutput (superset)
   - forward_multi_task()→ returns dict of all enabled head tensors
   - All heads disabled by default; existing callers see zero change.
+  - hybrid_encoder disabled by default; plain tensor path is unchanged.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -33,6 +45,8 @@ from trainer.models.base import BaseQuantModel
 from trainer.models.quant_v1.backbone import SequenceEncoder, build_backbone
 from trainer.models.quant_v1.config import QuantV1Config
 from trainer.models.quant_v1.encoder import InputEncoder
+from trainer.models.quant_v1.hybrid.encoder import HybridEncoder
+from trainer.models.quant_v1.hybrid.input import HybridInput
 from trainer.models.quant_v1.head import (
     # Phase 14.5
     ClassificationHead,
@@ -221,6 +235,12 @@ class QuantModelV1(BaseQuantModel):
 
         self._initialize_weights()
 
+        # ── Phase 14.9A — Hybrid Encoder (disabled by default) ───────────
+        self.hybrid_encoder: Optional[HybridEncoder] = None
+        hybrid_cfg = getattr(self._model_config, "hybrid_encoder", None)
+        if hybrid_cfg is not None and hybrid_cfg.enabled:
+            self.hybrid_encoder = HybridEncoder(hybrid_cfg)
+
     # ── BaseQuantModel interface ─────────────────────────────────────────
 
     @property
@@ -233,37 +253,37 @@ class QuantModelV1(BaseQuantModel):
 
     # ── Forward pass — backward compatible ──────────────────────────────
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Union[torch.Tensor, HybridInput]) -> torch.Tensor:
         """Standard forward pass — returns direction logits only.
 
-        Identical to the original Phase 14.0 behaviour.  Downstream
-        training loops using CrossEntropyLoss(logits, targets) require
-        no changes whatsoever.
+        Accepts either a plain ``torch.Tensor`` (original path, unchanged) or
+        a ``HybridInput`` (Phase 14.9A multi-stream path).
 
         Args:
-            x: Feature tensor of shape (batch, seq_len, input_dim).
+            x: Feature tensor ``(batch, seq_len, input_dim)`` **or**
+               a ``HybridInput`` container when hybrid encoder is enabled.
 
         Returns:
-            Direction logit tensor of shape (batch, num_classes).
+            Direction logit tensor of shape ``(batch, num_classes)``.
         """
         _, logits, _ = self._encode(x)
         return logits
 
-    def predict(self, x: torch.Tensor) -> MultiTaskQuantModelOutput:
+    def predict(self, x: Union[torch.Tensor, HybridInput]) -> MultiTaskQuantModelOutput:
         """Full inference pass — returns complete MultiTaskQuantModelOutput.
 
         All enabled head outputs are populated.  Compatible with existing
         consumers via ``output.to_base_output()``.
 
         Args:
-            x: Feature tensor of shape (batch, seq_len, input_dim).
+            x: Feature tensor or ``HybridInput``.
 
         Returns:
             MultiTaskQuantModelOutput with all enabled fields populated.
         """
         return self._forward_full(x)
 
-    def forward_multi_task(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+    def forward_multi_task(self, x: Union[torch.Tensor, HybridInput]) -> dict[str, torch.Tensor]:
         """Multi-task forward for the training engine — returns dict of tensors.
 
         Always present:
@@ -330,8 +350,15 @@ class QuantModelV1(BaseQuantModel):
     # ── Model metadata ───────────────────────────────────────────────────
 
     @property
+    def is_hybrid(self) -> bool:
+        """True when the Phase 14.9A hybrid encoder is active."""
+        return self.hybrid_encoder is not None
+
+    @property
     def architecture_name(self) -> str:
         bb_type = self._model_config.backbone.type.value.upper()
+        if self.is_hybrid:
+            return f"QuantModelV1-Hybrid-{bb_type}"
         return f"QuantModelV1-{bb_type}"
 
     @property
@@ -378,10 +405,10 @@ class QuantModelV1(BaseQuantModel):
         enc_cfg = self._model_config.encoder
         bb_cfg = self._model_config.backbone
         cls_cfg = self._model_config.classification_head
-        return {
+        summary: dict[str, Any] = {
             "architecture": self.architecture_name,
             "version": self.model_version,
-            "phase": "14.6",
+            "phase": "14.9A" if self.is_hybrid else "14.6",
             "input_dim": enc_cfg.input_dim,
             "encoder_hidden_dim": enc_cfg.hidden_dim,
             "backbone_type": bb_cfg.type.value,
@@ -394,15 +421,18 @@ class QuantModelV1(BaseQuantModel):
             "enabled_heads": self.enabled_heads,
             **self.get_param_count(),
         }
+        if self.is_hybrid and self.hybrid_encoder is not None:
+            summary["hybrid_enabled_streams"] = self.hybrid_encoder.enabled_streams
+        return summary
 
     def get_export_metadata(self) -> dict[str, Any]:
         """Return structured metadata for export manifest embedding."""
         mt = self._model_config
-        return {
+        meta: dict[str, Any] = {
             "model_id": "signalium_quant_v1",
             "model_version": self.model_version,
             "architecture": self.architecture_name,
-            "phase": "14.6",
+            "phase": "14.9A" if self.is_hybrid else "14.6",
             "supported_outputs": self.enabled_heads,
             "output_version": "3.0.0",
             "prediction_schema": self._build_prediction_schema(),
@@ -410,24 +440,55 @@ class QuantModelV1(BaseQuantModel):
                 k: v for k, v in mt.multi_task_loss.__dict__.items()
             },
         }
+        if self.is_hybrid and self.hybrid_encoder is not None:
+            meta["hybrid_encoder"] = {
+                "enabled": True,
+                "enabled_streams": self.hybrid_encoder.enabled_streams,
+                "output_dim": self.hybrid_encoder.output_dim,
+                "fusion_strategy": mt.hybrid_encoder.fusion.strategy.value,
+            }
+        return meta
 
     # ── Private helpers ──────────────────────────────────────────────────
 
     def _encode(
-        self, x: torch.Tensor
+        self, x: Union[torch.Tensor, HybridInput]
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Shared encoder pass — (context, logits, confidence).
+
+        Accepts either a plain ``torch.Tensor`` or a ``HybridInput``.
+
+        Routing:
+          - HybridInput + hybrid_encoder enabled → HybridEncoder path
+          - HybridInput + no hybrid_encoder       → raw_sequence fallback
+          - torch.Tensor                          → original path (unchanged)
 
         Single backbone pass shared by forward(), predict(), and
         forward_multi_task().  All heads consume context independently.
         """
-        encoded = self.input_encoder(x)
-        context = self.backbone(encoded)
+        if isinstance(x, HybridInput):
+            if self.hybrid_encoder is not None:
+                context = self.hybrid_encoder(x)
+            else:
+                # HybridInput passed without hybrid encoder — use raw_sequence
+                if x.raw_sequence is None:
+                    raise ValueError(
+                        "HybridInput.raw_sequence is required when hybrid_encoder "
+                        "is disabled (set hybrid_encoder.enabled=True or provide "
+                        "a plain torch.Tensor)."
+                    )
+                encoded = self.input_encoder(x.raw_sequence)
+                context = self.backbone(encoded)
+        else:
+            # Original path — completely unchanged
+            encoded = self.input_encoder(x)
+            context = self.backbone(encoded)
+
         logits = self.classification_head(context)
         confidence = self.confidence_head(context)
         return context, logits, confidence
 
-    def _forward_full(self, x: torch.Tensor) -> MultiTaskQuantModelOutput:
+    def _forward_full(self, x: Union[torch.Tensor, HybridInput]) -> MultiTaskQuantModelOutput:
         """Internal full forward — shared by predict()."""
         context, logits, confidence = self._encode(x)
         base = self.output_layer(logits, confidence)

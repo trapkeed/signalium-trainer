@@ -1,0 +1,249 @@
+We are implementing Phase 14.9A of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+MISSION
+
+Transform the existing Signalium Quant Model into a Hybrid Representation Learning architecture without breaking any existing functionality.
+
+Do NOT replace the current model.
+
+Extend it.
+
+Maintain full backward compatibility.
+
+=========================================================
+CORE ARCHITECTURE
+=========================================================
+
+Implement a modular multi-stream architecture.
+
+The architecture must contain:
+
+1. Raw Market Sequence Stream
+
+Inputs:
+
+OHLC
+
+Volume
+
+Tick Volume
+
+Spread (optional)
+
+Timestamp
+
+Support configurable sequence lengths.
+
+=========================================================
+
+2. Multi-Timeframe Stream
+
+Simultaneously process:
+
+1 Minute
+
+5 Minute
+
+15 Minute
+
+30 Minute
+
+1 Hour
+
+4 Hour
+
+Daily
+
+Each timeframe should have its own encoder.
+
+The architecture must support enabling/disabling individual timeframes.
+
+=========================================================
+
+3. Engineered Feature Stream
+
+Retain every engineered feature.
+
+Examples:
+
+Trend
+
+Momentum
+
+Volatility
+
+Liquidity
+
+Market Structure
+
+Sessions
+
+Market Memory
+
+Normalize independently.
+
+=========================================================
+
+4. Context Embedding Stream
+
+Create learned embeddings for:
+
+Instrument
+
+Timeframe
+
+Trading Session
+
+Hour
+
+Day
+
+Week
+
+Month
+
+Market Regime
+
+Support configurable embedding dimensions.
+
+=========================================================
+
+5. Market Memory Stream
+
+Integrate the existing Market Memory Engine.
+
+Encode memory separately.
+
+=========================================================
+
+6. Dynamic Feature Gate
+
+Implement a neural feature gating module.
+
+The gate learns:
+
+Feature amplification
+
+Feature suppression
+
+Context-aware weighting
+
+Never permanently disable features.
+
+=========================================================
+
+7. Adaptive Fusion Layer
+
+Fuse all streams.
+
+Support:
+
+Concatenation
+
+Weighted Fusion
+
+Attention-ready Fusion
+
+Configurable via YAML.
+
+=========================================================
+
+8. Shared Latent Representation
+
+Every prediction head must consume only this shared representation.
+
+=========================================================
+
+CONFIGURATION
+
+Every stream must be independently configurable.
+
+Enable or disable:
+
+Timeframes
+
+Feature Gate
+
+Market Memory
+
+Context Embeddings
+
+Fusion Strategy
+
+=========================================================
+
+TRAINING
+
+Train every stream jointly.
+
+Track:
+
+Gradient norms
+
+Contribution of each stream
+
+Fusion statistics
+
+Training stability
+
+=========================================================
+
+EXPORT
+
+Update:
+
+TorchScript
+
+ONNX
+
+Metadata
+
+Manifest
+
+=========================================================
+
+TESTING
+
+Generate:
+
+Unit tests
+
+Integration tests
+
+Fusion tests
+
+Embedding tests
+
+Memory tests
+
+Inference tests
+
+=========================================================
+
+DOCUMENTATION
+
+Generate:
+
+Hybrid Representation Guide
+
+Fusion Guide
+
+Embedding Guide
+
+Architecture Report
+
+=========================================================
+
+IMPORTANT
+
+Maintain complete backward compatibility.
+
+Optimize latency.
+
+Optimize GPU utilization.
+
+Generate a Hybrid Representation Readiness Report.

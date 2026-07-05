@@ -1,10 +1,18 @@
-"""QuantModelV1 hyper-parameter configuration — Phase 14.6 Institutional Analytics."""
+"""QuantModelV1 hyper-parameter configuration — Phase 14.9A Hybrid Architecture."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
+
+
+def _default_hybrid_encoder_config() -> "HybridEncoderConfig":
+    from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
+    return HybridEncoderConfig(enabled=False)
 
 
 # ---------------------------------------------------------------------------
@@ -403,3 +411,10 @@ class QuantV1Config:
     )
 
     multi_task_loss: MultiTaskLossConfig = field(default_factory=MultiTaskLossConfig)
+
+    # ------------------------------------------------------------------
+    # Phase 14.9A — Hybrid Representation Learning (disabled by default)
+    # ------------------------------------------------------------------
+    hybrid_encoder: "HybridEncoderConfig" = field(  # type: ignore[type-arg]
+        default_factory=lambda: _default_hybrid_encoder_config()
+    )
