@@ -67,6 +67,12 @@ class ModelInfo:
     mlflow_run_id: Optional[str] = None
     training_timestamp: Optional[str] = None
     model_export_timestamp: Optional[str] = None
+    # ── Phase 14.9C — Architecture metadata (all optional with safe defaults)
+    phase: str = "14.6"
+    backbone_type: str = "unknown"
+    active_streams: list[str] = field(default_factory=list)
+    fusion_strategy: Optional[str] = None
+    encoder_versions: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

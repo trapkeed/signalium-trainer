@@ -426,27 +426,71 @@ class QuantModelV1(BaseQuantModel):
         return summary
 
     def get_export_metadata(self) -> dict[str, Any]:
-        """Return structured metadata for export manifest embedding."""
+        """Return structured metadata for export manifest embedding.
+
+        Updated in Phase 14.9C to include:
+          - phase (now "14.9C")
+          - active_streams — list of active hybrid encoder stream names
+          - backbone_type  — backbone architecture identifier
+          - fusion_strategy — adaptive fusion mode (hybrid only)
+          - encoder_versions — per-encoder component version map
+        """
         mt = self._model_config
+        bb_cfg = self._model_config.backbone
+
+        # Derive phase from active components
+        if self.is_hybrid:
+            phase = "14.9C"
+        elif any([
+            self.mfe_head, self.mae_excursion_head, self.trade_efficiency_head,
+        ]):
+            phase = "14.6"
+        else:
+            phase = "14.5"
+
         meta: dict[str, Any] = {
             "model_id": "signalium_quant_v1",
             "model_version": self.model_version,
             "architecture": self.architecture_name,
-            "phase": "14.9A" if self.is_hybrid else "14.6",
+            "phase": phase,
             "supported_outputs": self.enabled_heads,
             "output_version": "3.0.0",
             "prediction_schema": self._build_prediction_schema(),
             "loss_config": {
                 k: v for k, v in mt.multi_task_loss.__dict__.items()
             },
+            # Phase 14.9C — architecture readiness fields
+            "backbone_type": bb_cfg.type.value,
+            "active_streams": [],
+            "fusion_strategy": None,
+            "encoder_versions": {
+                "input_encoder": "1.0.0",
+                "backbone": "14.9B",
+                "classification_head": "14.5",
+                "confidence_head": "14.5",
+            },
         }
+
         if self.is_hybrid and self.hybrid_encoder is not None:
+            fusion_strategy = mt.hybrid_encoder.fusion.strategy.value
             meta["hybrid_encoder"] = {
                 "enabled": True,
                 "enabled_streams": self.hybrid_encoder.enabled_streams,
                 "output_dim": self.hybrid_encoder.output_dim,
-                "fusion_strategy": mt.hybrid_encoder.fusion.strategy.value,
+                "fusion_strategy": fusion_strategy,
             }
+            meta["active_streams"] = self.hybrid_encoder.enabled_streams
+            meta["fusion_strategy"] = fusion_strategy
+            # Extend encoder_versions with hybrid stream components
+            meta["encoder_versions"].update({
+                "hybrid_encoder": "14.9A",
+                "raw_market_stream": "14.9A",
+                "multi_timeframe_stream": "14.9A",
+                "engineered_feature_stream": "14.9A",
+                "context_embedding_stream": "14.9A",
+                "market_memory_stream": "14.9A",
+                "adaptive_fusion_layer": "14.9A",
+            })
         return meta
 
     # ── Private helpers ──────────────────────────────────────────────────

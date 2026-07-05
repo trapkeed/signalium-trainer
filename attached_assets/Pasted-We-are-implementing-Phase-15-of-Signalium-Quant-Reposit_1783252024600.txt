@@ -1,0 +1,717 @@
+We are implementing Phase 15 of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build Signalium's Institutional Research Validation Platform.
+
+This becomes the official validation framework used before ANY model is allowed into production.
+
+No model may be deployed unless it successfully passes this platform.
+
+This framework replaces traditional validation.
+
+It becomes the quantitative research standard for Signalium.
+
+Maintain compatibility with every existing trainer.
+
+Do NOT modify the neural network.
+
+Do NOT retrain automatically.
+
+This framework evaluates models only.
+
+======================================================================
+CORE VALIDATION ENGINE
+======================================================================
+
+Implement an institutional-grade walk-forward validation engine.
+
+Support:
+
+Rolling Window Validation
+
+Sliding Window Validation
+
+Expanding Window Validation
+
+Anchored Walk Forward
+
+Nested Validation
+
+Configurable:
+
+Training Window
+
+Validation Window
+
+Testing Window
+
+Rolling Step Size
+
+Gap Between Windows
+
+Support multiple validation strategies simultaneously.
+
+======================================================================
+TIME SERIES SAFETY
+======================================================================
+
+Never shuffle data.
+
+Preserve chronological ordering.
+
+Automatically detect:
+
+Future leakage
+
+Target leakage
+
+Feature leakage
+
+Timestamp inconsistencies
+
+Duplicate samples
+
+Missing sequences
+
+Abort validation if leakage is detected.
+
+======================================================================
+MULTI-ASSET VALIDATION
+======================================================================
+
+Evaluate every model independently across:
+
+EURUSD
+
+GBPUSD
+
+USDJPY
+
+AUDUSD
+
+USDCAD
+
+USDCHF
+
+NZDUSD
+
+XAUUSD
+
+XAGUSD
+
+NAS100
+
+US30
+
+SPX500
+
+BTCUSD
+
+ETHUSD
+
+Allow unlimited future instruments.
+
+======================================================================
+MULTI-TIMEFRAME VALIDATION
+======================================================================
+
+Evaluate:
+
+1 Minute
+
+5 Minute
+
+15 Minute
+
+30 Minute
+
+1 Hour
+
+4 Hour
+
+Daily
+
+Weekly
+
+Support configurable timeframes.
+
+======================================================================
+MARKET REGIME VALIDATION
+======================================================================
+
+Automatically classify and evaluate:
+
+Trending Markets
+
+Strong Trends
+
+Weak Trends
+
+Ranging Markets
+
+Breakout Markets
+
+Pullback Markets
+
+High Volatility
+
+Low Volatility
+
+Compression
+
+Expansion
+
+Accumulation
+
+Distribution
+
+News Periods (if labels exist)
+
+Session Opens
+
+Session Closes
+
+Weekend Gaps
+
+======================================================================
+PREDICTION HEAD VALIDATION
+======================================================================
+
+Evaluate every prediction head independently.
+
+Direction
+
+Confidence
+
+Expected Move
+
+Holding Time
+
+Stop Loss
+
+Take Profit
+
+TP Probability
+
+MFE
+
+MAE
+
+Trade Survival
+
+Entry Quality
+
+Exit Quality
+
+Trade Efficiency
+
+Market Stability
+
+Position Quality
+
+Uncertainty
+
+Future heads automatically supported.
+
+======================================================================
+STATISTICAL METRICS
+======================================================================
+
+Track:
+
+Accuracy
+
+Precision
+
+Recall
+
+F1
+
+ROC AUC
+
+PR AUC
+
+Log Loss
+
+Cross Entropy
+
+MAE
+
+RMSE
+
+MAPE
+
+R²
+
+Calibration Error
+
+Brier Score
+
+Prediction Entropy
+
+Confidence Distribution
+
+======================================================================
+TRADING METRICS
+======================================================================
+
+Measure:
+
+Win Rate
+
+Profit Factor
+
+Average RR
+
+Average Holding Time
+
+Trade Frequency
+
+Average MFE
+
+Average MAE
+
+Expectancy
+
+Maximum Drawdown
+
+Average Drawdown
+
+Recovery Factor
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Calmar Ratio
+
+Ulcer Index
+
+MAR Ratio
+
+Risk of Ruin
+
+Capital Efficiency
+
+Return Distribution
+
+Tail Risk
+
+TP-before-SL Accuracy
+
+Direction Accuracy
+
+======================================================================
+MONTE CARLO VALIDATION
+======================================================================
+
+Run Monte Carlo simulations.
+
+Randomize:
+
+Trade Order
+
+Trade Sequences
+
+Slippage
+
+Spread
+
+Execution Delays
+
+Estimate robustness.
+
+Generate:
+
+Confidence Bands
+
+Expected Equity Curves
+
+Worst Case
+
+Best Case
+
+Median Outcome
+
+======================================================================
+ROBUSTNESS TESTING
+======================================================================
+
+Stress test models under:
+
+Missing Candles
+
+Noisy Data
+
+Spread Expansion
+
+Latency
+
+Execution Delays
+
+Data Gaps
+
+Volatility Spikes
+
+Market Crashes
+
+======================================================================
+CALIBRATION
+======================================================================
+
+Evaluate:
+
+Temperature Scaling
+
+Reliability Diagrams
+
+Calibration Curves
+
+Expected Calibration Error
+
+Maximum Calibration Error
+
+Confidence Accuracy
+
+======================================================================
+DRIFT ANALYSIS
+======================================================================
+
+Detect:
+
+Feature Drift
+
+Prediction Drift
+
+Label Drift
+
+Regime Drift
+
+Performance Drift
+
+Input Distribution Drift
+
+Store drift history.
+
+======================================================================
+HEAD-TO-HEAD MODEL COMPARISON
+======================================================================
+
+Compare:
+
+Current Model
+
+Champion Model
+
+Candidate Model
+
+Previous Models
+
+Generate:
+
+Metric Comparison
+
+Performance Comparison
+
+Latency Comparison
+
+Calibration Comparison
+
+Memory Comparison
+
+GPU Comparison
+
+======================================================================
+MODEL LEADERBOARD
+======================================================================
+
+Implement a permanent leaderboard.
+
+Store:
+
+Model ID
+
+Model Version
+
+Training Date
+
+Dataset Version
+
+Feature Version
+
+Label Version
+
+Architecture
+
+Backbone
+
+Parameter Count
+
+Training Time
+
+Validation Score
+
+Profit Factor
+
+Sharpe Ratio
+
+Sortino Ratio
+
+Max Drawdown
+
+Calibration Score
+
+Promotion Status
+
+Champion Status
+
+Deployment History
+
+Retirement Status
+
+Notes
+
+Leaderboard supports:
+
+Sorting
+
+Filtering
+
+Searching
+
+Comparison
+
+======================================================================
+PROMOTION POLICY
+======================================================================
+
+Implement configurable promotion rules.
+
+Example:
+
+Minimum Precision
+
+Minimum Recall
+
+Minimum Profit Factor
+
+Maximum Drawdown
+
+Minimum Sharpe
+
+Maximum Calibration Error
+
+Minimum Trade Count
+
+Minimum Confidence Quality
+
+Only promote models passing ALL required thresholds.
+
+Support manual approval.
+
+Support automatic approval.
+
+======================================================================
+FAILURE ANALYSIS
+======================================================================
+
+Automatically identify:
+
+Worst Instruments
+
+Worst Timeframes
+
+Worst Sessions
+
+Worst Regimes
+
+Worst Prediction Heads
+
+Worst Confidence Ranges
+
+Worst Market Conditions
+
+Generate improvement recommendations.
+
+======================================================================
+DATABASE
+======================================================================
+
+Store every validation run.
+
+Store:
+
+Configuration
+
+Metrics
+
+Charts
+
+Calibration
+
+Drift
+
+Leaderboard Results
+
+Promotion Decisions
+
+Model Metadata
+
+Git Commit
+
+Experiment ID
+
+Dataset Version
+
+Feature Version
+
+Label Version
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate:
+
+Walk Forward Timeline
+
+Equity Curves
+
+Heat Maps
+
+Confusion Matrices
+
+Residual Plots
+
+Calibration Curves
+
+Feature Drift Charts
+
+Performance Trends
+
+Model Leaderboard
+
+Regime Performance
+
+Trade Distribution
+
+Risk Distribution
+
+======================================================================
+API
+======================================================================
+
+Create APIs for:
+
+Validation Runs
+
+Validation Reports
+
+Leaderboard
+
+Model Comparison
+
+Promotion Status
+
+Walk Forward Results
+
+Drift Reports
+
+Failure Analysis
+
+======================================================================
+EXPORT
+======================================================================
+
+Export:
+
+PDF Reports
+
+CSV
+
+JSON
+
+HTML Dashboards
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Unit Tests
+
+Integration Tests
+
+Validation Tests
+
+Stress Tests
+
+Leakage Detection Tests
+
+Promotion Tests
+
+Leaderboard Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Institutional Validation Guide
+
+Walk Forward Guide
+
+Leaderboard Guide
+
+Promotion Policy Guide
+
+Research Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT change the model architecture.
+
+Do NOT retrain models.
+
+Evaluate only.
+
+Maintain complete backward compatibility.
+
+Generate a final Institutional Research Validation Platform Report.
+
+The report must include:
+
+Architecture
+
+Validation Flow
+
+Promotion Flow
+
+Leaderboard Design
+
+Database Design
+
+API Design
+
+Performance Benchmarks
+
+Future Expansion Roadmap
+
+Operational Readiness Score
+
+Institutional Readiness Score
