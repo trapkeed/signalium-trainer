@@ -1,0 +1,135 @@
+## Phase 24 — ICARI Configuration
+
+identity:
+  name:        ICARI
+  description: Institutional Capital Allocation & Risk Intelligence Platform
+  version:     "1.0"
+
+capital:
+  default:     100000.0
+  currency:    USD
+
+# ── Position Sizing ───────────────────────────────────────────────────────────
+sizing:
+  default_method: FIXED_RISK
+  risk_frac:      0.01      # 1% risk per trade
+  kelly_frac:     0.50      # 50% fractional Kelly
+  atr_mult:       2.0       # stop = 2 × ATR
+  max_risk_frac:  0.05      # hard cap
+
+# ── Risk Budgets ──────────────────────────────────────────────────────────────
+risk_budgets:
+  DAILY:       0.02
+  WEEKLY:      0.05
+  MONTHLY:     0.10
+  PORTFOLIO:   0.20
+  INSTRUMENT:  0.05
+  CURRENCY:    0.15
+  COMMODITY:   0.10
+  CRYPTO:      0.05
+  INDEX:       0.15
+  STRATEGY:    0.10
+  CORRELATED:  0.20
+  OPEN_TRADE:  0.30
+
+# ── Drawdown Limits ───────────────────────────────────────────────────────────
+drawdown:
+  soft_limit:      0.05    # 5% → reduce risk
+  hard_limit:      0.10    # 10% → preservation mode
+  emergency_limit: 0.20    # 20% → full lockdown
+  recovery_target: 0.02
+
+# ── Allocation Engine ─────────────────────────────────────────────────────────
+allocation:
+  max_allocation_frac: 0.25
+  min_confidence:      0.30
+  base_frac:           0.10
+  regime_multipliers:
+    TRENDING:  1.10
+    NORMAL:    1.00
+    RANGING:   0.85
+    VOLATILE:  0.65
+
+# ── Portfolio Risk ────────────────────────────────────────────────────────────
+portfolio_risk:
+  confidence_95: 0.95
+  confidence_99: 0.99
+  correlation_window: 30
+  cluster_threshold:  0.70
+
+# ── Optimization ─────────────────────────────────────────────────────────────
+optimization:
+  risk_free_rate: 0.045
+  max_weight:     0.50
+  min_weight:     0.0
+  grid_steps:     5
+  objectives:
+    - MAX_SHARPE
+    - MAX_SORTINO
+    - MIN_DRAWDOWN
+    - MAX_DIVERSIFICATION
+    - RISK_PARITY
+    - BALANCED
+    - CAPITAL_PRESERVATION
+    - EXPECTED_UTILITY
+
+# ── Scenarios ─────────────────────────────────────────────────────────────────
+scenarios:
+  - FLASH_CRASH
+  - LIQUIDITY_CRISIS
+  - SPREAD_EXPANSION
+  - HIGH_VOLATILITY
+  - CENTRAL_BANK
+  - RISK_ON
+  - RISK_OFF
+  - STRONG_USD
+  - WEAK_USD
+  - COMMODITY_SHOCK
+  - CRYPTO_CRASH
+
+# ── Database ──────────────────────────────────────────────────────────────────
+database:
+  path: ":memory:"
+  tables:
+    - capital_allocation
+    - risk_budgets
+    - allocation_history
+    - portfolio_risk
+    - scenario_results
+    - capital_health
+    - optimization_results
+    - drawdown_events
+
+# ── Dashboards ────────────────────────────────────────────────────────────────
+dashboards:
+  views:
+    - capital_allocation
+    - risk_dashboard
+    - exposure_dashboard
+    - drawdown_dashboard
+    - capital_health
+    - optimization
+    - scenario_analysis
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
+api:
+  endpoints:
+    - allocate
+    - allocate_batch
+    - size_position
+    - compare_sizing_methods
+    - portfolio_risk
+    - correlation_matrix
+    - correlation_clusters
+    - capital_health
+    - get_budgets
+    - set_budget
+    - check_budget
+    - optimize
+    - optimize_all
+    - scenario
+    - scenario_all
+    - update_equity
+    - capital_efficiency
+    - get_dashboard
+    - system_stats
