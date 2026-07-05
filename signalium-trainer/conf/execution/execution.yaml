@@ -1,0 +1,130 @@
+# Phase 21 — Execution Intelligence Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: This system does NOT place trades.
+# All outputs are recommendations only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+execution:
+  description: "Signalium Institutional Execution Intelligence Platform"
+  version: "21.0.0"
+
+# ── Broker Constraints ────────────────────────────────────────────────────────
+broker:
+  broker_name: "default"
+  min_lot_size: 0.01
+  max_lot_size: 100.0
+  lot_step: 0.01
+  min_stop_distance: 0.0001    # price units
+  max_spread_to_trade: 0.003   # stop trading if spread exceeds this
+  max_leverage: 30.0
+  margin_rate: 0.033           # 3.3% (30:1 leverage)
+  commission_per_lot: 7.0      # USD per standard lot, round trip
+
+# ── Risk Limits ───────────────────────────────────────────────────────────────
+risk_limits:
+  max_risk_per_trade_pct: 0.02   # 2% per trade
+  max_daily_risk_pct: 0.06       # 6% per day
+  max_weekly_risk_pct: 0.12      # 12% per week
+  max_portfolio_risk_pct: 0.20   # 20% total open risk
+
+# ── Position Sizing ───────────────────────────────────────────────────────────
+sizing:
+  default_method: "FIXED_RISK"   # FIXED_RISK | FIXED_FRACTIONAL | VOLATILITY_ADJUSTED | KELLY
+  kelly_fraction_cap: 0.25       # Maximum Kelly fraction (safety cap)
+  units_per_lot: 100000
+
+# ── Entry Zones ───────────────────────────────────────────────────────────────
+entry_zones:
+  aggressive_atr_mult: 0.10
+  primary_atr_mult: 0.25
+  secondary_atr_mult: 0.40
+  conservative_atr_mult: 0.60
+  late_entry_atr_mult: 0.80
+  invalidation_atr_mult: 1.50
+
+# ── Stop Loss ─────────────────────────────────────────────────────────────────
+stop_loss:
+  initial_atr_mult: 1.50
+  adaptive_atr_mult: 1.20
+  atr_mult: 2.00
+  volatility_atr_mult: 2.50
+  emergency_atr_mult: 3.50
+  min_stop_distance_atr: 0.50    # minimum stop = 0.5 × ATR
+
+# ── Take Profit ───────────────────────────────────────────────────────────────
+take_profit:
+  tp1_rr: 1.0
+  tp2_rr: 1.5
+  tp3_rr: 2.0
+  tp1_close_pct: 0.50           # Close 50% at TP1
+  tp2_close_pct: 0.30           # Close 30% at TP2
+  runner_pct: 0.20              # Leave 20% as runner
+  probability_decay: 0.70       # TP probability decay factor
+
+# ── Trade Scoring Weights ────────────────────────────────────────────────────
+scoring_weights:
+  forecast_quality: 0.20
+  entry_quality: 0.20
+  risk: 0.15
+  liquidity: 0.10
+  spread: 0.10
+  volatility: 0.10
+  reward: 0.10
+  portfolio_impact: 0.05
+
+# ── Execution Timing ─────────────────────────────────────────────────────────
+timing:
+  spread_weight: 0.25
+  session_weight: 0.25
+  volatility_weight: 0.20
+  liquidity_weight: 0.15
+  news_weight: 0.15
+  min_score_execute_now: 0.65
+  min_score_wait: 0.45
+
+# ── Session Quality ───────────────────────────────────────────────────────────
+session_quality:
+  OVERLAP: 1.00
+  LONDON: 0.85
+  NEW_YORK: 0.80
+  TOKYO: 0.55
+  SYDNEY: 0.45
+  CLOSED: 0.10
+
+# ── Entry Quality Grades ──────────────────────────────────────────────────────
+entry_grades:
+  excellent_threshold: 0.85
+  good_threshold: 0.70
+  acceptable_threshold: 0.55
+  poor_threshold: 0.40
+  # below 0.40 → REJECT
+
+# ── Trade Management ─────────────────────────────────────────────────────────
+management:
+  trail_atr_mult: 1.0
+  trail_step_atr_mult: 0.25
+  breakeven_trigger: "TP1"     # Move stop to BE when TP1 reached
+  scale_in_confidence_threshold: 0.75
+  scale_in_momentum_threshold: 0.20
+  scale_in_lots_pct: 0.50      # Add 50% of original size on scale-in
+  news_risk_exit_threshold: 0.60
+
+# ── Database ─────────────────────────────────────────────────────────────────
+database:
+  default_path: "data/execution.db"
+  tables:
+    - execution_plans
+    - trade_scores
+    - sizing_decisions
+    - management_plans
+    - optimization_history
+
+# ── Simulation ───────────────────────────────────────────────────────────────
+simulation:
+  slippage_spread_multiplier_base: 1.0
+  volatility_slippage_factor: 0.5
+  fill_quality_thresholds:
+    excellent: 0.05     # slippage < 5% of ATR
+    good: 0.15
+    fair: 0.30
+    # above 0.30 → POOR

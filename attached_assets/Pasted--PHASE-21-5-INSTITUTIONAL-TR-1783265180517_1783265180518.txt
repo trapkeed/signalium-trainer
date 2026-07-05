@@ -1,0 +1,445 @@
+======================================================================
+PHASE 21.5
+INSTITUTIONAL TRADE LIFECYCLE INTELLIGENCE ENGINE (TLIE)
+======================================================================
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Extend the Execution Intelligence Platform by implementing a complete
+Trade Lifecycle Intelligence Engine.
+
+Signalium must no longer treat a trade as a simple BUY or SELL.
+
+Instead, every trade becomes a living object whose state evolves from
+idea generation to final closure.
+
+The engine must continuously evaluate market conditions and recommend
+the appropriate lifecycle transition.
+
+Maintain complete backward compatibility.
+
+Do NOT execute trades.
+
+Produce recommendations only.
+
+======================================================================
+TRADE LIFECYCLE MODEL
+======================================================================
+
+Implement the following lifecycle states.
+
+IDEA
+
+Market identified as interesting.
+
+↓
+
+WATCHLIST
+
+Potential setup detected.
+
+↓
+
+PREPARATION
+
+Conditions approaching execution.
+
+↓
+
+ENTRY READY
+
+All required conditions satisfied.
+
+↓
+
+PENDING ENTRY
+
+Waiting for optimal execution.
+
+↓
+
+ACTIVE
+
+Position opened.
+
+↓
+
+POSITION BUILDING
+
+Optional scaling into position.
+
+↓
+
+PROTECTED
+
+Stop moved to breakeven.
+
+↓
+
+PARTIAL EXIT
+
+Partial profit secured.
+
+↓
+
+RUNNER
+
+Remaining position allowed to run.
+
+↓
+
+TRAILING
+
+Dynamic trailing stop active.
+
+↓
+
+EXIT READY
+
+Exit conditions developing.
+
+↓
+
+CLOSING
+
+Trade being finalized.
+
+↓
+
+CLOSED
+
+Trade completed.
+
+Alternative paths:
+
+INVALIDATED
+
+CANCELLED
+
+EXPIRED
+
+STOPPED
+
+FORCED EXIT
+
+EMERGENCY EXIT
+
+======================================================================
+STATE MACHINE
+======================================================================
+
+Implement a deterministic finite state machine.
+
+Every transition must have:
+
+Entry Conditions
+
+Exit Conditions
+
+Validation Rules
+
+Timeout Rules
+
+Confidence
+
+Expected Benefit
+
+Risk Rating
+
+Reason
+
+======================================================================
+TRANSITION ENGINE
+======================================================================
+
+Evaluate transitions continuously.
+
+Examples:
+
+Watchlist
+
+↓
+
+Entry Ready
+
+Only if:
+
+Trend remains valid
+
+Confidence increases
+
+Spread acceptable
+
+News risk acceptable
+
+Liquidity acceptable
+
+Risk budget available
+
+======================================================================
+POSITION MANAGEMENT
+======================================================================
+
+Recommend:
+
+Hold
+
+Scale In
+
+Scale Out
+
+Reduce Exposure
+
+Move Stop
+
+Move Target
+
+Exit Immediately
+
+Wait
+
+======================================================================
+LIFECYCLE CONFIDENCE
+======================================================================
+
+Every state must include:
+
+Confidence
+
+Expected Duration
+
+Expected Reward
+
+Expected Risk
+
+Transition Probability
+
+Failure Probability
+
+======================================================================
+EVENT ENGINE
+======================================================================
+
+Generate lifecycle events.
+
+Examples:
+
+Setup Confirmed
+
+Momentum Increased
+
+Volatility Expanded
+
+Liquidity Deteriorated
+
+Confidence Dropped
+
+Target Approaching
+
+Risk Increased
+
+Trailing Activated
+
+======================================================================
+AI REASONING
+======================================================================
+
+Generate institutional explanations.
+
+Examples:
+
+Trade remains Active because:
+
+Trend Strength increased
+
+Momentum improving
+
+Expected Reward remains favorable
+
+Volatility acceptable
+
+Confidence increased from 82% to 91%
+
+======================================================================
+STATE HISTORY
+======================================================================
+
+Maintain complete history.
+
+Store:
+
+Every state
+
+Timestamp
+
+Confidence
+
+Reason
+
+Market Context
+
+Forecast
+
+Execution Plan
+
+Position Metrics
+
+======================================================================
+LIFECYCLE ANALYTICS
+======================================================================
+
+Generate analytics.
+
+Average time in each state
+
+Transition frequency
+
+Failure rate
+
+Cancellation rate
+
+Expiration rate
+
+Average lifecycle duration
+
+Average profit by lifecycle path
+
+======================================================================
+OPTIMIZATION
+======================================================================
+
+Learn optimal transitions.
+
+Examples:
+
+Does earlier breakeven improve expectancy?
+
+Does delayed trailing improve profit?
+
+Does scaling improve Sharpe?
+
+Generate recommendations.
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables.
+
+Trade Lifecycle
+
+Lifecycle Events
+
+Transition Rules
+
+State History
+
+Lifecycle Analytics
+
+Optimization Results
+
+======================================================================
+API
+======================================================================
+
+Create endpoints.
+
+Current Lifecycle
+
+State History
+
+Transition Recommendations
+
+Lifecycle Analytics
+
+Optimization Reports
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate dashboards.
+
+Lifecycle Timeline
+
+State Transition Graph
+
+Trade Journey
+
+Confidence Timeline
+
+Transition Matrix
+
+Lifecycle Statistics
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+State Machine Tests
+
+Transition Tests
+
+Lifecycle Tests
+
+Analytics Tests
+
+Optimization Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Trade Lifecycle Guide
+
+State Machine Guide
+
+Transition Rules Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Trade Lifecycle must operate independently of broker execution.
+
+No trade placement.
+
+No order management.
+
+Recommendations only.
+
+Generate a complete Institutional Trade Lifecycle Report.
+
+Include:
+
+Architecture
+
+State Machine
+
+Transition Logic
+
+Analytics
+
+Optimization
+
+API
+
+Database
+
+Operational Readiness
+
+Institutional Readiness
