@@ -1,0 +1,92 @@
+# Phase 17 — Adaptive Ensemble Intelligence Platform Configuration
+#
+# All parameters are configurable here — no code changes required to:
+#   - Change the ensemble strategy
+#   - Add/remove expert specializations
+#   - Adjust weight factors
+#   - Change rolling windows
+#   - Modify meta model settings
+#   - Configure auto-retirement thresholds
+
+ensemble:
+  # -------------------------------------------------------------------------
+  # Storage
+  # -------------------------------------------------------------------------
+  db_path: experiments/ensemble/ensemble.db
+  export_dir: experiments/ensemble/exports
+  ensemble_version: "1.0.0"
+
+  # -------------------------------------------------------------------------
+  # Strategy
+  # -------------------------------------------------------------------------
+  # Options: simple_averaging | weighted_averaging | performance_weighted
+  #          hard_voting | soft_voting | mixture_of_experts | stacking | blending
+  strategy: soft_voting
+
+  # -------------------------------------------------------------------------
+  # Online scoring
+  # -------------------------------------------------------------------------
+  rolling_window: 200
+
+  # -------------------------------------------------------------------------
+  # Weight adaptation
+  # -------------------------------------------------------------------------
+  weight_adjust_interval: 50   # recompute weights every N predictions
+
+  # Weight factors (must sum conceptually to 1.0)
+  weight_factors:
+    recent_performance_factor: 0.35
+    regime_match_factor: 0.25
+    instrument_match_factor: 0.15
+    timeframe_match_factor: 0.10
+    calibration_factor: 0.10
+    uncertainty_factor: 0.05
+    history_factor: 0.05
+    latency_factor: 0.00
+    regime_boost: 2.0
+    instrument_boost: 1.5
+    timeframe_boost: 1.3
+    min_weight: 0.05
+    max_weight_ratio: 10.0
+
+  # -------------------------------------------------------------------------
+  # Routing
+  # -------------------------------------------------------------------------
+  routing:
+    min_experts: 1
+    max_experts: null           # null = all active experts
+    min_weight_threshold: 0.0
+    use_specialization_filter: true
+    use_instrument_filter: true
+    use_timeframe_filter: true
+    fallback_to_all: true
+
+  # -------------------------------------------------------------------------
+  # Meta model
+  # -------------------------------------------------------------------------
+  meta_min_samples: 50
+  meta_learning_rate: 0.01
+  meta_regularization: 0.0001
+
+  # -------------------------------------------------------------------------
+  # Persistence
+  # -------------------------------------------------------------------------
+  persist_routing: true
+  persist_votes: true
+
+  # -------------------------------------------------------------------------
+  # Automatic retirement
+  # -------------------------------------------------------------------------
+  auto_retire_threshold: null  # null = disabled; e.g. 0.35 to auto-retire
+
+  # -------------------------------------------------------------------------
+  # Experts (Expert 1 = Signalium Quant v1, registered automatically)
+  # Future experts are added here or registered at runtime
+  # -------------------------------------------------------------------------
+  # experts:
+  #   - expert_id: expert_02
+  #     name: "Transformer Expert"
+  #     model_family: transformer_encoder
+  #     specializations: [trending]
+  #     version: "1.0.0"
+  #     checkpoint_path: models/transformer_v1.pt

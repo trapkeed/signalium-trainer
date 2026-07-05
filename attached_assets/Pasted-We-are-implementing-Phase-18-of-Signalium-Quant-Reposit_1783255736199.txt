@@ -1,0 +1,419 @@
+We are implementing Phase 18 of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build Signalium's Institutional MLOps, Model Governance, and Continuous Monitoring Platform.
+
+The platform is responsible for governing the complete lifecycle of every model from training through retirement.
+
+No production model may exist outside this governance framework.
+
+Maintain backward compatibility.
+
+Do NOT modify prediction architecture.
+
+======================================================================
+MODEL REGISTRY
+======================================================================
+
+Implement a centralized model registry.
+
+Store:
+
+Model ID
+
+Semantic Version
+
+Training Date
+
+Architecture
+
+Backbone
+
+Parameter Count
+
+Dataset Version
+
+Feature Version
+
+Label Version
+
+Git Commit
+
+Training Configuration
+
+Validation Report
+
+Promotion Status
+
+Deployment Status
+
+Retirement Status
+
+Approval History
+
+Hardware Used
+
+Training Duration
+
+Parent Model
+
+Child Models
+
+Notes
+
+======================================================================
+MODEL LIFECYCLE
+======================================================================
+
+Support lifecycle states:
+
+Draft
+
+Training
+
+Validating
+
+Candidate
+
+Approved
+
+Champion
+
+Production
+
+Shadow (optional)
+
+Archived
+
+Retired
+
+Rolled Back
+
+Every transition must be recorded.
+
+======================================================================
+DEPLOYMENT GOVERNANCE
+======================================================================
+
+Implement controlled deployment workflows.
+
+Support:
+
+Manual promotion
+
+Automatic promotion (configurable)
+
+Approval workflows
+
+Rollback
+
+Scheduled deployment
+
+Emergency rollback
+
+Deployment history
+
+Deployment audit logs
+
+======================================================================
+PRODUCTION MONITORING
+======================================================================
+
+Continuously monitor:
+
+Prediction latency
+
+Inference throughput
+
+CPU usage
+
+GPU usage
+
+Memory usage
+
+API response times
+
+Prediction confidence
+
+Prediction distribution
+
+Trade frequency
+
+Signal quality
+
+======================================================================
+MODEL HEALTH
+======================================================================
+
+Track:
+
+Confidence drift
+
+Prediction drift
+
+Feature drift
+
+Label drift
+
+Calibration drift
+
+Market regime drift
+
+Distribution drift
+
+Performance degradation
+
+Latency degradation
+
+======================================================================
+ALERTING
+======================================================================
+
+Generate alerts for:
+
+High drift
+
+Low confidence
+
+Latency spikes
+
+Memory exhaustion
+
+API failures
+
+Model failures
+
+Prediction anomalies
+
+Unexpected behaviour
+
+======================================================================
+CHAMPION / CHALLENGER
+======================================================================
+
+Maintain:
+
+Champion Model
+
+Candidate Models
+
+Historical Champions
+
+Retired Champions
+
+Support:
+
+Comparison
+
+Promotion
+
+Rollback
+
+Audit
+
+======================================================================
+AUDIT SYSTEM
+======================================================================
+
+Record every important event.
+
+Examples:
+
+Training
+
+Validation
+
+Promotion
+
+Deployment
+
+Rollback
+
+Configuration changes
+
+Inference errors
+
+Manual approvals
+
+======================================================================
+RETRAINING POLICIES
+======================================================================
+
+Support configurable retraining triggers.
+
+Examples:
+
+Performance degradation
+
+Confidence degradation
+
+Feature drift
+
+Scheduled retraining
+
+Manual retraining
+
+IMPORTANT
+
+Do NOT automatically retrain.
+
+Only schedule recommendations unless explicitly enabled.
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables for:
+
+Registry
+
+Lifecycle
+
+Deployments
+
+Health Metrics
+
+Alerts
+
+Audit Logs
+
+Retraining Policies
+
+======================================================================
+API
+======================================================================
+
+Create endpoints for:
+
+Registry
+
+Deployments
+
+Health
+
+Alerts
+
+Audit
+
+Lifecycle
+
+Champion Status
+
+======================================================================
+DASHBOARD
+======================================================================
+
+Generate dashboards for:
+
+Model Registry
+
+Model Health
+
+Deployment History
+
+Champion Status
+
+Alerts
+
+Drift
+
+Confidence
+
+Calibration
+
+======================================================================
+EXPORT
+======================================================================
+
+Export:
+
+Registry
+
+Audit Reports
+
+Deployment Reports
+
+Health Reports
+
+Alert History
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Registry Tests
+
+Lifecycle Tests
+
+Deployment Tests
+
+Alert Tests
+
+Audit Tests
+
+Rollback Tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+MLOps Guide
+
+Governance Guide
+
+Registry Guide
+
+Deployment Guide
+
+Operational Runbook
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT change the neural network.
+
+Do NOT change prediction heads.
+
+Do NOT retrain models automatically.
+
+Maintain full backward compatibility.
+
+Generate a complete Institutional MLOps Readiness Report.
+
+Include:
+
+Architecture
+
+Lifecycle
+
+Registry
+
+Governance
+
+Deployment
+
+Monitoring
+
+Drift Detection
+
+Alerting
+
+Operational Readiness
+
+Institutional Readiness
