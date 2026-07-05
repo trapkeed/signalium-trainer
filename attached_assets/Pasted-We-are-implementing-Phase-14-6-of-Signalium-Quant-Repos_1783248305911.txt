@@ -1,0 +1,600 @@
+We are implementing Phase 14.6 of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+The Signalium Quant Model is already implemented as a multi-task deep learning model.
+
+Do NOT create another model.
+
+Do NOT replace the existing architecture.
+
+Extend the current architecture by introducing an Institutional Trade Analytics Layer composed of advanced quantitative prediction heads.
+
+The existing shared backbone must remain the only feature encoder.
+
+Every prediction head must share the same learned latent representation.
+
+======================================================================
+MISSION
+======================================================================
+
+Transform Signalium into an institutional-grade quantitative forecasting engine capable of estimating not only market direction but the complete statistical profile of an expected trade.
+
+The objective is to provide rich predictive information for:
+
+• Trade selection
+• Risk management
+• Dynamic execution
+• Portfolio optimization
+• Entry optimization
+• Exit optimization
+• Performance analytics
+
+All outputs must be produced from a single forward pass.
+
+======================================================================
+CORE ARCHITECTURE
+======================================================================
+
+Retain all existing components.
+
+Shared Feature Encoder
+
+Shared Temporal Encoder
+
+Shared Representation Layer
+
+Direction Head
+
+Confidence Head
+
+Expected Move Head
+
+Stop Loss Head
+
+Take Profit Head
+
+Holding Time Head
+
+TP Probability Head
+
+Do NOT redesign the backbone.
+
+Only extend it.
+
+======================================================================
+HEAD 1
+MAXIMUM FAVORABLE EXCURSION
+======================================================================
+
+Regression Head.
+
+Predict:
+
+Largest expected favorable movement.
+
+Support configurable units:
+
+Pips
+
+Points
+
+ATR multiples
+
+Ticks
+
+Percentage
+
+Return:
+
+Expected MFE
+
+Prediction interval
+
+Confidence
+
+======================================================================
+HEAD 2
+MAXIMUM ADVERSE EXCURSION
+======================================================================
+
+Regression Head.
+
+Predict:
+
+Largest expected adverse movement before trade completion.
+
+Support:
+
+Pips
+
+Points
+
+ATR
+
+Ticks
+
+Percentage
+
+Return:
+
+Expected MAE
+
+Prediction interval
+
+Confidence
+
+======================================================================
+HEAD 3
+TRADE EFFICIENCY
+======================================================================
+
+Predict:
+
+Expected percentage of available move likely to be captured.
+
+Return:
+
+0–100%
+
+======================================================================
+HEAD 4
+EXPECTED REWARD TO RISK
+======================================================================
+
+Regression.
+
+Predict expected RR ratio.
+
+Examples:
+
+1.5
+
+2.0
+
+2.8
+
+3.6
+
+======================================================================
+HEAD 5
+TRADE SURVIVAL PROBABILITY
+======================================================================
+
+Predict probability that the trade remains valid after:
+
+5 bars
+
+10 bars
+
+20 bars
+
+Return probabilities.
+
+======================================================================
+HEAD 6
+STOP LOSS RESILIENCE
+======================================================================
+
+Predict probability that the suggested stop loss survives normal market noise.
+
+Output:
+
+0–1
+
+======================================================================
+HEAD 7
+TAKE PROFIT ACHIEVABILITY
+======================================================================
+
+Predict probability that the suggested take profit will be achieved before market conditions invalidate the setup.
+
+Output:
+
+0–1
+
+======================================================================
+HEAD 8
+ENTRY QUALITY
+======================================================================
+
+Generate an entry quality score.
+
+Output:
+
+0–100
+
+======================================================================
+HEAD 9
+EXIT QUALITY
+======================================================================
+
+Generate an exit quality score.
+
+Output:
+
+0–100
+
+======================================================================
+HEAD 10
+MARKET STABILITY
+======================================================================
+
+Classify:
+
+Stable
+
+Moderately Stable
+
+Unstable
+
+Highly Unstable
+
+======================================================================
+HEAD 11
+TRADE DECAY
+======================================================================
+
+Predict how quickly the setup quality deteriorates over time.
+
+Return:
+
+Decay probability
+
+Decay curve
+
+======================================================================
+HEAD 12
+PROFIT DISTRIBUTION
+======================================================================
+
+Estimate:
+
+Mean
+
+Median
+
+Variance
+
+Skewness
+
+Confidence Interval
+
+======================================================================
+HEAD 13
+LOSS DISTRIBUTION
+======================================================================
+
+Estimate:
+
+Mean
+
+Median
+
+Variance
+
+Tail Risk
+
+Expected downside distribution.
+
+======================================================================
+HEAD 14
+POSITION SIZE QUALITY SCORE
+======================================================================
+
+IMPORTANT
+
+This head must NOT recommend lot size.
+
+Instead produce a normalized score from 0–100 representing the quality of allocating additional capital to this opportunity.
+
+This score represents trade quality only.
+
+The execution platform will later combine:
+
+Account Balance
+
+Risk Percentage
+
+Broker Constraints
+
+Margin Requirements
+
+Portfolio Exposure
+
+Correlation Limits
+
+User Settings
+
+Risk Rules
+
+to calculate the actual position size.
+
+The AI never outputs lot size.
+
+======================================================================
+HEAD 15
+UNCERTAINTY ESTIMATION
+======================================================================
+
+Implement uncertainty estimation.
+
+Support:
+
+Epistemic uncertainty
+
+Aleatoric uncertainty
+
+Prediction intervals
+
+Confidence intervals
+
+Return uncertainty alongside every prediction.
+
+======================================================================
+LABEL GENERATION
+======================================================================
+
+Extend dataset generation.
+
+Generate labels for every new prediction head.
+
+Version every label.
+
+Maintain backward compatibility.
+
+======================================================================
+LOSS FUNCTIONS
+======================================================================
+
+Support:
+
+Cross Entropy
+
+Binary Cross Entropy
+
+MSE
+
+Huber
+
+Gaussian Negative Log Likelihood
+
+Quantile Loss
+
+Weighted Multi-Task Loss
+
+Dynamic Loss Weighting
+
+Allow configurable weighting through YAML.
+
+======================================================================
+TRAINING
+======================================================================
+
+Train every prediction head jointly.
+
+Track:
+
+Per-head loss
+
+Weighted loss
+
+Gradient norms
+
+Learning stability
+
+Overall convergence
+
+GPU utilization
+
+Memory utilization
+
+======================================================================
+CALIBRATION
+======================================================================
+
+Implement probability calibration.
+
+Support:
+
+Temperature Scaling
+
+Platt Scaling
+
+Isotonic Regression
+
+Track:
+
+Calibration Error
+
+Reliability Curves
+
+Confidence Accuracy
+
+======================================================================
+INFERENCE
+======================================================================
+
+Single forward pass must return:
+
+BUY probability
+
+SELL probability
+
+NO TRADE probability
+
+Confidence
+
+Expected Move
+
+Expected MFE
+
+Expected MAE
+
+Suggested Stop Loss
+
+Suggested Take Profit
+
+Expected Holding Time
+
+Expected Reward/Risk
+
+Trade Survival Probability
+
+TP-before-SL Probability
+
+Stop Loss Survival Probability
+
+Entry Quality
+
+Exit Quality
+
+Trade Efficiency
+
+Position Size Quality Score
+
+Prediction Interval
+
+Confidence Interval
+
+Epistemic Uncertainty
+
+Aleatoric Uncertainty
+
+Trade Decay
+
+Profit Distribution
+
+Loss Distribution
+
+Market Stability
+
+Model Version
+
+Prediction Timestamp
+
+======================================================================
+EXPORT
+======================================================================
+
+Update:
+
+TorchScript
+
+ONNX
+
+Metadata
+
+Manifest
+
+Inference Schema
+
+Prediction Schema
+
+Output Version
+
+======================================================================
+PERFORMANCE
+======================================================================
+
+Optimize:
+
+Inference latency
+
+GPU utilization
+
+Batch inference
+
+Memory consumption
+
+Export speed
+
+Scalability
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Unit tests
+
+Integration tests
+
+Regression tests
+
+Calibration tests
+
+Inference tests
+
+Performance benchmarks
+
+GPU benchmarks
+
+Memory benchmarks
+
+Latency benchmarks
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Institutional Trade Analytics Architecture
+
+Prediction Head Documentation
+
+Loss Architecture
+
+Calibration Guide
+
+Inference Specification
+
+Developer Guide
+
+API Contract
+
+Future Extension Guide
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT replace any existing prediction head.
+
+Do NOT create separate neural networks.
+
+Every prediction head must share the same backbone.
+
+Everything must execute in one forward pass.
+
+Maintain complete backward compatibility.
+
+Review the complete architecture.
+
+Remove duplicated code.
+
+Optimize computational efficiency.
+
+Generate a final Institutional Quantitative Forecasting Report including:
+
+• Model architecture
+
+• Prediction heads
+
+• Computational complexity
+
+• GPU utilization
+
+• Memory utilization
+
+• Inference latency
+
+• Training complexity
+
+• Future extensibility
+
+• Readiness score

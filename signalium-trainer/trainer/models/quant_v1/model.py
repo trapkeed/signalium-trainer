@@ -1,21 +1,23 @@
-"""QuantModelV1 — Phase 14.5 Multi-Task Quant Prediction Model.
+"""QuantModelV1 — Phase 14.6 Institutional Trade Analytics Model.
 
-Extends the original direction classifier with six additional prediction
-heads that share the same learned market representation.  A single
-forward pass now optionally produces:
+Single forward pass produces the complete quantitative trade profile:
 
-  • Market direction (BUY / SELL / NO TRADE)
-  • Expected move size
-  • Suggested stop loss distance
-  • Suggested take profit distance
-  • Expected holding time
-  • Confidence score
-  • Probability that Take Profit is reached before Stop Loss
+  Phase 14.5 (preserved):
+    Direction (BUY/SELL/NO TRADE) · Confidence · Expected Move
+    Stop Loss · Take Profit · Holding Time · TP Probability
+
+  Phase 14.6 (new):
+    MFE · MAE Excursion · Trade Efficiency · Reward/Risk
+    Trade Survival · SL Resilience · TP Achievability
+    Entry Quality · Exit Quality · Market Stability
+    Trade Decay · Profit Distribution · Loss Distribution
+    Position Size Quality · Uncertainty (Epistemic + Aleatoric)
 
 Backward compatibility is fully preserved:
-  - forward()  → returns direction logits only (same as before)
-  - predict()  → returns MultiTaskQuantModelOutput (superset of original)
-  - All new heads are disabled by default; existing callers see no change.
+  - forward()           → returns direction logits only (unchanged)
+  - predict()           → returns MultiTaskQuantModelOutput (superset)
+  - forward_multi_task()→ returns dict of all enabled head tensors
+  - All heads disabled by default; existing callers see zero change.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from trainer.models.quant_v1.backbone import SequenceEncoder, build_backbone
 from trainer.models.quant_v1.config import QuantV1Config
 from trainer.models.quant_v1.encoder import InputEncoder
 from trainer.models.quant_v1.head import (
+    # Phase 14.5
     ClassificationHead,
     ConfidenceHead,
     ExpectedMoveHead,
@@ -39,6 +42,22 @@ from trainer.models.quant_v1.head import (
     StopLossHead,
     TakeProfitHead,
     TPProbabilityHead,
+    # Phase 14.6
+    EntryQualityHead,
+    ExitQualityHead,
+    LossDistributionHead,
+    MAEExcursionHead,
+    MFEHead,
+    MarketStabilityHead,
+    PositionSizeQualityHead,
+    ProfitDistributionHead,
+    RewardRiskHead,
+    SLResilienceHead,
+    TPAchievabilityHead,
+    TradeDecayHead,
+    TradeEfficiencyHead,
+    TradeSurvivalHead,
+    UncertaintyHead,
 )
 from trainer.models.quant_v1.output import (
     MultiTaskQuantModelOutput,
@@ -50,31 +69,44 @@ from trainer.registry.registry import ModelRegistry
 
 @ModelRegistry.register("quant_v1")
 class QuantModelV1(BaseQuantModel):
-    """Signalium Quant Model V1 — Phase 14.5 Multi-Task.
+    """Signalium Quant Model V1 — Phase 14.6 Institutional Analytics.
 
-    Architecture:
+    Architecture (all heads share the same backbone context vector):
+
         Input (batch, seq_len, input_dim)
             ↓
         InputEncoder  [LayerNorm → Linear → GELU → Dropout]
             ↓
         SequenceEncoder  [LSTM / GRU]
             ↓  context vector (batch, backbone_output_dim)
-            ├── ClassificationHead → logits (batch, 3)          [always on]
-            ├── ConfidenceHead     → confidence (batch, 1)      [always on]
-            ├── ExpectedMoveHead   → move size (batch, 1)       [optional]
-            ├── StopLossHead       → SL distance (batch, 1)     [optional]
-            ├── TakeProfitHead     → TP distance (batch, 1)     [optional]
-            ├── HoldingTimeHead    → duration (batch, 1)        [optional]
-            └── TPProbabilityHead  → P(TP before SL) (batch, 1)[optional]
-            ↓
-        OutputLayer  [Softmax + MultiTaskQuantModelOutput assembly]
+            │
+            ├─ Phase 14.5 ──────────────────────────────────────────────
+            ├── ClassificationHead  → logits (batch, 3)          [always]
+            ├── ConfidenceHead      → confidence (batch, 1)      [always]
+            ├── ExpectedMoveHead    → move (batch, 1)            [opt]
+            ├── StopLossHead        → SL (batch, 1)              [opt]
+            ├── TakeProfitHead      → TP (batch, 1)              [opt]
+            ├── HoldingTimeHead     → time (batch, 1)            [opt]
+            ├── TPProbabilityHead   → P(TP|SL) (batch, 1)        [opt]
+            │
+            ├─ Phase 14.6 Institutional ────────────────────────────────
+            ├── MFEHead             → MFE (batch, 1)             [opt]
+            ├── MAEExcursionHead    → MAE (batch, 1)             [opt]
+            ├── TradeEfficiencyHead → efficiency (batch, 1)      [opt]
+            ├── RewardRiskHead      → R:R (batch, 1)             [opt]
+            ├── TradeSurvivalHead   → survival (batch, K)        [opt]
+            ├── SLResilienceHead    → SL resilience (batch, 1)   [opt]
+            ├── TPAchievabilityHead → TP achievability (batch,1) [opt]
+            ├── EntryQualityHead    → entry score (batch, 1)     [opt]
+            ├── ExitQualityHead     → exit score (batch, 1)      [opt]
+            ├── MarketStabilityHead → stability (batch, 4)       [opt]
+            ├── TradeDecayHead      → decay (batch, D+1)         [opt]
+            ├── ProfitDistributionHead → profit dist (batch, 6)  [opt]
+            ├── LossDistributionHead   → loss dist (batch, 4)    [opt]
+            ├── PositionSizeQualityHead→ PS quality (batch, 1)   [opt]
+            └── UncertaintyHead     → [ep, al] (batch, 2)        [opt]
 
-    New heads are disabled by default; existing callers see identical
-    behaviour from forward() and a superset from predict().
-
-    Args:
-        trainer_config: Global TrainerConfig.
-        model_config: QuantV1Config with all hyper-parameters.
+    All heads are disabled by default.  Enable via config flags.
     """
 
     def __init__(
@@ -89,8 +121,9 @@ class QuantModelV1(BaseQuantModel):
         bb_cfg = self._model_config.backbone
         cls_cfg = self._model_config.classification_head
         conf_cfg = self._model_config.confidence_head
+        mt = self._model_config
 
-        # --- Core layers (unchanged) ---
+        # ── Core layers (unchanged) ──────────────────────────────────────
         self.input_encoder = InputEncoder(enc_cfg)
         self.backbone: SequenceEncoder = build_backbone(
             input_dim=self.input_encoder.output_dim,
@@ -98,72 +131,114 @@ class QuantModelV1(BaseQuantModel):
         )
         ctx_dim = self.backbone.output_dim
 
-        self.classification_head = ClassificationHead(
-            context_dim=ctx_dim, config=cls_cfg
-        )
-        self.confidence_head = ConfidenceHead(
-            context_dim=ctx_dim, config=conf_cfg
-        )
+        self.classification_head = ClassificationHead(context_dim=ctx_dim, config=cls_cfg)
+        self.confidence_head = ConfidenceHead(context_dim=ctx_dim, config=conf_cfg)
         self.output_layer = OutputLayer(label_names=cls_cfg.label_names)
 
-        # --- Phase 14.5 optional heads ---
-        mt = self._model_config
-
+        # ── Phase 14.5 optional heads ────────────────────────────────────
         self.expected_move_head: Optional[ExpectedMoveHead] = (
             ExpectedMoveHead(ctx_dim, mt.expected_move_head)
-            if mt.expected_move_head.enabled
-            else None
+            if mt.expected_move_head.enabled else None
         )
         self.stop_loss_head: Optional[StopLossHead] = (
             StopLossHead(ctx_dim, mt.stop_loss_head)
-            if mt.stop_loss_head.enabled
-            else None
+            if mt.stop_loss_head.enabled else None
         )
         self.take_profit_head: Optional[TakeProfitHead] = (
             TakeProfitHead(ctx_dim, mt.take_profit_head)
-            if mt.take_profit_head.enabled
-            else None
+            if mt.take_profit_head.enabled else None
         )
         self.holding_time_head: Optional[HoldingTimeHead] = (
             HoldingTimeHead(ctx_dim, mt.holding_time_head)
-            if mt.holding_time_head.enabled
-            else None
+            if mt.holding_time_head.enabled else None
         )
         self.tp_probability_head: Optional[TPProbabilityHead] = (
             TPProbabilityHead(ctx_dim, mt.tp_probability_head)
-            if mt.tp_probability_head.enabled
-            else None
+            if mt.tp_probability_head.enabled else None
+        )
+
+        # ── Phase 14.6 optional heads ────────────────────────────────────
+        self.mfe_head: Optional[MFEHead] = (
+            MFEHead(ctx_dim, mt.mfe_head)
+            if mt.mfe_head.enabled else None
+        )
+        self.mae_excursion_head: Optional[MAEExcursionHead] = (
+            MAEExcursionHead(ctx_dim, mt.mae_excursion_head)
+            if mt.mae_excursion_head.enabled else None
+        )
+        self.trade_efficiency_head: Optional[TradeEfficiencyHead] = (
+            TradeEfficiencyHead(ctx_dim, mt.trade_efficiency_head)
+            if mt.trade_efficiency_head.enabled else None
+        )
+        self.reward_risk_head: Optional[RewardRiskHead] = (
+            RewardRiskHead(ctx_dim, mt.reward_risk_head)
+            if mt.reward_risk_head.enabled else None
+        )
+        self.trade_survival_head: Optional[TradeSurvivalHead] = (
+            TradeSurvivalHead(ctx_dim, mt.trade_survival_head)
+            if mt.trade_survival_head.enabled else None
+        )
+        self.sl_resilience_head: Optional[SLResilienceHead] = (
+            SLResilienceHead(ctx_dim, mt.sl_resilience_head)
+            if mt.sl_resilience_head.enabled else None
+        )
+        self.tp_achievability_head: Optional[TPAchievabilityHead] = (
+            TPAchievabilityHead(ctx_dim, mt.tp_achievability_head)
+            if mt.tp_achievability_head.enabled else None
+        )
+        self.entry_quality_head: Optional[EntryQualityHead] = (
+            EntryQualityHead(ctx_dim, mt.entry_quality_head)
+            if mt.entry_quality_head.enabled else None
+        )
+        self.exit_quality_head: Optional[ExitQualityHead] = (
+            ExitQualityHead(ctx_dim, mt.exit_quality_head)
+            if mt.exit_quality_head.enabled else None
+        )
+        self.market_stability_head: Optional[MarketStabilityHead] = (
+            MarketStabilityHead(ctx_dim, mt.market_stability_head)
+            if mt.market_stability_head.enabled else None
+        )
+        self.trade_decay_head: Optional[TradeDecayHead] = (
+            TradeDecayHead(ctx_dim, mt.trade_decay_head)
+            if mt.trade_decay_head.enabled else None
+        )
+        self.profit_distribution_head: Optional[ProfitDistributionHead] = (
+            ProfitDistributionHead(ctx_dim, mt.profit_distribution_head)
+            if mt.profit_distribution_head.enabled else None
+        )
+        self.loss_distribution_head: Optional[LossDistributionHead] = (
+            LossDistributionHead(ctx_dim, mt.loss_distribution_head)
+            if mt.loss_distribution_head.enabled else None
+        )
+        self.position_size_quality_head: Optional[PositionSizeQualityHead] = (
+            PositionSizeQualityHead(ctx_dim, mt.position_size_quality_head)
+            if mt.position_size_quality_head.enabled else None
+        )
+        self.uncertainty_head: Optional[UncertaintyHead] = (
+            UncertaintyHead(ctx_dim, mt.uncertainty_head)
+            if mt.uncertainty_head.enabled else None
         )
 
         self._initialize_weights()
 
-    # ------------------------------------------------------------------
-    # BaseQuantModel interface
-    # ------------------------------------------------------------------
+    # ── BaseQuantModel interface ─────────────────────────────────────────
 
     @property
     def feature_dim(self) -> int:
-        """Expected input feature dimensionality."""
         return self._model_config.encoder.input_dim
 
     @property
     def num_classes(self) -> int:
-        """Number of output classes (BUY=0, SELL=1, NO_TRADE=2)."""
         return self._model_config.classification_head.num_classes
 
-    # ------------------------------------------------------------------
-    # Forward pass — backward compatible
-    # ------------------------------------------------------------------
+    # ── Forward pass — backward compatible ──────────────────────────────
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Standard forward pass — returns direction logits for loss computation.
+        """Standard forward pass — returns direction logits only.
 
-        This method is IDENTICAL to the original V1 behaviour.  Downstream
-        training loops using CrossEntropyLoss(logits, targets) require no
-        changes.
-
-        For the full multi-task output call :meth:`predict` or
-        :meth:`forward_multi_task`.
+        Identical to the original Phase 14.0 behaviour.  Downstream
+        training loops using CrossEntropyLoss(logits, targets) require
+        no changes whatsoever.
 
         Args:
             x: Feature tensor of shape (batch, seq_len, input_dim).
@@ -175,11 +250,10 @@ class QuantModelV1(BaseQuantModel):
         return logits
 
     def predict(self, x: torch.Tensor) -> MultiTaskQuantModelOutput:
-        """Full inference pass — returns MultiTaskQuantModelOutput.
+        """Full inference pass — returns complete MultiTaskQuantModelOutput.
 
-        Includes all enabled prediction head outputs.  Compatible with
-        existing consumers of the original QuantModelOutput via
-        ``output.to_base_output()``.
+        All enabled head outputs are populated.  Compatible with existing
+        consumers via ``output.to_base_output()``.
 
         Args:
             x: Feature tensor of shape (batch, seq_len, input_dim).
@@ -190,28 +264,27 @@ class QuantModelV1(BaseQuantModel):
         return self._forward_full(x)
 
     def forward_multi_task(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Multi-task forward pass for the multi-task training engine.
+        """Multi-task forward for the training engine — returns dict of tensors.
 
-        Returns a dict of raw tensors (pre-activation for classification,
-        post-activation for regression/binary heads) keyed by head name.
-        The multi-task loss function consumes this dict directly.
+        Always present:
+            direction_logits — (batch, num_classes) raw CE logits
+            confidence       — (batch, 1) ∈ [0, 1]
 
-        Keys always present:
-            direction_logits  — (batch, num_classes) raw CE logits
-            confidence        — (batch, 1) calibrated confidence [0, 1]
+        Present when head enabled (Phase 14.5):
+            expected_move, stop_loss, take_profit, holding_time, tp_probability
 
-        Keys present when head is enabled:
-            expected_move     — (batch, 1) move size (signed)
-            stop_loss         — (batch, 1) SL distance (≥ 0)
-            take_profit       — (batch, 1) TP distance (≥ 0)
-            holding_time      — (batch, 1) duration (≥ 0)
-            tp_probability    — (batch, 1) P(TP before SL) in [0, 1]
+        Present when head enabled (Phase 14.6):
+            mfe, mae_excursion, trade_efficiency, reward_risk,
+            trade_survival, sl_resilience, tp_achievability,
+            entry_quality, exit_quality, market_stability,
+            trade_decay, profit_distribution, loss_distribution,
+            position_size_quality, uncertainty
 
         Args:
             x: Feature tensor of shape (batch, seq_len, input_dim).
 
         Returns:
-            Dict of named tensors.
+            Dict of named tensors consumed by MultiTaskLoss.
         """
         context, logits, confidence = self._encode(x)
 
@@ -219,21 +292,42 @@ class QuantModelV1(BaseQuantModel):
             "direction_logits": logits,
             "confidence": confidence,
         }
-        if self.expected_move_head is not None:
-            out["expected_move"] = self.expected_move_head(context)
-        if self.stop_loss_head is not None:
-            out["stop_loss"] = self.stop_loss_head(context)
-        if self.take_profit_head is not None:
-            out["take_profit"] = self.take_profit_head(context)
-        if self.holding_time_head is not None:
-            out["holding_time"] = self.holding_time_head(context)
-        if self.tp_probability_head is not None:
-            out["tp_probability"] = self.tp_probability_head(context)
+
+        # ── Phase 14.5 ───────────────────────────────────────────────────
+        _p14_5: list[tuple[Optional[nn.Module], str]] = [
+            (self.expected_move_head, "expected_move"),
+            (self.stop_loss_head, "stop_loss"),
+            (self.take_profit_head, "take_profit"),
+            (self.holding_time_head, "holding_time"),
+            (self.tp_probability_head, "tp_probability"),
+        ]
+
+        # ── Phase 14.6 ───────────────────────────────────────────────────
+        _p14_6: list[tuple[Optional[nn.Module], str]] = [
+            (self.mfe_head, "mfe"),
+            (self.mae_excursion_head, "mae_excursion"),
+            (self.trade_efficiency_head, "trade_efficiency"),
+            (self.reward_risk_head, "reward_risk"),
+            (self.trade_survival_head, "trade_survival"),
+            (self.sl_resilience_head, "sl_resilience"),
+            (self.tp_achievability_head, "tp_achievability"),
+            (self.entry_quality_head, "entry_quality"),
+            (self.exit_quality_head, "exit_quality"),
+            (self.market_stability_head, "market_stability"),
+            (self.trade_decay_head, "trade_decay"),
+            (self.profit_distribution_head, "profit_distribution"),
+            (self.loss_distribution_head, "loss_distribution"),
+            (self.position_size_quality_head, "position_size_quality"),
+            (self.uncertainty_head, "uncertainty"),
+        ]
+
+        for head, key in [*_p14_5, *_p14_6]:
+            if head is not None:
+                out[key] = head(context)
+
         return out
 
-    # ------------------------------------------------------------------
-    # Model metadata
-    # ------------------------------------------------------------------
+    # ── Model metadata ───────────────────────────────────────────────────
 
     @property
     def architecture_name(self) -> str:
@@ -252,16 +346,31 @@ class QuantModelV1(BaseQuantModel):
     def enabled_heads(self) -> list[str]:
         """Names of all currently enabled prediction heads."""
         heads = ["direction", "confidence"]
-        if self.expected_move_head is not None:
-            heads.append("expected_move")
-        if self.stop_loss_head is not None:
-            heads.append("stop_loss")
-        if self.take_profit_head is not None:
-            heads.append("take_profit")
-        if self.holding_time_head is not None:
-            heads.append("holding_time")
-        if self.tp_probability_head is not None:
-            heads.append("tp_probability")
+        _all_optional: list[tuple[Optional[nn.Module], str]] = [
+            (self.expected_move_head, "expected_move"),
+            (self.stop_loss_head, "stop_loss"),
+            (self.take_profit_head, "take_profit"),
+            (self.holding_time_head, "holding_time"),
+            (self.tp_probability_head, "tp_probability"),
+            (self.mfe_head, "mfe"),
+            (self.mae_excursion_head, "mae_excursion"),
+            (self.trade_efficiency_head, "trade_efficiency"),
+            (self.reward_risk_head, "reward_risk"),
+            (self.trade_survival_head, "trade_survival"),
+            (self.sl_resilience_head, "sl_resilience"),
+            (self.tp_achievability_head, "tp_achievability"),
+            (self.entry_quality_head, "entry_quality"),
+            (self.exit_quality_head, "exit_quality"),
+            (self.market_stability_head, "market_stability"),
+            (self.trade_decay_head, "trade_decay"),
+            (self.profit_distribution_head, "profit_distribution"),
+            (self.loss_distribution_head, "loss_distribution"),
+            (self.position_size_quality_head, "position_size_quality"),
+            (self.uncertainty_head, "uncertainty"),
+        ]
+        for head, name in _all_optional:
+            if head is not None:
+                heads.append(name)
         return heads
 
     def get_architecture_summary(self) -> dict[str, Any]:
@@ -269,10 +378,10 @@ class QuantModelV1(BaseQuantModel):
         enc_cfg = self._model_config.encoder
         bb_cfg = self._model_config.backbone
         cls_cfg = self._model_config.classification_head
-        mt = self._model_config
         return {
             "architecture": self.architecture_name,
             "version": self.model_version,
+            "phase": "14.6",
             "input_dim": enc_cfg.input_dim,
             "encoder_hidden_dim": enc_cfg.hidden_dim,
             "backbone_type": bb_cfg.type.value,
@@ -283,10 +392,6 @@ class QuantModelV1(BaseQuantModel):
             "num_classes": cls_cfg.num_classes,
             "label_names": cls_cfg.label_names,
             "enabled_heads": self.enabled_heads,
-            "expected_move_unit": mt.expected_move_head.unit.value if mt.expected_move_head.enabled else None,
-            "stop_loss_unit": mt.stop_loss_head.unit.value if mt.stop_loss_head.enabled else None,
-            "take_profit_unit": mt.take_profit_head.unit.value if mt.take_profit_head.enabled else None,
-            "holding_time_unit": mt.holding_time_head.unit.value if mt.holding_time_head.enabled else None,
             **self.get_param_count(),
         }
 
@@ -297,62 +402,43 @@ class QuantModelV1(BaseQuantModel):
             "model_id": "signalium_quant_v1",
             "model_version": self.model_version,
             "architecture": self.architecture_name,
-            "phase": "14.5",
+            "phase": "14.6",
             "supported_outputs": self.enabled_heads,
-            "prediction_schema": {
-                "buy_prob": "float [0,1] — P(BUY)",
-                "sell_prob": "float [0,1] — P(SELL)",
-                "no_trade_prob": "float [0,1] — P(NO TRADE)",
-                "confidence": "float [0,1] — model certainty",
-                "expected_move": f"float — move size in {mt.expected_move_head.unit.value}" if mt.expected_move_head.enabled else None,
-                "stop_loss": f"float ≥0 — SL distance in {mt.stop_loss_head.unit.value}" if mt.stop_loss_head.enabled else None,
-                "take_profit": f"float ≥0 — TP distance in {mt.take_profit_head.unit.value}" if mt.take_profit_head.enabled else None,
-                "holding_time": f"float ≥0 — duration in {mt.holding_time_head.unit.value}" if mt.holding_time_head.enabled else None,
-                "tp_probability": "float [0,1] — P(TP before SL)" if mt.tp_probability_head.enabled else None,
-            },
-            "output_version": "2.0.0",
+            "output_version": "3.0.0",
+            "prediction_schema": self._build_prediction_schema(),
             "loss_config": {
-                "direction_weight": mt.multi_task_loss.direction_weight,
-                "move_weight": mt.multi_task_loss.move_weight,
-                "sl_weight": mt.multi_task_loss.sl_weight,
-                "tp_weight": mt.multi_task_loss.tp_weight,
-                "holding_time_weight": mt.multi_task_loss.holding_time_weight,
-                "confidence_weight": mt.multi_task_loss.confidence_weight,
-                "tp_probability_weight": mt.multi_task_loss.tp_probability_weight,
+                k: v for k, v in mt.multi_task_loss.__dict__.items()
             },
         }
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
+    # ── Private helpers ──────────────────────────────────────────────────
 
     def _encode(
         self, x: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Shared encoder pass — returns (context, logits, confidence).
+        """Shared encoder pass — (context, logits, confidence).
 
-        This is the hot path shared by forward(), predict(), and
-        forward_multi_task(). Each head then consumes context independently
-        without re-running the expensive backbone.
-
-        Args:
-            x: (batch, seq_len, input_dim)
-
-        Returns:
-            context:    (batch, backbone_output_dim)
-            logits:     (batch, num_classes)
-            confidence: (batch, 1)
+        Single backbone pass shared by forward(), predict(), and
+        forward_multi_task().  All heads consume context independently.
         """
-        encoded = self.input_encoder(x)            # (batch, seq_len, hidden_dim)
-        context = self.backbone(encoded)            # (batch, backbone_output_dim)
-        logits = self.classification_head(context)  # (batch, num_classes)
-        confidence = self.confidence_head(context)  # (batch, 1)
+        encoded = self.input_encoder(x)
+        context = self.backbone(encoded)
+        logits = self.classification_head(context)
+        confidence = self.confidence_head(context)
         return context, logits, confidence
 
     def _forward_full(self, x: torch.Tensor) -> MultiTaskQuantModelOutput:
         """Internal full forward — shared by predict()."""
         context, logits, confidence = self._encode(x)
         base = self.output_layer(logits, confidence)
+
+        def _call(head: Optional[nn.Module]) -> Optional[torch.Tensor]:
+            return head(context) if head is not None else None
+
+        # For MarketStabilityHead, return softmax probabilities at inference
+        market_stability_out: Optional[torch.Tensor] = None
+        if self.market_stability_head is not None:
+            market_stability_out = self.market_stability_head.predict_proba(context)
 
         return MultiTaskQuantModelOutput(
             logits=base.logits,
@@ -362,14 +448,87 @@ class QuantModelV1(BaseQuantModel):
             buy_prob=base.buy_prob,
             sell_prob=base.sell_prob,
             no_trade_prob=base.no_trade_prob,
-            expected_move=self.expected_move_head(context) if self.expected_move_head else None,
-            stop_loss=self.stop_loss_head(context) if self.stop_loss_head else None,
-            take_profit=self.take_profit_head(context) if self.take_profit_head else None,
-            holding_time=self.holding_time_head(context) if self.holding_time_head else None,
-            tp_probability=self.tp_probability_head(context) if self.tp_probability_head else None,
+            # Phase 14.5
+            expected_move=_call(self.expected_move_head),
+            stop_loss=_call(self.stop_loss_head),
+            take_profit=_call(self.take_profit_head),
+            holding_time=_call(self.holding_time_head),
+            tp_probability=_call(self.tp_probability_head),
+            # Phase 14.6
+            mfe=_call(self.mfe_head),
+            mae_excursion=_call(self.mae_excursion_head),
+            trade_efficiency=_call(self.trade_efficiency_head),
+            reward_risk=_call(self.reward_risk_head),
+            trade_survival=_call(self.trade_survival_head),
+            sl_resilience=_call(self.sl_resilience_head),
+            tp_achievability=_call(self.tp_achievability_head),
+            entry_quality=_call(self.entry_quality_head),
+            exit_quality=_call(self.exit_quality_head),
+            market_stability=market_stability_out,
+            trade_decay=_call(self.trade_decay_head),
+            profit_distribution=_call(self.profit_distribution_head),
+            loss_distribution=_call(self.loss_distribution_head),
+            position_size_quality=_call(self.position_size_quality_head),
+            uncertainty=_call(self.uncertainty_head),
             prediction_timestamp=datetime.now(tz=timezone.utc).isoformat(),
             model_version=self.model_version,
         )
+
+    def _build_prediction_schema(self) -> dict[str, Any]:
+        """Build the inference output schema for export metadata."""
+        mt = self._model_config
+        schema: dict[str, Any] = {
+            "buy_prob": "float [0,1] — P(BUY)",
+            "sell_prob": "float [0,1] — P(SELL)",
+            "no_trade_prob": "float [0,1] — P(NO TRADE)",
+            "confidence": "float [0,1] — model certainty",
+        }
+
+        def _add(enabled: bool, key: str, desc: str) -> None:
+            if enabled:
+                schema[key] = desc
+
+        _add(mt.expected_move_head.enabled, "expected_move",
+             f"float — move in {mt.expected_move_head.unit.value}")
+        _add(mt.stop_loss_head.enabled, "stop_loss",
+             f"float ≥0 — SL distance in {mt.stop_loss_head.unit.value}")
+        _add(mt.take_profit_head.enabled, "take_profit",
+             f"float ≥0 — TP distance in {mt.take_profit_head.unit.value}")
+        _add(mt.holding_time_head.enabled, "holding_time",
+             f"float ≥0 — duration in {mt.holding_time_head.unit.value}")
+        _add(mt.tp_probability_head.enabled, "tp_probability",
+             "float [0,1] — P(TP before SL)")
+        _add(mt.mfe_head.enabled, "mfe",
+             f"float ≥0 — MFE in {mt.mfe_head.unit.value}")
+        _add(mt.mae_excursion_head.enabled, "mae_excursion",
+             f"float ≥0 — MAE in {mt.mae_excursion_head.unit.value}")
+        _add(mt.trade_efficiency_head.enabled, "trade_efficiency",
+             "float [0,100] — % move captured")
+        _add(mt.reward_risk_head.enabled, "reward_risk",
+             "float ≥0 — expected R:R ratio")
+        _add(mt.trade_survival_head.enabled, "trade_survival",
+             f"float[K] [0,1] — survival probs at bars {mt.trade_survival_head.survival_bars}")
+        _add(mt.sl_resilience_head.enabled, "sl_resilience",
+             "float [0,1] — P(SL survives noise)")
+        _add(mt.tp_achievability_head.enabled, "tp_achievability",
+             "float [0,1] — P(TP achieved before invalidation)")
+        _add(mt.entry_quality_head.enabled, "entry_quality",
+             "float [0,100] — entry quality score")
+        _add(mt.exit_quality_head.enabled, "exit_quality",
+             "float [0,100] — exit quality score")
+        _add(mt.market_stability_head.enabled, "market_stability",
+             "float[4] — [stable, mod_stable, unstable, highly_unstable] probs")
+        _add(mt.trade_decay_head.enabled, "trade_decay",
+             f"float[{mt.trade_decay_head.decay_steps + 1}] — [decay_prob, curve…]")
+        _add(mt.profit_distribution_head.enabled, "profit_distribution",
+             "float[6] — [mean, median, variance, skewness, ci_lower, ci_upper]")
+        _add(mt.loss_distribution_head.enabled, "loss_distribution",
+             "float[4] — [mean, median, variance, tail_risk]")
+        _add(mt.position_size_quality_head.enabled, "position_size_quality",
+             "float [0,100] — capital allocation quality (NOT lot size)")
+        _add(mt.uncertainty_head.enabled, "uncertainty",
+             "float[2] — [epistemic ≥0, aleatoric ≥0]")
+        return schema
 
     def _initialize_weights(self) -> None:
         """Apply sensible weight initialisation across all linear layers."""

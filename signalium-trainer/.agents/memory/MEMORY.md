@@ -1,0 +1,1 @@
+- [Quant model phase architecture](quant-model-phases.md) — Phase 14.5 adds 5 heads; Phase 14.6 adds 15 institutional heads; all share backbone context vector; forward() unchanged.

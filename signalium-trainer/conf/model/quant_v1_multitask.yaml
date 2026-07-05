@@ -1,9 +1,10 @@
-# QuantModelV1 Phase 14.5 — Multi-Task configuration.
-# All new heads are enabled here. Copy and adjust for your use case.
-# Backward-compatible with quant_v1.yaml — set enabled: false to disable any head.
+# QuantModelV1 Phase 14.6 — Institutional Trade Analytics configuration.
+# All Phase 14.5 and 14.6 heads are enabled here.
+# Adjust enabled: true/false per head as needed for your use case.
+# Fully backward-compatible with quant_v1.yaml.
 
-model_version: "1.1.0"
-architecture_name: "QuantModelV1-MultiTask"
+model_version: "2.0.0"
+architecture_name: "QuantModelV1-Institutional"
 
 encoder:
   input_dim: 128
@@ -41,7 +42,7 @@ expected_move_head:
   enabled: true
   hidden_dim: 64
   dropout: 0.2
-  unit: pips                  # pips | points | atr
+  unit: pips                  # pips | points | atr | ticks | percent
   loss_type: huber
   huber_delta: 1.0
 
@@ -49,7 +50,7 @@ stop_loss_head:
   enabled: true
   hidden_dim: 64
   dropout: 0.2
-  unit: pips                  # pips | atr | points
+  unit: pips
   loss_type: huber
   huber_delta: 1.0
 
@@ -57,7 +58,7 @@ take_profit_head:
   enabled: true
   hidden_dim: 64
   dropout: 0.2
-  unit: pips                  # pips | atr | points
+  unit: pips
   loss_type: huber
   huber_delta: 1.0
 
@@ -75,10 +76,107 @@ tp_probability_head:
   dropout: 0.2
 
 # ------------------------------------------------------------------
-# Multi-task loss weights
+# Phase 14.6 — Institutional Trade Analytics heads
+# ------------------------------------------------------------------
+
+mfe_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: pips                  # pips | points | atr | ticks | percent
+  loss_type: huber
+  huber_delta: 1.0
+
+mae_excursion_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: pips
+  loss_type: huber
+  huber_delta: 1.0
+
+trade_efficiency_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+reward_risk_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+trade_survival_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  survival_bars:              # bar horizons at which to predict survival
+    - 5
+    - 10
+    - 20
+
+sl_resilience_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+tp_achievability_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+entry_quality_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+exit_quality_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+market_stability_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  num_classes: 4
+  label_names:
+    - stable
+    - moderately_stable
+    - unstable
+    - highly_unstable
+
+trade_decay_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  decay_steps: 5              # number of future steps in the decay curve
+
+profit_distribution_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+loss_distribution_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+position_size_quality_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+uncertainty_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+# ------------------------------------------------------------------
+# Multi-task loss weights (Phase 14.5 + 14.6)
 # ------------------------------------------------------------------
 
 multi_task_loss:
+  # Phase 14.5 weights
   direction_weight: 1.0
   move_weight: 0.5
   sl_weight: 0.5
@@ -86,19 +184,35 @@ multi_task_loss:
   holding_time_weight: 0.3
   confidence_weight: 0.2
   tp_probability_weight: 0.5
+  # Phase 14.6 weights
+  mfe_weight: 0.3
+  mae_excursion_weight: 0.3
+  trade_efficiency_weight: 0.2
+  reward_risk_weight: 0.3
+  trade_survival_weight: 0.4
+  sl_resilience_weight: 0.3
+  tp_achievability_weight: 0.3
+  entry_quality_weight: 0.2
+  exit_quality_weight: 0.2
+  market_stability_weight: 0.3
+  trade_decay_weight: 0.2
+  profit_distribution_weight: 0.2
+  loss_distribution_weight: 0.2
+  position_size_quality_weight: 0.2
+  uncertainty_weight: 0.1
 
 # ------------------------------------------------------------------
-# Existing loss / balancing config (for direction head)
+# Direction head loss / class balancing
 # ------------------------------------------------------------------
 
 loss:
-  type: cross_entropy
+  type: cross_entropy         # cross_entropy | focal | weighted_cross_entropy
   focal_gamma: 2.0
   focal_alpha: null
   label_smoothing: 0.0
   class_weights: null
 
 balancing:
-  strategy: class_weights
+  strategy: class_weights     # none | class_weights | weighted_sampler
   oversample_ratio: 1.0
   undersample_ratio: 1.0

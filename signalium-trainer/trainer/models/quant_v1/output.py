@@ -1,9 +1,9 @@
-"""Model output containers for QuantModelV1 — Phase 14.5 multi-task extension.
+"""Model output containers for QuantModelV1 — Phase 14.6 Institutional Analytics.
 
 Backward compatibility is fully preserved:
-  - ``QuantModelOutput`` retains all original fields.
-  - ``MultiTaskQuantModelOutput`` extends it with optional per-head outputs.
-    Fields are None when the corresponding head is disabled in config.
+  - ``QuantModelOutput`` retains all original fields (unchanged).
+  - ``MultiTaskQuantModelOutput`` is extended with 15 new Phase 14.6 fields.
+    All new fields are ``None`` when their head is disabled in config.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class QuantModelOutput:
     no_trade_prob: torch.Tensor
 
     def to_dict(self) -> dict[str, torch.Tensor]:
-        """Return all outputs as a plain dict (e.g. for logging or export)."""
+        """Return all outputs as a plain dict."""
         return {
             "logits": self.logits,
             "probabilities": self.probabilities,
@@ -59,13 +59,9 @@ class QuantModelOutput:
 
 
 class OutputLayer(nn.Module):
-    """Final output layer: applies softmax and assembles QuantModelOutput.
+    """Applies softmax to logits and assembles QuantModelOutput.
 
-    This layer is stateless — it only transforms logits and confidence
-    into the final structured output.
-
-    Args:
-        label_names: List of class labels in order [BUY, SELL, NO_TRADE].
+    Stateless — only transforms logits + confidence into a structured output.
     """
 
     CLASS_BUY = 0
@@ -77,23 +73,9 @@ class OutputLayer(nn.Module):
         self._label_names = label_names or ["BUY", "SELL", "NO_TRADE"]
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(
-        self,
-        logits: torch.Tensor,
-        confidence: torch.Tensor,
-    ) -> QuantModelOutput:
-        """Assemble the final model output.
-
-        Args:
-            logits: Raw class logits of shape (batch, num_classes).
-            confidence: Confidence scores of shape (batch, 1).
-
-        Returns:
-            QuantModelOutput with all fields populated.
-        """
+    def forward(self, logits: torch.Tensor, confidence: torch.Tensor) -> QuantModelOutput:
         probs = self.softmax(logits)
         predicted = probs.argmax(dim=-1)
-
         return QuantModelOutput(
             logits=logits,
             probabilities=probs,
@@ -106,41 +88,56 @@ class OutputLayer(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Phase 14.5 — Multi-task output container
+# Phase 14.5 + 14.6 — Extended multi-task output container
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class MultiTaskQuantModelOutput:
-    """Extended structured output for the Phase 14.5 multi-task model.
+    """Extended output for the Phase 14.6 Institutional Analytics model.
 
-    This is a superset of ``QuantModelOutput``.  Every field from the
-    original output is present.  The additional per-head fields are
-    ``None`` when the corresponding head is disabled via config.
+    Superset of ``QuantModelOutput``.  Every original field is present.
+    Phase 14.5 and 14.6 fields are ``None`` when the head is disabled.
 
-    Inference contract (all per-sample, batch dimension first):
+    ── Direction (always present) ──────────────────────────────────────────
+    logits              (batch, 3)  — raw direction logits (for loss)
+    probabilities       (batch, 3)  — softmax direction probabilities
+    predicted_class     (batch,)    — argmax class index {0=BUY,1=SELL,2=NO_TRADE}
+    buy_prob            (batch,)    — P(BUY)
+    sell_prob           (batch,)    — P(SELL)
+    no_trade_prob       (batch,)    — P(NO TRADE)
 
-        Direction:
-            logits          (batch, 3)   — raw direction logits
-            probabilities   (batch, 3)   — softmax direction probs
-            predicted_class (batch,)     — argmax class index
-            buy_prob        (batch,)     — P(BUY)
-            sell_prob       (batch,)     — P(SELL)
-            no_trade_prob   (batch,)     — P(NO TRADE)
+    ── Phase 14.5 heads (optional) ─────────────────────────────────────────
+    confidence          (batch, 1)  — model certainty ∈ [0, 1]
+    expected_move       (batch, 1)  — predicted price move (signed)
+    stop_loss           (batch, 1)  — SL distance ≥ 0
+    take_profit         (batch, 1)  — TP distance ≥ 0
+    holding_time        (batch, 1)  — expected duration ≥ 0
+    tp_probability      (batch, 1)  — P(TP before SL) ∈ [0, 1]
 
-        Quantitative heads:
-            confidence      (batch, 1)   — model certainty in [0, 1]
-            expected_move   (batch, 1)   — predicted price move
-            stop_loss       (batch, 1)   — recommended SL distance (≥0)
-            take_profit     (batch, 1)   — recommended TP distance (≥0)
-            holding_time    (batch, 1)   — expected duration (≥0)
-            tp_probability  (batch, 1)   — P(TP reached before SL) in [0,1]
+    ── Phase 14.6 Institutional heads (optional) ────────────────────────────
+    mfe                 (batch, 1)  — max favorable excursion ≥ 0
+    mae_excursion       (batch, 1)  — max adverse excursion ≥ 0
+    trade_efficiency    (batch, 1)  — % move captured ∈ [0, 100]
+    reward_risk         (batch, 1)  — expected R:R ratio ≥ 0
+    trade_survival      (batch, K)  — survival probs at K bar horizons ∈ [0,1]
+    sl_resilience       (batch, 1)  — P(SL survives noise) ∈ [0, 1]
+    tp_achievability    (batch, 1)  — P(TP achieved) ∈ [0, 1]
+    entry_quality       (batch, 1)  — entry quality score ∈ [0, 100]
+    exit_quality        (batch, 1)  — exit quality score ∈ [0, 100]
+    market_stability    (batch, 4)  — stability class probabilities
+    trade_decay         (batch, D+1)— [decay_prob, decay curve] ∈ [0, 1]
+    profit_distribution (batch, 6)  — [mean, median, var, skew, ci_lo, ci_hi]
+    loss_distribution   (batch, 4)  — [mean, median, var, tail_risk]
+    position_size_quality (batch,1) — capital allocation quality ∈ [0, 100]
+    uncertainty         (batch, 2)  — [epistemic, aleatoric] ≥ 0
 
-        Metadata:
-            prediction_timestamp — UTC ISO-8601 timestamp
-            model_version        — semantic version string
+    ── Metadata ────────────────────────────────────────────────────────────
+    prediction_timestamp — UTC ISO-8601 timestamp
+    model_version        — semantic version string
     """
 
+    # ── Always present ───────────────────────────────────────────────────
     logits: torch.Tensor
     probabilities: torch.Tensor
     confidence: torch.Tensor
@@ -149,12 +146,31 @@ class MultiTaskQuantModelOutput:
     sell_prob: torch.Tensor
     no_trade_prob: torch.Tensor
 
+    # ── Phase 14.5 optional ──────────────────────────────────────────────
     expected_move: Optional[torch.Tensor] = None
     stop_loss: Optional[torch.Tensor] = None
     take_profit: Optional[torch.Tensor] = None
     holding_time: Optional[torch.Tensor] = None
     tp_probability: Optional[torch.Tensor] = None
 
+    # ── Phase 14.6 optional ──────────────────────────────────────────────
+    mfe: Optional[torch.Tensor] = None
+    mae_excursion: Optional[torch.Tensor] = None
+    trade_efficiency: Optional[torch.Tensor] = None
+    reward_risk: Optional[torch.Tensor] = None
+    trade_survival: Optional[torch.Tensor] = None
+    sl_resilience: Optional[torch.Tensor] = None
+    tp_achievability: Optional[torch.Tensor] = None
+    entry_quality: Optional[torch.Tensor] = None
+    exit_quality: Optional[torch.Tensor] = None
+    market_stability: Optional[torch.Tensor] = None
+    trade_decay: Optional[torch.Tensor] = None
+    profit_distribution: Optional[torch.Tensor] = None
+    loss_distribution: Optional[torch.Tensor] = None
+    position_size_quality: Optional[torch.Tensor] = None
+    uncertainty: Optional[torch.Tensor] = None
+
+    # ── Metadata ─────────────────────────────────────────────────────────
     prediction_timestamp: Optional[str] = None
     model_version: Optional[str] = None
 
@@ -169,24 +185,22 @@ class MultiTaskQuantModelOutput:
             "sell_prob": self.sell_prob,
             "no_trade_prob": self.no_trade_prob,
         }
-        if self.expected_move is not None:
-            result["expected_move"] = self.expected_move
-        if self.stop_loss is not None:
-            result["stop_loss"] = self.stop_loss
-        if self.take_profit is not None:
-            result["take_profit"] = self.take_profit
-        if self.holding_time is not None:
-            result["holding_time"] = self.holding_time
-        if self.tp_probability is not None:
-            result["tp_probability"] = self.tp_probability
-        if self.prediction_timestamp is not None:
-            result["prediction_timestamp"] = self.prediction_timestamp
-        if self.model_version is not None:
-            result["model_version"] = self.model_version
+        _opt_fields = [
+            "expected_move", "stop_loss", "take_profit", "holding_time",
+            "tp_probability", "mfe", "mae_excursion", "trade_efficiency",
+            "reward_risk", "trade_survival", "sl_resilience", "tp_achievability",
+            "entry_quality", "exit_quality", "market_stability", "trade_decay",
+            "profit_distribution", "loss_distribution", "position_size_quality",
+            "uncertainty", "prediction_timestamp", "model_version",
+        ]
+        for f in _opt_fields:
+            val = getattr(self, f)
+            if val is not None:
+                result[f] = val
         return result
 
     def to_base_output(self) -> QuantModelOutput:
-        """Down-cast to the original QuantModelOutput for backward compatibility."""
+        """Down-cast to original QuantModelOutput for backward compatibility."""
         return QuantModelOutput(
             logits=self.logits,
             probabilities=self.probabilities,
