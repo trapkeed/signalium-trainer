@@ -1,0 +1,63 @@
+# Phase 18 — Institutional MLOps Platform Configuration
+#
+# All parameters are configurable here — no code changes required to:
+#   - Adjust monitoring windows
+#   - Configure alert thresholds
+#   - Enable/disable automatic promotion
+#   - Tune drift detection thresholds
+#   - Configure retraining policies
+
+mlops:
+  # -------------------------------------------------------------------------
+  # Storage
+  # -------------------------------------------------------------------------
+  db_path: experiments/mlops/mlops.db
+  export_dir: experiments/mlops/exports
+
+  # -------------------------------------------------------------------------
+  # Production monitoring rolling window
+  # -------------------------------------------------------------------------
+  monitoring_window: 500       # records per model in rolling window
+
+  # -------------------------------------------------------------------------
+  # Drift detection windows
+  # -------------------------------------------------------------------------
+  health_baseline_window: 200  # records used as baseline for drift comparison
+  health_recent_window: 50     # records used as recent window for drift detection
+
+  # -------------------------------------------------------------------------
+  # Alert thresholds
+  # -------------------------------------------------------------------------
+  latency_alert_ms: 100.0      # avg latency above this → CRITICAL
+  memory_alert_mb: 8192.0      # peak memory above this → CRITICAL
+  confidence_alert_threshold: 0.40  # avg confidence below this → WARNING
+
+  # -------------------------------------------------------------------------
+  # Governance
+  # -------------------------------------------------------------------------
+  governance_require_approver: true   # named approver required for deployments
+  governance_auto_promote: false      # set to true to enable auto-promotion
+
+  # -------------------------------------------------------------------------
+  # Retraining policies
+  # IMPORTANT: auto_retrain is ALWAYS false — only advisory recommendations
+  # -------------------------------------------------------------------------
+  enable_default_retraining_policies: true
+
+  # Custom retraining thresholds (applied to default policies):
+  # retraining_policies:
+  #   performance_degradation_threshold: 0.05
+  #   confidence_degradation_threshold: 0.10
+  #   calibration_drift_threshold: 0.05
+  #   regime_drift_threshold: 0.20
+
+  # -------------------------------------------------------------------------
+  # Drift thresholds
+  # -------------------------------------------------------------------------
+  drift_thresholds:
+    confidence_drift: 0.10
+    prediction_drift: 0.15
+    calibration_drift: 0.05
+    performance_degradation: 0.05
+    latency_degradation_ms: 20.0
+    distribution_drift: 0.15

@@ -1,0 +1,406 @@
+We are implementing Phase 19 of Signalium Quant.
+
+Repository:
+
+signalium-trainer
+
+======================================================================
+MISSION
+======================================================================
+
+Build the Institutional Research Intelligence and Continuous Learning
+Governance Platform.
+
+This platform governs the evolution of Signalium Quant.
+
+It continuously monitors market behaviour, datasets, features, models,
+labels, and production performance.
+
+It does NOT automatically retrain models.
+
+Instead, it performs institutional-grade research monitoring and
+recommends actions.
+
+Maintain complete backward compatibility.
+
+======================================================================
+RESEARCH OBSERVATORY
+======================================================================
+
+Create a centralized Research Observatory.
+
+Continuously monitor:
+
+Production models
+
+Validation results
+
+Training datasets
+
+Feature distributions
+
+Market regimes
+
+Prediction quality
+
+Signal outcomes
+
+Trade statistics
+
+Calibration
+
+Latency
+
+Resource utilization
+
+======================================================================
+MARKET EVOLUTION MONITOR
+======================================================================
+
+Detect structural changes in markets.
+
+Examples:
+
+Long-term volatility shifts
+
+Changing trend persistence
+
+Liquidity changes
+
+Session behaviour changes
+
+Instrument behaviour changes
+
+Macro regime transitions
+
+Changing correlation structures
+
+Store historical evolution.
+
+======================================================================
+FEATURE LIFECYCLE MANAGEMENT
+======================================================================
+
+Continuously evaluate every feature.
+
+Track:
+
+Feature importance
+
+Feature stability
+
+Feature drift
+
+Missing values
+
+Correlation changes
+
+Predictive contribution
+
+Age
+
+Usage frequency
+
+Automatically classify features:
+
+Experimental
+
+Candidate
+
+Approved
+
+Deprecated
+
+Retired
+
+Generate recommendations for feature promotion or retirement.
+
+======================================================================
+LABEL QUALITY MONITOR
+======================================================================
+
+Evaluate labels continuously.
+
+Measure:
+
+Noise
+
+Consistency
+
+Class imbalance
+
+Prediction difficulty
+
+Label drift
+
+Generate quality reports.
+
+======================================================================
+DATASET EVOLUTION
+======================================================================
+
+Track every dataset.
+
+Record:
+
+Version
+
+Coverage
+
+Instrument count
+
+Timeframe coverage
+
+Market regime coverage
+
+Feature schema
+
+Label schema
+
+Data quality score
+
+Completeness
+
+======================================================================
+MODEL HEALTH EVOLUTION
+======================================================================
+
+Track long-term trends.
+
+Examples:
+
+Performance improvement
+
+Performance degradation
+
+Confidence changes
+
+Calibration drift
+
+Prediction entropy
+
+False positive rate
+
+False negative rate
+
+======================================================================
+RETRAINING ADVISOR
+======================================================================
+
+Create an advisory engine.
+
+Recommend retraining when appropriate.
+
+Possible triggers:
+
+Feature drift
+
+Performance degradation
+
+Calibration degradation
+
+Market evolution
+
+New datasets
+
+Improved labels
+
+New feature releases
+
+Each recommendation must include:
+
+Reason
+
+Expected benefit
+
+Estimated risk
+
+Priority
+
+Confidence
+
+======================================================================
+EXPERIMENT RECOMMENDATION ENGINE
+======================================================================
+
+Automatically suggest new research.
+
+Examples:
+
+Try new backbone
+
+Increase sequence length
+
+Reduce dropout
+
+Test new loss weighting
+
+Evaluate new features
+
+Remove deprecated features
+
+Train on additional assets
+
+Improve calibration
+
+======================================================================
+KNOWLEDGE BASE
+======================================================================
+
+Maintain an institutional knowledge base.
+
+Store:
+
+Research findings
+
+Successful experiments
+
+Failed experiments
+
+Lessons learned
+
+Feature history
+
+Model history
+
+Deployment history
+
+Validation history
+
+======================================================================
+AI RESEARCH ASSISTANT
+======================================================================
+
+Generate periodic summaries.
+
+Examples:
+
+Weekly Research Report
+
+Monthly Model Health Report
+
+Feature Quality Report
+
+Dataset Quality Report
+
+Validation Summary
+
+Research Roadmap
+
+======================================================================
+DATABASE
+======================================================================
+
+Create tables for:
+
+Research findings
+
+Recommendations
+
+Feature lifecycle
+
+Dataset evolution
+
+Label quality
+
+Market evolution
+
+Knowledge base
+
+======================================================================
+API
+======================================================================
+
+Create endpoints for:
+
+Research reports
+
+Recommendations
+
+Feature lifecycle
+
+Dataset history
+
+Knowledge base
+
+Market evolution
+
+======================================================================
+VISUALIZATION
+======================================================================
+
+Generate dashboards:
+
+Market evolution timeline
+
+Feature lifecycle
+
+Dataset evolution
+
+Recommendation queue
+
+Knowledge graph
+
+Research timeline
+
+======================================================================
+TESTING
+======================================================================
+
+Generate:
+
+Recommendation tests
+
+Lifecycle tests
+
+Knowledge base tests
+
+Dataset monitoring tests
+
+Research report tests
+
+======================================================================
+DOCUMENTATION
+======================================================================
+
+Generate:
+
+Research Governance Guide
+
+Continuous Learning Guide
+
+Knowledge Base Guide
+
+Developer Guide
+
+API Documentation
+
+======================================================================
+IMPORTANT
+======================================================================
+
+Do NOT automatically retrain.
+
+Do NOT automatically deploy.
+
+Provide recommendations only unless explicitly configured otherwise.
+
+Generate a complete Institutional Research Intelligence Report.
+
+Include:
+
+Research Architecture
+
+Recommendation Workflow
+
+Knowledge Base Design
+
+Lifecycle Design
+
+Dataset Evolution
+
+Feature Evolution
+
+Operational Readiness
+
+Future Expansion
