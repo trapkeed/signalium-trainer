@@ -2,6 +2,9 @@
 
 Supports PyTorch eager mode, TorchScript, and ONNX Runtime backends
 behind a single ``predict()`` call.
+
+Phase 14.5: PyTorchInferenceAdapter is updated to surface all multi-task
+outputs from QuantModelV1 when they are available.
 """
 
 from __future__ import annotations
@@ -18,6 +21,11 @@ from trainer.framework.contracts.model_output import ModelOutput
 
 class PyTorchInferenceAdapter(BaseInferenceAdapter):
     """Inference adapter for PyTorch eager-mode models (``BaseQuantModel``).
+
+    Phase 14.5 update: when the model returns a ``MultiTaskQuantModelOutput``
+    (i.e. it has additional heads enabled), all non-None fields are included
+    in the returned dict.  Callers that only use the original fields see no
+    change.
 
     Args:
         model: A loaded ``BaseQuantModel`` instance.
@@ -53,14 +61,41 @@ class PyTorchInferenceAdapter(BaseInferenceAdapter):
     def predict(self, x: torch.Tensor) -> dict[str, Any]:
         """Run inference on a batch.
 
+        Returns the full inference contract:
+            buy_prob, sell_prob, no_trade_prob, confidence, predicted_class,
+            plus (when enabled): expected_move, stop_loss, take_profit,
+            holding_time, tp_probability, prediction_timestamp, model_version.
+
         Args:
             x: Input tensor of shape (batch, seq_len, feature_dim).
 
         Returns:
-            Dict with probabilities, confidence, predicted_class, etc.
+            Dict with all available prediction fields.
         """
         x = x.to(self._device)
         out = self._model.predict(x)
+
+        # If this is a MultiTaskQuantModelOutput, use to_dict() directly
+        if hasattr(out, "to_dict") and hasattr(out, "expected_move"):
+            result_dict = out.to_dict()
+            # Apply confidence gate to direction if threshold set
+            if self._threshold is not None:
+                from trainer.framework.contracts.model_output import (
+                    CLASS_NO_TRADE,
+                    ModelOutput,
+                )
+                base = ModelOutput(
+                    logits=out.logits,
+                    probabilities=out.probabilities,
+                    confidence=out.confidence,
+                    predicted_class=out.predicted_class,
+                )
+                gated = base.gate_by_confidence(self._threshold)
+                result_dict["predicted_class"] = gated.predicted_class
+                result_dict["probabilities"] = gated.probabilities
+            return result_dict
+
+        # Legacy path: original QuantModelOutput
         result = ModelOutput(
             logits=out.logits,
             probabilities=out.probabilities,
@@ -137,7 +172,7 @@ class InferenceAdapterFactory:
 
     Usage::
 
-        # From a live PyTorch model
+        # From a live PyTorch model (with full multi-task outputs)
         adapter = InferenceAdapterFactory.from_model(model)
 
         # From a TorchScript .pt file

@@ -1,0 +1,104 @@
+# QuantModelV1 Phase 14.5 — Multi-Task configuration.
+# All new heads are enabled here. Copy and adjust for your use case.
+# Backward-compatible with quant_v1.yaml — set enabled: false to disable any head.
+
+model_version: "1.1.0"
+architecture_name: "QuantModelV1-MultiTask"
+
+encoder:
+  input_dim: 128
+  hidden_dim: 256
+  use_layer_norm: true
+  use_projection: true
+  projection_dropout: 0.1
+
+backbone:
+  type: lstm                  # lstm | gru
+  hidden_size: 256
+  num_layers: 2
+  dropout: 0.3
+  bidirectional: false
+  window_length: 60
+
+classification_head:
+  num_classes: 3
+  hidden_dim: 128
+  dropout: 0.3
+  label_names:
+    - BUY
+    - SELL
+    - NO_TRADE
+
+confidence_head:
+  hidden_dim: 64
+  dropout: 0.2
+
+# ------------------------------------------------------------------
+# Phase 14.5 — Quantitative prediction heads
+# ------------------------------------------------------------------
+
+expected_move_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: pips                  # pips | points | atr
+  loss_type: huber
+  huber_delta: 1.0
+
+stop_loss_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: pips                  # pips | atr | points
+  loss_type: huber
+  huber_delta: 1.0
+
+take_profit_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: pips                  # pips | atr | points
+  loss_type: huber
+  huber_delta: 1.0
+
+holding_time_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+  unit: minutes               # minutes | bars | candles
+  loss_type: huber
+  huber_delta: 1.0
+
+tp_probability_head:
+  enabled: true
+  hidden_dim: 64
+  dropout: 0.2
+
+# ------------------------------------------------------------------
+# Multi-task loss weights
+# ------------------------------------------------------------------
+
+multi_task_loss:
+  direction_weight: 1.0
+  move_weight: 0.5
+  sl_weight: 0.5
+  tp_weight: 0.5
+  holding_time_weight: 0.3
+  confidence_weight: 0.2
+  tp_probability_weight: 0.5
+
+# ------------------------------------------------------------------
+# Existing loss / balancing config (for direction head)
+# ------------------------------------------------------------------
+
+loss:
+  type: cross_entropy
+  focal_gamma: 2.0
+  focal_alpha: null
+  label_smoothing: 0.0
+  class_weights: null
+
+balancing:
+  strategy: class_weights
+  oversample_ratio: 1.0
+  undersample_ratio: 1.0

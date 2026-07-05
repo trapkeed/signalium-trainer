@@ -1,4 +1,4 @@
-"""BaseClassificationHead and BaseConfidenceHead — framework-level ABCs."""
+"""BaseClassificationHead, BaseConfidenceHead, BaseRegressionHead — framework-level ABCs."""
 
 from __future__ import annotations
 
@@ -49,4 +49,25 @@ class BaseConfidenceHead(nn.Module):
 
         Returns:
             Confidence tensor of shape (batch, 1), values in [0, 1].
+        """
+
+
+class BaseRegressionHead(nn.Module):
+    """Abstract base for all regression heads in the Signalium Model Framework.
+
+    A regression head maps a context vector (batch, context_dim) to a
+    scalar quantity (batch, 1). Output range and units are head-specific.
+
+    Concrete implementations must implement :meth:`forward`.
+    """
+
+    @abstractmethod
+    def forward(self, context: torch.Tensor) -> torch.Tensor:
+        """Compute a scalar regression output.
+
+        Args:
+            context: Context tensor of shape (batch, context_dim).
+
+        Returns:
+            Scalar output of shape (batch, 1).
         """

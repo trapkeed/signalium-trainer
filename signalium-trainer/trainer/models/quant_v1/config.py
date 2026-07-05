@@ -1,4 +1,4 @@
-"""QuantModelV1 hyper-parameter configuration."""
+"""QuantModelV1 hyper-parameter configuration — Phase 14.5 multi-task extension."""
 
 from __future__ import annotations
 
@@ -30,6 +30,25 @@ class BalancingStrategy(str, Enum):
     WEIGHTED_SAMPLER = "weighted_sampler"
     OVERSAMPLE = "oversample"
     UNDERSAMPLE = "undersample"
+
+
+class RegressionUnit(str, Enum):
+    """Output unit for regression heads."""
+
+    PIPS = "pips"
+    POINTS = "points"
+    ATR = "atr"
+    MINUTES = "minutes"
+    BARS = "bars"
+    CANDLES = "candles"
+
+
+class RegressionLossType(str, Enum):
+    """Loss type for regression heads."""
+
+    MSE = "mse"
+    HUBER = "huber"
+    MAE = "mae"
 
 
 @dataclass
@@ -74,6 +93,51 @@ class ConfidenceHeadConfig:
 
 
 @dataclass
+class RegressionHeadConfig:
+    """Generic configuration for regression output heads.
+
+    Used by ExpectedMove, StopLoss, TakeProfit, and HoldingTime heads.
+    """
+
+    enabled: bool = True
+    hidden_dim: int = 64
+    dropout: float = 0.2
+    unit: RegressionUnit = RegressionUnit.PIPS
+    loss_type: RegressionLossType = RegressionLossType.HUBER
+    huber_delta: float = 1.0
+
+
+@dataclass
+class TPProbabilityHeadConfig:
+    """Configuration for the TP-before-SL probability head.
+
+    Binary classification: probability that Take Profit is reached
+    before Stop Loss.
+    """
+
+    enabled: bool = True
+    hidden_dim: int = 64
+    dropout: float = 0.2
+
+
+@dataclass
+class MultiTaskLossConfig:
+    """Per-head loss weights for the combined multi-task loss.
+
+    Setting a weight to 0.0 disables that head's contribution to the
+    gradient (it still runs the forward pass if the head is enabled).
+    """
+
+    direction_weight: float = 1.0
+    move_weight: float = 0.5
+    sl_weight: float = 0.5
+    tp_weight: float = 0.5
+    holding_time_weight: float = 0.3
+    confidence_weight: float = 0.2
+    tp_probability_weight: float = 0.5
+
+
+@dataclass
 class LossConfig:
     """Loss function configuration."""
 
@@ -95,9 +159,10 @@ class BalancingConfig:
 
 @dataclass
 class QuantV1Config:
-    """Root configuration for QuantModelV1.
+    """Root configuration for QuantModelV1 — Phase 14.5 multi-task.
 
-    Every hyper-parameter is explicit — nothing is hidden in defaults.
+    All existing fields are preserved for backward compatibility.
+    New multi-task heads are opt-in via their ``enabled`` flag.
     """
 
     encoder: InputEncoderConfig = field(default_factory=InputEncoderConfig)
@@ -110,3 +175,31 @@ class QuantV1Config:
     balancing: BalancingConfig = field(default_factory=BalancingConfig)
     model_version: str = "1.0.0"
     architecture_name: str = "QuantModelV1"
+
+    # ------------------------------------------------------------------
+    # Phase 14.5 — Multi-task prediction heads (all disabled by default)
+    # ------------------------------------------------------------------
+    expected_move_head: RegressionHeadConfig = field(
+        default_factory=lambda: RegressionHeadConfig(enabled=False)
+    )
+    stop_loss_head: RegressionHeadConfig = field(
+        default_factory=lambda: RegressionHeadConfig(
+            enabled=False, unit=RegressionUnit.PIPS
+        )
+    )
+    take_profit_head: RegressionHeadConfig = field(
+        default_factory=lambda: RegressionHeadConfig(
+            enabled=False, unit=RegressionUnit.PIPS
+        )
+    )
+    holding_time_head: RegressionHeadConfig = field(
+        default_factory=lambda: RegressionHeadConfig(
+            enabled=False, unit=RegressionUnit.MINUTES
+        )
+    )
+    tp_probability_head: TPProbabilityHeadConfig = field(
+        default_factory=lambda: TPProbabilityHeadConfig(enabled=False)
+    )
+    multi_task_loss: MultiTaskLossConfig = field(
+        default_factory=MultiTaskLossConfig
+    )
