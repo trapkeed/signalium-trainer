@@ -7,7 +7,9 @@ import express, {
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
-import router from "./routes";
+import healthRouter from "./routes/health";
+import privateRouter from "./routes/private";
+import { requireApiKey } from "./middlewares/apiKey";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -51,7 +53,9 @@ const bodyLimit = process.env.BODY_LIMIT ?? "1mb";
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
-app.use("/api", router);
+app.use("/api", healthRouter);
+
+app.use("/api", requireApiKey, privateRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

@@ -5,6 +5,7 @@ import { logger } from "./lib/logger";
 const REQUIRED_ENV: Record<string, string> = {
   PORT: "TCP port the Express server binds to",
   DATABASE_URL: "PostgreSQL connection string",
+  API_KEY: "Secret key clients must supply to access protected endpoints",
 };
 
 const missing: string[] = [];
