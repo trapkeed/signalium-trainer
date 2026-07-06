@@ -6,7 +6,7 @@ description: Canonical post-refactor monorepo layout — where everything lives 
 # Production monorepo layout (after production-refactor)
 
 ## TypeScript
-- Apps: `apps/api-server/` (was `artifacts/api-server/`)
+- Apps: `apps/trainer-api/` (was `artifacts/api-server/`, renamed via Phase 5)
 - Packages: `packages/{api-client-react,api-spec,api-zod,db}/` (was `lib/*`)
 - pnpm-workspace.yaml: `apps/*`, `packages/*`, `scripts`
 - Root tsconfig.json references: `./packages/db`, `./packages/api-client-react`, `./packages/api-zod`
