@@ -251,7 +251,7 @@ class ExplainabilityEngine:
             attention_map=attn_map,
             attribution_result=attribution,
             target_class=target_class,
-            method=self._method,
+            method="gradient_attribution" if self._method == "gradient" else self._method,
         )
 
     def explain_stream_contributions(

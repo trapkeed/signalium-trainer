@@ -244,7 +244,7 @@ class AutoMLAPI:
             else:
                 records = self.db.list_records(status="completed", limit=500)
             if not records:
-                return _ok({"pareto": [], "total": 0})
+                return _ok({"pareto": [], "total": 0, "n_pareto": 0, "total_evaluated": 0, "pareto_indices": []})
             metrics_list = [r.get("validation_results") or r.get("config") or {} for r in records]
             pareto_idxs = self.scorer.pareto_front(metrics_list)
             pareto = [records[i] for i in pareto_idxs]

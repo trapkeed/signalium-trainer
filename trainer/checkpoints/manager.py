@@ -166,7 +166,10 @@ class CheckpointManager:
             logger.info("New best {} = {:.6f} → best.pt", self._monitor_metric, monitor_value)
 
         # ── Top-k rotation ───────────────────────────────────────────
-        heap_score = monitor_value if self._monitor_mode == "min" else -monitor_value
+        # Store negated score so heappop() always removes the worst checkpoint.
+        # For "min" mode: worse = higher value → negate to make it smallest.
+        # For "max" mode: worse = lower value  → negate to make it smallest.
+        heap_score = -monitor_value if self._monitor_mode == "min" else monitor_value
         heapq.heappush(self._top_k_heap, (heap_score, str(ckpt_path)))
 
         while len(self._top_k_heap) > self._keep_top_k:

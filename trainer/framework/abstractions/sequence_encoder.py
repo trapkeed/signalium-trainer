@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
 
 
-class BaseSequenceEncoder(nn.Module):
+class BaseSequenceEncoder(ABC, nn.Module):
     """Abstract base for all temporal sequence encoders in the Signalium Model Framework.
 
     A sequence encoder takes a sequence of encoded feature vectors

@@ -188,6 +188,16 @@ class AttentionExtractor:
 
         for name, module in model.named_modules():
             if isinstance(module, nn.MultiheadAttention):
+                # Force need_weights=True so output[1] carries the attention weights.
+                # TransformerEncoderLayer calls MHA with need_weights=False by default;
+                # we override it via a forward_pre_hook that sets the kwarg.
+                def _pre_hook(mod, args, kwargs, _name=name):
+                    kwargs["need_weights"] = True
+                    kwargs["average_attn_weights"] = False
+                    return args, kwargs
+
+                pre_hook = module.register_forward_pre_hook(_pre_hook, with_kwargs=True)
+                self._hooks.append(pre_hook)
                 hook = module.register_forward_hook(self._hook_fn(name))
                 self._hooks.append(hook)
 

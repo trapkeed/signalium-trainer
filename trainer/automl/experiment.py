@@ -419,7 +419,7 @@ class ExperimentRecord:
     ) -> ExperimentRecord:
         return ExperimentRecord(
             trial_id=trial.trial_id,
-            job_id=trial.job_id,
+            job_id=trial.job_id or job.job_id,
             job_name=job.name,
             strategy=job.strategy,
             config=trial.config,

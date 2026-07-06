@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
 
 
-class BaseClassificationHead(nn.Module):
+class BaseClassificationHead(ABC, nn.Module):
     """Abstract base for all classification heads in the Signalium Model Framework.
 
     A classification head maps a context vector (batch, context_dim) to
@@ -30,7 +30,7 @@ class BaseClassificationHead(nn.Module):
         """
 
 
-class BaseConfidenceHead(nn.Module):
+class BaseConfidenceHead(ABC, nn.Module):
     """Abstract base for all confidence heads in the Signalium Model Framework.
 
     A confidence head produces a scalar certainty estimate per sample

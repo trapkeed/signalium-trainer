@@ -470,7 +470,14 @@ class TestBackboneRegistry:
         assert out.shape == (4, 32)
 
     def test_transformer_output_shape(self) -> None:
-        cfg = BackboneConfig(type=BackboneType.TRANSFORMER, hidden_size=32, num_layers=2, dropout=0.0, num_heads=4, ff_dim=64)
+        cfg = BackboneConfig(
+            type=BackboneType.TRANSFORMER,
+            hidden_size=32,
+            num_layers=2,
+            dropout=0.0,
+            num_heads=4,
+            ff_dim=64,
+        )
         bb = TransformerBackbone(input_dim=16, config=cfg)
         x = torch.randn(4, 10, 16)
         out = bb(x)
@@ -666,9 +673,12 @@ class TestGradientAccumulation:
     the gradient from a single full-batch with loss/1.
     """
 
+    _MODEL_SEED = 42
+
     def _run_with_accum(
         self, accum_steps: int, batch: torch.Tensor, labels: torch.Tensor
     ) -> dict[str, torch.Tensor]:
+        torch.manual_seed(self._MODEL_SEED)
         model = _Net(4, 3)
         model.train()
         opt = torch.optim.SGD(model.parameters(), lr=0.0)
@@ -686,6 +696,7 @@ class TestGradientAccumulation:
         return {n: p.grad.clone() for n, p in model.named_parameters() if p.grad is not None}
 
     def _run_full_batch(self, batch: torch.Tensor, labels: torch.Tensor) -> dict[str, torch.Tensor]:
+        torch.manual_seed(self._MODEL_SEED)
         model = _Net(4, 3)
         model.train()
         opt = torch.optim.SGD(model.parameters(), lr=0.0)
