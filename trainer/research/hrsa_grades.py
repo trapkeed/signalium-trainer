@@ -170,6 +170,13 @@ class GradeAssessment:
         }
 
 
+# Backward-compatible aliases used by tests and external importers
+HRSAGrade = GradeAssessment
+HRSAGradeDefinition = GradeThreshold
+ResearchGrade = GradeAssessment
+ResearchGradeDefinition = GradeThreshold
+
+
 # ---------------------------------------------------------------------------
 # HRSAGradeEngine
 # ---------------------------------------------------------------------------
