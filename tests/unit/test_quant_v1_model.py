@@ -118,9 +118,9 @@ class TestGradientFlow:
         # Only check parameters that belong to the active forward path (direction head).
         # Optional heads (confidence_head etc.) are only used in full multi-task passes.
         params_without_grad = [
-            name for name, p in model.named_parameters()
-            if p.requires_grad and p.grad is None
-            and "confidence_head" not in name
+            name
+            for name, p in model.named_parameters()
+            if p.requires_grad and p.grad is None and "confidence_head" not in name
         ]
         assert not params_without_grad, f"No gradient for: {params_without_grad}"
 

@@ -130,10 +130,14 @@ class ResourceManager:
         self._snapshots: dict[str, list[ResourceSnapshot]] = {}
         self._total_gpu_allocated_mb: float = 0.0
 
+    def _count_active(self) -> int:
+        """Count active slots — must be called with _lock already held."""
+        return sum(1 for s in self._slots.values() if s.is_active)
+
     @property
     def active_workers(self) -> int:
         with self._lock:
-            return sum(1 for s in self._slots.values() if s.is_active)
+            return self._count_active()
 
     @property
     def available_slots(self) -> int:
@@ -146,7 +150,7 @@ class ResourceManager:
     def acquire_slot(self, trial_id: str = "") -> str | None:
         """Acquire a worker slot. Returns token or None if no slot available."""
         with self._lock:
-            if self.active_workers >= self.max_workers:
+            if self._count_active() >= self.max_workers:
                 return None
             slot = WorkerSlot(trial_id=trial_id)
             self._slots[slot.token] = slot

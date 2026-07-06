@@ -407,7 +407,7 @@ def build_standard_space() -> SearchSpace:
             choices=[
                 "lstm",
                 "gru",
-                "transformer",
+                "transformer_encoder",
                 "temporal_cnn",
                 "hybrid_lstm_cnn",
                 "hybrid_transformer_cnn",
@@ -435,7 +435,7 @@ def build_standard_space() -> SearchSpace:
         ConditionalParameter(
             name="attention_heads",
             parent="backbone",
-            parent_value="transformer",
+            parent_value="transformer_encoder",
             parameter=IntParameter("attention_heads", low=2, high=16, step=2),
             default=4,
         )

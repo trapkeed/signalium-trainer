@@ -331,5 +331,5 @@ class PredictionHeadValidator:
                 fp += 1
             tpr.append(tp / n_pos)
             fpr.append(fp / n_neg)
-        _trapz = getattr(np, "trapezoid", np.trapz)
+        _trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))
         return float(_trapz(tpr, fpr))
