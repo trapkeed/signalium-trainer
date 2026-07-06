@@ -46,6 +46,22 @@ from trainer.research.hrsa_grades import GradeAssessment, HRSAGradeEngine
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 
 # ---------------------------------------------------------------------------
+# SensitivityResult — backward-compat result for sensitivity_analysis
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SensitivityResult:
+    """Result of a single-category sensitivity analysis step."""
+
+    category: str = ""
+    delta_pct: float = 0.0
+    base_score: float = 0.0
+    simulated_score: float = 0.0
+    estimated_delta: float = 0.0
+
+
+# ---------------------------------------------------------------------------
 # HierarchicalScore — complete scoring result
 # ---------------------------------------------------------------------------
 

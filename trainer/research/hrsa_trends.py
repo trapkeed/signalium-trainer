@@ -358,3 +358,7 @@ class HRSATrendEngine:
 
     def category_history(self, category: str) -> list[dict[str, Any]]:
         return [p.to_dict() for p in self._category_series.get(category, [])]
+
+
+# Backward-compat alias
+RegressionEvent = HRSARegressionAlert
