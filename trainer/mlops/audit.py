@@ -37,40 +37,54 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Audit event types
 # ---------------------------------------------------------------------------
 
 
 class AuditEventType:
-    TRAINING            = "training"
-    VALIDATION          = "validation"
-    PROMOTION           = "promotion"
-    DEPLOYMENT          = "deployment"
-    ROLLBACK            = "rollback"
-    RETIREMENT          = "retirement"
-    CONFIG_CHANGE       = "config_change"
-    INFERENCE_ERROR     = "inference_error"
-    MANUAL_APPROVAL     = "manual_approval"
-    MANUAL_REJECTION    = "manual_rejection"
+    TRAINING = "training"
+    VALIDATION = "validation"
+    PROMOTION = "promotion"
+    DEPLOYMENT = "deployment"
+    ROLLBACK = "rollback"
+    RETIREMENT = "retirement"
+    CONFIG_CHANGE = "config_change"
+    INFERENCE_ERROR = "inference_error"
+    MANUAL_APPROVAL = "manual_approval"
+    MANUAL_REJECTION = "manual_rejection"
     RETRAINING_RECOMMENDATION = "retraining_recommendation"
-    CHAMPION_CHANGE     = "champion_change"
+    CHAMPION_CHANGE = "champion_change"
     LIFECYCLE_TRANSITION = "lifecycle_transition"
-    ALERT_EMITTED       = "alert_emitted"
-    ALERT_ACKNOWLEDGED  = "alert_acknowledged"
-    ALERT_RESOLVED      = "alert_resolved"
-    REGISTRY_REGISTER   = "registry_register"
-    REGISTRY_REMOVE     = "registry_remove"
-    GOVERNANCE          = "governance"
-    SYSTEM              = "system"
+    ALERT_EMITTED = "alert_emitted"
+    ALERT_ACKNOWLEDGED = "alert_acknowledged"
+    ALERT_RESOLVED = "alert_resolved"
+    REGISTRY_REGISTER = "registry_register"
+    REGISTRY_REMOVE = "registry_remove"
+    GOVERNANCE = "governance"
+    SYSTEM = "system"
 
     ALL = [
-        TRAINING, VALIDATION, PROMOTION, DEPLOYMENT, ROLLBACK, RETIREMENT,
-        CONFIG_CHANGE, INFERENCE_ERROR, MANUAL_APPROVAL, MANUAL_REJECTION,
-        RETRAINING_RECOMMENDATION, CHAMPION_CHANGE, LIFECYCLE_TRANSITION,
-        ALERT_EMITTED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED,
-        REGISTRY_REGISTER, REGISTRY_REMOVE, GOVERNANCE, SYSTEM,
+        TRAINING,
+        VALIDATION,
+        PROMOTION,
+        DEPLOYMENT,
+        ROLLBACK,
+        RETIREMENT,
+        CONFIG_CHANGE,
+        INFERENCE_ERROR,
+        MANUAL_APPROVAL,
+        MANUAL_REJECTION,
+        RETRAINING_RECOMMENDATION,
+        CHAMPION_CHANGE,
+        LIFECYCLE_TRANSITION,
+        ALERT_EMITTED,
+        ALERT_ACKNOWLEDGED,
+        ALERT_RESOLVED,
+        REGISTRY_REGISTER,
+        REGISTRY_REMOVE,
+        GOVERNANCE,
+        SYSTEM,
     ]
 
 
@@ -102,9 +116,7 @@ class AuditEvent:
     description: str = ""
     outcome: str = "success"
     metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     session_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -154,22 +166,29 @@ class AuditSystem:
             event.session_id = self._session_id
         self._events.append(event)
         if len(self._events) > self.max_events:
-            self._events = self._events[-self.max_events:]
+            self._events = self._events[-self.max_events :]
         return event
 
-    def log(self, event_type: str, actor: str = "system",
-            model_id: str = "", description: str = "",
-            outcome: str = "success",
-            metadata: Optional[Dict[str, Any]] = None) -> AuditEvent:
+    def log(
+        self,
+        event_type: str,
+        actor: str = "system",
+        model_id: str = "",
+        description: str = "",
+        outcome: str = "success",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AuditEvent:
         """Convenience method to create and record an event."""
-        return self.record(AuditEvent(
-            event_type=event_type,
-            actor=actor,
-            model_id=model_id,
-            description=description,
-            outcome=outcome,
-            metadata=metadata or {},
-        ))
+        return self.record(
+            AuditEvent(
+                event_type=event_type,
+                actor=actor,
+                model_id=model_id,
+                description=description,
+                outcome=outcome,
+                metadata=metadata or {},
+            )
+        )
 
     def get(self, event_id: str) -> Optional[AuditEvent]:
         for e in reversed(self._events):
@@ -177,11 +196,14 @@ class AuditSystem:
                 return e
         return None
 
-    def query(self, event_type: Optional[str] = None,
-              model_id: Optional[str] = None,
-              actor: Optional[str] = None,
-              limit: int = 100,
-              most_recent_first: bool = True) -> List[Dict[str, Any]]:
+    def query(
+        self,
+        event_type: Optional[str] = None,
+        model_id: Optional[str] = None,
+        actor: Optional[str] = None,
+        limit: int = 100,
+        most_recent_first: bool = True,
+    ) -> List[Dict[str, Any]]:
         """Query audit events with optional filters."""
         events = list(self._events)
         if event_type:
@@ -200,9 +222,11 @@ class AuditSystem:
 
     def get_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
         """Generate an audit report."""
-        events = self._events if model_id is None else [
-            e for e in self._events if e.model_id == model_id
-        ]
+        events = (
+            self._events
+            if model_id is None
+            else [e for e in self._events if e.model_id == model_id]
+        )
         by_type: Dict[str, int] = {}
         by_actor: Dict[str, int] = {}
         by_outcome: Dict[str, int] = {}

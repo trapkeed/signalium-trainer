@@ -55,10 +55,10 @@ from trainer.research.model_health_evolution import ModelHealthEvolutionTracker
 from trainer.research.observatory import ResearchObservatory, ValidationRecord
 from trainer.research.research_assistant import ResearchAssistant
 from trainer.research.retraining_advisor import (
-    RetrainingAdvisor, build_default_advisor,
+    RetrainingAdvisor,
+    build_default_advisor,
 )
 from trainer.research.visualization import ResearchVisualizationBuilder
-
 
 # ---------------------------------------------------------------------------
 # Engine config
@@ -127,9 +127,7 @@ class ResearchEngine:
     def __init__(self, config: Optional[ResearchConfig] = None) -> None:
         self.config = config or ResearchConfig()
         self.db = ResearchDatabase(self.config.db_path)
-        self.observatory = ResearchObservatory(
-            window=self.config.observatory_window
-        )
+        self.observatory = ResearchObservatory(window=self.config.observatory_window)
         self.market_monitor = MarketEvolutionMonitor(
             baseline_window=self.config.market_baseline_window,
             recent_window=self.config.market_recent_window,
@@ -151,9 +149,7 @@ class ResearchEngine:
             window=self.config.health_tracker_window,
         )
         self.advisor = (
-            build_default_advisor()
-            if self.config.enable_default_advisor
-            else RetrainingAdvisor()
+            build_default_advisor() if self.config.enable_default_advisor else RetrainingAdvisor()
         )
         self.experiment_engine = ExperimentRecommendationEngine()
         self.knowledge_base = KnowledgeBase()
@@ -185,14 +181,11 @@ class ResearchEngine:
         self.knowledge_base.log(
             KnowledgeEntryType.RESEARCH_NOTE,
             title="ResearchEngine initialized",
-            body=f"Phase 19 Research Intelligence Platform started. "
-                 f"DB: {self.config.db_path}",
+            body=f"Phase 19 Research Intelligence Platform started. " f"DB: {self.config.db_path}",
             author="engine",
             metadata=self.config.to_dict(),
         )
-        logger.info(
-            f"ResearchEngine initialized: db={self.config.db_path}"
-        )
+        logger.info(f"ResearchEngine initialized: db={self.config.db_path}")
 
     # -----------------------------------------------------------------------
     # Observatory
@@ -202,9 +195,9 @@ class ResearchEngine:
         """Record one production monitoring snapshot."""
         self.observatory.record_production_snapshot(model_id, **kwargs)
 
-    def record_signal_outcome(self, model_id: str, signal: str,
-                               outcome: str, pnl: float = 0.0,
-                               **kwargs: Any) -> None:
+    def record_signal_outcome(
+        self, model_id: str, signal: str, outcome: str, pnl: float = 0.0, **kwargs: Any
+    ) -> None:
         """Record one signal outcome."""
         self.observatory.record_signal_outcome(
             model_id, signal=signal, outcome=outcome, pnl=pnl, **kwargs
@@ -217,16 +210,12 @@ class ResearchEngine:
     # Market evolution
     # -----------------------------------------------------------------------
 
-    def record_regime_snapshot(self, instrument: str, timeframe: str,
-                                **kwargs: Any) -> None:
+    def record_regime_snapshot(self, instrument: str, timeframe: str, **kwargs: Any) -> None:
         """Record one market regime snapshot."""
-        snap = self.market_monitor.record_regime_snapshot(
-            instrument, timeframe, **kwargs
-        )
+        snap = self.market_monitor.record_regime_snapshot(instrument, timeframe, **kwargs)
         self.db.save_market_snapshot(snap.to_dict())
 
-    def detect_market_evolution(self, instrument: str,
-                                 timeframe: str) -> List[Dict[str, Any]]:
+    def detect_market_evolution(self, instrument: str, timeframe: str) -> List[Dict[str, Any]]:
         """Detect market structural changes."""
         detections = self.market_monitor.detect_evolution(instrument, timeframe)
         return [d.to_dict() for d in detections]
@@ -235,8 +224,9 @@ class ResearchEngine:
     # Feature lifecycle
     # -----------------------------------------------------------------------
 
-    def register_feature(self, name: str, category: str = "technical",
-                          description: str = "") -> None:
+    def register_feature(
+        self, name: str, category: str = "technical", description: str = ""
+    ) -> None:
         """Register a feature in the lifecycle manager."""
         self.feature_manager.register_feature(
             FeatureRecord(name=name, category=category, description=description)
@@ -293,12 +283,11 @@ class ResearchEngine:
     # Advisor
     # -----------------------------------------------------------------------
 
-    def evaluate_retraining(self, model_id: str,
-                             context: Dict[str, Any],
-                             force_manual: bool = False) -> Dict[str, Any]:
+    def evaluate_retraining(
+        self, model_id: str, context: Dict[str, Any], force_manual: bool = False
+    ) -> Dict[str, Any]:
         """Evaluate retraining policies — advisory only."""
-        return self.api.evaluate_retraining(model_id, context,
-                                             force_manual=force_manual)
+        return self.api.evaluate_retraining(model_id, context, force_manual=force_manual)
 
     # -----------------------------------------------------------------------
     # Experiments
@@ -312,25 +301,30 @@ class ResearchEngine:
     # Knowledge base
     # -----------------------------------------------------------------------
 
-    def add_finding(self, title: str, body: str = "",
-                    tags: Optional[List[str]] = None,
-                    impact_level: str = "medium",
-                    model_id: Optional[str] = None,
-                    author: str = "researcher") -> str:
+    def add_finding(
+        self,
+        title: str,
+        body: str = "",
+        tags: Optional[List[str]] = None,
+        impact_level: str = "medium",
+        model_id: Optional[str] = None,
+        author: str = "researcher",
+    ) -> str:
         """Add a research finding to the knowledge base."""
         entry = self.knowledge_base.log(
             KnowledgeEntryType.FINDING,
-            title=title, body=body, tags=tags or [],
-            model_id=model_id, impact_level=impact_level, author=author,
+            title=title,
+            body=body,
+            tags=tags or [],
+            model_id=model_id,
+            impact_level=impact_level,
+            author=author,
         )
         self.db.save_knowledge_entry(entry.to_dict())
         return entry.entry_id
 
-    def add_knowledge(self, entry_type: str, title: str,
-                       body: str = "", **kwargs: Any) -> str:
-        entry = self.knowledge_base.log(
-            entry_type, title=title, body=body, **kwargs
-        )
+    def add_knowledge(self, entry_type: str, title: str, body: str = "", **kwargs: Any) -> str:
+        entry = self.knowledge_base.log(entry_type, title=title, body=body, **kwargs)
         self.db.save_knowledge_entry(entry.to_dict())
         return entry.entry_id
 
@@ -344,8 +338,7 @@ class ResearchEngine:
     def weekly_report(self) -> Dict[str, Any]:
         return self.api.weekly_report()
 
-    def monthly_health_report(self,
-                               model_id: Optional[str] = None) -> Dict[str, Any]:
+    def monthly_health_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
         return self.api.monthly_health_report(model_id)
 
     def research_roadmap(self, horizon_months: int = 3) -> Dict[str, Any]:
@@ -386,6 +379,7 @@ class ResearchEngine:
     @staticmethod
     def from_yaml(yaml_path: str) -> "ResearchEngine":
         import yaml
+
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("research", data)

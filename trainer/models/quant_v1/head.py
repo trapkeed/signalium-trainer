@@ -49,7 +49,6 @@ from trainer.models.quant_v1.config import (
     UncertaintyHeadConfig,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared internal base classes
 # ---------------------------------------------------------------------------

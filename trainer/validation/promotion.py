@@ -38,7 +38,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-
 # ---------------------------------------------------------------------------
 # Promotion rule
 # ---------------------------------------------------------------------------
@@ -112,9 +111,7 @@ class PromotionDecision:
     passed_rules: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     requires_manual_approval: bool = True
-    decided_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    decided_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     notes: str = ""
 
     def summary(self) -> str:
@@ -211,10 +208,14 @@ class PromotionPolicy:
 
         def _add(metric, threshold, is_max=False, label=""):
             if threshold is not None:
-                self._rules.append(PromotionRule(
-                    metric=metric, threshold=float(threshold),
-                    is_max=is_max, label=label,
-                ))
+                self._rules.append(
+                    PromotionRule(
+                        metric=metric,
+                        threshold=float(threshold),
+                        is_max=is_max,
+                        label=label,
+                    )
+                )
 
         _add("accuracy", min_accuracy, label="Minimum Accuracy")
         _add("precision_macro", min_precision, label="Minimum Precision")
@@ -230,7 +231,7 @@ class PromotionPolicy:
         _add("win_rate", min_win_rate, label="Minimum Win Rate")
         _add("n_folds", min_validation_folds, label="Minimum Validation Folds")
 
-        for rule in (custom_rules or []):
+        for rule in custom_rules or []:
             self._rules.append(rule)
 
     def add_rule(self, rule: PromotionRule) -> None:
@@ -270,8 +271,10 @@ class PromotionPolicy:
         for rule in self._rules:
             val = full_metrics.get(rule.metric, 0.0)
             ok = rule.evaluate(float(val))
-            msg = rule.failure_message(float(val)) if not ok else (
-                f"{rule.label or rule.metric} = {val:.4f}"
+            msg = (
+                rule.failure_message(float(val))
+                if not ok
+                else (f"{rule.label or rule.metric} = {val:.4f}")
             )
             if ok:
                 passed.append(msg)

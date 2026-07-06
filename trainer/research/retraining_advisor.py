@@ -39,29 +39,36 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Retraining trigger
 # ---------------------------------------------------------------------------
 
 
 class RetrainingTrigger:
-    FEATURE_DRIFT           = "feature_drift"
+    FEATURE_DRIFT = "feature_drift"
     PERFORMANCE_DEGRADATION = "performance_degradation"
     CALIBRATION_DEGRADATION = "calibration_degradation"
-    MARKET_EVOLUTION        = "market_evolution"
-    NEW_DATASET             = "new_dataset"
-    IMPROVED_LABELS         = "improved_labels"
-    NEW_FEATURES            = "new_features"
-    SCHEDULED               = "scheduled"
-    MANUAL                  = "manual"
-    CONFIDENCE_DEGRADATION  = "confidence_degradation"
-    REGIME_SHIFT            = "regime_shift"
+    MARKET_EVOLUTION = "market_evolution"
+    NEW_DATASET = "new_dataset"
+    IMPROVED_LABELS = "improved_labels"
+    NEW_FEATURES = "new_features"
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
+    CONFIDENCE_DEGRADATION = "confidence_degradation"
+    REGIME_SHIFT = "regime_shift"
 
     ALL = [
-        FEATURE_DRIFT, PERFORMANCE_DEGRADATION, CALIBRATION_DEGRADATION,
-        MARKET_EVOLUTION, NEW_DATASET, IMPROVED_LABELS, NEW_FEATURES,
-        SCHEDULED, MANUAL, CONFIDENCE_DEGRADATION, REGIME_SHIFT,
+        FEATURE_DRIFT,
+        PERFORMANCE_DEGRADATION,
+        CALIBRATION_DEGRADATION,
+        MARKET_EVOLUTION,
+        NEW_DATASET,
+        IMPROVED_LABELS,
+        NEW_FEATURES,
+        SCHEDULED,
+        MANUAL,
+        CONFIDENCE_DEGRADATION,
+        REGIME_SHIFT,
     ]
 
 
@@ -100,9 +107,7 @@ class RetrainingRecommendation:
     confidence: float = 0.5
     status: str = "pending"
     context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     acted_at: Optional[str] = None
     acted_by: Optional[str] = None
 
@@ -133,11 +138,12 @@ class RetrainingRecommendation:
 @dataclass
 class AdvisorRule:
     """One trigger rule for the retraining advisor."""
+
     rule_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     trigger: str = RetrainingTrigger.PERFORMANCE_DEGRADATION
     context_key: str = ""
     threshold: float = 0.05
-    threshold_direction: str = "above"   # above | below
+    threshold_direction: str = "above"  # above | below
     priority: int = 2
     confidence: float = 0.70
     expected_benefit: str = ""
@@ -150,6 +156,7 @@ class AdvisorRule:
         if not self.last_triggered:
             return False
         from datetime import timedelta
+
         last = datetime.fromisoformat(self.last_triggered)
         if last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
@@ -199,10 +206,7 @@ class RetrainingAdvisor:
 
     def __init__(self, auto_retrain: bool = False) -> None:
         if auto_retrain:
-            raise ValueError(
-                "auto_retrain=True is not permitted. "
-                "Retraining is advisory only."
-            )
+            raise ValueError("auto_retrain=True is not permitted. " "Retraining is advisory only.")
         self.auto_retrain = False
         self._rules: Dict[str, AdvisorRule] = {}
         self._recommendations: List[RetrainingRecommendation] = []
@@ -214,9 +218,9 @@ class RetrainingAdvisor:
     def remove_rule(self, rule_id: str) -> bool:
         return bool(self._rules.pop(rule_id, None))
 
-    def evaluate(self, model_id: str,
-                  context: Dict[str, Any],
-                  force_manual: bool = False) -> List[RetrainingRecommendation]:
+    def evaluate(
+        self, model_id: str, context: Dict[str, Any], force_manual: bool = False
+    ) -> List[RetrainingRecommendation]:
         """Evaluate all rules against context and return recommendations.
 
         Args:
@@ -243,8 +247,9 @@ class RetrainingAdvisor:
                     estimated_risk=rule.estimated_risk,
                     priority=rule.priority,
                     confidence=rule.confidence,
-                    context={k: round(v, 4) if isinstance(v, float) else v
-                              for k, v in context.items()},
+                    context={
+                        k: round(v, 4) if isinstance(v, float) else v for k, v in context.items()
+                    },
                 )
                 self._recommendations.append(rec)
                 recs.append(rec)
@@ -266,11 +271,9 @@ class RetrainingAdvisor:
 
         return recs
 
-    def _build_reason(self, rule: AdvisorRule, value: Any,
-                       context: Dict[str, Any]) -> str:
+    def _build_reason(self, rule: AdvisorRule, value: Any, context: Dict[str, Any]) -> str:
         if isinstance(value, bool):
-            return (f"{rule.trigger}: {rule.context_key} is available. "
-                    f"Retraining recommended.")
+            return f"{rule.trigger}: {rule.context_key} is available. " f"Retraining recommended."
         if isinstance(value, (int, float)):
             direction = "exceeds" if rule.threshold_direction == "above" else "below"
             return (
@@ -279,8 +282,7 @@ class RetrainingAdvisor:
             )
         return f"{rule.trigger}: condition met for {rule.context_key}."
 
-    def acknowledge(self, recommendation_id: str,
-                    acted_by: str = "human") -> bool:
+    def acknowledge(self, recommendation_id: str, acted_by: str = "human") -> bool:
         for r in self._recommendations:
             if r.recommendation_id == recommendation_id:
                 r.status = "acted_upon"
@@ -302,8 +304,9 @@ class RetrainingAdvisor:
             recs = [r for r in recs if r.model_id == model_id]
         return [r.to_dict() for r in sorted(recs, key=lambda r: r.priority)]
 
-    def all_recommendations(self, model_id: Optional[str] = None,
-                             limit: int = 100) -> List[Dict[str, Any]]:
+    def all_recommendations(
+        self, model_id: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         recs = list(reversed(self._recommendations))
         if model_id:
             recs = [r for r in recs if r.model_id == model_id]
@@ -325,68 +328,108 @@ class RetrainingAdvisor:
 def build_default_advisor() -> RetrainingAdvisor:
     """Build the default retraining advisor with standard rules."""
     advisor = RetrainingAdvisor(auto_retrain=False)
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
-        context_key="performance_degradation",
-        threshold=0.05, threshold_direction="above",
-        priority=1, confidence=0.85, cooldown_hours=24,
-        expected_benefit="Expected accuracy recovery of 4–8%",
-        estimated_risk="Low — same architecture, updated data",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.CALIBRATION_DEGRADATION,
-        context_key="calibration_drift",
-        threshold=0.05, threshold_direction="above",
-        priority=2, confidence=0.75, cooldown_hours=48,
-        expected_benefit="Improved calibration and confidence reliability",
-        estimated_risk="Low",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.FEATURE_DRIFT,
-        context_key="feature_drift",
-        threshold=0.25, threshold_direction="above",
-        priority=2, confidence=0.70, cooldown_hours=48,
-        expected_benefit="Alignment with current feature distributions",
-        estimated_risk="Medium — feature space may have shifted significantly",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.CONFIDENCE_DEGRADATION,
-        context_key="confidence_degradation",
-        threshold=0.10, threshold_direction="above",
-        priority=2, confidence=0.65, cooldown_hours=24,
-        expected_benefit="Restored prediction confidence",
-        estimated_risk="Low",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.NEW_DATASET,
-        context_key="new_dataset_available",
-        threshold=0.5, threshold_direction="above",
-        priority=3, confidence=0.90, cooldown_hours=168,
-        expected_benefit="Exposure to new data patterns and regimes",
-        estimated_risk="Low — additional training data",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.IMPROVED_LABELS,
-        context_key="improved_labels_available",
-        threshold=0.5, threshold_direction="above",
-        priority=3, confidence=0.85, cooldown_hours=168,
-        expected_benefit="Better label quality → improved accuracy",
-        estimated_risk="Low",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.MARKET_EVOLUTION,
-        context_key="market_evolution_detected",
-        threshold=0.5, threshold_direction="above",
-        priority=2, confidence=0.60, cooldown_hours=72,
-        expected_benefit="Adaptation to structural market change",
-        estimated_risk="Medium — new regime may have limited historical data",
-    ))
-    advisor.add_rule(AdvisorRule(
-        trigger=RetrainingTrigger.REGIME_SHIFT,
-        context_key="regime_shift_detected",
-        threshold=0.5, threshold_direction="above",
-        priority=1, confidence=0.75, cooldown_hours=48,
-        expected_benefit="Regime-specific adaptation",
-        estimated_risk="Medium",
-    ))
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
+            context_key="performance_degradation",
+            threshold=0.05,
+            threshold_direction="above",
+            priority=1,
+            confidence=0.85,
+            cooldown_hours=24,
+            expected_benefit="Expected accuracy recovery of 4–8%",
+            estimated_risk="Low — same architecture, updated data",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.CALIBRATION_DEGRADATION,
+            context_key="calibration_drift",
+            threshold=0.05,
+            threshold_direction="above",
+            priority=2,
+            confidence=0.75,
+            cooldown_hours=48,
+            expected_benefit="Improved calibration and confidence reliability",
+            estimated_risk="Low",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.FEATURE_DRIFT,
+            context_key="feature_drift",
+            threshold=0.25,
+            threshold_direction="above",
+            priority=2,
+            confidence=0.70,
+            cooldown_hours=48,
+            expected_benefit="Alignment with current feature distributions",
+            estimated_risk="Medium — feature space may have shifted significantly",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.CONFIDENCE_DEGRADATION,
+            context_key="confidence_degradation",
+            threshold=0.10,
+            threshold_direction="above",
+            priority=2,
+            confidence=0.65,
+            cooldown_hours=24,
+            expected_benefit="Restored prediction confidence",
+            estimated_risk="Low",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.NEW_DATASET,
+            context_key="new_dataset_available",
+            threshold=0.5,
+            threshold_direction="above",
+            priority=3,
+            confidence=0.90,
+            cooldown_hours=168,
+            expected_benefit="Exposure to new data patterns and regimes",
+            estimated_risk="Low — additional training data",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.IMPROVED_LABELS,
+            context_key="improved_labels_available",
+            threshold=0.5,
+            threshold_direction="above",
+            priority=3,
+            confidence=0.85,
+            cooldown_hours=168,
+            expected_benefit="Better label quality → improved accuracy",
+            estimated_risk="Low",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.MARKET_EVOLUTION,
+            context_key="market_evolution_detected",
+            threshold=0.5,
+            threshold_direction="above",
+            priority=2,
+            confidence=0.60,
+            cooldown_hours=72,
+            expected_benefit="Adaptation to structural market change",
+            estimated_risk="Medium — new regime may have limited historical data",
+        )
+    )
+    advisor.add_rule(
+        AdvisorRule(
+            trigger=RetrainingTrigger.REGIME_SHIFT,
+            context_key="regime_shift_detected",
+            threshold=0.5,
+            threshold_direction="above",
+            priority=1,
+            confidence=0.75,
+            cooldown_hours=48,
+            expected_benefit="Regime-specific adaptation",
+            estimated_risk="Medium",
+        )
+    )
     return advisor

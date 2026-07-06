@@ -9,6 +9,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import LiquidityState, clamp
@@ -29,36 +30,32 @@ class LiquidityIntelligenceEngine:
 
     def __init__(
         self,
-        vol_lookback:   int   = 20,
-        illiquid_vol:   float = 0.1,   # volume < 10% of avg → ILLIQUID
-        poor_vol:       float = 0.3,
+        vol_lookback: int = 20,
+        illiquid_vol: float = 0.1,  # volume < 10% of avg → ILLIQUID
+        poor_vol: float = 0.3,
         spread_illiquid: float = 0.5,  # spread > 50% of ATR → ILLIQUID
-        spread_poor:    float = 0.20,
+        spread_poor: float = 0.20,
     ) -> None:
-        self._vol_lb       = vol_lookback
+        self._vol_lb = vol_lookback
         self._illiquid_vol = illiquid_vol
-        self._poor_vol     = poor_vol
-        self._spread_ill   = spread_illiquid
-        self._spread_poor  = spread_poor
+        self._poor_vol = poor_vol
+        self._spread_ill = spread_illiquid
+        self._spread_poor = spread_poor
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def analyse(self, inp: MarketInput) -> LiquidityResult:
         volumes = inp.volumes or []
-        avg_vol = _mean(volumes[-self._vol_lb:]) if len(volumes) >= 3 else inp.volume
+        avg_vol = _mean(volumes[-self._vol_lb :]) if len(volumes) >= 3 else inp.volume
         vol_ratio = inp.volume / max(avg_vol, 1.0)
 
         spread_atr_ratio = inp.spread / max(inp.atr, 1e-9)
 
-        vol_score    = self._score_volume(vol_ratio)
+        vol_score = self._score_volume(vol_ratio)
         spread_score = self._score_spread(spread_atr_ratio)
-        depth_score  = self._score_depth(volumes)
+        depth_score = self._score_depth(volumes)
 
-        quality = (
-            vol_score    * 0.40
-            + spread_score * 0.40
-            + depth_score  * 0.20
-        )
+        quality = vol_score * 0.40 + spread_score * 0.40 + depth_score * 0.20
         state = self._classify_state(vol_ratio, spread_atr_ratio)
 
         logger.debug(
@@ -91,8 +88,11 @@ class LiquidityIntelligenceEngine:
             return 0.0
         if spread_atr_ratio >= self._spread_poor:
             return clamp(
-                (self._spread_ill - spread_atr_ratio) / (self._spread_ill - self._spread_poor) * 30.0,
-                0.0, 30.0,
+                (self._spread_ill - spread_atr_ratio)
+                / (self._spread_ill - self._spread_poor)
+                * 30.0,
+                0.0,
+                30.0,
             )
         return clamp(100.0 - spread_atr_ratio / self._spread_poor * 70.0, 30.0, 100.0)
 

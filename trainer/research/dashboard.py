@@ -25,7 +25,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # DashboardBuilder
 # ---------------------------------------------------------------------------
@@ -63,19 +62,18 @@ class DashboardBuilder:
     def build(self, dashboard_type: str) -> Dict[str, Any]:
         """Build a single dashboard payload by type."""
         builders = {
-            "research_timeline":  self._build_timeline,
-            "knowledge_graph":    self._build_knowledge_graph,
-            "experiment_tree":    self._build_experiment_tree,
-            "dataset_history":    self._build_dataset_history,
+            "research_timeline": self._build_timeline,
+            "knowledge_graph": self._build_knowledge_graph,
+            "experiment_tree": self._build_experiment_tree,
+            "dataset_history": self._build_dataset_history,
             "champion_evolution": self._build_champion_evolution,
-            "training_cost":      self._build_training_cost,
-            "feature_evolution":  self._build_feature_evolution,
+            "training_cost": self._build_training_cost,
+            "feature_evolution": self._build_feature_evolution,
         }
         fn = builders.get(dashboard_type)
         if fn is None:
             raise ValueError(
-                f"Unknown dashboard type: {dashboard_type!r}. "
-                f"Available: {list(builders)}"
+                f"Unknown dashboard type: {dashboard_type!r}. " f"Available: {list(builders)}"
             )
         return {
             "dashboard_type": dashboard_type,
@@ -107,8 +105,7 @@ class DashboardBuilder:
         type_series: Dict[str, List[Dict[str, Any]]] = {}
         for e in events:
             type_series.setdefault(e.event_type, []).append(
-                {"timestamp": e.recorded_at, "entity_id": e.entity_id,
-                 "description": e.description}
+                {"timestamp": e.recorded_at, "entity_id": e.entity_id, "description": e.description}
             )
 
         return {
@@ -134,11 +131,13 @@ class DashboardBuilder:
         # Build adjacency summary for frontend graph layout
         adjacency: List[Dict[str, Any]] = []
         for edge in kg_dict["edges"]:
-            adjacency.append({
-                "source": edge["source_id"],
-                "target": edge["target_id"],
-                "type": edge["edge_type"],
-            })
+            adjacency.append(
+                {
+                    "source": edge["source_id"],
+                    "target": edge["target_id"],
+                    "type": edge["edge_type"],
+                }
+            )
 
         return {
             "node_count": report["node_count"],
@@ -215,15 +214,17 @@ class DashboardBuilder:
                 key = ds.dataset_version
                 if key not in seen:
                     seen.add(key)
-                    dataset_snapshots.append({
-                        "version": ds.dataset_version,
-                        "hash": ds.dataset_hash[:16] if ds.dataset_hash else "",
-                        "sample_count": ds.sample_count,
-                        "instrument_count": len(ds.instruments),
-                        "quality_score": ds.data_quality_score,
-                        "coverage_start": ds.coverage_start,
-                        "coverage_end": ds.coverage_end,
-                    })
+                    dataset_snapshots.append(
+                        {
+                            "version": ds.dataset_version,
+                            "hash": ds.dataset_hash[:16] if ds.dataset_hash else "",
+                            "sample_count": ds.sample_count,
+                            "instrument_count": len(ds.instruments),
+                            "quality_score": ds.data_quality_score,
+                            "coverage_start": ds.coverage_start,
+                            "coverage_end": ds.coverage_end,
+                        }
+                    )
 
         return {
             "dataset_update_events": ds_events,
@@ -243,17 +244,19 @@ class DashboardBuilder:
         for node in sorted(self._tree.all_nodes(), key=lambda n: n.created_at):
             if node.validation_snapshot and node.status == "succeeded":
                 vs = node.validation_snapshot
-                performance_series.append({
-                    "experiment_id": node.node_id,
-                    "name": node.name,
-                    "created_at": node.created_at,
-                    "accuracy": vs.walk_forward_accuracy,
-                    "f1_macro": vs.walk_forward_f1_macro,
-                    "sharpe_ratio": vs.sharpe_ratio,
-                    "max_drawdown": vs.max_drawdown,
-                    "win_rate": vs.win_rate,
-                    "promotion_decision": vs.promotion_decision,
-                })
+                performance_series.append(
+                    {
+                        "experiment_id": node.node_id,
+                        "name": node.name,
+                        "created_at": node.created_at,
+                        "accuracy": vs.walk_forward_accuracy,
+                        "f1_macro": vs.walk_forward_f1_macro,
+                        "sharpe_ratio": vs.sharpe_ratio,
+                        "max_drawdown": vs.max_drawdown,
+                        "win_rate": vs.win_rate,
+                        "promotion_decision": vs.promotion_decision,
+                    }
+                )
 
         return {
             "champion_change_events": champion_events,
@@ -312,18 +315,18 @@ class DashboardBuilder:
             if node.feature_snapshot:
                 fs = node.feature_snapshot
                 all_feature_names.update(fs.feature_names)
-                feature_timeline.append({
-                    "experiment_id": node.node_id,
-                    "experiment_name": node.name,
-                    "created_at": node.created_at,
-                    "feature_count": fs.feature_count,
-                    "feature_set_hash": fs.feature_set_hash,
-                    "top_features": fs.top_features(5),
-                    "lifecycle_status_counts": _count_values(
-                        fs.feature_lifecycle_status
-                    ),
-                    "drift_status_counts": _count_values(fs.feature_drift_status),
-                })
+                feature_timeline.append(
+                    {
+                        "experiment_id": node.node_id,
+                        "experiment_name": node.name,
+                        "created_at": node.created_at,
+                        "feature_count": fs.feature_count,
+                        "feature_set_hash": fs.feature_set_hash,
+                        "top_features": fs.top_features(5),
+                        "lifecycle_status_counts": _count_values(fs.feature_lifecycle_status),
+                        "drift_status_counts": _count_values(fs.feature_drift_status),
+                    }
+                )
 
         return {
             "total_unique_features": len(all_feature_names),

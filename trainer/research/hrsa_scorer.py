@@ -45,7 +45,6 @@ from trainer.research.hrsa_categories import CategoryResult, HRSACategoryScorer
 from trainer.research.hrsa_grades import GradeAssessment, HRSAGradeEngine
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 
-
 # ---------------------------------------------------------------------------
 # HierarchicalScore — complete scoring result
 # ---------------------------------------------------------------------------
@@ -58,9 +57,7 @@ class HierarchicalScore:
     score_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     experiment_id: str = ""
     name: str = ""
-    scored_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Level 1
     level1_metric_count: int = 0
@@ -70,8 +67,8 @@ class HierarchicalScore:
     level2_categories: Dict[str, CategoryResult] = field(default_factory=dict)
 
     # Level 3
-    level3_composite: float = 0.0      # 0–100
-    confidence: float = 0.0            # 0–1 weighted mean of category confidences
+    level3_composite: float = 0.0  # 0–100
+    confidence: float = 0.0  # 0–1 weighted mean of category confidences
     total_weight_used: float = 0.0
 
     # Grades
@@ -116,19 +113,11 @@ class HierarchicalScore:
         return r.confidence if r else 0.0
 
     def strongest_categories(self, n: int = 3) -> List[str]:
-        scored = [
-            (cat, r.score)
-            for cat, r in self.level2_categories.items()
-            if r.metric_count > 0
-        ]
+        scored = [(cat, r.score) for cat, r in self.level2_categories.items() if r.metric_count > 0]
         return [cat for cat, _ in sorted(scored, key=lambda x: x[1], reverse=True)[:n]]
 
     def weakest_categories(self, n: int = 3) -> List[str]:
-        scored = [
-            (cat, r.score)
-            for cat, r in self.level2_categories.items()
-            if r.metric_count > 0
-        ]
+        scored = [(cat, r.score) for cat, r in self.level2_categories.items() if r.metric_count > 0]
         return [cat for cat, _ in sorted(scored, key=lambda x: x[1])[:n]]
 
     def category_scores_dict(self) -> Dict[str, float]:
@@ -144,16 +133,13 @@ class HierarchicalScore:
             "level1_metric_count": self.level1_metric_count,
             "level1_categories_covered": self.level1_categories_covered,
             # Level 2
-            "level2_categories": {
-                cat: r.to_dict() for cat, r in self.level2_categories.items()
-            },
+            "level2_categories": {cat: r.to_dict() for cat, r in self.level2_categories.items()},
             # Level 3
             "level3_composite": round(self.level3_composite, 2),
             "confidence": round(self.confidence, 4),
             "total_weight_used": round(self.total_weight_used, 4),
             # Grades
-            "grade_assessment": self.grade_assessment.to_dict()
-            if self.grade_assessment else {},
+            "grade_assessment": self.grade_assessment.to_dict() if self.grade_assessment else {},
             "institutional_grade": self.institutional_grade,
             "research_grade": self.research_grade,
             "promotion_recommendation": self.promotion_recommendation,
@@ -169,8 +155,7 @@ class HierarchicalScore:
     def summary(self) -> str:
         cat_lines = []
         for cat, r in sorted(
-            self.level2_categories.items(),
-            key=lambda x: x[1].score, reverse=True
+            self.level2_categories.items(), key=lambda x: x[1].score, reverse=True
         ):
             if r.metric_count > 0:
                 bar = "█" * int(r.score / 10)
@@ -180,19 +165,21 @@ class HierarchicalScore:
                 )
 
         grade = self.grade_assessment
-        return "\n".join([
-            f"Hierarchical Research Score: {self.level3_composite:.1f}/100",
-            f"  Experiment:  {self.name or self.experiment_id}",
-            f"  Confidence:  {self.confidence:.0%}",
-            f"  Grade:       {self.institutional_grade}",
-            f"  Research:    {self.research_grade}",
-            f"  Promotion:   {self.promotion_recommendation}",
-            f"  Risk:        {self.risk_rating}",
-            f"  Potential:   {self.future_potential}",
-            "",
-            "Level 2 — Category Breakdown:",
-            *cat_lines,
-        ])
+        return "\n".join(
+            [
+                f"Hierarchical Research Score: {self.level3_composite:.1f}/100",
+                f"  Experiment:  {self.name or self.experiment_id}",
+                f"  Confidence:  {self.confidence:.0%}",
+                f"  Grade:       {self.institutional_grade}",
+                f"  Research:    {self.research_grade}",
+                f"  Promotion:   {self.promotion_recommendation}",
+                f"  Risk:        {self.risk_rating}",
+                f"  Potential:   {self.future_potential}",
+                "",
+                "Level 2 — Category Breakdown:",
+                *cat_lines,
+            ]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -267,9 +254,7 @@ class HierarchicalResearchScorer:
         )
         return result
 
-    def _aggregate(
-        self, cat_results: Dict[str, CategoryResult]
-    ) -> tuple:
+    def _aggregate(self, cat_results: Dict[str, CategoryResult]) -> tuple:
         """Aggregate Level 2 category scores into Level 3 composite."""
         weighted_sum = 0.0
         weighted_conf = 0.0
@@ -281,9 +266,9 @@ class HierarchicalResearchScorer:
             w = result.weight
             # Coverage-adjust the weight: low coverage → lower effective weight
             effective_w = w * result.coverage
-            weighted_sum  += result.score      * effective_w
+            weighted_sum += result.score * effective_w
             weighted_conf += result.confidence * effective_w
-            total_w       += effective_w
+            total_w += effective_w
 
         if total_w <= 0:
             return 0.0, 0.0, 0.0
@@ -299,10 +284,9 @@ class HierarchicalResearchScorer:
             "hierarchical_score": result.to_dict(),
             "scoring_pipeline": {
                 "level1_metrics": bundle.total_metrics(),
-                "level2_categories": len([
-                    r for r in result.level2_categories.values()
-                    if r.metric_count > 0
-                ]),
+                "level2_categories": len(
+                    [r for r in result.level2_categories.values() if r.metric_count > 0]
+                ),
                 "level3_composite": result.level3_composite,
             },
             "architecture": "3-level hierarchical (L1→L2→L3)",
@@ -330,8 +314,7 @@ class HierarchicalResearchScorer:
 
         if total_w > 0:
             score_delta = (
-                (simulated_cat_score - base.category_score(category))
-                * effective_w / total_w
+                (simulated_cat_score - base.category_score(category)) * effective_w / total_w
             )
         else:
             score_delta = 0.0

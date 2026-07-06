@@ -22,7 +22,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import statistics
 
-
 # ---------------------------------------------------------------------------
 # Pruning decision
 # ---------------------------------------------------------------------------
@@ -69,8 +68,9 @@ class BasePruner:
 
     name: str = "base"
 
-    def should_prune(self, trial_id: str, step: int, score: float,
-                     history: Dict[str, List[Tuple[int, float]]]) -> PruningDecision:
+    def should_prune(
+        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+    ) -> PruningDecision:
         """Determine if trial should be pruned.
 
         Args:
@@ -99,10 +99,12 @@ class NoPruner(BasePruner):
 
     name = "none"
 
-    def should_prune(self, trial_id: str, step: int, score: float,
-                     history: Dict[str, List[Tuple[int, float]]]) -> PruningDecision:
-        return PruningDecision(prune=False, trial_id=trial_id, step=step,
-                               score=score, reason="pruning disabled")
+    def should_prune(
+        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+    ) -> PruningDecision:
+        return PruningDecision(
+            prune=False, trial_id=trial_id, step=step, score=score, reason="pruning disabled"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -122,32 +124,47 @@ class MedianPruner(BasePruner):
 
     name = "median"
 
-    def __init__(self, n_startup_trials: int = 5, n_warmup_steps: int = 0,
-                 interval_steps: int = 1, percentile: float = 50.0) -> None:
+    def __init__(
+        self,
+        n_startup_trials: int = 5,
+        n_warmup_steps: int = 0,
+        interval_steps: int = 1,
+        percentile: float = 50.0,
+    ) -> None:
         self.n_startup_trials = n_startup_trials
         self.n_warmup_steps = n_warmup_steps
         self.interval_steps = interval_steps
         self.percentile = percentile
 
-    def should_prune(self, trial_id: str, step: int, score: float,
-                     history: Dict[str, List[Tuple[int, float]]]) -> PruningDecision:
+    def should_prune(
+        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+    ) -> PruningDecision:
         n_completed = len(history)
 
         if n_completed < self.n_startup_trials:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason=f"startup: {n_completed}/{self.n_startup_trials} trials completed",
             )
 
         if step < self.n_warmup_steps:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason=f"warmup: step {step}/{self.n_warmup_steps}",
             )
 
         if step % self.interval_steps != 0:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason=f"not an evaluation step (interval={self.interval_steps})",
             )
 
@@ -166,7 +183,10 @@ class MedianPruner(BasePruner):
 
         if not scores_at_step:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason="no reference scores at this step",
             )
 
@@ -179,12 +199,15 @@ class MedianPruner(BasePruner):
 
         should_stop = score < threshold
         return PruningDecision(
-            prune=should_stop, trial_id=trial_id, step=step, score=score,
+            prune=should_stop,
+            trial_id=trial_id,
+            step=step,
+            score=score,
             threshold=threshold,
             reason=(
                 f"score {score:.4f} below p{self.percentile:.0f}={threshold:.4f}"
-                if should_stop else
-                f"score {score:.4f} >= p{self.percentile:.0f}={threshold:.4f}"
+                if should_stop
+                else f"score {score:.4f} >= p{self.percentile:.0f}={threshold:.4f}"
             ),
         )
 
@@ -216,8 +239,9 @@ class SuccessiveHalvingPruner(BasePruner):
 
     name = "successive_halving"
 
-    def __init__(self, min_resource: int = 1, reduction_factor: int = 3,
-                 min_early_stopping_rate: int = 0) -> None:
+    def __init__(
+        self, min_resource: int = 1, reduction_factor: int = 3, min_early_stopping_rate: int = 0
+    ) -> None:
         self.min_resource = min_resource
         self.reduction_factor = reduction_factor
         self.min_early_stopping_rate = min_early_stopping_rate
@@ -231,17 +255,19 @@ class SuccessiveHalvingPruner(BasePruner):
             r = int(r * self.reduction_factor)
         return rungs
 
-    def should_prune(self, trial_id: str, step: int, score: float,
-                     history: Dict[str, List[Tuple[int, float]]]) -> PruningDecision:
+    def should_prune(
+        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+    ) -> PruningDecision:
         if step < self.min_resource:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason=f"below min_resource ({self.min_resource})",
             )
 
-        max_step = max(
-            (s for steps in history.values() for s, _ in steps), default=step
-        )
+        max_step = max((s for steps in history.values() for s, _ in steps), default=step)
         rungs = self._rung_levels(max(step, max_step))
 
         rung = None
@@ -252,14 +278,20 @@ class SuccessiveHalvingPruner(BasePruner):
 
         if rung is None:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason="not at a rung level",
             )
 
         rung_idx = rungs.index(rung)
         if rung_idx < self.min_early_stopping_rate:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason=f"rung {rung_idx} < min_early_stopping_rate {self.min_early_stopping_rate}",
             )
 
@@ -274,7 +306,10 @@ class SuccessiveHalvingPruner(BasePruner):
 
         if not scores_at_rung:
             return PruningDecision(
-                prune=False, trial_id=trial_id, step=step, score=score,
+                prune=False,
+                trial_id=trial_id,
+                step=step,
+                score=score,
                 reason="no peers at this rung",
             )
 
@@ -283,13 +318,16 @@ class SuccessiveHalvingPruner(BasePruner):
         should_stop = score < threshold
 
         return PruningDecision(
-            prune=should_stop, trial_id=trial_id, step=step, score=score,
+            prune=should_stop,
+            trial_id=trial_id,
+            step=step,
+            score=score,
             threshold=threshold,
             reason=(
                 f"rung {rung}: score {score:.4f} < threshold {threshold:.4f} "
                 f"(keep top {n_keep}/{len(scores_at_rung)})"
-                if should_stop else
-                f"rung {rung}: score {score:.4f} >= threshold {threshold:.4f}"
+                if should_stop
+                else f"rung {rung}: score {score:.4f} >= threshold {threshold:.4f}"
             ),
         )
 

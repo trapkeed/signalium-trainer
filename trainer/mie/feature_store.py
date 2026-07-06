@@ -27,6 +27,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import MarketRegime, RiskRegime
@@ -46,7 +47,7 @@ from trainer.mie.mie_models import (
 )
 
 _REGIME_ORDINALS = {r.value: i for i, r in enumerate(MarketRegime)}
-_RISK_ORDINALS   = {r.value: i for i, r in enumerate(RiskRegime)}
+_RISK_ORDINALS = {r.value: i for i, r in enumerate(RiskRegime)}
 
 
 class FeatureStoreExporter:
@@ -59,40 +60,40 @@ class FeatureStoreExporter:
 
     def export(
         self,
-        inp:          MarketInput,
-        regime:       Optional[MarketRegimeResult]          = None,
-        risk:         Optional[RiskIntelligenceResult]      = None,
-        tradeability: Optional[TradeabilityResult]          = None,
-        quality:      Optional[MarketQualityResult]         = None,
-        reliability:  Optional[PredictionReliabilityResult] = None,
-        similarity:   Optional[BehaviorSimilarityResult]    = None,
-        calibration:  Optional[CalibrationResult]           = None,
-        trend:        Optional[TrendResult]                 = None,
-        momentum:     Optional[MomentumResult]              = None,
-        liquidity:    Optional[LiquidityResult]             = None,
+        inp: MarketInput,
+        regime: Optional[MarketRegimeResult] = None,
+        risk: Optional[RiskIntelligenceResult] = None,
+        tradeability: Optional[TradeabilityResult] = None,
+        quality: Optional[MarketQualityResult] = None,
+        reliability: Optional[PredictionReliabilityResult] = None,
+        similarity: Optional[BehaviorSimilarityResult] = None,
+        calibration: Optional[CalibrationResult] = None,
+        trend: Optional[TrendResult] = None,
+        momentum: Optional[MomentumResult] = None,
+        liquidity: Optional[LiquidityResult] = None,
     ) -> FeatureStoreExport:
 
         regime_enc = _REGIME_ORDINALS.get(
             regime.regime.value if regime else MarketRegime.UNKNOWN.value, 15
         )
-        risk_enc = _RISK_ORDINALS.get(
-            risk.regime.value if risk else RiskRegime.UNKNOWN.value, 11
-        )
+        risk_enc = _RISK_ORDINALS.get(risk.regime.value if risk else RiskRegime.UNKNOWN.value, 11)
 
         feat = FeatureStoreExport(
             symbol=inp.symbol,
             market_regime_enc=float(regime_enc),
             risk_regime_enc=float(risk_enc),
-            tradeability=tradeability.score          if tradeability else 0.0,
-            execution_quality=quality.execution_quality if quality  else 50.0,
-            market_quality=quality.market_quality    if quality      else 50.0,
+            tradeability=tradeability.score if tradeability else 0.0,
+            execution_quality=quality.execution_quality if quality else 50.0,
+            market_quality=quality.market_quality if quality else 50.0,
             prediction_reliability=reliability.reliability_score if reliability else 50.0,
             behavior_similarity=similarity.similarity_score if similarity else 0.0,
             calibration=calibration.calibration_score if calibration else 50.0,
-            historical_success=similarity.historical_success if similarity else inp.historical_win_rate,
-            trend_quality=trend.quality              if trend        else 50.0,
-            momentum_quality=momentum.quality        if momentum     else 50.0,
-            liquidity_quality=liquidity.quality      if liquidity    else 50.0,
+            historical_success=(
+                similarity.historical_success if similarity else inp.historical_win_rate
+            ),
+            trend_quality=trend.quality if trend else 50.0,
+            momentum_quality=momentum.quality if momentum else 50.0,
+            liquidity_quality=liquidity.quality if liquidity else 50.0,
         )
 
         logger.debug(

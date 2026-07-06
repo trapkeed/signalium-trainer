@@ -33,7 +33,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Lifecycle states
 # ---------------------------------------------------------------------------
@@ -41,21 +40,31 @@ from loguru import logger
 
 class LifecycleState:
     """All valid lifecycle states for a registered model."""
-    DRAFT       = "draft"
-    TRAINING    = "training"
-    VALIDATING  = "validating"
-    CANDIDATE   = "candidate"
-    APPROVED    = "approved"
-    CHAMPION    = "champion"
-    PRODUCTION  = "production"
-    SHADOW      = "shadow"
-    ARCHIVED    = "archived"
-    RETIRED     = "retired"
+
+    DRAFT = "draft"
+    TRAINING = "training"
+    VALIDATING = "validating"
+    CANDIDATE = "candidate"
+    APPROVED = "approved"
+    CHAMPION = "champion"
+    PRODUCTION = "production"
+    SHADOW = "shadow"
+    ARCHIVED = "archived"
+    RETIRED = "retired"
     ROLLED_BACK = "rolled_back"
 
     ALL = [
-        DRAFT, TRAINING, VALIDATING, CANDIDATE, APPROVED,
-        CHAMPION, PRODUCTION, SHADOW, ARCHIVED, RETIRED, ROLLED_BACK,
+        DRAFT,
+        TRAINING,
+        VALIDATING,
+        CANDIDATE,
+        APPROVED,
+        CHAMPION,
+        PRODUCTION,
+        SHADOW,
+        ARCHIVED,
+        RETIRED,
+        ROLLED_BACK,
     ]
 
     ACTIVE = [CHAMPION, PRODUCTION, SHADOW]
@@ -70,15 +79,14 @@ class LifecycleState:
 @dataclass
 class ApprovalRecord:
     """One entry in a model's approval history."""
+
     approval_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     approver: str = "system"
-    decision: str = "approved"        # "approved" | "rejected" | "pending"
+    decision: str = "approved"  # "approved" | "rejected" | "pending"
     reason: str = ""
     from_state: str = ""
     to_state: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -133,9 +141,7 @@ class ModelRecord:
     model_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "model"
     version: str = "1.0.0"
-    training_date: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    training_date: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     architecture: str = ""
     backbone: str = ""
     parameter_count: int = 0
@@ -145,9 +151,9 @@ class ModelRecord:
     git_commit: str = ""
     training_config: Dict[str, Any] = field(default_factory=dict)
     validation_report: Dict[str, Any] = field(default_factory=dict)
-    promotion_status: str = "pending"      # "pending" | "approved" | "rejected"
+    promotion_status: str = "pending"  # "pending" | "approved" | "rejected"
     deployment_status: str = "not_deployed"
-    retirement_status: str = "active"      # "active" | "retired"
+    retirement_status: str = "active"  # "active" | "retired"
     approval_history: List[ApprovalRecord] = field(default_factory=list)
     hardware_used: str = ""
     training_duration_seconds: float = 0.0
@@ -155,12 +161,8 @@ class ModelRecord:
     child_model_ids: List[str] = field(default_factory=list)
     lifecycle_state: str = LifecycleState.DRAFT
     notes: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    updated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -179,11 +181,15 @@ class ModelRecord:
     def full_name(self) -> str:
         return f"{self.name}@{self.version}"
 
-    def add_approval(self, approver: str, decision: str, reason: str,
-                     from_state: str, to_state: str) -> ApprovalRecord:
+    def add_approval(
+        self, approver: str, decision: str, reason: str, from_state: str, to_state: str
+    ) -> ApprovalRecord:
         record = ApprovalRecord(
-            approver=approver, decision=decision, reason=reason,
-            from_state=from_state, to_state=to_state,
+            approver=approver,
+            decision=decision,
+            reason=reason,
+            from_state=from_state,
+            to_state=to_state,
         )
         self.approval_history.append(record)
         self.updated_at = datetime.now(timezone.utc).isoformat()
@@ -256,9 +262,7 @@ class ModelRecord:
             updated_at=d.get("updated_at", datetime.now(timezone.utc).isoformat()),
             metadata=d.get("metadata", {}),
         )
-        r.approval_history = [
-            ApprovalRecord(**a) for a in d.get("approval_history", [])
-        ]
+        r.approval_history = [ApprovalRecord(**a) for a in d.get("approval_history", [])]
         return r
 
 
@@ -323,8 +327,9 @@ class ModelRegistry:
         old_state = model.lifecycle_state
         model.lifecycle_state = LifecycleState.CHAMPION
         model.promotion_status = "approved"
-        model.add_approval(approver, "approved", "promoted to champion",
-                           old_state, LifecycleState.CHAMPION)
+        model.add_approval(
+            approver, "approved", "promoted to champion", old_state, LifecycleState.CHAMPION
+        )
         model.updated_at = datetime.now(timezone.utc).isoformat()
         self._champion_id = model_id
         logger.info(f"Champion set: {model_id} ({model.full_name})")

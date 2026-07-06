@@ -30,7 +30,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Deque, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Health point
 # ---------------------------------------------------------------------------
@@ -39,6 +38,7 @@ from typing import Any, Deque, Dict, List, Optional
 @dataclass
 class HealthPoint:
     """One health measurement for a model at a point in time."""
+
     point_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     accuracy: float = 0.0
@@ -56,9 +56,7 @@ class HealthPoint:
     n_predictions: int = 0
     regime: str = ""
     notes: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -91,6 +89,7 @@ class HealthPoint:
 @dataclass
 class HealthTrend:
     """Computed long-term health trend for a model."""
+
     model_id: str = ""
     n_points: int = 0
     accuracy_trend: str = "stable"
@@ -108,10 +107,8 @@ class HealthTrend:
     first_accuracy: float = 0.0
     latest_accuracy: float = 0.0
     accuracy_delta: float = 0.0
-    overall_health: str = "stable"     # improving / stable / degrading
-    generated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    overall_health: str = "stable"  # improving / stable / degrading
+    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -151,42 +148,55 @@ class ModelHealthEvolutionTracker:
         trend_degradation_threshold: Metric drop to classify as "degrading".
     """
 
-    def __init__(self, window: int = 50,
-                 trend_improvement_threshold: float = 0.03,
-                 trend_degradation_threshold: float = 0.03) -> None:
+    def __init__(
+        self,
+        window: int = 50,
+        trend_improvement_threshold: float = 0.03,
+        trend_degradation_threshold: float = 0.03,
+    ) -> None:
         self.window = window
         self.improve_thr = trend_improvement_threshold
         self.degrade_thr = trend_degradation_threshold
         self._buffers: Dict[str, Deque[HealthPoint]] = {}
         self._all_points: Dict[str, List[HealthPoint]] = {}
 
-    def record_health_point(self, model_id: str,
-                             accuracy: float = 0.0,
-                             sharpe_ratio: float = 0.0,
-                             profit_factor: float = 0.0,
-                             win_rate: float = 0.0,
-                             confidence: float = 0.5,
-                             uncertainty: float = 0.5,
-                             calibration_error: float = 0.0,
-                             prediction_entropy: float = 0.0,
-                             false_positive_rate: float = 0.0,
-                             false_negative_rate: float = 0.0,
-                             signal_rate: float = 0.0,
-                             latency_ms: float = 0.0,
-                             n_predictions: int = 0,
-                             regime: str = "",
-                             notes: str = "") -> HealthPoint:
+    def record_health_point(
+        self,
+        model_id: str,
+        accuracy: float = 0.0,
+        sharpe_ratio: float = 0.0,
+        profit_factor: float = 0.0,
+        win_rate: float = 0.0,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+        calibration_error: float = 0.0,
+        prediction_entropy: float = 0.0,
+        false_positive_rate: float = 0.0,
+        false_negative_rate: float = 0.0,
+        signal_rate: float = 0.0,
+        latency_ms: float = 0.0,
+        n_predictions: int = 0,
+        regime: str = "",
+        notes: str = "",
+    ) -> HealthPoint:
         """Record one health measurement for a model."""
         pt = HealthPoint(
-            model_id=model_id, accuracy=accuracy,
-            sharpe_ratio=sharpe_ratio, profit_factor=profit_factor,
-            win_rate=win_rate, confidence=confidence, uncertainty=uncertainty,
+            model_id=model_id,
+            accuracy=accuracy,
+            sharpe_ratio=sharpe_ratio,
+            profit_factor=profit_factor,
+            win_rate=win_rate,
+            confidence=confidence,
+            uncertainty=uncertainty,
             calibration_error=calibration_error,
             prediction_entropy=prediction_entropy,
             false_positive_rate=false_positive_rate,
             false_negative_rate=false_negative_rate,
-            signal_rate=signal_rate, latency_ms=latency_ms,
-            n_predictions=n_predictions, regime=regime, notes=notes,
+            signal_rate=signal_rate,
+            latency_ms=latency_ms,
+            n_predictions=n_predictions,
+            regime=regime,
+            notes=notes,
         )
         if model_id not in self._buffers:
             self._buffers[model_id] = deque(maxlen=self.window)
@@ -227,18 +237,10 @@ class ModelHealthEvolutionTracker:
 
         acc_trend = _classify_trend(accuracies, self.improve_thr)
         conf_trend = _classify_trend(confidences, self.improve_thr)
-        cal_trend = _classify_trend(
-            [- e for e in cal_errors], self.improve_thr
-        )
-        ent_trend = _classify_trend(
-            [- e for e in entropies], self.improve_thr
-        )
-        fpr_trend = _classify_trend(
-            [- r for r in fprs], self.improve_thr
-        )
-        fnr_trend = _classify_trend(
-            [- r for r in fnrs], self.improve_thr
-        )
+        cal_trend = _classify_trend([-e for e in cal_errors], self.improve_thr)
+        ent_trend = _classify_trend([-e for e in entropies], self.improve_thr)
+        fpr_trend = _classify_trend([-r for r in fprs], self.improve_thr)
+        fnr_trend = _classify_trend([-r for r in fnrs], self.improve_thr)
 
         avg_acc = _mean(accuracies)
         first_acc = accuracies[0] if accuracies else 0.0
@@ -302,12 +304,10 @@ class ModelHealthEvolutionTracker:
         return {mid: self.get_trend(mid) for mid in self._all_points}
 
     def degrading_models(self) -> List[str]:
-        return [mid for mid, t in self.all_trends().items()
-                if t.overall_health == "degrading"]
+        return [mid for mid, t in self.all_trends().items() if t.overall_health == "degrading"]
 
     def improving_models(self) -> List[str]:
-        return [mid for mid, t in self.all_trends().items()
-                if t.overall_health == "improving"]
+        return [mid for mid, t in self.all_trends().items() if t.overall_health == "improving"]
 
     def global_summary(self) -> Dict[str, Any]:
         trends = self.all_trends()
@@ -315,9 +315,6 @@ class ModelHealthEvolutionTracker:
             "total_models_tracked": len(trends),
             "degrading": len(self.degrading_models()),
             "improving": len(self.improving_models()),
-            "stable": sum(1 for t in trends.values()
-                          if t.overall_health == "stable"),
-            "total_health_points": sum(
-                len(v) for v in self._all_points.values()
-            ),
+            "stable": sum(1 for t in trends.values() if t.overall_health == "stable"),
+            "total_health_points": sum(len(v) for v in self._all_points.values()),
         }

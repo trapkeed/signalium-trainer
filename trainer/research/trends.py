@@ -28,7 +28,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # ScoreSnapshot
 # ---------------------------------------------------------------------------
@@ -42,9 +41,7 @@ class ScoreSnapshot:
     name: str = ""
     composite: float = 0.0
     grade_label: str = ""
-    recorded_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     category_scores: Dict[str, float] = field(default_factory=dict)
     model_family: str = ""
     backbone: str = ""
@@ -79,9 +76,7 @@ class ChampionChange:
     new_champion_score: float = 0.0
     old_champion_score: float = 0.0
     score_improvement: float = 0.0
-    recorded_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     reason: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -109,9 +104,7 @@ class RegressionAlert:
     current_score: float
     peak_score: float
     drop: float
-    detected_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    detected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -206,9 +199,7 @@ class ScoreTrendTracker:
     # Trend analysis
     # ------------------------------------------------------------------
 
-    def score_history(
-        self, experiment_id: Optional[str] = None
-    ) -> List[ScoreSnapshot]:
+    def score_history(self, experiment_id: Optional[str] = None) -> List[ScoreSnapshot]:
         if experiment_id:
             return [s for s in self._history if s.experiment_id == experiment_id]
         return sorted(self._history, key=lambda s: s.recorded_at)
@@ -237,9 +228,7 @@ class ScoreTrendTracker:
             "score_latest": scores[-1],
         }
 
-    def detect_regressions(
-        self, window: int = 5, threshold: float = 5.0
-    ) -> List[RegressionAlert]:
+    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> List[RegressionAlert]:
         """Detect experiments whose score dropped more than `threshold` points
         from their peak within the last `window` snapshots."""
         alerts: List[RegressionAlert] = []
@@ -258,13 +247,15 @@ class ScoreTrendTracker:
             latest = recent[-1].composite
             drop = peak - latest
             if drop >= threshold:
-                alerts.append(RegressionAlert(
-                    experiment_id=exp_id,
-                    name=recent[-1].name,
-                    current_score=latest,
-                    peak_score=peak,
-                    drop=drop,
-                ))
+                alerts.append(
+                    RegressionAlert(
+                        experiment_id=exp_id,
+                        name=recent[-1].name,
+                        current_score=latest,
+                        peak_score=peak,
+                        drop=drop,
+                    )
+                )
         return alerts
 
     def champion_timeline(self) -> List[Dict[str, Any]]:
@@ -281,7 +272,7 @@ class ScoreTrendTracker:
         sorted_scores = sorted(scores)
         mean = sum(scores) / n
         variance = sum((s - mean) ** 2 for s in scores) / n
-        std = variance ** 0.5
+        std = variance**0.5
 
         def percentile(p: float) -> float:
             idx = p / 100.0 * (n - 1)
@@ -317,9 +308,7 @@ class ScoreTrendTracker:
             "improvement_trend": self.improvement_trend(),
             "score_distribution": self.score_distribution(),
             "champion_timeline": self.champion_timeline(),
-            "recent_regressions": [
-                a.to_dict() for a in self.detect_regressions()
-            ],
+            "recent_regressions": [a.to_dict() for a in self.detect_regressions()],
         }
 
     def load_snapshot(self, snap: ScoreSnapshot) -> None:

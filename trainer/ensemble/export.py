@@ -156,8 +156,7 @@ class EnsembleExporter:
                     "no_trade_prob": {"type": "number", "minimum": 0, "maximum": 1},
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                     "uncertainty": {"type": "number", "minimum": 0, "maximum": 1},
-                    "predicted_class": {"type": "string",
-                                        "enum": ["buy", "sell", "no_trade"]},
+                    "predicted_class": {"type": "string", "enum": ["buy", "sell", "no_trade"]},
                     "institutional_forecast": {"type": "string"},
                     "strategy": {"type": "string"},
                     "n_experts": {"type": "integer"},
@@ -165,9 +164,8 @@ class EnsembleExporter:
                     "weight_map": {"type": "object"},
                 },
             },
-            "meta_model_active": self.meta_model is not None and
-                                  (self.meta_model.is_trained
-                                   if self.meta_model else False),
+            "meta_model_active": self.meta_model is not None
+            and (self.meta_model.is_trained if self.meta_model else False),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 

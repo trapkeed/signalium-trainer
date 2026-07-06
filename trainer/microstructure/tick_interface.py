@@ -17,6 +17,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import MicrostructureFeatures
@@ -26,17 +27,18 @@ from trainer.microstructure.micro_types import DataGranularity
 @dataclass
 class TickBar:
     """Minimal tick data container (future use)."""
+
     timestamp: float
-    price:     float
-    size:      float = 1.0
-    side:      str   = "UNKNOWN"  # BUY | SELL | UNKNOWN
+    price: float
+    size: float = 1.0
+    side: str = "UNKNOWN"  # BUY | SELL | UNKNOWN
 
     def to_dict(self):
         return {
             "timestamp": self.timestamp,
-            "price":     round(self.price, 5),
-            "size":      round(self.size, 2),
-            "side":      self.side,
+            "price": round(self.price, 5),
+            "size": round(self.size, 2),
+            "side": self.side,
         }
 
 
@@ -63,7 +65,9 @@ class TickInterface:
             return None
         return round(len(ticks) / duration, 4)
 
-    def tick_density(self, ticks: Optional[List[TickBar]], price_range: float = 0.0) -> Optional[float]:
+    def tick_density(
+        self, ticks: Optional[List[TickBar]], price_range: float = 0.0
+    ) -> Optional[float]:
         """Ticks per unit price range — concentration of activity."""
         if not ticks or price_range < 1e-10:
             return None
@@ -75,7 +79,7 @@ class TickInterface:
         """
         if not ticks:
             return None
-        buys  = sum(t.size for t in ticks if t.side == "BUY")
+        buys = sum(t.size for t in ticks if t.side == "BUY")
         sells = sum(t.size for t in ticks if t.side == "SELL")
         total = buys + sells
         if total < 1e-10:
@@ -90,7 +94,7 @@ class TickInterface:
         if len(recent) < 2:
             return None
         price_change = recent[-1].price - recent[0].price
-        price_range  = max(t.price for t in recent) - min(t.price for t in recent)
+        price_range = max(t.price for t in recent) - min(t.price for t in recent)
         if price_range < 1e-10:
             return None
         return round(price_change / price_range, 4)
@@ -100,6 +104,7 @@ class TickInterface:
         if not ticks or len(ticks) < 3:
             return None
         import statistics
+
         changes = [ticks[i].price - ticks[i - 1].price for i in range(1, len(ticks))]
         if not changes:
             return None
@@ -109,11 +114,11 @@ class TickInterface:
         """Second derivative of tick momentum — acceleration of price movement."""
         if not ticks or len(ticks) < 4:
             return None
-        half  = len(ticks) // 2
+        half = len(ticks) // 2
         early = ticks[:half]
-        late  = ticks[half:]
+        late = ticks[half:]
         early_mom = self.tick_momentum(early)
-        late_mom  = self.tick_momentum(late)
+        late_mom = self.tick_momentum(late)
         if early_mom is None or late_mom is None:
             return None
         return round(late_mom - early_mom, 4)
@@ -127,12 +132,13 @@ class TickInterface:
         if not ticks or len(ticks) < 4:
             return None
         import math
-        buy_count  = sum(1 for t in ticks if t.side == "BUY")
+
+        buy_count = sum(1 for t in ticks if t.side == "BUY")
         sell_count = sum(1 for t in ticks if t.side == "SELL")
         total = buy_count + sell_count
         if total < 1:
             return None
-        p_buy  = buy_count / total
+        p_buy = buy_count / total
         p_sell = sell_count / total
         entropy = 0.0
         for p in (p_buy, p_sell):
@@ -144,7 +150,7 @@ class TickInterface:
     def enrich_features(
         self,
         features: MicrostructureFeatures,
-        ticks:    Optional[List[TickBar]],
+        ticks: Optional[List[TickBar]],
     ) -> MicrostructureFeatures:
         """Attempt to enrich features with tick data.
 
@@ -157,13 +163,13 @@ class TickInterface:
         prices = [t.price for t in ticks]
         price_range = max(prices) - min(prices) if len(prices) > 1 else 0.0
 
-        features.tick_velocity     = self.tick_velocity(ticks)
-        features.tick_density      = self.tick_density(ticks, price_range)
-        features.tick_imbalance    = self.tick_imbalance(ticks)
-        features.tick_momentum     = self.tick_momentum(ticks)
-        features.tick_volatility   = self.tick_volatility(ticks)
+        features.tick_velocity = self.tick_velocity(ticks)
+        features.tick_density = self.tick_density(ticks, price_range)
+        features.tick_imbalance = self.tick_imbalance(ticks)
+        features.tick_momentum = self.tick_momentum(ticks)
+        features.tick_volatility = self.tick_volatility(ticks)
         features.tick_acceleration = self.tick_acceleration(ticks)
-        features.tick_entropy      = self.tick_entropy(ticks)
+        features.tick_entropy = self.tick_entropy(ticks)
 
         logger.debug(
             f"TickInterface: enriched features with {len(ticks)} ticks, "

@@ -123,8 +123,11 @@ def export_html(data: dict[str, Any], path: Path) -> None:
             }.items()
         )
         metric_rows = "".join(
-            f"<tr><td>{k}</td><td>{v:.4f}</td></tr>" if isinstance(v, float)
-            else f"<tr><td>{k}</td><td>{v}</td></tr>"
+            (
+                f"<tr><td>{k}</td><td>{v:.4f}</td></tr>"
+                if isinstance(v, float)
+                else f"<tr><td>{k}</td><td>{v}</td></tr>"
+            )
             for k, v in exp.get("metrics", {}).items()
         )
         sections.append(
@@ -137,21 +140,41 @@ def export_html(data: dict[str, Any], path: Path) -> None:
     if "leaderboard" in data and data["leaderboard"]:
         lb_rows = "".join(
             "<tr>"
-            + "".join(f"<td>{row.get(c, '')}</td>" for c in
-                      ["rank", "model_name", "architecture", "accuracy",
-                       "f1_macro", "f1_weighted", "inference_latency_ms",
-                       "training_time_seconds", "model_size_mb", "overall_score"])
+            + "".join(
+                f"<td>{row.get(c, '')}</td>"
+                for c in [
+                    "rank",
+                    "model_name",
+                    "architecture",
+                    "accuracy",
+                    "f1_macro",
+                    "f1_weighted",
+                    "inference_latency_ms",
+                    "training_time_seconds",
+                    "model_size_mb",
+                    "overall_score",
+                ]
+            )
             + "</tr>"
             for row in data["leaderboard"]
         )
         headers = "".join(
-            f"<th>{h}</th>" for h in
-            ["Rank", "Model", "Arch", "Accuracy", "F1", "F1w",
-             "Lat(ms)", "Train(s)", "MB", "Score"]
+            f"<th>{h}</th>"
+            for h in [
+                "Rank",
+                "Model",
+                "Arch",
+                "Accuracy",
+                "F1",
+                "F1w",
+                "Lat(ms)",
+                "Train(s)",
+                "MB",
+                "Score",
+            ]
         )
         sections.append(
-            f"<h2>Leaderboard</h2>"
-            f"<table border='1'><tr>{headers}</tr>{lb_rows}</table>"
+            f"<h2>Leaderboard</h2>" f"<table border='1'><tr>{headers}</tr>{lb_rows}</table>"
         )
 
     if "failure_analysis" in data and data["failure_analysis"]:

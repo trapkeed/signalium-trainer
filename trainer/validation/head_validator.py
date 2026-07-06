@@ -39,7 +39,6 @@ import torch.nn as nn
 import numpy as np
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Head result
 # ---------------------------------------------------------------------------
@@ -111,22 +110,22 @@ class PredictionHeadValidator:
 
     # Head registry: head_attr → (head_type, description)
     _HEAD_REGISTRY: dict[str, tuple[str, str]] = {
-        "classification_head":   ("classification", "Direction prediction (BUY/SELL/HOLD)"),
-        "confidence_head":       ("probability",    "Prediction confidence calibration"),
-        "expected_move_head":    ("regression",     "Expected price move magnitude"),
-        "holding_time_head":     ("regression",     "Predicted holding bars"),
-        "stop_loss_head":        ("regression",     "Stop loss level prediction"),
-        "take_profit_head":      ("regression",     "Take profit level prediction"),
-        "tp_probability_head":   ("probability",    "TP-before-SL probability"),
-        "mfe_head":              ("regression",     "Maximum Favourable Excursion"),
-        "mae_excursion_head":    ("regression",     "Maximum Adverse Excursion"),
-        "trade_survival_head":   ("probability",    "Trade survival (no SL hit) probability"),
-        "entry_quality_head":    ("regression",     "Entry quality score"),
-        "exit_quality_head":     ("regression",     "Exit quality score"),
-        "trade_efficiency_head": ("regression",     "Trade efficiency score"),
-        "market_stability_head": ("regression",     "Market stability score"),
-        "position_quality_head": ("regression",     "Position quality score"),
-        "uncertainty_head":      ("probability",    "Epistemic + aleatoric uncertainty"),
+        "classification_head": ("classification", "Direction prediction (BUY/SELL/HOLD)"),
+        "confidence_head": ("probability", "Prediction confidence calibration"),
+        "expected_move_head": ("regression", "Expected price move magnitude"),
+        "holding_time_head": ("regression", "Predicted holding bars"),
+        "stop_loss_head": ("regression", "Stop loss level prediction"),
+        "take_profit_head": ("regression", "Take profit level prediction"),
+        "tp_probability_head": ("probability", "TP-before-SL probability"),
+        "mfe_head": ("regression", "Maximum Favourable Excursion"),
+        "mae_excursion_head": ("regression", "Maximum Adverse Excursion"),
+        "trade_survival_head": ("probability", "Trade survival (no SL hit) probability"),
+        "entry_quality_head": ("regression", "Entry quality score"),
+        "exit_quality_head": ("regression", "Exit quality score"),
+        "trade_efficiency_head": ("regression", "Trade efficiency score"),
+        "market_stability_head": ("regression", "Market stability score"),
+        "position_quality_head": ("regression", "Position quality score"),
+        "uncertainty_head": ("probability", "Epistemic + aleatoric uncertainty"),
     }
 
     def __init__(self, n_calibration_bins: int = 15) -> None:
@@ -195,17 +194,11 @@ class PredictionHeadValidator:
                     continue
                 try:
                     if head_type == "regression":
-                        results[head_name] = self._eval_regression_head(
-                            head_name, output, y_val
-                        )
+                        results[head_name] = self._eval_regression_head(head_name, output, y_val)
                     elif head_type == "probability":
-                        results[head_name] = self._eval_probability_head(
-                            head_name, output, y_val
-                        )
+                        results[head_name] = self._eval_probability_head(head_name, output, y_val)
                     else:
-                        results[head_name] = self._eval_classification(
-                            head_name, output, y_val
-                        )
+                        results[head_name] = self._eval_classification(head_name, output, y_val)
                 except Exception as exc:
                     results[head_name] = self._inactive(head_name, str(exc))
 
@@ -234,8 +227,12 @@ class PredictionHeadValidator:
         conf = p.max(axis=1)
         ece = self._ece(conf, preds, y, n)
         return HeadResult(
-            head_name=name, head_type="classification",
-            accuracy=acc, auc=auc, ece=ece, n_samples=n,
+            head_name=name,
+            head_type="classification",
+            accuracy=acc,
+            auc=auc,
+            ece=ece,
+            n_samples=n,
         )
 
     def _eval_regression_head(
@@ -252,8 +249,12 @@ class PredictionHeadValidator:
         else:
             corr = 0.0
         return HeadResult(
-            head_name=name, head_type="regression",
-            mae=mae, rmse=rmse, correlation=corr, n_samples=n,
+            head_name=name,
+            head_type="regression",
+            mae=mae,
+            rmse=rmse,
+            correlation=corr,
+            n_samples=n,
         )
 
     def _eval_probability_head(
@@ -268,8 +269,12 @@ class PredictionHeadValidator:
         brier = float(((y_pred - y_bin) ** 2).mean())
         ece = self._ece_binary(y_pred, y_bin)
         return HeadResult(
-            head_name=name, head_type="probability",
-            auc=auc, brier_score=brier, ece=ece, n_samples=n,
+            head_name=name,
+            head_type="probability",
+            auc=auc,
+            brier_score=brier,
+            ece=ece,
+            n_samples=n,
         )
 
     @staticmethod

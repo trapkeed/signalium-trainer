@@ -154,10 +154,7 @@ class DependencyGraphBuilder:
         return snapshot
 
     def _build_nodes(self, matrix: CorrelationMatrix) -> Dict[str, GraphNode]:
-        return {
-            sym: GraphNode(instrument=sym)
-            for sym in matrix.instruments
-        }
+        return {sym: GraphNode(instrument=sym) for sym in matrix.instruments}
 
     def _build_edges(self, matrix: CorrelationMatrix) -> List[GraphEdge]:
         edges = []
@@ -172,11 +169,14 @@ class DependencyGraphBuilder:
                 seen.add(key)
                 corr = matrix.get(a, b)
                 if abs(corr) >= self.edge_threshold:
-                    edges.append(GraphEdge(
-                        source=a, target=b,
-                        weight=abs(corr),
-                        correlation=corr,
-                    ))
+                    edges.append(
+                        GraphEdge(
+                            source=a,
+                            target=b,
+                            weight=abs(corr),
+                            correlation=corr,
+                        )
+                    )
         return edges
 
     @staticmethod
@@ -192,8 +192,9 @@ class DependencyGraphBuilder:
         for sym, node in nodes.items():
             node.centrality = round(strength.get(sym, 0.0) / max(max_strength, 1e-9), 4)
 
-    def _build_clusters(self, matrix: CorrelationMatrix,
-                        nodes: Dict[str, GraphNode]) -> List[Cluster]:
+    def _build_clusters(
+        self, matrix: CorrelationMatrix, nodes: Dict[str, GraphNode]
+    ) -> List[Cluster]:
         symbols = matrix.instruments
         n = len(symbols)
         if n == 0:
@@ -225,13 +226,15 @@ class DependencyGraphBuilder:
         for cid, members in clusters.items():
             centroid = self._centroid(members, matrix)
             avg_corr = self._avg_internal_correlation(members, matrix)
-            result.append(Cluster(
-                cluster_id=cid,
-                cluster_type=ClusterType.CORRELATION,
-                members=members,
-                centroid_instrument=centroid,
-                average_internal_correlation=avg_corr,
-            ))
+            result.append(
+                Cluster(
+                    cluster_id=cid,
+                    cluster_type=ClusterType.CORRELATION,
+                    members=members,
+                    centroid_instrument=centroid,
+                    average_internal_correlation=avg_corr,
+                )
+            )
         return result
 
     @staticmethod
@@ -273,7 +276,4 @@ class DependencyGraphBuilder:
         return self._snapshots[-n:]
 
     def cluster_evolution(self) -> List[dict]:
-        return [
-            {"timestamp": s.timestamp, "n_clusters": len(s.clusters)}
-            for s in self._snapshots
-        ]
+        return [{"timestamp": s.timestamp, "n_clusters": len(s.clusters)} for s in self._snapshots]

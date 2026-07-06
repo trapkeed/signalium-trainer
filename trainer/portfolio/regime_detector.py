@@ -29,15 +29,39 @@ class MarketRegime(str, Enum):
 
 # Regime → portfolio adjustment multipliers
 REGIME_ADJUSTMENTS: Dict[MarketRegime, Dict[str, float]] = {
-    MarketRegime.TRENDING:        {"momentum_boost": 1.3, "position_size": 1.1, "diversification_min": 0.6},
-    MarketRegime.RANGING:         {"momentum_boost": 0.7, "position_size": 0.9, "diversification_min": 0.7},
-    MarketRegime.HIGH_VOLATILITY: {"momentum_boost": 0.8, "position_size": 0.6, "diversification_min": 0.8},
-    MarketRegime.LOW_VOLATILITY:  {"momentum_boost": 1.1, "position_size": 1.2, "diversification_min": 0.5},
-    MarketRegime.RISK_ON:         {"momentum_boost": 1.2, "position_size": 1.1, "diversification_min": 0.5},
-    MarketRegime.RISK_OFF:        {"momentum_boost": 0.7, "position_size": 0.6, "diversification_min": 0.9},
-    MarketRegime.HIGH_LIQUIDITY:  {"momentum_boost": 1.1, "position_size": 1.1, "diversification_min": 0.5},
-    MarketRegime.LOW_LIQUIDITY:   {"momentum_boost": 0.8, "position_size": 0.7, "diversification_min": 0.8},
-    MarketRegime.UNKNOWN:         {"momentum_boost": 1.0, "position_size": 1.0, "diversification_min": 0.7},
+    MarketRegime.TRENDING: {
+        "momentum_boost": 1.3,
+        "position_size": 1.1,
+        "diversification_min": 0.6,
+    },
+    MarketRegime.RANGING: {"momentum_boost": 0.7, "position_size": 0.9, "diversification_min": 0.7},
+    MarketRegime.HIGH_VOLATILITY: {
+        "momentum_boost": 0.8,
+        "position_size": 0.6,
+        "diversification_min": 0.8,
+    },
+    MarketRegime.LOW_VOLATILITY: {
+        "momentum_boost": 1.1,
+        "position_size": 1.2,
+        "diversification_min": 0.5,
+    },
+    MarketRegime.RISK_ON: {"momentum_boost": 1.2, "position_size": 1.1, "diversification_min": 0.5},
+    MarketRegime.RISK_OFF: {
+        "momentum_boost": 0.7,
+        "position_size": 0.6,
+        "diversification_min": 0.9,
+    },
+    MarketRegime.HIGH_LIQUIDITY: {
+        "momentum_boost": 1.1,
+        "position_size": 1.1,
+        "diversification_min": 0.5,
+    },
+    MarketRegime.LOW_LIQUIDITY: {
+        "momentum_boost": 0.8,
+        "position_size": 0.7,
+        "diversification_min": 0.8,
+    },
+    MarketRegime.UNKNOWN: {"momentum_boost": 1.0, "position_size": 1.0, "diversification_min": 0.7},
 }
 
 
@@ -79,11 +103,13 @@ class RegimeAssessment:
 class RegimeDetector:
     """Detects market regime from return series and indicator data."""
 
-    def __init__(self,
-                 vol_window: int = 20,
-                 trend_window: int = 40,
-                 high_vol_percentile: float = 0.75,
-                 low_vol_percentile: float = 0.25) -> None:
+    def __init__(
+        self,
+        vol_window: int = 20,
+        trend_window: int = 40,
+        high_vol_percentile: float = 0.75,
+        low_vol_percentile: float = 0.25,
+    ) -> None:
         self._vol_window = vol_window
         self._trend_window = trend_window
         self._high_vol_pct = high_vol_percentile
@@ -144,9 +170,12 @@ class RegimeDetector:
         r2 = 1.0 - ss_res / ss_tot
         return max(0.0, r2)
 
-    def detect(self, timestamp: str = "",
-               risk_on_instruments: Optional[List[str]] = None,
-               safe_haven_instruments: Optional[List[str]] = None) -> RegimeAssessment:
+    def detect(
+        self,
+        timestamp: str = "",
+        risk_on_instruments: Optional[List[str]] = None,
+        safe_haven_instruments: Optional[List[str]] = None,
+    ) -> RegimeAssessment:
         signals: List[RegimeSignal] = []
 
         portfolio_rets = self._portfolio_returns(self._trend_window)
@@ -164,30 +193,46 @@ class RegimeDetector:
                 lo_threshold = sorted_vols[int(len(sorted_vols) * self._low_vol_pct)]
                 if current_vol >= hi_threshold:
                     conf = min(1.0, (current_vol / max(hi_threshold, 1e-9) - 1.0) * 3 + 0.6)
-                    signals.append(RegimeSignal(
-                        MarketRegime.HIGH_VOLATILITY, min(conf, 0.95),
-                        [f"Current vol {current_vol:.4f} >= {self._high_vol_pct:.0%} percentile"],
-                    ))
+                    signals.append(
+                        RegimeSignal(
+                            MarketRegime.HIGH_VOLATILITY,
+                            min(conf, 0.95),
+                            [
+                                f"Current vol {current_vol:.4f} >= {self._high_vol_pct:.0%} percentile"
+                            ],
+                        )
+                    )
                 elif current_vol <= lo_threshold:
                     conf = min(1.0, (lo_threshold / max(current_vol, 1e-9) - 1.0) * 3 + 0.6)
-                    signals.append(RegimeSignal(
-                        MarketRegime.LOW_VOLATILITY, min(conf, 0.95),
-                        [f"Current vol {current_vol:.4f} <= {self._low_vol_pct:.0%} percentile"],
-                    ))
+                    signals.append(
+                        RegimeSignal(
+                            MarketRegime.LOW_VOLATILITY,
+                            min(conf, 0.95),
+                            [
+                                f"Current vol {current_vol:.4f} <= {self._low_vol_pct:.0%} percentile"
+                            ],
+                        )
+                    )
 
         # Trend regime
         if len(portfolio_rets) >= self._trend_window // 2:
             ts = self._trend_strength(portfolio_rets)
             if ts >= 0.5:
-                signals.append(RegimeSignal(
-                    MarketRegime.TRENDING, min(ts, 0.9),
-                    [f"Portfolio R² = {ts:.2f} indicates trending"],
-                ))
+                signals.append(
+                    RegimeSignal(
+                        MarketRegime.TRENDING,
+                        min(ts, 0.9),
+                        [f"Portfolio R² = {ts:.2f} indicates trending"],
+                    )
+                )
             else:
-                signals.append(RegimeSignal(
-                    MarketRegime.RANGING, min(1.0 - ts, 0.8),
-                    [f"Portfolio R² = {ts:.2f} indicates ranging"],
-                ))
+                signals.append(
+                    RegimeSignal(
+                        MarketRegime.RANGING,
+                        min(1.0 - ts, 0.8),
+                        [f"Portfolio R² = {ts:.2f} indicates ranging"],
+                    )
+                )
 
         # Risk-on / Risk-off
         risk_signal = self._risk_sentiment(risk_on_instruments, safe_haven_instruments)
@@ -215,9 +260,9 @@ class RegimeDetector:
             self._regime_history = self._regime_history[-200:]
         return assessment
 
-    def _risk_sentiment(self,
-                        risk_on: Optional[List[str]],
-                        safe_haven: Optional[List[str]]) -> Optional[RegimeSignal]:
+    def _risk_sentiment(
+        self, risk_on: Optional[List[str]], safe_haven: Optional[List[str]]
+    ) -> Optional[RegimeSignal]:
         risk_on = risk_on or ["NAS100", "SPX500", "BTCUSD", "AUDUSD", "NZDUSD"]
         safe_haven = safe_haven or ["XAUUSD", "USDJPY", "USDCHF"]
 
@@ -241,12 +286,14 @@ class RegimeDetector:
 
         if spread > 0:
             conf = min(0.9, abs(spread) * 50)
-            return RegimeSignal(MarketRegime.RISK_ON, max(conf, 0.4),
-                                [f"Risk-on spread = {spread:.4f}"])
+            return RegimeSignal(
+                MarketRegime.RISK_ON, max(conf, 0.4), [f"Risk-on spread = {spread:.4f}"]
+            )
         else:
             conf = min(0.9, abs(spread) * 50)
-            return RegimeSignal(MarketRegime.RISK_OFF, max(conf, 0.4),
-                                [f"Risk-off spread = {spread:.4f}"])
+            return RegimeSignal(
+                MarketRegime.RISK_OFF, max(conf, 0.4), [f"Risk-off spread = {spread:.4f}"]
+            )
 
     def regime_history(self, n: int = 20) -> List[dict]:
         return [a.to_dict() for a in self._regime_history[-n:]]

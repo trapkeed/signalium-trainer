@@ -20,6 +20,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import (
@@ -29,17 +30,17 @@ from trainer.microstructure.micro_models import (
     MicrostructureScore,
     MicrostructureEmbedding,
 )
-from trainer.microstructure.price_action    import PriceActionAnalyzer
+from trainer.microstructure.price_action import PriceActionAnalyzer
 from trainer.microstructure.volatility_micro import VolatilityMicrostructure
-from trainer.microstructure.momentum_micro   import MomentumMicrostructure
-from trainer.microstructure.liquidity_proxy  import LiquidityProxy
+from trainer.microstructure.momentum_micro import MomentumMicrostructure
+from trainer.microstructure.liquidity_proxy import LiquidityProxy
 from trainer.microstructure.market_efficiency import MarketEfficiency
-from trainer.microstructure.micro_scorer     import MicrostructureScorer
+from trainer.microstructure.micro_scorer import MicrostructureScorer
 from trainer.microstructure.state_classifier import MarketStateClassifier
 from trainer.microstructure.micro_embeddings import MicrostructureEmbedder
-from trainer.microstructure.micro_database   import MicrostructureDatabase
-from trainer.microstructure.micro_dashboard  import MicrostructureDashboard
-from trainer.microstructure.tick_interface   import TickInterface, TickBar
+from trainer.microstructure.micro_database import MicrostructureDatabase
+from trainer.microstructure.micro_dashboard import MicrostructureDashboard
+from trainer.microstructure.tick_interface import TickInterface, TickBar
 from trainer.microstructure.order_flow_interface import OrderFlowInterface
 from trainer.microstructure.micro_types import DataGranularity
 
@@ -48,34 +49,34 @@ class MicrostructureAPI:
     """Unified API for the Market Microstructure Intelligence Engine."""
 
     def __init__(self, db_path: str = ":memory:"):
-        self.price_action  = PriceActionAnalyzer()
-        self.volatility    = VolatilityMicrostructure()
-        self.momentum      = MomentumMicrostructure()
-        self.liquidity     = LiquidityProxy()
-        self.efficiency    = MarketEfficiency()
-        self.scorer        = MicrostructureScorer()
-        self.classifier    = MarketStateClassifier()
-        self.embedder      = MicrostructureEmbedder()
-        self.tick          = TickInterface()
-        self.order_flow    = OrderFlowInterface()
-        self.db            = MicrostructureDatabase(db_path)
+        self.price_action = PriceActionAnalyzer()
+        self.volatility = VolatilityMicrostructure()
+        self.momentum = MomentumMicrostructure()
+        self.liquidity = LiquidityProxy()
+        self.efficiency = MarketEfficiency()
+        self.scorer = MicrostructureScorer()
+        self.classifier = MarketStateClassifier()
+        self.embedder = MicrostructureEmbedder()
+        self.tick = TickInterface()
+        self.order_flow = OrderFlowInterface()
+        self.db = MicrostructureDatabase(db_path)
         self.dashboard_eng = MicrostructureDashboard()
 
         # In-memory history
-        self._features:  List[MicrostructureFeatures]  = []
-        self._scores:    List[MicrostructureScore]      = []
-        self._states:    List[MarketStateRecord]        = []
+        self._features: List[MicrostructureFeatures] = []
+        self._scores: List[MicrostructureScore] = []
+        self._states: List[MarketStateRecord] = []
         self._embeddings: List[MicrostructureEmbedding] = []
 
     # ── 1. Full analysis ──────────────────────────────────────────────────────
 
     def analyse(
         self,
-        bars:       List[OHLCBar],
+        bars: List[OHLCBar],
         instrument: str = "",
-        timeframe:  str = "H1",
-        ticks:      Optional[List[TickBar]] = None,
-        persist:    bool = True,
+        timeframe: str = "H1",
+        ticks: Optional[List[TickBar]] = None,
+        persist: bool = True,
     ) -> Dict:
         """Run the full OHLC microstructure analysis pipeline.
 
@@ -86,10 +87,10 @@ class MicrostructureAPI:
 
         # Build feature object
         f = MicrostructureFeatures(
-            timestamp  = bars[-1].timestamp,
-            instrument = instrument or bars[-1].instrument,
-            timeframe  = timeframe,
-            granularity = DataGranularity.OHLC.value,
+            timestamp=bars[-1].timestamp,
+            instrument=instrument or bars[-1].instrument,
+            timeframe=timeframe,
+            granularity=DataGranularity.OHLC.value,
         )
 
         # Run all analyzers
@@ -133,10 +134,10 @@ class MicrostructureAPI:
         )
 
         return {
-            "features":    f.to_dict(),
-            "score":       score.to_dict(),
+            "features": f.to_dict(),
+            "score": score.to_dict(),
             "market_state": state_record.to_dict(),
-            "embedding":   emb.to_dict(),
+            "embedding": emb.to_dict(),
         }
 
     # ── 2. Current state ──────────────────────────────────────────────────────
@@ -163,19 +164,17 @@ class MicrostructureAPI:
     def historical(
         self,
         instrument: Optional[str] = None,
-        limit:      int           = 100,
+        limit: int = 100,
     ) -> Dict:
         features = self._features[-limit:]
-        scores   = self._scores[-limit:]
-        states   = self._states[-limit:]
+        scores = self._scores[-limit:]
+        states = self._states[-limit:]
         return {
-            "total":        len(features),
-            "features":     [f.to_dict() for f in features],
-            "scores":       [s.to_dict() for s in scores],
+            "total": len(features),
+            "features": [f.to_dict() for f in features],
+            "scores": [s.to_dict() for s in scores],
             "market_states": [s.to_dict() for s in states],
-            "state_distribution": dict(
-                (s.state.value, 0) for s in states
-            ) if states else {},
+            "state_distribution": dict((s.state.value, 0) for s in states) if states else {},
         }
 
     # ── 6. Dashboard ──────────────────────────────────────────────────────────
@@ -185,24 +184,16 @@ class MicrostructureAPI:
             "microstructure_timeline": lambda: self.dashboard_eng.microstructure_timeline(
                 self._features, self._scores
             ),
-            "market_state_timeline": lambda: self.dashboard_eng.market_state_timeline(
-                self._states
-            ),
-            "momentum_evolution": lambda: self.dashboard_eng.momentum_evolution(
-                self._features
-            ),
-            "volatility_evolution": lambda: self.dashboard_eng.volatility_evolution(
-                self._features
-            ),
+            "market_state_timeline": lambda: self.dashboard_eng.market_state_timeline(self._states),
+            "momentum_evolution": lambda: self.dashboard_eng.momentum_evolution(self._features),
+            "volatility_evolution": lambda: self.dashboard_eng.volatility_evolution(self._features),
             "liquidity_estimates": lambda: self.dashboard_eng.liquidity_estimates(
                 self._features, self._states
             ),
             "microstructure_heatmaps": lambda: self.dashboard_eng.microstructure_heatmaps(
                 self._features, self._states
             ),
-            "embedding_explorer": lambda: self.dashboard_eng.embedding_explorer(
-                self._embeddings
-            ),
+            "embedding_explorer": lambda: self.dashboard_eng.embedding_explorer(self._embeddings),
         }
         if name == "all":
             return self.dashboard_eng.all_dashboards(
@@ -218,14 +209,14 @@ class MicrostructureAPI:
     def system_stats(self) -> Dict:
         return {
             "in_memory": {
-                "features":    len(self._features),
-                "scores":      len(self._scores),
-                "states":      len(self._states),
-                "embeddings":  len(self._embeddings),
+                "features": len(self._features),
+                "scores": len(self._scores),
+                "states": len(self._states),
+                "embeddings": len(self._embeddings),
             },
             "database": self.db.stats(),
             "embedding_dim": self.embedder.embedding_dim(),
-            "tick_available":       self.tick.is_available(),
+            "tick_available": self.tick.is_available(),
             "order_flow_available": self.order_flow.is_available(),
         }
 

@@ -53,66 +53,67 @@ if "loguru" not in sys.modules:
     sys.modules["loguru"] = _loguru
 
 # Load in dependency order
-_weights    = _load("trainer.research.weights",           "weights.py")
-_grades     = _load("trainer.research.grades",            "grades.py")
-_categories = _load("trainer.research.categories",        "categories.py")
-_confidence = _load("trainer.research.confidence",        "confidence.py")
-_scorer     = _load("trainer.research.scorer",            "scorer.py")
-_trends     = _load("trainer.research.trends",            "trends.py")
-_lb_mod     = _load("trainer.research.leaderboard_irse",  "leaderboard_irse.py")
-_bm_mod     = _load("trainer.research.benchmarking",      "benchmarking.py")
-_db_mod     = _load("trainer.research.score_database",    "score_database.py")
-_api_mod    = _load("trainer.research.score_api",         "score_api.py")
-_dash_mod   = _load("trainer.research.score_dashboard",   "score_dashboard.py")
-_exp_mod    = _load("trainer.research.score_export",      "score_export.py")
+_weights = _load("trainer.research.weights", "weights.py")
+_grades = _load("trainer.research.grades", "grades.py")
+_categories = _load("trainer.research.categories", "categories.py")
+_confidence = _load("trainer.research.confidence", "confidence.py")
+_scorer = _load("trainer.research.scorer", "scorer.py")
+_trends = _load("trainer.research.trends", "trends.py")
+_lb_mod = _load("trainer.research.leaderboard_irse", "leaderboard_irse.py")
+_bm_mod = _load("trainer.research.benchmarking", "benchmarking.py")
+_db_mod = _load("trainer.research.score_database", "score_database.py")
+_api_mod = _load("trainer.research.score_api", "score_api.py")
+_dash_mod = _load("trainer.research.score_dashboard", "score_dashboard.py")
+_exp_mod = _load("trainer.research.score_export", "score_export.py")
 
 # Pull classes into local scope
-ScoringWeights            = _weights.ScoringWeights
-GradeSystem               = _grades.GradeSystem
-Grade                     = _grades.Grade
+ScoringWeights = _weights.ScoringWeights
+GradeSystem = _grades.GradeSystem
+Grade = _grades.Grade
 
-ValidationQualityInputs   = _categories.ValidationQualityInputs
-ValidationQualityScorer   = _categories.ValidationQualityScorer
-TradingPerformanceInputs  = _categories.TradingPerformanceInputs
-TradingPerformanceScorer  = _categories.TradingPerformanceScorer
-RobustnessInputs          = _categories.RobustnessInputs
-RobustnessScorer          = _categories.RobustnessScorer
-CalibrationInputs         = _categories.CalibrationInputs
-CalibrationScorer         = _categories.CalibrationScorer
-GeneralizationInputs      = _categories.GeneralizationInputs
-GeneralizationScorer      = _categories.GeneralizationScorer
-EfficiencyInputs          = _categories.EfficiencyInputs
-EfficiencyScorer          = _categories.EfficiencyScorer
-ExplainabilityInputs      = _categories.ExplainabilityInputs
-ExplainabilityScorer      = _categories.ExplainabilityScorer
+ValidationQualityInputs = _categories.ValidationQualityInputs
+ValidationQualityScorer = _categories.ValidationQualityScorer
+TradingPerformanceInputs = _categories.TradingPerformanceInputs
+TradingPerformanceScorer = _categories.TradingPerformanceScorer
+RobustnessInputs = _categories.RobustnessInputs
+RobustnessScorer = _categories.RobustnessScorer
+CalibrationInputs = _categories.CalibrationInputs
+CalibrationScorer = _categories.CalibrationScorer
+GeneralizationInputs = _categories.GeneralizationInputs
+GeneralizationScorer = _categories.GeneralizationScorer
+EfficiencyInputs = _categories.EfficiencyInputs
+EfficiencyScorer = _categories.EfficiencyScorer
+ExplainabilityInputs = _categories.ExplainabilityInputs
+ExplainabilityScorer = _categories.ExplainabilityScorer
 OperationalReadinessInputs = _categories.OperationalReadinessInputs
 OperationalReadinessScorer = _categories.OperationalReadinessScorer
 
-ConfidenceInputs          = _confidence.ConfidenceInputs
-ConfidenceCalculator      = _confidence.ConfidenceCalculator
+ConfidenceInputs = _confidence.ConfidenceInputs
+ConfidenceCalculator = _confidence.ConfidenceCalculator
 
-ResearchScoreInputs       = _scorer.ResearchScoreInputs
-ResearchScorer            = _scorer.ResearchScorer
-ResearchScore             = _scorer.ResearchScore
+ResearchScoreInputs = _scorer.ResearchScoreInputs
+ResearchScorer = _scorer.ResearchScorer
+ResearchScore = _scorer.ResearchScore
 
-ScoreTrendTracker         = _trends.ScoreTrendTracker
-ScoreSnapshot             = _trends.ScoreSnapshot
+ScoreTrendTracker = _trends.ScoreTrendTracker
+ScoreSnapshot = _trends.ScoreSnapshot
 
-IRSELeaderboard           = _lb_mod.IRSELeaderboard
-IRSELeaderboardEntry      = _lb_mod.IRSELeaderboardEntry
+IRSELeaderboard = _lb_mod.IRSELeaderboard
+IRSELeaderboardEntry = _lb_mod.IRSELeaderboardEntry
 
-IRSEBenchmarker           = _bm_mod.IRSEBenchmarker
-ModelRole                 = _bm_mod.ModelRole
+IRSEBenchmarker = _bm_mod.IRSEBenchmarker
+ModelRole = _bm_mod.ModelRole
 
-IRSEScoreDatabase         = _db_mod.IRSEScoreDatabase
-IRSEApi                   = _api_mod.IRSEApi
-IRSEScoreDashboard        = _dash_mod.IRSEScoreDashboard
-IRSEScoreExporter         = _exp_mod.IRSEScoreExporter
+IRSEScoreDatabase = _db_mod.IRSEScoreDatabase
+IRSEApi = _api_mod.IRSEApi
+IRSEScoreDashboard = _dash_mod.IRSEScoreDashboard
+IRSEScoreExporter = _exp_mod.IRSEScoreExporter
 
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_inputs(
     *,
@@ -129,6 +130,7 @@ def _make_inputs(
     experiment_id: str = "",
 ) -> ResearchScoreInputs:
     import uuid as _uuid
+
     return ResearchScoreInputs(
         experiment_id=experiment_id or str(_uuid.uuid4()),
         name=name,
@@ -224,13 +226,13 @@ def _make_inputs(
 
 def _make_full_system():
     scorer = ResearchScorer()
-    lb     = IRSELeaderboard()
+    lb = IRSELeaderboard()
     trends = ScoreTrendTracker()
-    bm     = IRSEBenchmarker()
-    db     = IRSEScoreDatabase(":memory:")
-    api    = IRSEApi(scorer, lb, trends, bm, db)
-    dash   = IRSEScoreDashboard(lb, trends, bm, db)
-    exp    = IRSEScoreExporter(lb, trends, bm, db)
+    bm = IRSEBenchmarker()
+    db = IRSEScoreDatabase(":memory:")
+    api = IRSEApi(scorer, lb, trends, bm, db)
+    dash = IRSEScoreDashboard(lb, trends, bm, db)
+    exp = IRSEScoreExporter(lb, trends, bm, db)
     return scorer, lb, trends, bm, db, api, dash, exp
 
 
@@ -276,10 +278,16 @@ def test_weights_from_dict():
 
 
 def test_weights_normalise():
-    w = ScoringWeights(validation_quality=2.0, trading_performance=2.0,
-                       robustness=1.0, calibration=1.0, generalization=1.0,
-                       efficiency=0.5, explainability=0.5,
-                       operational_readiness=0.5)
+    w = ScoringWeights(
+        validation_quality=2.0,
+        trading_performance=2.0,
+        robustness=1.0,
+        calibration=1.0,
+        generalization=1.0,
+        efficiency=0.5,
+        explainability=0.5,
+        operational_readiness=0.5,
+    )
     n = w.normalise()
     n.validate()
 
@@ -288,6 +296,7 @@ def test_weights_to_json():
     w = ScoringWeights.default()
     j = w.to_json()
     import json
+
     d = json.loads(j)
     assert "validation_quality" in d
 
@@ -400,9 +409,15 @@ def test_validation_quality_zero_inputs():
 def test_trading_performance_strong():
     scorer = TradingPerformanceScorer()
     inputs = TradingPerformanceInputs(
-        profit_factor=2.0, sharpe_ratio=2.2, max_drawdown=0.05,
-        win_rate=0.60, average_r_multiple=1.8, expectancy=0.45,
-        sortino_ratio=2.8, calmar_ratio=2.5, tp_before_sl_accuracy=0.68,
+        profit_factor=2.0,
+        sharpe_ratio=2.2,
+        max_drawdown=0.05,
+        win_rate=0.60,
+        average_r_multiple=1.8,
+        expectancy=0.45,
+        sortino_ratio=2.8,
+        calmar_ratio=2.5,
+        tp_before_sl_accuracy=0.68,
         capital_efficiency=0.85,
     )
     score, sub = scorer.score(inputs)
@@ -420,9 +435,12 @@ def test_trading_performance_zeros():
 def test_robustness_perfect():
     scorer = RobustnessScorer()
     inputs = RobustnessInputs(
-        monte_carlo_stability=1.0, stress_test_pass_rate=1.0,
-        noise_resistance=1.0, data_gap_tolerance=1.0,
-        spread_expansion_tolerance=1.0, execution_delay_tolerance=1.0,
+        monte_carlo_stability=1.0,
+        stress_test_pass_rate=1.0,
+        noise_resistance=1.0,
+        data_gap_tolerance=1.0,
+        spread_expansion_tolerance=1.0,
+        execution_delay_tolerance=1.0,
         volatility_shift_tolerance=1.0,
     )
     score, _ = scorer.score(inputs)
@@ -494,9 +512,12 @@ def test_explainability_full():
 def test_operational_readiness_full():
     scorer = OperationalReadinessScorer()
     inputs = OperationalReadinessInputs(
-        deployment_readiness=1.0, monitoring_coverage=1.0,
-        health_checks=1.0, drift_monitoring=1.0,
-        rollback_readiness=1.0, audit_completeness=1.0,
+        deployment_readiness=1.0,
+        monitoring_coverage=1.0,
+        health_checks=1.0,
+        drift_monitoring=1.0,
+        rollback_readiness=1.0,
+        audit_completeness=1.0,
     )
     score, _ = scorer.score(inputs)
     assert abs(score - 100.0) < 1e-6
@@ -563,9 +584,14 @@ def test_scorer_returns_correct_category_count():
     rs = scorer.score(_make_inputs())
     cats = {cs.category for cs in rs.category_scores}
     expected = {
-        "validation_quality", "trading_performance", "robustness",
-        "calibration", "generalization", "efficiency",
-        "explainability", "operational_readiness",
+        "validation_quality",
+        "trading_performance",
+        "robustness",
+        "calibration",
+        "generalization",
+        "efficiency",
+        "explainability",
+        "operational_readiness",
     }
     assert cats == expected
 
@@ -574,9 +600,9 @@ def test_scorer_weighted_sum_correct():
     scorer = ResearchScorer()
     rs = scorer.score(_make_inputs())
     reconstructed = sum(cs.weighted_score for cs in rs.category_scores)
-    assert abs(reconstructed - rs.composite) < 1e-4, (
-        f"Weighted sum {reconstructed} ≠ composite {rs.composite}"
-    )
+    assert (
+        abs(reconstructed - rs.composite) < 1e-4
+    ), f"Weighted sum {reconstructed} ≠ composite {rs.composite}"
 
 
 def test_scorer_breakdown():
@@ -615,16 +641,18 @@ def test_scorer_sensitivity_analysis():
 
 def test_scorer_update_weights():
     scorer = ResearchScorer()
-    new_w = ScoringWeights.from_dict({
-        "validation_quality": 0.40,
-        "trading_performance": 0.30,
-        "robustness": 0.10,
-        "calibration": 0.05,
-        "generalization": 0.05,
-        "efficiency": 0.04,
-        "explainability": 0.03,
-        "operational_readiness": 0.03,
-    })
+    new_w = ScoringWeights.from_dict(
+        {
+            "validation_quality": 0.40,
+            "trading_performance": 0.30,
+            "robustness": 0.10,
+            "calibration": 0.05,
+            "generalization": 0.05,
+            "efficiency": 0.04,
+            "explainability": 0.03,
+            "operational_readiness": 0.03,
+        }
+    )
     scorer.update_weights(new_w)
     rs = scorer.score(_make_inputs())
     assert 0.0 <= rs.composite <= 100.0
@@ -790,11 +818,20 @@ def test_leaderboard_promotion_candidates():
     lb = IRSELeaderboard()
     # Use fully-populated fixture so composite crosses the 80-pt threshold
     high = _make_inputs(name="high", wf_acc=0.74, sharpe=2.3, drawdown=0.04)
-    low  = _make_inputs(name="low", wf_acc=0.52, sharpe=0.6, drawdown=0.20,
-                        monte_carlo=0.0, ece=0.20, oos=0.50,
-                        latency_ms=95.0, doc_coverage=0.0, deploy_ready=0.0)
+    low = _make_inputs(
+        name="low",
+        wf_acc=0.52,
+        sharpe=0.6,
+        drawdown=0.20,
+        monte_carlo=0.0,
+        ece=0.20,
+        oos=0.50,
+        latency_ms=95.0,
+        doc_coverage=0.0,
+        deploy_ready=0.0,
+    )
     rs_high = scorer.score(high)
-    rs_low  = scorer.score(low)
+    rs_low = scorer.score(low)
     lb.add(rs_high)
     lb.add(rs_low)
     candidates = lb.promotion_candidates()
@@ -847,9 +884,9 @@ def test_benchmarker_register_and_compare():
 def test_benchmarker_compare_improved():
     scorer = ResearchScorer()
     bm = IRSEBenchmarker()
-    rs_low  = scorer.score(_make_inputs(name="low",  wf_acc=0.55, sharpe=0.8))
+    rs_low = scorer.score(_make_inputs(name="low", wf_acc=0.55, sharpe=0.8))
     rs_high = scorer.score(_make_inputs(name="high", wf_acc=0.74, sharpe=2.2))
-    bm.register("low",  rs_low,  ModelRole.BASELINE)
+    bm.register("low", rs_low, ModelRole.BASELINE)
     bm.register("high", rs_high, ModelRole.CANDIDATE)
     bm.set_champion("low")
     comp = bm.compare("high", against="low")
@@ -861,7 +898,7 @@ def test_benchmarker_stronger_categories():
     bm = IRSEBenchmarker()
     rs1 = scorer.score(_make_inputs(name="ref"))
     rs2 = scorer.score(_make_inputs(name="cand", deploy_ready=1.0, doc_coverage=1.0))
-    bm.register("ref",  rs1, ModelRole.CHAMPION)
+    bm.register("ref", rs1, ModelRole.CHAMPION)
     bm.register("cand", rs2)
     bm.set_champion("ref")
     comp = bm.compare("cand")
@@ -940,13 +977,15 @@ def test_db_leaderboard_query():
 
 def test_db_score_history():
     db = IRSEScoreDatabase(":memory:")
-    db.save_score_snapshot({
-        "snapshot_id": "snap_001",
-        "experiment_id": "exp_001",
-        "composite": 78.5,
-        "grade_label": "Experimental",
-        "recorded_at": "2026-01-01T00:00:00+00:00",
-    })
+    db.save_score_snapshot(
+        {
+            "snapshot_id": "snap_001",
+            "experiment_id": "exp_001",
+            "composite": 78.5,
+            "grade_label": "Experimental",
+            "recorded_at": "2026-01-01T00:00:00+00:00",
+        }
+    )
     history = db.get_score_history()
     assert len(history) == 1
     assert history[0]["composite"] == 78.5
@@ -956,9 +995,16 @@ def test_db_weight_configuration():
     db = IRSEScoreDatabase(":memory:")
     config_id = db.save_weight_configuration(
         "custom_v1",
-        {"validation_quality": 0.40, "trading_performance": 0.30,
-         "robustness": 0.10, "calibration": 0.05, "generalization": 0.05,
-         "efficiency": 0.04, "explainability": 0.03, "operational_readiness": 0.03},
+        {
+            "validation_quality": 0.40,
+            "trading_performance": 0.30,
+            "robustness": 0.10,
+            "calibration": 0.05,
+            "generalization": 0.05,
+            "efficiency": 0.04,
+            "explainability": 0.03,
+            "operational_readiness": 0.03,
+        },
         description="Heavy validation",
         set_active=True,
     )
@@ -1043,16 +1089,18 @@ def test_api_get_weights():
 
 def test_api_set_weights():
     _, _, _, _, _, api, _, _ = _make_full_system()
-    resp = api.set_weights({
-        "validation_quality": 0.35,
-        "trading_performance": 0.30,
-        "robustness": 0.10,
-        "calibration": 0.07,
-        "generalization": 0.08,
-        "efficiency": 0.04,
-        "explainability": 0.03,
-        "operational_readiness": 0.03,
-    })
+    resp = api.set_weights(
+        {
+            "validation_quality": 0.35,
+            "trading_performance": 0.30,
+            "robustness": 0.10,
+            "calibration": 0.07,
+            "generalization": 0.08,
+            "efficiency": 0.04,
+            "explainability": 0.03,
+            "operational_readiness": 0.03,
+        }
+    )
     assert resp["status"] == "ok"
     assert resp["data"]["applied"]
 
@@ -1169,6 +1217,7 @@ def test_exporter_json_leaderboard():
     api.score_experiment(_make_inputs(name="json_exp"))
     data = exp.export_json()
     import json as _json
+
     parsed = _json.loads(data)
     assert "leaderboard" in parsed
 
@@ -1179,6 +1228,7 @@ def test_exporter_json_single_experiment():
     api.score_experiment(inputs)
     data = exporter.export_json(experiment_id=inputs.experiment_id)
     import json as _json
+
     parsed = _json.loads(data)
     assert isinstance(parsed, (dict, list))
 
@@ -1218,6 +1268,7 @@ def test_exporter_research_report_json():
     scorer, lb, trends, bm, db, api, dash, exporter = _make_full_system()
     api.score_experiment(_make_inputs(name="report_json"))
     import json as _json
+
     report = exporter.export_research_report(as_markdown=False)
     parsed = _json.loads(report)
     assert "leaderboard" in parsed or "top_10" in parsed
@@ -1246,9 +1297,7 @@ if __name__ == "__main__":
     import traceback as _tb
 
     tests = [
-        (name, obj)
-        for name, obj in globals().items()
-        if name.startswith("test_") and callable(obj)
+        (name, obj) for name, obj in globals().items() if name.startswith("test_") and callable(obj)
     ]
     passed = failed = 0
     for name, fn in tests:

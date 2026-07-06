@@ -142,8 +142,10 @@ class ExperimentTracker:
         candidates = [r for r in candidates if metric in r.metrics]
         if not candidates:
             return None
-        return max(candidates, key=lambda r: (r.metrics[metric] if higher_is_better
-                                              else -r.metrics[metric]))
+        return max(
+            candidates,
+            key=lambda r: (r.metrics[metric] if higher_is_better else -r.metrics[metric]),
+        )
 
     def summary(self) -> list[dict[str, Any]]:
         """Return a concise table summary of all experiments.
@@ -153,16 +155,18 @@ class ExperimentTracker:
         """
         rows = []
         for rec in self.load_all():
-            rows.append({
-                "experiment_id": rec.experiment_id[:8],
-                "name": rec.name,
-                "model_name": rec.model_name,
-                "status": rec.status,
-                "accuracy": rec.metrics.get("accuracy"),
-                "f1_macro": rec.metrics.get("f1_macro"),
-                "duration_s": rec.training_duration_seconds,
-                "git": rec.git_commit_hash[:7] if rec.git_commit_hash else None,
-            })
+            rows.append(
+                {
+                    "experiment_id": rec.experiment_id[:8],
+                    "name": rec.name,
+                    "model_name": rec.model_name,
+                    "status": rec.status,
+                    "accuracy": rec.metrics.get("accuracy"),
+                    "f1_macro": rec.metrics.get("f1_macro"),
+                    "duration_s": rec.training_duration_seconds,
+                    "git": rec.git_commit_hash[:7] if rec.git_commit_hash else None,
+                }
+            )
         return rows
 
     # ------------------------------------------------------------------
@@ -182,8 +186,7 @@ class ExperimentTracker:
         try:
             data = json.loads(self._store_path.read_text())
             self._records = {
-                eid: ExperimentRecord.from_dict(rec_dict)
-                for eid, rec_dict in data.items()
+                eid: ExperimentRecord.from_dict(rec_dict) for eid, rec_dict in data.items()
             }
         except Exception:
             self._records = {}

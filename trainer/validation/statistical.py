@@ -160,7 +160,9 @@ class StatisticalMetricsEngine:
         # 11. MAPE (on confidence vs correct probability)
         correct_probs = p[np.arange(n), y]
         with np.errstate(divide="ignore", invalid="ignore"):
-            mape_vals = np.abs(1.0 - correct_probs) / np.where(correct_probs > 0, correct_probs, 1.0)
+            mape_vals = np.abs(1.0 - correct_probs) / np.where(
+                correct_probs > 0, correct_probs, 1.0
+            )
         mape = float(np.nanmean(mape_vals) * 100)
 
         # 12. R² (explained variance of confidence)
@@ -285,9 +287,7 @@ class StatisticalMetricsEngine:
             recalls.append(tp / n_pos)
         return float(np.trapz(precisions, recalls)) if len(recalls) > 1 else 0.0
 
-    def _ece(
-        self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray, n: int
-    ) -> float:
+    def _ece(self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray, n: int) -> float:
         correct = (preds == labels).astype(float)
         bins = np.linspace(0, 1, self._bins + 1)
         ece = 0.0
@@ -300,9 +300,7 @@ class StatisticalMetricsEngine:
             ece += (mask.sum() / n) * abs(bin_acc - bin_conf)
         return float(ece)
 
-    def _mce(
-        self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray
-    ) -> float:
+    def _mce(self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray) -> float:
         correct = (preds == labels).astype(float)
         bins = np.linspace(0, 1, self._bins + 1)
         max_ce = 0.0

@@ -39,6 +39,7 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
 
     if config.type == LossType.WEIGHTED_CROSS_ENTROPY:
         from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
+
         return WeightedCrossEntropyLoss(
             class_weights=class_weights,
             label_smoothing=config.label_smoothing,
@@ -58,6 +59,5 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
         )
 
     raise ValueError(
-        f"Unknown loss type: '{config.type}'. "
-        f"Available: {[t.value for t in LossType]}"
+        f"Unknown loss type: '{config.type}'. " f"Available: {[t.value for t in LossType]}"
     )

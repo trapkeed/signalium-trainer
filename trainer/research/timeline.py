@@ -28,35 +28,43 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Event type constants
 # ---------------------------------------------------------------------------
 
 
 class TimelineEventType:
-    EXPERIMENT_STARTED      = "experiment_started"
-    EXPERIMENT_COMPLETED    = "experiment_completed"
-    EXPERIMENT_FAILED       = "experiment_failed"
-    CHAMPION_CHANGED        = "champion_changed"
-    FEATURE_ADDED           = "feature_added"
-    FEATURE_DEPRECATED      = "feature_deprecated"
-    DATASET_UPDATED         = "dataset_updated"
-    ARCHITECTURE_CHANGED    = "architecture_changed"
-    DEPLOYMENT_CREATED      = "deployment_created"
-    VALIDATION_COMPLETED    = "validation_completed"
-    RETRAINING_RECOMMENDED  = "retraining_recommended"
-    COST_RECORDED           = "cost_recorded"
-    KNOWLEDGE_ENTRY_ADDED   = "knowledge_entry_added"
-    REGIME_CHANGE_DETECTED  = "regime_change_detected"
+    EXPERIMENT_STARTED = "experiment_started"
+    EXPERIMENT_COMPLETED = "experiment_completed"
+    EXPERIMENT_FAILED = "experiment_failed"
+    CHAMPION_CHANGED = "champion_changed"
+    FEATURE_ADDED = "feature_added"
+    FEATURE_DEPRECATED = "feature_deprecated"
+    DATASET_UPDATED = "dataset_updated"
+    ARCHITECTURE_CHANGED = "architecture_changed"
+    DEPLOYMENT_CREATED = "deployment_created"
+    VALIDATION_COMPLETED = "validation_completed"
+    RETRAINING_RECOMMENDED = "retraining_recommended"
+    COST_RECORDED = "cost_recorded"
+    KNOWLEDGE_ENTRY_ADDED = "knowledge_entry_added"
+    REGIME_CHANGE_DETECTED = "regime_change_detected"
     LINEAGE_NODE_REGISTERED = "lineage_node_registered"
 
     ALL = [
-        EXPERIMENT_STARTED, EXPERIMENT_COMPLETED, EXPERIMENT_FAILED,
-        CHAMPION_CHANGED, FEATURE_ADDED, FEATURE_DEPRECATED,
-        DATASET_UPDATED, ARCHITECTURE_CHANGED, DEPLOYMENT_CREATED,
-        VALIDATION_COMPLETED, RETRAINING_RECOMMENDED, COST_RECORDED,
-        KNOWLEDGE_ENTRY_ADDED, REGIME_CHANGE_DETECTED,
+        EXPERIMENT_STARTED,
+        EXPERIMENT_COMPLETED,
+        EXPERIMENT_FAILED,
+        CHAMPION_CHANGED,
+        FEATURE_ADDED,
+        FEATURE_DEPRECATED,
+        DATASET_UPDATED,
+        ARCHITECTURE_CHANGED,
+        DEPLOYMENT_CREATED,
+        VALIDATION_COMPLETED,
+        RETRAINING_RECOMMENDED,
+        COST_RECORDED,
+        KNOWLEDGE_ENTRY_ADDED,
+        REGIME_CHANGE_DETECTED,
         LINEAGE_NODE_REGISTERED,
     ]
 
@@ -74,9 +82,7 @@ class TimelineEvent:
     entity_type: str = ""
     description: str = ""
     attributes: Dict[str, Any] = field(default_factory=dict)
-    recorded_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     researcher: str = "system"
 
     def to_dict(self) -> Dict[str, Any]:
@@ -142,9 +148,7 @@ class ResearchTimeline:
         self._events.append(event)
         return event.event_id
 
-    def record_experiment_started(
-        self, node_id: str, name: str, researcher: str = "system"
-    ) -> str:
+    def record_experiment_started(self, node_id: str, name: str, researcher: str = "system") -> str:
         return self.record(
             TimelineEventType.EXPERIMENT_STARTED,
             entity_id=node_id,
@@ -186,9 +190,7 @@ class ResearchTimeline:
             attributes={"old_champion": old_champion, "reason": reason},
         )
 
-    def record_dataset_updated(
-        self, dataset_version: str, sample_count: int = 0
-    ) -> str:
+    def record_dataset_updated(self, dataset_version: str, sample_count: int = 0) -> str:
         return self.record(
             TimelineEventType.DATASET_UPDATED,
             entity_id=dataset_version,
@@ -197,9 +199,7 @@ class ResearchTimeline:
             attributes={"sample_count": sample_count},
         )
 
-    def record_architecture_changed(
-        self, model_id: str, old_arch: str, new_arch: str
-    ) -> str:
+    def record_architecture_changed(self, model_id: str, old_arch: str, new_arch: str) -> str:
         return self.record(
             TimelineEventType.ARCHITECTURE_CHANGED,
             entity_id=model_id,
@@ -267,16 +267,10 @@ class ResearchTimeline:
         return [e for e in self._events if e.entity_id == entity_id]
 
     def since(self, iso_timestamp: str) -> List[TimelineEvent]:
-        return [
-            e for e in self.all_events()
-            if e.recorded_at >= iso_timestamp
-        ]
+        return [e for e in self.all_events() if e.recorded_at >= iso_timestamp]
 
     def between(self, start_iso: str, end_iso: str) -> List[TimelineEvent]:
-        return [
-            e for e in self.all_events()
-            if start_iso <= e.recorded_at <= end_iso
-        ]
+        return [e for e in self.all_events() if start_iso <= e.recorded_at <= end_iso]
 
     def recent(self, n: int = 20) -> List[TimelineEvent]:
         return self.all_events()[-n:]
@@ -286,9 +280,7 @@ class ResearchTimeline:
     # ------------------------------------------------------------------
 
     def experiment_history(self) -> List[Dict[str, Any]]:
-        started = {
-            e.entity_id: e for e in self.by_type(TimelineEventType.EXPERIMENT_STARTED)
-        }
+        started = {e.entity_id: e for e in self.by_type(TimelineEventType.EXPERIMENT_STARTED)}
         completed = {
             e.entity_id: e
             for e in (
@@ -322,9 +314,7 @@ class ResearchTimeline:
         return [e.to_dict() for e in self.by_type(TimelineEventType.DATASET_UPDATED)]
 
     def architecture_history(self) -> List[Dict[str, Any]]:
-        return [
-            e.to_dict() for e in self.by_type(TimelineEventType.ARCHITECTURE_CHANGED)
-        ]
+        return [e.to_dict() for e in self.by_type(TimelineEventType.ARCHITECTURE_CHANGED)]
 
     def deployment_history(self) -> List[Dict[str, Any]]:
         return [e.to_dict() for e in self.by_type(TimelineEventType.DEPLOYMENT_CREATED)]

@@ -51,19 +51,18 @@ from trainer.research.snapshots import (
     ValidationSnapshot,
 )
 
-
 # ---------------------------------------------------------------------------
 # Experiment status constants
 # ---------------------------------------------------------------------------
 
 
 class ExperimentStatus:
-    PLANNED   = "planned"
-    RUNNING   = "running"
+    PLANNED = "planned"
+    RUNNING = "running"
     SUCCEEDED = "succeeded"
-    FAILED    = "failed"
+    FAILED = "failed"
     ABANDONED = "abandoned"
-    ARCHIVED  = "archived"
+    ARCHIVED = "archived"
 
     ALL = [PLANNED, RUNNING, SUCCEEDED, FAILED, ABANDONED, ARCHIVED]
 
@@ -92,9 +91,7 @@ class LineageNode:
 
     # Lifecycle
     status: ExperimentStatus = field(default_factory=lambda: ExperimentStatus.PLANNED)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     completed_at: Optional[str] = None
     notes: str = ""
     tags: List[str] = field(default_factory=list)
@@ -115,11 +112,7 @@ class LineageNode:
 
     @property
     def total_cost_usd(self) -> float:
-        return (
-            self.training_cost_usd
-            + self.storage_cost_usd
-            + self.validation_cost_usd
-        )
+        return self.training_cost_usd + self.storage_cost_usd + self.validation_cost_usd
 
     def reproducibility_score(self) -> float:
         if self.environment is None:
@@ -158,9 +151,7 @@ class LineageNode:
             "feature_snapshot": (
                 self.feature_snapshot.to_dict() if self.feature_snapshot else None
             ),
-            "model_snapshot": (
-                self.model_snapshot.to_dict() if self.model_snapshot else None
-            ),
+            "model_snapshot": (self.model_snapshot.to_dict() if self.model_snapshot else None),
             "validation_snapshot": (
                 self.validation_snapshot.to_dict() if self.validation_snapshot else None
             ),
@@ -273,29 +264,19 @@ class LineageTree:
     # Snapshot attachment
     # ------------------------------------------------------------------
 
-    def attach_environment(
-        self, node_id: str, env: EnvironmentSnapshot
-    ) -> None:
+    def attach_environment(self, node_id: str, env: EnvironmentSnapshot) -> None:
         self._get(node_id).environment = env
 
-    def attach_dataset_snapshot(
-        self, node_id: str, snapshot: DatasetSnapshot
-    ) -> None:
+    def attach_dataset_snapshot(self, node_id: str, snapshot: DatasetSnapshot) -> None:
         self._get(node_id).dataset_snapshot = snapshot
 
-    def attach_feature_snapshot(
-        self, node_id: str, snapshot: FeatureSnapshot
-    ) -> None:
+    def attach_feature_snapshot(self, node_id: str, snapshot: FeatureSnapshot) -> None:
         self._get(node_id).feature_snapshot = snapshot
 
-    def attach_model_snapshot(
-        self, node_id: str, snapshot: ModelSnapshot
-    ) -> None:
+    def attach_model_snapshot(self, node_id: str, snapshot: ModelSnapshot) -> None:
         self._get(node_id).model_snapshot = snapshot
 
-    def attach_validation_snapshot(
-        self, node_id: str, snapshot: ValidationSnapshot
-    ) -> None:
+    def attach_validation_snapshot(self, node_id: str, snapshot: ValidationSnapshot) -> None:
         self._get(node_id).validation_snapshot = snapshot
 
     # ------------------------------------------------------------------
@@ -398,11 +379,7 @@ class LineageTree:
         """Return a high-level summary of the full lineage tree."""
         nodes = list(self._nodes.values())
         total_cost = sum(n.total_cost_usd for n in nodes)
-        avg_repro = (
-            sum(n.reproducibility_score() for n in nodes) / len(nodes)
-            if nodes
-            else 0.0
-        )
+        avg_repro = sum(n.reproducibility_score() for n in nodes) / len(nodes) if nodes else 0.0
         status_counts: Dict[str, int] = {}
         for n in nodes:
             status_counts[n.status] = status_counts.get(n.status, 0) + 1

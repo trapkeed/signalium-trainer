@@ -48,12 +48,8 @@ class PlattScaling(nn.Module):
     ) -> None:
         super().__init__()
         self._num_classes = num_classes
-        self.scale = nn.Parameter(
-            torch.full((num_classes,), init_scale, dtype=torch.float32)
-        )
-        self.bias = nn.Parameter(
-            torch.full((num_classes,), init_bias, dtype=torch.float32)
-        )
+        self.scale = nn.Parameter(torch.full((num_classes,), init_scale, dtype=torch.float32))
+        self.bias = nn.Parameter(torch.full((num_classes,), init_bias, dtype=torch.float32))
 
     def forward(self, logits: torch.Tensor) -> torch.Tensor:
         """Apply Platt scaling and return calibrated probabilities.

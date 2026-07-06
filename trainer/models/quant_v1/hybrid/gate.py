@@ -41,7 +41,7 @@ class DynamicFeatureGate(nn.Module):
     """
 
     GATE_MIN: float = 0.1
-    GATE_RANGE: float = 1.9   # sigmoid → [0,1] → scaled to [0.1, 2.0]
+    GATE_RANGE: float = 1.9  # sigmoid → [0,1] → scaled to [0.1, 2.0]
 
     def __init__(self, feature_dim: int, config: DynamicFeatureGateConfig) -> None:
         super().__init__()

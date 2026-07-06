@@ -15,6 +15,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.lifecycle.lifecycle_states import LifecycleState
@@ -28,28 +29,29 @@ from trainer.lifecycle.lifecycle_models import (
 @dataclass
 class ReasoningReport:
     """Institutional explanation for a lifecycle state."""
-    trade_id:     str
-    instrument:   str
-    direction:    str
-    state:        LifecycleState
-    headline:     str
-    rationale:    List[str]    = field(default_factory=list)
-    risk_factors: List[str]    = field(default_factory=list)
-    action_items: List[str]    = field(default_factory=list)
-    outlook:      str          = ""
-    confidence_narrative: str  = ""
+
+    trade_id: str
+    instrument: str
+    direction: str
+    state: LifecycleState
+    headline: str
+    rationale: List[str] = field(default_factory=list)
+    risk_factors: List[str] = field(default_factory=list)
+    action_items: List[str] = field(default_factory=list)
+    outlook: str = ""
+    confidence_narrative: str = ""
 
     def to_dict(self) -> Dict:
         return {
-            "trade_id":   self.trade_id,
+            "trade_id": self.trade_id,
             "instrument": self.instrument,
-            "direction":  self.direction,
-            "state":      self.state.value,
-            "headline":   self.headline,
-            "rationale":  self.rationale,
+            "direction": self.direction,
+            "state": self.state.value,
+            "headline": self.headline,
+            "rationale": self.rationale,
             "risk_factors": self.risk_factors,
             "action_items": self.action_items,
-            "outlook":    self.outlook,
+            "outlook": self.outlook,
             "confidence_narrative": self.confidence_narrative,
         }
 
@@ -62,44 +64,44 @@ class AiReasoningEngine:
 
     # State headlines
     _HEADLINES: Dict[LifecycleState, str] = {
-        LifecycleState.IDEA:              "Market identified — initial screening in progress",
-        LifecycleState.WATCHLIST:         "Setup developing — monitoring for entry conditions",
-        LifecycleState.PREPARATION:       "Conditions approaching entry — preparation active",
-        LifecycleState.ENTRY_READY:       "All entry conditions satisfied — ready to execute",
-        LifecycleState.PENDING_ENTRY:     "Order pending — awaiting optimal fill",
-        LifecycleState.ACTIVE:            "Position active — trade management in progress",
+        LifecycleState.IDEA: "Market identified — initial screening in progress",
+        LifecycleState.WATCHLIST: "Setup developing — monitoring for entry conditions",
+        LifecycleState.PREPARATION: "Conditions approaching entry — preparation active",
+        LifecycleState.ENTRY_READY: "All entry conditions satisfied — ready to execute",
+        LifecycleState.PENDING_ENTRY: "Order pending — awaiting optimal fill",
+        LifecycleState.ACTIVE: "Position active — trade management in progress",
         LifecycleState.POSITION_BUILDING: "Scaling into position — confidence warrants addition",
-        LifecycleState.PROTECTED:         "Stop at breakeven — minimum outcome is scratch",
-        LifecycleState.PARTIAL_EXIT:      "Partial profit secured — managing remainder",
-        LifecycleState.RUNNER:            "Runner position active — targeting full return",
-        LifecycleState.TRAILING:          "Dynamic trail active — profit protection engaged",
-        LifecycleState.EXIT_READY:        "Exit conditions met — closing imminently",
-        LifecycleState.CLOSING:           "Trade being finalised — all positions closing",
-        LifecycleState.CLOSED:            "Trade completed — lifecycle concluded",
-        LifecycleState.INVALIDATED:       "Setup invalidated — idea withdrawn",
-        LifecycleState.CANCELLED:         "Trade cancelled — execution aborted",
-        LifecycleState.EXPIRED:           "Order expired — conditions no longer met",
-        LifecycleState.STOPPED:           "Stop loss triggered — risk management executed",
-        LifecycleState.FORCED_EXIT:       "Forced exit — external condition required closure",
-        LifecycleState.EMERGENCY_EXIT:    "Emergency exit — critical condition triggered",
+        LifecycleState.PROTECTED: "Stop at breakeven — minimum outcome is scratch",
+        LifecycleState.PARTIAL_EXIT: "Partial profit secured — managing remainder",
+        LifecycleState.RUNNER: "Runner position active — targeting full return",
+        LifecycleState.TRAILING: "Dynamic trail active — profit protection engaged",
+        LifecycleState.EXIT_READY: "Exit conditions met — closing imminently",
+        LifecycleState.CLOSING: "Trade being finalised — all positions closing",
+        LifecycleState.CLOSED: "Trade completed — lifecycle concluded",
+        LifecycleState.INVALIDATED: "Setup invalidated — idea withdrawn",
+        LifecycleState.CANCELLED: "Trade cancelled — execution aborted",
+        LifecycleState.EXPIRED: "Order expired — conditions no longer met",
+        LifecycleState.STOPPED: "Stop loss triggered — risk management executed",
+        LifecycleState.FORCED_EXIT: "Forced exit — external condition required closure",
+        LifecycleState.EMERGENCY_EXIT: "Emergency exit — critical condition triggered",
     }
 
     def generate(
         self,
-        trade_id:    str,
-        instrument:  str,
-        direction:   str,
-        state:       LifecycleState,
-        confidence:  float,
-        context:     Optional[MarketContext]      = None,
-        metrics:     Optional[PositionMetrics]    = None,
-        lc_conf:     Optional[LifecycleConfidence] = None,
+        trade_id: str,
+        instrument: str,
+        direction: str,
+        state: LifecycleState,
+        confidence: float,
+        context: Optional[MarketContext] = None,
+        metrics: Optional[PositionMetrics] = None,
+        lc_conf: Optional[LifecycleConfidence] = None,
         prev_confidence: float = 0.65,
     ) -> ReasoningReport:
 
-        rationale:    List[str] = []
-        risks:        List[str] = []
-        actions:      List[str] = []
+        rationale: List[str] = []
+        risks: List[str] = []
+        actions: List[str] = []
         headline = self._HEADLINES.get(state, f"Trade in {state.value} state")
 
         # ── Confidence narrative ──────────────────────────────────────────────
@@ -115,10 +117,7 @@ class AiReasoningEngine:
                 f"conditions are weakening."
             )
         else:
-            conf_narrative = (
-                f"Confidence stable at {confidence:.0%} — "
-                f"conditions unchanged."
-            )
+            conf_narrative = f"Confidence stable at {confidence:.0%} — " f"conditions unchanged."
 
         # ── State-specific rationale ──────────────────────────────────────────
         if state == LifecycleState.ACTIVE:
@@ -134,9 +133,7 @@ class AiReasoningEngine:
                 if context.volatility < 0.020:
                     rationale.append("Volatility within acceptable range — execution risk low.")
             if confidence > 0.70:
-                rationale.append(
-                    f"Confidence at {confidence:.0%} — trade thesis remains intact."
-                )
+                rationale.append(f"Confidence at {confidence:.0%} — trade thesis remains intact.")
 
         elif state == LifecycleState.PROTECTED:
             rationale.append("Stop moved to breakeven — minimum outcome is a scratch trade.")
@@ -249,14 +246,14 @@ class AiReasoningEngine:
         )
 
         return ReasoningReport(
-            trade_id     = trade_id,
-            instrument   = instrument,
-            direction    = direction,
-            state        = state,
-            headline     = headline,
-            rationale    = rationale,
-            risk_factors = risks,
-            action_items = actions,
-            outlook      = outlook,
-            confidence_narrative = conf_narrative,
+            trade_id=trade_id,
+            instrument=instrument,
+            direction=direction,
+            state=state,
+            headline=headline,
+            rationale=rationale,
+            risk_factors=risks,
+            action_items=actions,
+            outlook=outlook,
+            confidence_narrative=conf_narrative,
         )

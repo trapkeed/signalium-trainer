@@ -59,7 +59,6 @@ import traceback
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Envelope helpers
 # ---------------------------------------------------------------------------
@@ -89,11 +88,11 @@ class IRSEApi:
         benchmarker: Any,
         database: Any,
     ) -> None:
-        self._scorer     = scorer
-        self._lb         = leaderboard
-        self._trends     = trend_tracker
-        self._bm         = benchmarker
-        self._db         = database
+        self._scorer = scorer
+        self._lb = leaderboard
+        self._trends = trend_tracker
+        self._bm = benchmarker
+        self._db = database
 
     # ------------------------------------------------------------------
     # Research Scores
@@ -112,15 +111,17 @@ class IRSEApi:
             snap = self._trends.record_from_research_score(rs)
             self._db.save_score_snapshot(snap.to_dict())
 
-            return _ok({
-                "score_id": rs.score_id,
-                "experiment_id": rs.experiment_id,
-                "composite": rs.composite,
-                "grade_label": rs.grade_label,
-                "promotion_eligible": rs.promotion_eligible,
-                "deployment_eligible": rs.deployment_eligible,
-                "confidence_score": rs.confidence_score(),
-            })
+            return _ok(
+                {
+                    "score_id": rs.score_id,
+                    "experiment_id": rs.experiment_id,
+                    "composite": rs.composite,
+                    "grade_label": rs.grade_label,
+                    "promotion_eligible": rs.promotion_eligible,
+                    "deployment_eligible": rs.deployment_eligible,
+                    "confidence_score": rs.confidence_score(),
+                }
+            )
         except Exception as exc:
             return _err(f"Scoring failed: {exc}\n{traceback.format_exc()}")
 
@@ -157,12 +158,14 @@ class IRSEApi:
             row = self._db.get_research_score(score_id)
             if row is None:
                 return _err(f"Score not found: {score_id}")
-            return _ok({
-                "research_score": row,
-                "weights": self._scorer.weights.as_dict(),
-                "promotion_threshold": 80.0,
-                "deployment_threshold": 85.0,
-            })
+            return _ok(
+                {
+                    "research_score": row,
+                    "weights": self._scorer.weights.as_dict(),
+                    "promotion_threshold": 80.0,
+                    "deployment_threshold": 85.0,
+                }
+            )
         except Exception as exc:
             return _err(str(exc))
 
@@ -206,10 +209,12 @@ class IRSEApi:
     def get_promotion_candidates(self) -> Dict[str, Any]:
         try:
             candidates = self._lb.promotion_candidates()
-            return _ok({
-                "count": len(candidates),
-                "candidates": candidates,
-            })
+            return _ok(
+                {
+                    "count": len(candidates),
+                    "candidates": candidates,
+                }
+            )
         except Exception as exc:
             return _err(str(exc))
 
@@ -238,11 +243,13 @@ class IRSEApi:
         try:
             record = self._bm.register(experiment_id, research_score, role)
             self._db.save_benchmark_record(record.to_dict())
-            return _ok({
-                "experiment_id": experiment_id,
-                "role": role,
-                "composite": record.composite,
-            })
+            return _ok(
+                {
+                    "experiment_id": experiment_id,
+                    "role": role,
+                    "composite": record.composite,
+                }
+            )
         except Exception as exc:
             return _err(str(exc))
 
@@ -291,15 +298,15 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def detect_regressions(
-        self, window: int = 5, threshold: float = 5.0
-    ) -> Dict[str, Any]:
+    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> Dict[str, Any]:
         try:
             alerts = self._trends.detect_regressions(window, threshold)
-            return _ok({
-                "count": len(alerts),
-                "regressions": [a.to_dict() for a in alerts],
-            })
+            return _ok(
+                {
+                    "count": len(alerts),
+                    "regressions": [a.to_dict() for a in alerts],
+                }
+            )
         except Exception as exc:
             return _err(str(exc))
 
@@ -328,6 +335,7 @@ class IRSEApi:
     def set_weights(self, weights_dict: Dict[str, float]) -> Dict[str, Any]:
         try:
             from trainer.research.weights import ScoringWeights
+
             new_weights = ScoringWeights.from_dict(weights_dict)
             new_weights.validate()
             self._scorer.update_weights(new_weights)
@@ -339,9 +347,7 @@ class IRSEApi:
         self, name: str, weights: Dict[str, float], description: str = ""
     ) -> Dict[str, Any]:
         try:
-            config_id = self._db.save_weight_configuration(
-                name, weights, description
-            )
+            config_id = self._db.save_weight_configuration(name, weights, description)
             return _ok({"config_id": config_id, "name": name})
         except Exception as exc:
             return _err(str(exc))
@@ -366,13 +372,13 @@ class IRSEApi:
                 if not entries:
                     return _ok({"format": "csv", "data": ""})
                 buf = io.StringIO()
-                writer = csv.DictWriter(
-                    buf, fieldnames=list(entries[0].keys())
-                )
+                writer = csv.DictWriter(buf, fieldnames=list(entries[0].keys()))
                 writer.writeheader()
                 for e in entries:
-                    row = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                           for k, v in e.items()}
+                    row = {
+                        k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
+                        for k, v in e.items()
+                    }
                     writer.writerow(row)
                 return _ok({"format": "csv", "data": buf.getvalue()})
             else:
@@ -405,11 +411,13 @@ class IRSEApi:
 
     def system_stats(self) -> Dict[str, Any]:
         try:
-            return _ok({
-                "database": self._db.stats(),
-                "leaderboard_entries": len(self._lb.all_entries()),
-                "trend_snapshots": len(self._trends.all_snapshots()),
-                "weights": self._scorer.weights.as_dict(),
-            })
+            return _ok(
+                {
+                    "database": self._db.stats(),
+                    "leaderboard_entries": len(self._lb.all_entries()),
+                    "trend_snapshots": len(self._trends.all_snapshots()),
+                    "weights": self._scorer.weights.as_dict(),
+                }
+            )
         except Exception as exc:
             return _err(str(exc))

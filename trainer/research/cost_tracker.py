@@ -43,7 +43,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # ExperimentCost
 # ---------------------------------------------------------------------------
@@ -59,9 +58,7 @@ class ExperimentCost:
     project: str = ""
     branch: str = ""
     researcher: str = "system"
-    recorded_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Resource consumption
     gpu_hours: float = 0.0
@@ -141,10 +138,10 @@ class CostTracker:
     """Accumulates and reports research costs across all experiments."""
 
     # Default rates
-    DEFAULT_GPU_RATE    = 2.00    # USD / GPU-hour
-    DEFAULT_CPU_RATE    = 0.05    # USD / CPU-hour
+    DEFAULT_GPU_RATE = 2.00  # USD / GPU-hour
+    DEFAULT_CPU_RATE = 0.05  # USD / CPU-hour
     DEFAULT_STORAGE_RATE = 0.023  # USD / GB-month
-    DEFAULT_INFERENCE_RATE = 0.50 # USD / GPU-hour
+    DEFAULT_INFERENCE_RATE = 0.50  # USD / GPU-hour
 
     def __init__(
         self,
@@ -179,10 +176,10 @@ class CostTracker:
     ) -> ExperimentCost:
         """Record resource consumption and compute USD cost estimate."""
         training_cost = gpu_hours * self.gpu_rate
-        cpu_cost      = cpu_hours * self.cpu_rate
-        storage_cost  = storage_gb_months * self.storage_rate
-        val_cost      = validation_gpu_hours * self.gpu_rate
-        inf_cost      = inference_hours * self.inference_rate
+        cpu_cost = cpu_hours * self.cpu_rate
+        storage_cost = storage_gb_months * self.storage_rate
+        val_cost = validation_gpu_hours * self.gpu_rate
+        inf_cost = inference_hours * self.inference_rate
 
         cost = ExperimentCost(
             entity_id=entity_id,
@@ -202,9 +199,7 @@ class CostTracker:
             inference_cost_usd=round(inf_cost, 6),
         )
         self._costs.append(cost)
-        logger.debug(
-            f"[CostTracker] {entity_id}: ${cost.total_cost_usd:.4f}"
-        )
+        logger.debug(f"[CostTracker] {entity_id}: ${cost.total_cost_usd:.4f}")
         return cost
 
     def estimate_from_duration(
@@ -309,9 +304,7 @@ class CostTracker:
             "cost_by_category": self.cost_by_category(),
             "cost_by_project": self.cost_by_project(),
             "cost_by_researcher": self.cost_by_researcher(),
-            "most_expensive_experiments": [
-                c.to_dict() for c in self.most_expensive(5)
-            ],
+            "most_expensive_experiments": [c.to_dict() for c in self.most_expensive(5)],
             "rates": {
                 "gpu_rate_per_hour_usd": self.gpu_rate,
                 "cpu_rate_per_hour_usd": self.cpu_rate,

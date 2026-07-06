@@ -24,7 +24,6 @@ from typing import Iterator, Optional
 
 import torch
 
-
 # ---------------------------------------------------------------------------
 # Common fold container (extends the existing ones with gap info)
 # ---------------------------------------------------------------------------
@@ -343,8 +342,8 @@ class AnchoredWalkForward:
                 val_end=val_end,
                 test_start=test_start if self._test > 0 else 0,
                 test_end=test_end if self._test > 0 else 0,
-                x_train=x[self._anchor:train_end],
-                y_train=y[self._anchor:train_end],
+                x_train=x[self._anchor : train_end],
+                y_train=y[self._anchor : train_end],
                 x_val=x[val_start:val_end],
                 y_val=y[val_start:val_end],
                 x_test=x[test_start:test_end] if self._test > 0 else torch.empty(0),

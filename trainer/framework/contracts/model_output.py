@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 import torch
 
-
 # Class index constants — shared across all Signalium classifiers
 CLASS_BUY = 0
 CLASS_SELL = 1
@@ -94,8 +93,9 @@ class ModelOutput:
             New ModelOutput with low-confidence samples mapped to NO_TRADE.
         """
         mask = self.confidence.squeeze(-1) >= threshold
-        new_predicted = torch.where(mask, self.predicted_class,
-                                    torch.full_like(self.predicted_class, CLASS_NO_TRADE))
+        new_predicted = torch.where(
+            mask, self.predicted_class, torch.full_like(self.predicted_class, CLASS_NO_TRADE)
+        )
         return ModelOutput(
             logits=self.logits,
             probabilities=self.probabilities,

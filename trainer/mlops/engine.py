@@ -55,10 +55,10 @@ from trainer.mlops.lifecycle import LifecycleManager
 from trainer.mlops.monitoring import ProductionMonitor
 from trainer.mlops.registry import LifecycleState, ModelRecord, ModelRegistry
 from trainer.mlops.retraining import (
-    RetrainingPolicyManager, build_default_policies,
+    RetrainingPolicyManager,
+    build_default_policies,
 )
 from trainer.mlops.visualization import MLOpsVisualizationBuilder
-
 
 # ---------------------------------------------------------------------------
 # Engine config
@@ -186,9 +186,7 @@ class MLOpsEngine:
             description="MLOpsEngine initialized",
             metadata=self.config.to_dict(),
         )
-        logger.info(
-            f"MLOpsEngine initialized: db={self.config.db_path}"
-        )
+        logger.info(f"MLOpsEngine initialized: db={self.config.db_path}")
 
     # -----------------------------------------------------------------------
     # Registration
@@ -208,33 +206,28 @@ class MLOpsEngine:
     # Lifecycle
     # -----------------------------------------------------------------------
 
-    def transition(self, model_id: str, to_state: str,
-                   actor: str = "system",
-                   reason: str = "") -> Dict[str, Any]:
+    def transition(
+        self, model_id: str, to_state: str, actor: str = "system", reason: str = ""
+    ) -> Dict[str, Any]:
         """Transition a model to a new lifecycle state."""
-        return self.api.transition(model_id, to_state, actor=actor,
-                                    reason=reason)
+        return self.api.transition(model_id, to_state, actor=actor, reason=reason)
 
-    def approve(self, model_id: str, approver: str,
-                reason: str = "") -> Dict[str, Any]:
+    def approve(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
         """Approve a candidate model."""
-        return self.api.approve_model(model_id, approver=approver,
-                                       reason=reason)
+        return self.api.approve_model(model_id, approver=approver, reason=reason)
 
-    def reject(self, model_id: str, approver: str,
-               reason: str = "") -> Dict[str, Any]:
+    def reject(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
         """Reject a candidate model."""
-        return self.api.reject_model(model_id, approver=approver,
-                                      reason=reason)
+        return self.api.reject_model(model_id, approver=approver, reason=reason)
 
-    def retire_model(self, model_id: str, actor: str = "system",
-                      reason: str = "") -> None:
+    def retire_model(self, model_id: str, actor: str = "system", reason: str = "") -> None:
         """Retire a model (ARCHIVED → RETIRED)."""
         model = self.registry.get_or_raise(model_id)
         self.lifecycle.retire(model, actor=actor, reason=reason)
         self.db.save_model(model)
         self.audit.log(
-            AuditEventType.RETIREMENT, actor=actor,
+            AuditEventType.RETIREMENT,
+            actor=actor,
             model_id=model_id,
             description=f"Model retired: {reason}",
         )
@@ -243,26 +236,27 @@ class MLOpsEngine:
     # Deployment
     # -----------------------------------------------------------------------
 
-    def deploy(self, model_id: str, target: str = "production",
-               approver: str = "system",
-               reason: str = "") -> Dict[str, Any]:
+    def deploy(
+        self, model_id: str, target: str = "production", approver: str = "system", reason: str = ""
+    ) -> Dict[str, Any]:
         """Deploy a model to production/champion/shadow."""
-        return self.api.deploy(model_id, target=target,
-                                approver=approver, actor=approver,
-                                reason=reason)
+        return self.api.deploy(
+            model_id, target=target, approver=approver, actor=approver, reason=reason
+        )
 
-    def rollback(self, model_id: str, actor: str = "ops",
-                  reason: str = "", emergency: bool = True) -> Dict[str, Any]:
+    def rollback(
+        self, model_id: str, actor: str = "ops", reason: str = "", emergency: bool = True
+    ) -> Dict[str, Any]:
         """Roll back a deployed model."""
-        return self.api.rollback(model_id, actor=actor, reason=reason,
-                                  emergency=emergency)
+        return self.api.rollback(model_id, actor=actor, reason=reason, emergency=emergency)
 
     # -----------------------------------------------------------------------
     # Champion
     # -----------------------------------------------------------------------
 
-    def set_champion(self, model_id: str, approver: str = "system",
-                      reason: str = "") -> Dict[str, Any]:
+    def set_champion(
+        self, model_id: str, approver: str = "system", reason: str = ""
+    ) -> Dict[str, Any]:
         """Set a model as champion."""
         return self.api.set_champion(model_id, approver=approver, reason=reason)
 
@@ -270,46 +264,61 @@ class MLOpsEngine:
         """Add a model to the challenger queue."""
         return self.api.add_challenger(model_id, reason=reason)
 
-    def compare_models(self, model_a_id: str, model_b_id: str,
-                        metrics_a: Optional[Dict[str, float]] = None,
-                        metrics_b: Optional[Dict[str, float]] = None,
-                        ) -> Dict[str, Any]:
+    def compare_models(
+        self,
+        model_a_id: str,
+        model_b_id: str,
+        metrics_a: Optional[Dict[str, float]] = None,
+        metrics_b: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
         """Compare two models."""
-        return self.api.compare_models(model_a_id, model_b_id,
-                                        metrics_a=metrics_a,
-                                        metrics_b=metrics_b)
+        return self.api.compare_models(
+            model_a_id, model_b_id, metrics_a=metrics_a, metrics_b=metrics_b
+        )
 
     # -----------------------------------------------------------------------
     # Monitoring
     # -----------------------------------------------------------------------
 
-    def record_inference(self, model_id: str,
-                          latency_ms: float = 0.0,
-                          confidence: float = 0.5,
-                          predicted_class: str = "no_trade",
-                          buy_prob: float = 0.33,
-                          sell_prob: float = 0.33,
-                          no_trade_prob: float = 0.34,
-                          cpu_pct: float = 0.0,
-                          gpu_pct: float = 0.0,
-                          memory_mb: float = 0.0,
-                          true_class: Optional[str] = None,
-                          regime: str = "") -> None:
+    def record_inference(
+        self,
+        model_id: str,
+        latency_ms: float = 0.0,
+        confidence: float = 0.5,
+        predicted_class: str = "no_trade",
+        buy_prob: float = 0.33,
+        sell_prob: float = 0.33,
+        no_trade_prob: float = 0.34,
+        cpu_pct: float = 0.0,
+        gpu_pct: float = 0.0,
+        memory_mb: float = 0.0,
+        true_class: Optional[str] = None,
+        regime: str = "",
+    ) -> None:
         """Record one inference event for monitoring and health tracking."""
         self.monitor.record_inference(
             model_id=model_id,
             latency_ms=latency_ms,
             confidence=confidence,
             predicted_class=predicted_class,
-            buy_prob=buy_prob, sell_prob=sell_prob, no_trade_prob=no_trade_prob,
-            cpu_pct=cpu_pct, gpu_pct=gpu_pct, memory_mb=memory_mb,
+            buy_prob=buy_prob,
+            sell_prob=sell_prob,
+            no_trade_prob=no_trade_prob,
+            cpu_pct=cpu_pct,
+            gpu_pct=gpu_pct,
+            memory_mb=memory_mb,
             regime=regime,
         )
         self.health.record_prediction(
             model_id=model_id,
-            buy_prob=buy_prob, sell_prob=sell_prob, no_trade_prob=no_trade_prob,
-            confidence=confidence, predicted_class=predicted_class,
-            true_class=true_class, latency_ms=latency_ms, regime=regime,
+            buy_prob=buy_prob,
+            sell_prob=sell_prob,
+            no_trade_prob=no_trade_prob,
+            confidence=confidence,
+            predicted_class=predicted_class,
+            true_class=true_class,
+            latency_ms=latency_ms,
+            regime=regime,
         )
 
     def check_health(self, model_id: str) -> Dict[str, Any]:
@@ -319,20 +328,23 @@ class MLOpsEngine:
     def check_all_health(self) -> Dict[str, Dict[str, Any]]:
         """Check health for all registered models."""
         return {
-            m.model_id: self.api.get_health_report(m.model_id)
-            for m in self.registry.all_models()
+            m.model_id: self.api.get_health_report(m.model_id) for m in self.registry.all_models()
         }
 
     # -----------------------------------------------------------------------
     # Alerting
     # -----------------------------------------------------------------------
 
-    def emit_alert(self, level: str, model_id: str,
-                   category: str, message: str,
-                   metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def emit_alert(
+        self,
+        level: str,
+        model_id: str,
+        category: str,
+        message: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """Emit a manual alert."""
-        return self.api.emit_alert(level, model_id, category,
-                                    message, metadata=metadata)
+        return self.api.emit_alert(level, model_id, category, message, metadata=metadata)
 
     def active_alerts(self, model_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Return all active alerts."""
@@ -342,8 +354,7 @@ class MLOpsEngine:
     # Retraining
     # -----------------------------------------------------------------------
 
-    def evaluate_retraining(self, model_id: str,
-                             metrics: Dict[str, float]) -> Dict[str, Any]:
+    def evaluate_retraining(self, model_id: str, metrics: Dict[str, float]) -> Dict[str, Any]:
         """Evaluate retraining policies. Returns recommendations only."""
         return self.api.evaluate_retraining(model_id, metrics)
 
@@ -365,8 +376,9 @@ class MLOpsEngine:
             self.exporter.save(data, path)
         return data
 
-    def export_audit_report(self, model_id: Optional[str] = None,
-                             path: Optional[str] = None) -> Dict[str, Any]:
+    def export_audit_report(
+        self, model_id: Optional[str] = None, path: Optional[str] = None
+    ) -> Dict[str, Any]:
         data = self.exporter.export_audit_report(model_id=model_id)
         if path:
             self.exporter.save(data, path)
@@ -416,6 +428,7 @@ class MLOpsEngine:
     def from_yaml(yaml_path: str) -> "MLOpsEngine":
         """Create MLOpsEngine from a YAML config file."""
         import yaml
+
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("mlops", data)

@@ -33,7 +33,6 @@ from typing import Any, Optional
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Failure report
 # ---------------------------------------------------------------------------
@@ -104,9 +103,7 @@ class FailureReport:
             if performers:
                 lines.append(f"  {title}:")
                 for p in performers:
-                    lines.append(
-                        f"    #{p.rank} {p.identifier:<25s} {p.metric}={p.value:.4f}"
-                    )
+                    lines.append(f"    #{p.rank} {p.identifier:<25s} {p.metric}={p.value:.4f}")
         if self.recommendations:
             lines.append("")
             lines.append("  Recommendations:")
@@ -192,19 +189,29 @@ class FailureAnalyzer:
 
             instr_accs = {k: float(np.mean(v)) for k, v in by_instr.items()}
             ranked = sorted(instr_accs.items(), key=lambda x: x[1])
-            for i, (instr, acc) in enumerate(ranked[:self._k]):
-                worst_instruments.append(WorstPerformer(
-                    dimension="instrument", identifier=instr,
-                    metric="accuracy", value=acc, rank=i + 1,
-                ))
+            for i, (instr, acc) in enumerate(ranked[: self._k]):
+                worst_instruments.append(
+                    WorstPerformer(
+                        dimension="instrument",
+                        identifier=instr,
+                        metric="accuracy",
+                        value=acc,
+                        rank=i + 1,
+                    )
+                )
 
             tf_accs = {k: float(np.mean(v)) for k, v in by_tf.items()}
             ranked_tf = sorted(tf_accs.items(), key=lambda x: x[1])
-            for i, (tf, acc) in enumerate(ranked_tf[:self._k]):
-                worst_timeframes.append(WorstPerformer(
-                    dimension="timeframe", identifier=tf,
-                    metric="accuracy", value=acc, rank=i + 1,
-                ))
+            for i, (tf, acc) in enumerate(ranked_tf[: self._k]):
+                worst_timeframes.append(
+                    WorstPerformer(
+                        dimension="timeframe",
+                        identifier=tf,
+                        metric="accuracy",
+                        value=acc,
+                        rank=i + 1,
+                    )
+                )
 
         # ── Regime analysis ─────────────────────────────────────────────
         if regime_performance:
@@ -212,12 +219,16 @@ class FailureAnalyzer:
                 regime_performance.items(),
                 key=lambda x: x[1].get("accuracy", 0.0),
             )
-            for i, (regime, metrics) in enumerate(ranked_r[:self._k]):
-                worst_regimes.append(WorstPerformer(
-                    dimension="regime", identifier=regime,
-                    metric="accuracy", value=metrics.get("accuracy", 0.0),
-                    rank=i + 1,
-                ))
+            for i, (regime, metrics) in enumerate(ranked_r[: self._k]):
+                worst_regimes.append(
+                    WorstPerformer(
+                        dimension="regime",
+                        identifier=regime,
+                        metric="accuracy",
+                        value=metrics.get("accuracy", 0.0),
+                        rank=i + 1,
+                    )
+                )
 
         # ── Prediction head analysis ────────────────────────────────────
         if head_results:
@@ -225,12 +236,16 @@ class FailureAnalyzer:
                 head_results.items(),
                 key=lambda x: x[1].get("accuracy", 0.0),
             )
-            for i, (head, metrics) in enumerate(ranked_h[:self._k]):
-                worst_heads.append(WorstPerformer(
-                    dimension="head", identifier=head,
-                    metric="accuracy", value=metrics.get("accuracy", 0.0),
-                    rank=i + 1,
-                ))
+            for i, (head, metrics) in enumerate(ranked_h[: self._k]):
+                worst_heads.append(
+                    WorstPerformer(
+                        dimension="head",
+                        identifier=head,
+                        metric="accuracy",
+                        value=metrics.get("accuracy", 0.0),
+                        rank=i + 1,
+                    )
+                )
 
         # ── Session analysis ────────────────────────────────────────────
         if session_performance:
@@ -238,12 +253,16 @@ class FailureAnalyzer:
                 session_performance.items(),
                 key=lambda x: x[1].get("accuracy", 0.0),
             )
-            for i, (session, metrics) in enumerate(ranked_s[:self._k]):
-                worst_sessions.append(WorstPerformer(
-                    dimension="session", identifier=session,
-                    metric="accuracy", value=metrics.get("accuracy", 0.0),
-                    rank=i + 1,
-                ))
+            for i, (session, metrics) in enumerate(ranked_s[: self._k]):
+                worst_sessions.append(
+                    WorstPerformer(
+                        dimension="session",
+                        identifier=session,
+                        metric="accuracy",
+                        value=metrics.get("accuracy", 0.0),
+                        rank=i + 1,
+                    )
+                )
 
         # ── Confidence range analysis ───────────────────────────────────
         if confidence_bins:
@@ -264,14 +283,17 @@ class FailureAnalyzer:
             )
         if worst_regimes:
             worst_conditions.append(
-                f"Regime: {worst_regimes[0].identifier} "
-                f"(accuracy={worst_regimes[0].value:.3f})"
+                f"Regime: {worst_regimes[0].identifier} " f"(accuracy={worst_regimes[0].value:.3f})"
             )
 
         # ── Generate recommendations ────────────────────────────────────
         recommendations = self._generate_recommendations(
-            worst_instruments, worst_timeframes, worst_regimes,
-            worst_heads, worst_sessions, worst_confidence,
+            worst_instruments,
+            worst_timeframes,
+            worst_regimes,
+            worst_heads,
+            worst_sessions,
+            worst_confidence,
         )
 
         return FailureReport(
@@ -345,20 +367,20 @@ class FailureAnalyzer:
             if w.value < self._acc_thresh:
                 regime_recs = {
                     "ranging": "Ranging markets are harder to predict. Consider adding "
-                               "volatility-normalised features and a dedicated ranging-regime classifier.",
+                    "volatility-normalised features and a dedicated ranging-regime classifier.",
                     "high_volatility": "High volatility accuracy is poor. Consider reducing "
-                                       "confidence thresholds and using wider stop-losses in this regime.",
+                    "confidence thresholds and using wider stop-losses in this regime.",
                     "news_period": "News-period performance is poor. Add a news-aware feature "
-                                   "or disable trading during high-impact news.",
+                    "or disable trading during high-impact news.",
                     "breakout": "Breakout detection accuracy is low. Consider adding "
-                                "volume profile and order book features.",
+                    "volume profile and order book features.",
                     "compression": "Compression regime accuracy is low. The model may benefit "
-                                   "from compression-specific training examples.",
+                    "from compression-specific training examples.",
                 }
                 rec = regime_recs.get(
                     w.identifier,
                     f"Regime '{w.identifier}' accuracy ({w.value:.3f}) is below threshold. "
-                    "Consider regime-specific feature engineering."
+                    "Consider regime-specific feature engineering.",
                 )
                 recs.append(rec)
 

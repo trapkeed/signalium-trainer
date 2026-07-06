@@ -35,7 +35,6 @@ from typing import Any, Dict, List, Optional
 
 from trainer.ensemble.expert import ExpertModel, SpecializationType
 
-
 # ---------------------------------------------------------------------------
 # Weight factor configuration
 # ---------------------------------------------------------------------------
@@ -110,28 +109,28 @@ class WeightFactorConfig:
 # Maps regime keywords to preferred model families.
 # Router uses these to apply regime_boost to matched experts.
 REGIME_FAMILY_AFFINITY: Dict[str, List[str]] = {
-    "trending_up":    ["transformer_encoder", "hybrid_lstm_transformer"],
-    "trending_down":  ["transformer_encoder", "hybrid_lstm_transformer"],
-    "ranging":        ["lstm", "gru"],
-    "volatile":       ["temporal_cnn", "hybrid_gru_transformer"],
+    "trending_up": ["transformer_encoder", "hybrid_lstm_transformer"],
+    "trending_down": ["transformer_encoder", "hybrid_lstm_transformer"],
+    "ranging": ["lstm", "gru"],
+    "volatile": ["temporal_cnn", "hybrid_gru_transformer"],
     "high_volatility": ["temporal_cnn"],
     "low_volatility": ["lstm"],
-    "breakout":       ["transformer_encoder", "temporal_cnn"],
-    "pullback":       ["lstm", "gru"],
-    "crisis":         ["temporal_cnn"],
-    "unknown":        [],
+    "breakout": ["transformer_encoder", "temporal_cnn"],
+    "pullback": ["lstm", "gru"],
+    "crisis": ["temporal_cnn"],
+    "unknown": [],
 }
 
 REGIME_SPECIALIZATION_AFFINITY: Dict[str, List[str]] = {
-    "trending_up":    [SpecializationType.TRENDING],
-    "trending_down":  [SpecializationType.TRENDING],
-    "ranging":        [SpecializationType.RANGING],
-    "volatile":       [SpecializationType.HIGH_VOLATILITY],
+    "trending_up": [SpecializationType.TRENDING],
+    "trending_down": [SpecializationType.TRENDING],
+    "ranging": [SpecializationType.RANGING],
+    "volatile": [SpecializationType.HIGH_VOLATILITY],
     "high_volatility": [SpecializationType.HIGH_VOLATILITY],
     "low_volatility": [SpecializationType.LOW_VOLATILITY],
-    "breakout":       [SpecializationType.BREAKOUT],
-    "pullback":       [SpecializationType.PULLBACK],
-    "crisis":         [SpecializationType.HIGH_VOLATILITY],
+    "breakout": [SpecializationType.BREAKOUT],
+    "pullback": [SpecializationType.PULLBACK],
+    "crisis": [SpecializationType.HIGH_VOLATILITY],
 }
 
 
@@ -151,10 +150,12 @@ class DynamicWeightEngine:
         self.config = config or WeightFactorConfig()
         self._weight_history: Dict[str, List[float]] = {}
 
-    def compute_weights(self, experts: List[ExpertModel],
-                        context: Optional[Dict[str, Any]] = None,
-                        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None
-                        ) -> Dict[str, float]:
+    def compute_weights(
+        self,
+        experts: List[ExpertModel],
+        context: Optional[Dict[str, Any]] = None,
+        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
+    ) -> Dict[str, float]:
         """Compute normalized weights for a list of active experts.
 
         Args:
@@ -186,10 +187,9 @@ class DynamicWeightEngine:
             latency = met.get("latency_ms", 0.0)
             history_acc = expert.accuracy
 
-            perf_score = (
-                cfg.recent_performance_factor * max(0.0, accuracy) +
-                cfg.recent_performance_factor * max(0.0, (sharpe + 2) / 7)
-            )
+            perf_score = cfg.recent_performance_factor * max(
+                0.0, accuracy
+            ) + cfg.recent_performance_factor * max(0.0, (sharpe + 2) / 7)
 
             regime_affinity_families = REGIME_FAMILY_AFFINITY.get(regime, [])
             regime_affinity_specs = REGIME_SPECIALIZATION_AFFINITY.get(regime, [])
@@ -199,15 +199,13 @@ class DynamicWeightEngine:
                 cfg.regime_boost if (family_match or spec_match) else 1.0
             )
 
-            instr_match = (not expert.instruments or instrument in expert.instruments)
+            instr_match = not expert.instruments or instrument in expert.instruments
             instr_score = cfg.instrument_match_factor * (
                 cfg.instrument_boost if instr_match else 1.0
             )
 
-            tf_match = (not expert.timeframes or timeframe in expert.timeframes)
-            tf_score = cfg.timeframe_match_factor * (
-                cfg.timeframe_boost if tf_match else 1.0
-            )
+            tf_match = not expert.timeframes or timeframe in expert.timeframes
+            tf_score = cfg.timeframe_match_factor * (cfg.timeframe_boost if tf_match else 1.0)
 
             cal_quality = 1.0 - min(1.0, cal_err)
             cal_score = cfg.calibration_factor * cal_quality
@@ -222,8 +220,14 @@ class DynamicWeightEngine:
 
             raw = max(
                 cfg.min_weight,
-                perf_score + regime_score + instr_score + tf_score +
-                cal_score + unc_penalty + history_score - latency_penalty,
+                perf_score
+                + regime_score
+                + instr_score
+                + tf_score
+                + cal_score
+                + unc_penalty
+                + history_score
+                - latency_penalty,
             )
             raw_weights[expert.expert_id] = raw
 
@@ -257,9 +261,10 @@ class DynamicWeightEngine:
         return dict(self._weight_history)
 
     def update_expert_weights_from_performance(
-            self, experts: List[ExpertModel],
-            context: Optional[Dict[str, Any]] = None,
-            recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
+        self,
+        experts: List[ExpertModel],
+        context: Optional[Dict[str, Any]] = None,
+        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> Dict[str, float]:
         """Compute weights and update expert.weight field in-place."""
         weights = self.compute_weights(experts, context, recent_metrics)

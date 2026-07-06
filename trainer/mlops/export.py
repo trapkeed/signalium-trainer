@@ -42,15 +42,17 @@ from trainer.mlops.retraining import RetrainingPolicyManager
 class MLOpsExporter:
     """Exports all MLOps platform data for compliance and archival."""
 
-    def __init__(self,
-                 db: MLOpsDatabase,
-                 registry: ModelRegistry,
-                 audit: AuditSystem,
-                 alerting: AlertingSystem,
-                 governance: Optional[DeploymentGovernance] = None,
-                 health: Optional[ModelHealthMonitor] = None,
-                 monitor: Optional[ProductionMonitor] = None,
-                 retraining: Optional[RetrainingPolicyManager] = None) -> None:
+    def __init__(
+        self,
+        db: MLOpsDatabase,
+        registry: ModelRegistry,
+        audit: AuditSystem,
+        alerting: AlertingSystem,
+        governance: Optional[DeploymentGovernance] = None,
+        health: Optional[ModelHealthMonitor] = None,
+        monitor: Optional[ProductionMonitor] = None,
+        retraining: Optional[RetrainingPolicyManager] = None,
+    ) -> None:
         self.db = db
         self.registry = registry
         self.audit = audit
@@ -72,8 +74,7 @@ class MLOpsExporter:
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def export_audit_report(self,
-                             model_id: Optional[str] = None) -> Dict[str, Any]:
+    def export_audit_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
         """Export full audit trail."""
         events = self.db.list_audit_events(model_id=model_id, limit=10_000)
         summary = self.audit.get_report(model_id=model_id)
@@ -87,8 +88,7 @@ class MLOpsExporter:
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def export_deployment_report(self,
-                                  model_id: Optional[str] = None) -> Dict[str, Any]:
+    def export_deployment_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
         """Export deployment history and governance report."""
         deployments = self.db.list_deployments(model_id=model_id, limit=10_000)
         stats = self.governance.stats() if self.governance else {}
@@ -109,17 +109,14 @@ class MLOpsExporter:
         health_data = {}
         if self.health:
             health_data = {
-                mid: report.to_dict()
-                for mid, report in self.health.all_health_reports().items()
+                mid: report.to_dict() for mid, report in self.health.all_health_reports().items()
             }
         monitoring_data = {}
         if self.monitor:
             monitoring_data = {
-                mid: snap.to_dict()
-                for mid, snap in self.monitor.all_snapshots().items()
+                mid: snap.to_dict() for mid, snap in self.monitor.all_snapshots().items()
             }
-        unhealthy = [mid for mid, r in health_data.items()
-                     if not r.get("is_healthy", True)]
+        unhealthy = [mid for mid, r in health_data.items() if not r.get("is_healthy", True)]
         return {
             "export_type": "health_report",
             "export_id": str(uuid.uuid4()),
@@ -131,9 +128,9 @@ class MLOpsExporter:
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def export_alert_history(self,
-                              model_id: Optional[str] = None,
-                              limit: int = 10_000) -> Dict[str, Any]:
+    def export_alert_history(
+        self, model_id: Optional[str] = None, limit: int = 10_000
+    ) -> Dict[str, Any]:
         """Export alert history."""
         alerts = self.alerting.all_alerts(limit=limit, model_id=model_id)
         stats = self.alerting.stats()
@@ -147,9 +144,10 @@ class MLOpsExporter:
             "exported_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def export_retraining_recommendations(self,
-                                           model_id: Optional[str] = None,
-                                           ) -> Dict[str, Any]:
+    def export_retraining_recommendations(
+        self,
+        model_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Export all retraining recommendations."""
         if self.retraining:
             recs = self.retraining.all_recommendations(model_id=model_id)
@@ -178,31 +176,21 @@ class MLOpsExporter:
         champion = self.registry.champion()
 
         model_states = {m.lifecycle_state for m in models}
-        n_production = sum(1 for m in models if m.lifecycle_state
-                           in ("champion", "production"))
+        n_production = sum(1 for m in models if m.lifecycle_state in ("champion", "production"))
         n_archived = sum(1 for m in models if m.lifecycle_state == "archived")
         n_retired = sum(1 for m in models if m.lifecycle_state == "retired")
 
         health_data = {}
         if self.health:
-            health_data = {
-                mid: r.to_dict()
-                for mid, r in self.health.all_health_reports().items()
-            }
-        unhealthy = [mid for mid, r in health_data.items()
-                     if not r.get("is_healthy", True)]
+            health_data = {mid: r.to_dict() for mid, r in self.health.all_health_reports().items()}
+        unhealthy = [mid for mid, r in health_data.items() if not r.get("is_healthy", True)]
 
         monitoring_data = {}
         if self.monitor:
-            monitoring_data = {
-                mid: s.to_dict()
-                for mid, s in self.monitor.all_snapshots().items()
-            }
+            monitoring_data = {mid: s.to_dict() for mid, s in self.monitor.all_snapshots().items()}
 
         retraining_stats = self.retraining.stats() if self.retraining else {}
-        pending_recs = (
-            self.retraining.pending_recommendations() if self.retraining else []
-        )
+        pending_recs = self.retraining.pending_recommendations() if self.retraining else []
 
         readiness_checks = {
             "model_registry_operational": len(models) > 0,
@@ -212,9 +200,7 @@ class MLOpsExporter:
             "alerting_operational": len(alert_stats) > 0,
             "audit_trail_active": audit_summary.get("total_events", 0) >= 0,
             "governance_policies_defined": True,
-            "retraining_policies_configured": (
-                retraining_stats.get("total_policies", 0) > 0
-            ),
+            "retraining_policies_configured": (retraining_stats.get("total_policies", 0) > 0),
             "no_automatic_retraining": not retraining_stats.get("auto_retrain", False),
             "backward_compatible": True,
         }
@@ -243,14 +229,19 @@ class MLOpsExporter:
                 "deployment_audit": True,
             },
             "monitoring": {
-                "total_inferences": (
-                    self.monitor.total_inferences() if self.monitor else 0
-                ),
+                "total_inferences": (self.monitor.total_inferences() if self.monitor else 0),
                 "active_models_monitored": len(monitoring_data),
                 "metrics_tracked": [
-                    "latency_ms", "throughput_rps", "cpu_pct", "gpu_pct",
-                    "memory_mb", "confidence", "uncertainty",
-                    "buy_rate", "sell_rate", "no_trade_rate",
+                    "latency_ms",
+                    "throughput_rps",
+                    "cpu_pct",
+                    "gpu_pct",
+                    "memory_mb",
+                    "confidence",
+                    "uncertainty",
+                    "buy_rate",
+                    "sell_rate",
+                    "no_trade_rate",
                 ],
             },
             "health": {
@@ -258,9 +249,12 @@ class MLOpsExporter:
                 "unhealthy_models": unhealthy,
                 "n_unhealthy": len(unhealthy),
                 "drift_types_tracked": [
-                    "confidence_drift", "prediction_drift",
-                    "calibration_drift", "performance_degradation",
-                    "latency_degradation", "distribution_drift",
+                    "confidence_drift",
+                    "prediction_drift",
+                    "calibration_drift",
+                    "performance_degradation",
+                    "latency_degradation",
+                    "distribution_drift",
                     "regime_drift",
                 ],
             },

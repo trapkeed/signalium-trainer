@@ -42,9 +42,7 @@ class TemperatureScaling(nn.Module):
         super().__init__()
         if init_temp <= 0:
             raise ValueError(f"init_temp must be > 0, got {init_temp}")
-        self.temperature = nn.Parameter(
-            torch.tensor([init_temp], dtype=torch.float32)
-        )
+        self.temperature = nn.Parameter(torch.tensor([init_temp], dtype=torch.float32))
 
     @property
     def T(self) -> float:

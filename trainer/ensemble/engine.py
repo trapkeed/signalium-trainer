@@ -42,7 +42,10 @@ from trainer.ensemble.api import EnsembleAPI
 from trainer.ensemble.calibration import ExpertCalibrator
 from trainer.ensemble.database import EnsembleDatabase
 from trainer.ensemble.expert import (
-    ExpertModel, ExpertPrediction, ExpertRegistry, build_default_registry,
+    ExpertModel,
+    ExpertPrediction,
+    ExpertRegistry,
+    build_default_registry,
 )
 from trainer.ensemble.export import EnsembleExporter
 from trainer.ensemble.failure_analysis import ExpertFailureAnalyzer
@@ -51,11 +54,12 @@ from trainer.ensemble.meta_model import EnsembleMetaModel, MetaPrediction
 from trainer.ensemble.online_scoring import OnlineScorer
 from trainer.ensemble.routing import ExpertRouter, RoutingDecision
 from trainer.ensemble.strategies import (
-    BaseEnsembleStrategy, EnsembleResult, build_strategy,
+    BaseEnsembleStrategy,
+    EnsembleResult,
+    build_strategy,
 )
 from trainer.ensemble.visualization import EnsembleVisualizationBuilder
 from trainer.ensemble.weighting import DynamicWeightEngine, WeightFactorConfig
-
 
 # ---------------------------------------------------------------------------
 # Ensemble config
@@ -143,12 +147,10 @@ class PredictionBundle:
     final_result: Optional[EnsembleResult] = None
     features: Dict[str, Any] = field(default_factory=dict)
     context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
-        final = (self.meta_prediction or self.ensemble_result)
+        final = self.meta_prediction or self.ensemble_result
         return {
             "bundle_id": self.bundle_id,
             "routing_decision": self.routing_decision.to_dict() if self.routing_decision else None,
@@ -157,7 +159,8 @@ class PredictionBundle:
             "meta_prediction": self.meta_prediction.to_dict() if self.meta_prediction else None,
             "final": final.to_dict() if final else None,
             "institutional_forecast": (
-                final.institutional_forecast if final and hasattr(final, "institutional_forecast")
+                final.institutional_forecast
+                if final and hasattr(final, "institutional_forecast")
                 else ""
             ),
             "context": self.context,
@@ -285,9 +288,7 @@ class EnsembleEngine:
         ensemble_result = self.strategy.combine(expert_predictions, routing.weights)
         ensemble_result.strategy = self.config.strategy
 
-        meta_prediction = self.meta_model.predict(
-            expert_predictions, routing.weights, ctx
-        )
+        meta_prediction = self.meta_model.predict(expert_predictions, routing.weights, ctx)
 
         final: Any = meta_prediction if self.meta_model.is_trained else ensemble_result
 
@@ -316,7 +317,8 @@ class EnsembleEngine:
         if self.config.persist_routing:
             for eid, w in routing.weights.items():
                 self.db.save_weight_entry(
-                    eid, w,
+                    eid,
+                    w,
                     regime=ctx.get("regime", ""),
                     instrument=ctx.get("instrument", ""),
                     timeframe=ctx.get("timeframe", ""),
@@ -336,7 +338,7 @@ class EnsembleEngine:
 
         self._n_predictions += 1
 
-        if (self._n_predictions % self.config.weight_adjust_interval == 0):
+        if self._n_predictions % self.config.weight_adjust_interval == 0:
             self._update_leaderboard()
             if self.config.auto_retire_threshold is not None:
                 self._auto_retire_underperformers()
@@ -403,10 +405,13 @@ class EnsembleEngine:
             if r.get("result_id") == result_id:
                 pass
 
-    def update_meta_model(self, expert_predictions: List[ExpertPrediction],
-                           weights: Dict[str, float],
-                           true_class: str,
-                           context: Optional[Dict[str, Any]] = None) -> float:
+    def update_meta_model(
+        self,
+        expert_predictions: List[ExpertPrediction],
+        weights: Dict[str, float],
+        true_class: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> float:
         """Manually provide a labeled example to update the meta model."""
         return self.meta_model.update(expert_predictions, weights, true_class, context)
 
@@ -462,8 +467,7 @@ class EnsembleEngine:
             n_correct = sum(1 for r in all_metrics_list if r.get("is_correct"))
             ensemble_acc = n_correct / n if n > 0 else 0.0
             avg_conf = sum(r.get("confidence", 0.5) for r in all_metrics_list) / n
-            self.leaderboard.update_ensemble({"accuracy": ensemble_acc,
-                                               "n_predictions": n})
+            self.leaderboard.update_ensemble({"accuracy": ensemble_acc, "n_predictions": n})
 
     def _auto_retire_underperformers(self) -> None:
         threshold = self.config.auto_retire_threshold
@@ -473,8 +477,7 @@ class EnsembleEngine:
             if expert.status == "champion":
                 continue
             m = self.scorer.get_metrics(expert.expert_id)
-            if (m.n_records >= self.scorer.min_window and
-                    m.rolling_accuracy < threshold):
+            if m.n_records >= self.scorer.min_window and m.rolling_accuracy < threshold:
                 logger.warning(
                     f"Auto-retiring expert {expert.expert_id} "
                     f"(accuracy={m.rolling_accuracy:.2%} < {threshold:.2%})"
@@ -548,6 +551,7 @@ class EnsembleEngine:
     def from_yaml(yaml_path: str) -> "EnsembleEngine":
         """Create EnsembleEngine from a YAML config file."""
         import yaml
+
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("ensemble", data)

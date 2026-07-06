@@ -20,6 +20,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import WorkerTrigger
@@ -39,16 +40,16 @@ class MIEWorker:
 
     def __init__(
         self,
-        api:           Optional[MIEAPI] = None,
-        max_queue:     int              = 100,
-        on_complete:   Optional[Callable[[WorkerJob], None]] = None,
+        api: Optional[MIEAPI] = None,
+        max_queue: int = 100,
+        on_complete: Optional[Callable[[WorkerJob], None]] = None,
     ) -> None:
-        self._api        = api or MIEAPI()
-        self._queue:     Deque[WorkerJob] = deque(maxlen=max_queue)
-        self._history:   List[WorkerJob]  = []
+        self._api = api or MIEAPI()
+        self._queue: Deque[WorkerJob] = deque(maxlen=max_queue)
+        self._history: List[WorkerJob] = []
         self._on_complete = on_complete
-        self._processed  = 0
-        self._failed     = 0
+        self._processed = 0
+        self._failed = 0
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -60,27 +61,33 @@ class MIEWorker:
 
     def submit_candle(self, inp: MarketInput) -> str:
         """Convenience: enqueue a NEW_CANDLE job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.NEW_CANDLE,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.NEW_CANDLE,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
     def submit_prediction(self, inp: MarketInput) -> str:
         """Convenience: enqueue a NEW_PREDICTION job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.NEW_PREDICTION,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.NEW_PREDICTION,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
     def submit_manual(self, inp: MarketInput) -> str:
         """Convenience: enqueue a MANUAL_REFRESH job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.MANUAL_REFRESH,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.MANUAL_REFRESH,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
     def process_next(self) -> Optional[WorkerJob]:
         """Process one job from the queue. Returns the processed job or None."""
@@ -97,9 +104,7 @@ class MIEWorker:
             job.status = "DONE"
             self._processed += 1
             t_score = f"{report.tradeability.score:.1f}" if report.tradeability else "N/A"
-            logger.info(
-                f"[Worker] ✓ {job.job_id} {job.trigger.value} → tradeability={t_score}"
-            )
+            logger.info(f"[Worker] ✓ {job.job_id} {job.trigger.value} → tradeability={t_score}")
         except Exception as exc:
             job.status = "FAILED"
             job.payload["error"] = str(exc)
@@ -138,7 +143,7 @@ class MIEWorker:
     def stats(self) -> Dict[str, Any]:
         return {
             "queue_size": self.queue_size,
-            "processed":  self.processed,
-            "failed":     self.failed,
-            "history":    len(self._history),
+            "processed": self.processed,
+            "failed": self.failed,
+            "history": len(self._history),
         }

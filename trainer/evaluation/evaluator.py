@@ -57,7 +57,9 @@ class StandardEvaluator(BaseEvaluator):
 
         for x, y in dataloader:
             x = x.to(self._device, non_blocking=True)
-            with torch.autocast(device_type=self._device.type, enabled=self._config.training.mixed_precision):
+            with torch.autocast(
+                device_type=self._device.type, enabled=self._config.training.mixed_precision
+            ):
                 logits = self._model(x)
             probs = torch.softmax(logits, dim=-1)
             preds = probs.argmax(dim=-1)
@@ -75,5 +77,6 @@ class StandardEvaluator(BaseEvaluator):
     def generate_report(self, results: dict[str, Any], output_dir: Path) -> Path:
         """Delegate to EvaluationReporter."""
         from trainer.evaluation.reporter import EvaluationReporter
+
         reporter = EvaluationReporter(output_dir)
         return reporter.write(results)

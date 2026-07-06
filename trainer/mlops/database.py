@@ -38,7 +38,6 @@ from loguru import logger
 
 from trainer.mlops.registry import ModelRecord
 
-
 # ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
@@ -222,19 +221,32 @@ class MLOpsDatabase:
                 created_at, updated_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                record.model_id, record.name, record.version,
-                record.training_date, record.architecture, record.backbone,
-                record.parameter_count, record.dataset_version,
-                record.feature_version, record.label_version, record.git_commit,
-                record.lifecycle_state, record.promotion_status,
-                record.deployment_status, record.retirement_status,
-                record.hardware_used, record.training_duration_seconds,
-                record.parent_model_id, json.dumps(record.child_model_ids),
-                record.notes, json.dumps(record.training_config),
+                record.model_id,
+                record.name,
+                record.version,
+                record.training_date,
+                record.architecture,
+                record.backbone,
+                record.parameter_count,
+                record.dataset_version,
+                record.feature_version,
+                record.label_version,
+                record.git_commit,
+                record.lifecycle_state,
+                record.promotion_status,
+                record.deployment_status,
+                record.retirement_status,
+                record.hardware_used,
+                record.training_duration_seconds,
+                record.parent_model_id,
+                json.dumps(record.child_model_ids),
+                record.notes,
+                json.dumps(record.training_config),
                 json.dumps(record.validation_report),
                 json.dumps([a.to_dict() for a in record.approval_history]),
                 json.dumps(record.metadata),
-                record.created_at, record.updated_at,
+                record.created_at,
+                record.updated_at,
             ),
         )
         self._conn.commit()
@@ -246,37 +258,52 @@ class MLOpsDatabase:
         ).fetchone()
         return self._model_row(row) if row else None
 
-    def list_models(self, lifecycle_state: Optional[str] = None,
-                    limit: int = 200) -> List[Dict[str, Any]]:
+    def list_models(
+        self, lifecycle_state: Optional[str] = None, limit: int = 200
+    ) -> List[Dict[str, Any]]:
         if lifecycle_state:
             rows = self._conn.execute(
                 "SELECT * FROM model_registry WHERE lifecycle_state = ? "
-                "ORDER BY created_at DESC LIMIT ?", (lifecycle_state, limit)
+                "ORDER BY created_at DESC LIMIT ?",
+                (lifecycle_state, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM model_registry ORDER BY created_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM model_registry ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
         return [self._model_row(r) for r in rows]
 
     def _model_row(self, row: sqlite3.Row) -> Dict[str, Any]:
         d = dict(row)
-        for k in ("child_model_ids", "training_config_json",
-                   "validation_report_json", "metadata_json"):
+        for k in (
+            "child_model_ids",
+            "training_config_json",
+            "validation_report_json",
+            "metadata_json",
+        ):
             v = d.pop(k, None) or "{}"
             key = k.replace("_json", "").replace("training_config", "training_config")
             d[key.replace("_json", "")] = json.loads(v) if v else {}
-        d["child_model_ids"] = json.loads(d.pop("child_model_ids", "[]") or "[]") if "child_model_ids" in d else []
-        d["approval_history"] = json.loads(d.pop("approval_history_json", "[]") or "[]") if "approval_history_json" in d else []
+        d["child_model_ids"] = (
+            json.loads(d.pop("child_model_ids", "[]") or "[]") if "child_model_ids" in d else []
+        )
+        d["approval_history"] = (
+            json.loads(d.pop("approval_history_json", "[]") or "[]")
+            if "approval_history_json" in d
+            else []
+        )
         for k in list(d.keys()):
             if k.endswith("_json"):
                 d[k[:-5]] = json.loads(d.pop(k) or "{}")
         return d
 
-    def update_model_state(self, model_id: str, lifecycle_state: str,
-                            deployment_status: str = "",
-                            promotion_status: str = "") -> None:
+    def update_model_state(
+        self,
+        model_id: str,
+        lifecycle_state: str,
+        deployment_status: str = "",
+        promotion_status: str = "",
+    ) -> None:
         sets = ["lifecycle_state = ?", "updated_at = ?"]
         vals: List[Any] = [lifecycle_state, datetime.now(timezone.utc).isoformat()]
         if deployment_status:
@@ -310,16 +337,14 @@ class MLOpsDatabase:
                 transition_dict.get("actor", "system"),
                 transition_dict.get("reason", ""),
                 json.dumps(transition_dict.get("metadata", {})),
-                transition_dict.get("timestamp",
-                                     datetime.now(timezone.utc).isoformat()),
+                transition_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
 
     def get_lifecycle_history(self, model_id: str) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM lifecycle_transitions WHERE model_id = ? ORDER BY timestamp",
-            (model_id,)
+            "SELECT * FROM lifecycle_transitions WHERE model_id = ? ORDER BY timestamp", (model_id,)
         ).fetchall()
         result = []
         for r in rows:
@@ -351,8 +376,7 @@ class MLOpsDatabase:
                 deploy_dict.get("status", "active"),
                 deploy_dict.get("from_state", ""),
                 deploy_dict.get("to_state", ""),
-                deploy_dict.get("deployed_at",
-                                 datetime.now(timezone.utc).isoformat()),
+                deploy_dict.get("deployed_at", datetime.now(timezone.utc).isoformat()),
                 deploy_dict.get("rolled_back_at"),
                 deploy_dict.get("rollback_reason"),
                 json.dumps(deploy_dict.get("metadata", {})),
@@ -361,17 +385,17 @@ class MLOpsDatabase:
         self._conn.commit()
         return did
 
-    def list_deployments(self, model_id: Optional[str] = None,
-                          limit: int = 100) -> List[Dict[str, Any]]:
+    def list_deployments(
+        self, model_id: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         if model_id:
             rows = self._conn.execute(
-                "SELECT * FROM deployments WHERE model_id = ? "
-                "ORDER BY deployed_at DESC LIMIT ?", (model_id, limit)
+                "SELECT * FROM deployments WHERE model_id = ? " "ORDER BY deployed_at DESC LIMIT ?",
+                (model_id, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM deployments ORDER BY deployed_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM deployments ORDER BY deployed_at DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
@@ -415,7 +439,8 @@ class MLOpsDatabase:
     def get_latest_health(self, model_id: str) -> Optional[Dict[str, Any]]:
         row = self._conn.execute(
             "SELECT snapshot_json FROM health_metrics WHERE model_id = ? "
-            "ORDER BY recorded_at DESC LIMIT 1", (model_id,)
+            "ORDER BY recorded_at DESC LIMIT 1",
+            (model_id,),
         ).fetchone()
         if not row:
             return None
@@ -423,8 +448,8 @@ class MLOpsDatabase:
 
     def list_health_history(self, model_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM health_metrics WHERE model_id = ? "
-            "ORDER BY recorded_at DESC LIMIT ?", (model_id, limit)
+            "SELECT * FROM health_metrics WHERE model_id = ? " "ORDER BY recorded_at DESC LIMIT ?",
+            (model_id, limit),
         ).fetchall()
         result = []
         for r in rows:
@@ -457,16 +482,15 @@ class MLOpsDatabase:
                 alert_dict.get("acknowledged_at"),
                 alert_dict.get("resolved_at"),
                 json.dumps(alert_dict.get("metadata", {})),
-                alert_dict.get("created_at",
-                                datetime.now(timezone.utc).isoformat()),
+                alert_dict.get("created_at", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return aid
 
-    def list_alerts(self, status: Optional[str] = None,
-                     model_id: Optional[str] = None,
-                     limit: int = 100) -> List[Dict[str, Any]]:
+    def list_alerts(
+        self, status: Optional[str] = None, model_id: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if status:
             wheres.append("status = ?")
@@ -507,16 +531,15 @@ class MLOpsDatabase:
                 event_dict.get("outcome", "success"),
                 json.dumps(event_dict.get("metadata", {})),
                 event_dict.get("session_id"),
-                event_dict.get("timestamp",
-                                datetime.now(timezone.utc).isoformat()),
+                event_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return eid
 
-    def list_audit_events(self, event_type: Optional[str] = None,
-                           model_id: Optional[str] = None,
-                           limit: int = 200) -> List[Dict[str, Any]]:
+    def list_audit_events(
+        self, event_type: Optional[str] = None, model_id: Optional[str] = None, limit: int = 200
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if event_type:
             wheres.append("event_type = ?")
@@ -557,8 +580,7 @@ class MLOpsDatabase:
                 rec_dict.get("status", "pending"),
                 rec_dict.get("policy_id", ""),
                 json.dumps(rec_dict.get("metrics", {})),
-                rec_dict.get("created_at",
-                              datetime.now(timezone.utc).isoformat()),
+                rec_dict.get("created_at", datetime.now(timezone.utc).isoformat()),
                 rec_dict.get("acted_at"),
                 rec_dict.get("acted_by"),
             ),
@@ -566,9 +588,9 @@ class MLOpsDatabase:
         self._conn.commit()
         return rid
 
-    def list_recommendations(self, model_id: Optional[str] = None,
-                               status: Optional[str] = None,
-                               limit: int = 50) -> List[Dict[str, Any]]:
+    def list_recommendations(
+        self, model_id: Optional[str] = None, status: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if model_id:
             wheres.append("model_id = ?")
@@ -580,7 +602,8 @@ class MLOpsDatabase:
         vals.append(limit)
         rows = self._conn.execute(
             f"SELECT * FROM retraining_recommendations {where_str} "
-            f"ORDER BY created_at DESC LIMIT ?", vals
+            f"ORDER BY created_at DESC LIMIT ?",
+            vals,
         ).fetchall()
         result = []
         for r in rows:
@@ -609,8 +632,7 @@ class MLOpsDatabase:
             "active_alerts": _count("alerts", "status = 'active'"),
             "critical_alerts": _count("alerts", "level = 'CRITICAL' AND status = 'active'"),
             "total_audit_events": _count("audit_events"),
-            "pending_recommendations": _count("retraining_recommendations",
-                                               "status = 'pending'"),
+            "pending_recommendations": _count("retraining_recommendations", "status = 'pending'"),
         }
 
     def close(self) -> None:

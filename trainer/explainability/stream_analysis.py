@@ -34,7 +34,6 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
@@ -123,35 +122,28 @@ class StreamContributionAnalyzer:
             )
 
         # Fusion weights — recorded by AdaptiveFusionLayer during forward()
-        fusion_weights: dict[str, float] = dict(
-            getattr(hybrid_enc, "_last_contributions", {})
-        )
-        gate_stats: dict[str, float] = dict(
-            getattr(hybrid_enc, "_last_gate_stats", {})
-        )
+        fusion_weights: dict[str, float] = dict(getattr(hybrid_enc, "_last_contributions", {}))
+        gate_stats: dict[str, float] = dict(getattr(hybrid_enc, "_last_gate_stats", {}))
 
         # Activation norms per stream (proxy for learned representation size)
         norms: dict[str, float] = {}
         stream_map: dict[str, Optional[nn.Module]] = {
-            "raw_market":           getattr(hybrid_enc, "raw_market", None),
-            "multi_timeframe":      getattr(hybrid_enc, "multi_timeframe", None),
-            "engineered_features":  getattr(hybrid_enc, "engineered_features", None),
-            "context_embeddings":   getattr(hybrid_enc, "context_embeddings", None),
-            "market_memory":        getattr(hybrid_enc, "market_memory", None),
+            "raw_market": getattr(hybrid_enc, "raw_market", None),
+            "multi_timeframe": getattr(hybrid_enc, "multi_timeframe", None),
+            "engineered_features": getattr(hybrid_enc, "engineered_features", None),
+            "context_embeddings": getattr(hybrid_enc, "context_embeddings", None),
+            "market_memory": getattr(hybrid_enc, "market_memory", None),
         }
         for stream_name, module in stream_map.items():
             if module is None:
                 continue
             total_sq = sum(
-                float(p.data.norm(2).item()) ** 2
-                for p in module.parameters()
-                if p.requires_grad
+                float(p.data.norm(2).item()) ** 2 for p in module.parameters() if p.requires_grad
             )
-            norms[stream_name] = float(total_sq ** 0.5)
+            norms[stream_name] = float(total_sq**0.5)
 
         most_influential = (
-            max(fusion_weights, key=lambda k: fusion_weights[k])
-            if fusion_weights else "unknown"
+            max(fusion_weights, key=lambda k: fusion_weights[k]) if fusion_weights else "unknown"
         )
         return StreamContribution(
             fusion_weights=fusion_weights,

@@ -36,15 +36,12 @@ from trainer.research.snapshots import (
     ValidationSnapshot,
 )
 
-
 # ---------------------------------------------------------------------------
 # Primitive diff helpers
 # ---------------------------------------------------------------------------
 
 
-def _scalar_diff(
-    a: Any, b: Any, name: str, threshold: float = 0.0
-) -> Optional[Dict[str, Any]]:
+def _scalar_diff(a: Any, b: Any, name: str, threshold: float = 0.0) -> Optional[Dict[str, Any]]:
     """Return a diff entry for a scalar field if it changed meaningfully."""
     if isinstance(a, float) and isinstance(b, float):
         if abs(b - a) <= threshold:
@@ -68,9 +65,7 @@ class DatasetDiff:
     is_identical: bool = False
 
     @classmethod
-    def compare(
-        cls, a: DatasetSnapshot, b: DatasetSnapshot
-    ) -> "DatasetDiff":
+    def compare(cls, a: DatasetSnapshot, b: DatasetSnapshot) -> "DatasetDiff":
         raw = a.diff(b)
         return cls(
             snapshot_a_id=a.snapshot_id,
@@ -110,9 +105,7 @@ class FeatureDiff:
     is_identical: bool = False
 
     @classmethod
-    def compare(
-        cls, a: FeatureSnapshot, b: FeatureSnapshot
-    ) -> "FeatureDiff":
+    def compare(cls, a: FeatureSnapshot, b: FeatureSnapshot) -> "FeatureDiff":
         raw = a.diff(b)
         return cls(
             snapshot_a_id=a.snapshot_id,
@@ -173,8 +166,7 @@ class ModelDiff:
 
     def hyperparameter_changed(self) -> bool:
         return any(
-            k in self.changes
-            for k in ("learning_rate", "dropout", "optimizer", "scheduler")
+            k in self.changes for k in ("learning_rate", "dropout", "optimizer", "scheduler")
         )
 
     def summary(self) -> str:
@@ -211,9 +203,7 @@ class ValidationDiff:
     performance_improved: bool = False
 
     @classmethod
-    def compare(
-        cls, a: ValidationSnapshot, b: ValidationSnapshot
-    ) -> "ValidationDiff":
+    def compare(cls, a: ValidationSnapshot, b: ValidationSnapshot) -> "ValidationDiff":
         raw = a.diff(b)
         improved = False
         acc_delta = raw.get("walk_forward_accuracy", {}).get("delta", 0.0)
@@ -262,9 +252,7 @@ class ExperimentDiff:
     node_id_b: str
     node_name_a: str
     node_name_b: str
-    compared_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    compared_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     environment_diff: Dict[str, Any] = field(default_factory=dict)
     dataset_diff: Optional[DatasetDiff] = None
@@ -337,9 +325,7 @@ class ExperimentDiff:
             "dataset_diff": self.dataset_diff.to_dict() if self.dataset_diff else None,
             "feature_diff": self.feature_diff.to_dict() if self.feature_diff else None,
             "model_diff": self.model_diff.to_dict() if self.model_diff else None,
-            "validation_diff": (
-                self.validation_diff.to_dict() if self.validation_diff else None
-            ),
+            "validation_diff": (self.validation_diff.to_dict() if self.validation_diff else None),
         }
 
 
@@ -354,9 +340,7 @@ class ExperimentDiffer:
     def __init__(self, tree: Any) -> None:
         self._tree = tree
 
-    def compare_experiments(
-        self, node_id_a: str, node_id_b: str
-    ) -> ExperimentDiff:
+    def compare_experiments(self, node_id_a: str, node_id_b: str) -> ExperimentDiff:
         """Compare two experiment lineage nodes and return a full diff."""
         na = self._tree.get(node_id_a)
         nb = self._tree.get(node_id_b)
@@ -370,9 +354,15 @@ class ExperimentDiffer:
         if na.environment and nb.environment:
             ea, eb = na.environment.to_dict(), nb.environment.to_dict()
             for field_name in (
-                "git_commit_hash", "git_branch", "python_version",
-                "pytorch_version", "cuda_version", "os_name",
-                "gpu_model", "cpu_model", "random_seed",
+                "git_commit_hash",
+                "git_branch",
+                "python_version",
+                "pytorch_version",
+                "cuda_version",
+                "os_name",
+                "gpu_model",
+                "cpu_model",
+                "random_seed",
             ):
                 va, vb = ea.get(field_name), eb.get(field_name)
                 if va != vb:
@@ -396,18 +386,12 @@ class ExperimentDiffer:
         # Validation diff
         vs_diff: Optional[ValidationDiff] = None
         if na.validation_snapshot and nb.validation_snapshot:
-            vs_diff = ValidationDiff.compare(
-                na.validation_snapshot, nb.validation_snapshot
-            )
+            vs_diff = ValidationDiff.compare(na.validation_snapshot, nb.validation_snapshot)
 
         # Cost / duration
         cost_diff = nb.total_cost_usd - na.total_cost_usd
-        dur_a = (
-            na.environment.training_duration_seconds if na.environment else 0.0
-        )
-        dur_b = (
-            nb.environment.training_duration_seconds if nb.environment else 0.0
-        )
+        dur_a = na.environment.training_duration_seconds if na.environment else 0.0
+        dur_b = nb.environment.training_duration_seconds if nb.environment else 0.0
 
         return ExperimentDiff(
             node_id_a=node_id_a,
@@ -423,27 +407,21 @@ class ExperimentDiffer:
             duration_diff_seconds=round(dur_b - dur_a, 2),
         )
 
-    def compare_models(
-        self, node_id_a: str, node_id_b: str
-    ) -> Optional[ModelDiff]:
+    def compare_models(self, node_id_a: str, node_id_b: str) -> Optional[ModelDiff]:
         na = self._tree.get(node_id_a)
         nb = self._tree.get(node_id_b)
         if na and nb and na.model_snapshot and nb.model_snapshot:
             return ModelDiff.compare(na.model_snapshot, nb.model_snapshot)
         return None
 
-    def compare_datasets(
-        self, node_id_a: str, node_id_b: str
-    ) -> Optional[DatasetDiff]:
+    def compare_datasets(self, node_id_a: str, node_id_b: str) -> Optional[DatasetDiff]:
         na = self._tree.get(node_id_a)
         nb = self._tree.get(node_id_b)
         if na and nb and na.dataset_snapshot and nb.dataset_snapshot:
             return DatasetDiff.compare(na.dataset_snapshot, nb.dataset_snapshot)
         return None
 
-    def compare_features(
-        self, node_id_a: str, node_id_b: str
-    ) -> Optional[FeatureDiff]:
+    def compare_features(self, node_id_a: str, node_id_b: str) -> Optional[FeatureDiff]:
         na = self._tree.get(node_id_a)
         nb = self._tree.get(node_id_b)
         if na and nb and na.feature_snapshot and nb.feature_snapshot:

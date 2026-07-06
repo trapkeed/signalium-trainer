@@ -29,7 +29,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Resource snapshot
 # ---------------------------------------------------------------------------
@@ -51,9 +50,7 @@ class ResourceSnapshot:
     """
 
     trial_id: str
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     cpu_percent: float = 0.0
     ram_mb: float = 0.0
     gpu_percent: float = 0.0
@@ -114,9 +111,14 @@ class ResourceManager:
         checkpoint_dir: Directory for resume checkpoints.
     """
 
-    def __init__(self, max_workers: int = 1, gpu_memory_gb: float = 0.0,
-                 max_ram_gb: float = 32.0, max_disk_gb: float = 100.0,
-                 checkpoint_dir: str = "experiments/automl/checkpoints") -> None:
+    def __init__(
+        self,
+        max_workers: int = 1,
+        gpu_memory_gb: float = 0.0,
+        max_ram_gb: float = 32.0,
+        max_disk_gb: float = 100.0,
+        checkpoint_dir: str = "experiments/automl/checkpoints",
+    ) -> None:
         self.max_workers = max_workers
         self.gpu_memory_gb = gpu_memory_gb
         self.max_ram_gb = max_ram_gb
@@ -158,10 +160,16 @@ class ResourceManager:
                 return True
             return False
 
-    def record_usage(self, trial_id: str, cpu_percent: float = 0.0,
-                     ram_mb: float = 0.0, gpu_percent: float = 0.0,
-                     vram_mb: float = 0.0, disk_mb: float = 0.0,
-                     elapsed_seconds: float = 0.0) -> ResourceSnapshot:
+    def record_usage(
+        self,
+        trial_id: str,
+        cpu_percent: float = 0.0,
+        ram_mb: float = 0.0,
+        gpu_percent: float = 0.0,
+        vram_mb: float = 0.0,
+        disk_mb: float = 0.0,
+        elapsed_seconds: float = 0.0,
+    ) -> ResourceSnapshot:
         """Record a resource usage snapshot for a trial."""
         snap = ResourceSnapshot(
             trial_id=trial_id,
@@ -209,14 +217,16 @@ class ResourceManager:
             "total_snapshots": len(all_snaps),
         }
         if all_snaps:
-            report.update({
-                "peak_cpu_percent": max(s.cpu_percent for s in all_snaps),
-                "avg_cpu_percent": sum(s.cpu_percent for s in all_snaps) / len(all_snaps),
-                "peak_ram_mb": max(s.ram_mb for s in all_snaps),
-                "avg_ram_mb": sum(s.ram_mb for s in all_snaps) / len(all_snaps),
-                "peak_gpu_percent": max(s.gpu_percent for s in all_snaps),
-                "peak_vram_mb": max(s.vram_mb for s in all_snaps),
-            })
+            report.update(
+                {
+                    "peak_cpu_percent": max(s.cpu_percent for s in all_snaps),
+                    "avg_cpu_percent": sum(s.cpu_percent for s in all_snaps) / len(all_snaps),
+                    "peak_ram_mb": max(s.ram_mb for s in all_snaps),
+                    "avg_ram_mb": sum(s.ram_mb for s in all_snaps) / len(all_snaps),
+                    "peak_gpu_percent": max(s.gpu_percent for s in all_snaps),
+                    "peak_vram_mb": max(s.vram_mb for s in all_snaps),
+                }
+            )
         return report
 
     def should_throttle(self) -> bool:

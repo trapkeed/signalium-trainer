@@ -18,6 +18,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_models import (
@@ -33,7 +34,6 @@ from trainer.memory.decision_types import (
     OutcomeType,
     DecisionGrade,
 )
-
 
 _CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS decision_memory (
@@ -166,7 +166,7 @@ class MemoryDatabase:
     """SQLite-backed persistence for the Decision Memory system."""
 
     def __init__(self, db_path: str = ":memory:"):
-        self._db_path       = db_path
+        self._db_path = db_path
         self._persistent_conn: Optional[sqlite3.Connection] = None
         self._init_db()
 
@@ -199,9 +199,17 @@ class MemoryDatabase:
                    (decision_id, decision_type, instrument, timestamp, trade_id,
                     lineage_id, tags, notes, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (record.decision_id, record.decision_type.value, record.instrument,
-                 record.timestamp, record.trade_id, record.lineage_id,
-                 json.dumps(record.tags), record.notes, time.time()),
+                (
+                    record.decision_id,
+                    record.decision_type.value,
+                    record.instrument,
+                    record.timestamp,
+                    record.trade_id,
+                    record.lineage_id,
+                    json.dumps(record.tags),
+                    record.notes,
+                    time.time(),
+                ),
             )
             snap = record.snapshot
             conn.execute(
@@ -214,15 +222,33 @@ class MemoryDatabase:
                     portfolio_exposure, correlation_risk, risk_metrics,
                     feature_snapshot, expert_weights)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (record.decision_id, snap.price, snap.atr, snap.spread,
-                 snap.volatility, snap.session, snap.liquidity_estimate,
-                 snap.market_regime, snap.volatility_regime, snap.timeframe,
-                 snap.forecast_direction, snap.forecast_confidence, snap.expected_move,
-                 snap.expected_holding_h, snap.tp_probability, snap.sl_probability,
-                 snap.model_version, snap.champion_model, snap.research_score,
-                 snap.ensemble_output, snap.portfolio_exposure, snap.correlation_risk,
-                 json.dumps(snap.risk_metrics), json.dumps(snap.feature_snapshot),
-                 json.dumps(snap.expert_weights)),
+                (
+                    record.decision_id,
+                    snap.price,
+                    snap.atr,
+                    snap.spread,
+                    snap.volatility,
+                    snap.session,
+                    snap.liquidity_estimate,
+                    snap.market_regime,
+                    snap.volatility_regime,
+                    snap.timeframe,
+                    snap.forecast_direction,
+                    snap.forecast_confidence,
+                    snap.expected_move,
+                    snap.expected_holding_h,
+                    snap.tp_probability,
+                    snap.sl_probability,
+                    snap.model_version,
+                    snap.champion_model,
+                    snap.research_score,
+                    snap.ensemble_output,
+                    snap.portfolio_exposure,
+                    snap.correlation_risk,
+                    json.dumps(snap.risk_metrics),
+                    json.dumps(snap.feature_snapshot),
+                    json.dumps(snap.expert_weights),
+                ),
             )
             rea = record.reasoning
             conn.execute(
@@ -231,10 +257,16 @@ class MemoryDatabase:
                     contradicting_factors, risk_factors, uncertainty_sources,
                     alternatives_considered, final_rationale)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (record.decision_id, json.dumps(rea.primary_reasons),
-                 json.dumps(rea.supporting_factors), json.dumps(rea.contradicting_factors),
-                 json.dumps(rea.risk_factors), json.dumps(rea.uncertainty_sources),
-                 json.dumps(rea.alternatives_considered), rea.final_rationale),
+                (
+                    record.decision_id,
+                    json.dumps(rea.primary_reasons),
+                    json.dumps(rea.supporting_factors),
+                    json.dumps(rea.contradicting_factors),
+                    json.dumps(rea.risk_factors),
+                    json.dumps(rea.uncertainty_sources),
+                    json.dumps(rea.alternatives_considered),
+                    rea.final_rationale,
+                ),
             )
             if record.outcome:
                 self._save_outcome(conn, record.decision_id, record.outcome)
@@ -252,11 +284,23 @@ class MemoryDatabase:
                 actual_pnl, actual_pnl_pct, hit_tp, hit_sl,
                 holding_time_h, market_event, notes, recorded_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (decision_id, out.outcome_type.value,
-             (1 if out.actual_direction_correct else 0) if out.actual_direction_correct is not None else None,
-             out.actual_pnl, out.actual_pnl_pct,
-             int(out.hit_tp), int(out.hit_sl),
-             out.holding_time_h, out.market_event, out.notes, out.recorded_at),
+            (
+                decision_id,
+                out.outcome_type.value,
+                (
+                    (1 if out.actual_direction_correct else 0)
+                    if out.actual_direction_correct is not None
+                    else None
+                ),
+                out.actual_pnl,
+                out.actual_pnl_pct,
+                int(out.hit_tp),
+                int(out.hit_sl),
+                out.holding_time_h,
+                out.market_event,
+                out.notes,
+                out.recorded_at,
+            ),
         )
 
     def _save_score(self, conn, decision_id: str, score: DecisionScore) -> None:
@@ -264,8 +308,13 @@ class MemoryDatabase:
             """INSERT OR REPLACE INTO decision_scores
                (decision_id, overall, grade, sub_scores, notes)
                VALUES (?,?,?,?,?)""",
-            (decision_id, score.overall, score.grade.value,
-             json.dumps(score.sub_scores), json.dumps(score.notes)),
+            (
+                decision_id,
+                score.overall,
+                score.grade.value,
+                json.dumps(score.sub_scores),
+                json.dumps(score.notes),
+            ),
         )
 
     def _save_counterfactual(self, conn, decision_id: str, cf: CounterfactualResult) -> None:
@@ -274,30 +323,39 @@ class MemoryDatabase:
                (decision_id, scenario, alternative_action, estimated_pnl,
                 estimated_pnl_pct, probability, better_than_actual, delta_pnl, notes)
                VALUES (?,?,?,?,?,?,?,?,?)""",
-            (decision_id, cf.scenario, cf.alternative_action,
-             cf.estimated_pnl, cf.estimated_pnl_pct, cf.probability,
-             int(cf.better_than_actual), cf.delta_pnl, cf.notes),
+            (
+                decision_id,
+                cf.scenario,
+                cf.alternative_action,
+                cf.estimated_pnl,
+                cf.estimated_pnl_pct,
+                cf.probability,
+                int(cf.better_than_actual),
+                cf.delta_pnl,
+                cf.notes,
+            ),
         )
 
     # ── Query ─────────────────────────────────────────────────────────────────
 
     def load_decisions(
         self,
-        instrument:    Optional[str] = None,
+        instrument: Optional[str] = None,
         decision_type: Optional[str] = None,
-        limit:         int           = 1000,
+        limit: int = 1000,
     ) -> List[Dict]:
         clauses = []
         params: List[Any] = []
         if instrument:
-            clauses.append("instrument = ?"); params.append(instrument)
+            clauses.append("instrument = ?")
+            params.append(instrument)
         if decision_type:
-            clauses.append("decision_type = ?"); params.append(decision_type)
+            clauses.append("decision_type = ?")
+            params.append(decision_type)
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
         with self._conn() as conn:
             rows = conn.execute(
-                f"SELECT * FROM decision_memory {where} "
-                f"ORDER BY timestamp DESC LIMIT ?",
+                f"SELECT * FROM decision_memory {where} " f"ORDER BY timestamp DESC LIMIT ?",
                 (*params, limit),
             ).fetchall()
         return [dict(r) for r in rows]
@@ -325,8 +383,8 @@ class MemoryDatabase:
 
     def stats(self) -> Dict:
         return {
-            "decisions":       self.count_decisions(),
-            "outcomes":        self.count_outcomes(),
-            "scores":          self.count_scores(),
+            "decisions": self.count_decisions(),
+            "outcomes": self.count_outcomes(),
+            "scores": self.count_scores(),
             "counterfactuals": self.count_counterfactuals(),
         }

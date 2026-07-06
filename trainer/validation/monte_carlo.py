@@ -27,7 +27,6 @@ import numpy as np
 
 from trainer.validation.trading import TradeResult, TradingMetrics, TradingMetricsEngine
 
-
 # ---------------------------------------------------------------------------
 # Monte Carlo result
 # ---------------------------------------------------------------------------
@@ -211,8 +210,7 @@ class MonteCarloValidator:
             # Sharpe
             returns = np.diff(equity) / np.where(equity[:-1] > 0, equity[:-1], 1.0)
             sharpes[sim] = (
-                float(returns.mean()) * np.sqrt(self._ann) /
-                (float(returns.std()) + 1e-9)
+                float(returns.mean()) * np.sqrt(self._ann) / (float(returns.std()) + 1e-9)
             )
 
             final_equities[sim] = float(equity[-1])

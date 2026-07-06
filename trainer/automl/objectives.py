@@ -29,7 +29,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Objective definition
 # ---------------------------------------------------------------------------
@@ -83,17 +82,23 @@ class Objective:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "name": self.name, "direction": self.direction,
-            "weight": self.weight, "clip_min": self.clip_min,
-            "clip_max": self.clip_max, "label": self.label,
+            "name": self.name,
+            "direction": self.direction,
+            "weight": self.weight,
+            "clip_min": self.clip_min,
+            "clip_max": self.clip_max,
+            "label": self.label,
         }
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "Objective":
         return Objective(
-            name=d["name"], direction=d.get("direction", "maximize"),
-            weight=d.get("weight", 1.0), clip_min=d.get("clip_min"),
-            clip_max=d.get("clip_max"), label=d.get("label", ""),
+            name=d["name"],
+            direction=d.get("direction", "maximize"),
+            weight=d.get("weight", 1.0),
+            clip_min=d.get("clip_min"),
+            clip_max=d.get("clip_max"),
+            label=d.get("label", ""),
         )
 
 
@@ -107,14 +112,18 @@ STANDARD_OBJECTIVES: Dict[str, Objective] = {
     "sharpe_ratio": Objective("sharpe_ratio", "maximize", clip_min=-3.0, clip_max=5.0),
     "sortino_ratio": Objective("sortino_ratio", "maximize", clip_min=-3.0, clip_max=5.0),
     "max_drawdown": Objective("max_drawdown", "minimize", clip_min=0.0, clip_max=1.0),
-    "expected_calibration_error": Objective("expected_calibration_error", "minimize", clip_min=0.0, clip_max=1.0),
+    "expected_calibration_error": Objective(
+        "expected_calibration_error", "minimize", clip_min=0.0, clip_max=1.0
+    ),
     "validation_score": Objective("validation_score", "maximize", clip_min=0.0, clip_max=1.0),
     "latency_ms": Objective("latency_ms", "minimize", clip_min=0.0),
     "memory_mb": Objective("memory_mb", "minimize", clip_min=0.0),
     "win_rate": Objective("win_rate", "maximize", clip_min=0.0, clip_max=1.0),
     "accuracy": Objective("accuracy", "maximize", clip_min=0.0, clip_max=1.0),
     "f1_score": Objective("f1_score", "maximize", clip_min=0.0, clip_max=1.0),
-    "composite_research_score": Objective("composite_research_score", "maximize", clip_min=0.0, clip_max=1.0),
+    "composite_research_score": Objective(
+        "composite_research_score", "maximize", clip_min=0.0, clip_max=1.0
+    ),
     "calmar_ratio": Objective("calmar_ratio", "maximize", clip_min=-5.0, clip_max=10.0),
     "omega_ratio": Objective("omega_ratio", "maximize", clip_min=0.0, clip_max=5.0),
 }
@@ -123,7 +132,9 @@ STANDARD_OBJECTIVES: Dict[str, Objective] = {
 def get_objective(name: str) -> Objective:
     """Return a standard objective by name."""
     if name not in STANDARD_OBJECTIVES:
-        raise KeyError(f"Unknown standard objective: {name!r}. Available: {list(STANDARD_OBJECTIVES)}")
+        raise KeyError(
+            f"Unknown standard objective: {name!r}. Available: {list(STANDARD_OBJECTIVES)}"
+        )
     return STANDARD_OBJECTIVES[name]
 
 
@@ -162,16 +173,18 @@ class ObjectiveScorer:
         except (TypeError, ValueError):
             return None
 
-    def score_single(self, metrics: Dict[str, Any], obj: Objective,
-                     low: float = 0.0, high: float = 1.0) -> float:
+    def score_single(
+        self, metrics: Dict[str, Any], obj: Objective, low: float = 0.0, high: float = 1.0
+    ) -> float:
         """Return normalized [0, 1] score for a single objective."""
         val = self.extract(metrics, obj)
         if val is None:
             return 0.0
         return obj.normalize(val, low, high)
 
-    def composite_score(self, metrics: Dict[str, Any],
-                        reference_sets: Optional[List[Dict[str, Any]]] = None) -> float:
+    def composite_score(
+        self, metrics: Dict[str, Any], reference_sets: Optional[List[Dict[str, Any]]] = None
+    ) -> float:
         """Return weighted composite score in [0, 1].
 
         If reference_sets is provided, normalization bounds are derived from
@@ -197,10 +210,7 @@ class ObjectiveScorer:
 
     def per_objective_scores(self, metrics: Dict[str, Any]) -> Dict[str, float]:
         """Return dict of {objective_name: raw_value} for all objectives."""
-        return {
-            obj.name: self.extract(metrics, obj) or 0.0
-            for obj in self.objectives
-        }
+        return {obj.name: self.extract(metrics, obj) or 0.0 for obj in self.objectives}
 
     def dominates(self, a: Dict[str, Any], b: Dict[str, Any]) -> bool:
         """Return True if solution A dominates B in Pareto sense."""
@@ -227,14 +237,14 @@ class ObjectiveScorer:
                     break
         return [i for i in range(n) if not dominated[i]]
 
-    def rank(self, metrics_list: List[Dict[str, Any]],
-             reference_sets: Optional[List[Dict[str, Any]]] = None) -> List[Tuple[int, float]]:
+    def rank(
+        self,
+        metrics_list: List[Dict[str, Any]],
+        reference_sets: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[Tuple[int, float]]:
         """Return sorted list of (original_index, composite_score) desc."""
         ref = reference_sets or metrics_list
-        scored = [
-            (i, self.composite_score(m, ref))
-            for i, m in enumerate(metrics_list)
-        ]
+        scored = [(i, self.composite_score(m, ref)) for i, m in enumerate(metrics_list)]
         return sorted(scored, key=lambda x: x[1], reverse=True)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -258,6 +268,7 @@ def compute_composite_research_score(metrics: Dict[str, Any]) -> float:
 
     Returns a value in [0, 1].
     """
+
     def safe(key: str, default: float = 0.0) -> float:
         val = metrics.get(key, default)
         try:
@@ -271,22 +282,20 @@ def compute_composite_research_score(metrics: Dict[str, Any]) -> float:
     drawdown = 1.0 - min(max(safe("max_drawdown", 0.0), 0.0), 1.0)
     ece = 1.0 - min(max(safe("expected_calibration_error", 0.1), 0.0), 1.0)
 
-    composite = (
-        0.25 * val_score +
-        0.20 * sharpe +
-        0.20 * pf +
-        0.20 * drawdown +
-        0.15 * ece
-    )
+    composite = 0.25 * val_score + 0.20 * sharpe + 0.20 * pf + 0.20 * drawdown + 0.15 * ece
     return round(composite, 6)
 
 
 def build_research_scorer() -> ObjectiveScorer:
     """Return the default multi-objective scorer for research experiments."""
-    return ObjectiveScorer([
-        Objective("composite_research_score", "maximize", weight=0.25),
-        Objective("sharpe_ratio", "maximize", weight=0.20, clip_min=-2.0, clip_max=5.0),
-        Objective("profit_factor", "maximize", weight=0.20, clip_min=0.5, clip_max=5.0),
-        Objective("max_drawdown", "minimize", weight=0.20, clip_min=0.0, clip_max=0.5),
-        Objective("expected_calibration_error", "minimize", weight=0.15, clip_min=0.0, clip_max=0.5),
-    ])
+    return ObjectiveScorer(
+        [
+            Objective("composite_research_score", "maximize", weight=0.25),
+            Objective("sharpe_ratio", "maximize", weight=0.20, clip_min=-2.0, clip_max=5.0),
+            Objective("profit_factor", "maximize", weight=0.20, clip_min=0.5, clip_max=5.0),
+            Objective("max_drawdown", "minimize", weight=0.20, clip_min=0.0, clip_max=0.5),
+            Objective(
+                "expected_calibration_error", "minimize", weight=0.15, clip_min=0.0, clip_max=0.5
+            ),
+        ]
+    )

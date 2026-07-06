@@ -63,7 +63,7 @@ class MetricsEngine(BaseMetrics):
         if not self._logits:
             return {}
 
-        all_logits = torch.cat(self._logits, dim=0)   # (N, C)
+        all_logits = torch.cat(self._logits, dim=0)  # (N, C)
         all_targets = torch.cat(self._targets, dim=0)  # (N,)
         n = all_targets.size(0)
 

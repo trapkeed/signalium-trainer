@@ -40,8 +40,12 @@ class BenchmarkConditions:
     window_length: int = 60
     eval_metrics: list[str] = field(
         default_factory=lambda: [
-            "loss", "accuracy", "precision_macro", "recall_macro",
-            "f1_macro", "f1_weighted",
+            "loss",
+            "accuracy",
+            "precision_macro",
+            "recall_macro",
+            "f1_macro",
+            "f1_weighted",
         ]
     )
     device: str = "cpu"

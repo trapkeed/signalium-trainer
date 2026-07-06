@@ -34,7 +34,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # GradeThreshold
 # ---------------------------------------------------------------------------
@@ -68,28 +67,46 @@ class GradeThreshold:
 # ---------------------------------------------------------------------------
 
 _INSTITUTIONAL_GRADES = [
-    GradeThreshold("Institutional Elite", 95.0, 100.0,
-                   "Highest institutional standard. Full capital allocation eligible.", "gold", 0),
-    GradeThreshold("Institutional",       90.0, 94.999,
-                   "Institutional grade. Production deployment eligible.", "green", 1),
-    GradeThreshold("Production Ready",    85.0, 89.999,
-                   "Production ready. Limited deployment with monitoring.", "blue", 2),
-    GradeThreshold("Candidate",           80.0, 84.999,
-                   "Strong candidate. Additional validation required.", "cyan", 3),
-    GradeThreshold("Experimental",        70.0, 79.999,
-                   "Experimental. Not production ready.", "yellow", 4),
-    GradeThreshold("Research Only",        0.0, 69.999,
-                   "Research phase only.", "red", 5),
-    GradeThreshold("Retired",             -1.0, -0.001,
-                   "Retired or invalidated.", "gray", 6),
+    GradeThreshold(
+        "Institutional Elite",
+        95.0,
+        100.0,
+        "Highest institutional standard. Full capital allocation eligible.",
+        "gold",
+        0,
+    ),
+    GradeThreshold(
+        "Institutional",
+        90.0,
+        94.999,
+        "Institutional grade. Production deployment eligible.",
+        "green",
+        1,
+    ),
+    GradeThreshold(
+        "Production Ready",
+        85.0,
+        89.999,
+        "Production ready. Limited deployment with monitoring.",
+        "blue",
+        2,
+    ),
+    GradeThreshold(
+        "Candidate", 80.0, 84.999, "Strong candidate. Additional validation required.", "cyan", 3
+    ),
+    GradeThreshold(
+        "Experimental", 70.0, 79.999, "Experimental. Not production ready.", "yellow", 4
+    ),
+    GradeThreshold("Research Only", 0.0, 69.999, "Research phase only.", "red", 5),
+    GradeThreshold("Retired", -1.0, -0.001, "Retired or invalidated.", "gray", 6),
 ]
 
 _RESEARCH_GRADES = [
-    GradeThreshold("Exceptional Research",  90.0, 100.0, "Exceptional methodology.", "gold", 0),
+    GradeThreshold("Exceptional Research", 90.0, 100.0, "Exceptional methodology.", "gold", 0),
     GradeThreshold("High Quality Research", 80.0, 89.999, "High quality research.", "green", 1),
-    GradeThreshold("Standard Research",     65.0, 79.999, "Meets research standards.", "blue", 2),
-    GradeThreshold("Preliminary Research",  50.0, 64.999, "Preliminary findings.", "yellow", 3),
-    GradeThreshold("Insufficient Research",  0.0, 49.999, "Insufficient methodology.", "red", 4),
+    GradeThreshold("Standard Research", 65.0, 79.999, "Meets research standards.", "blue", 2),
+    GradeThreshold("Preliminary Research", 50.0, 64.999, "Preliminary findings.", "yellow", 3),
+    GradeThreshold("Insufficient Research", 0.0, 49.999, "Insufficient methodology.", "red", 4),
 ]
 
 
@@ -97,24 +114,25 @@ _RESEARCH_GRADES = [
 # Specialised grade labels
 # ---------------------------------------------------------------------------
 
+
 class PromotionRecommendation:
-    GO     = "GO"
+    GO = "GO"
     REVIEW = "REVIEW"
-    HOLD   = "HOLD"
-    NO     = "NO"
+    HOLD = "HOLD"
+    NO = "NO"
 
 
 class RiskRating:
-    LOW       = "LOW"
-    MEDIUM    = "MEDIUM"
-    HIGH      = "HIGH"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
     VERY_HIGH = "VERY_HIGH"
 
 
 class FuturePotential:
-    STRONG    = "STRONG"
-    MODERATE  = "MODERATE"
-    LIMITED   = "LIMITED"
+    STRONG = "STRONG"
+    MODERATE = "MODERATE"
+    LIMITED = "LIMITED"
     DECLINING = "DECLINING"
 
 
@@ -166,12 +184,10 @@ class HRSAGradeEngine:
         research_grades: Optional[List[GradeThreshold]] = None,
     ) -> None:
         self._inst = sorted(
-            institutional_grades or _INSTITUTIONAL_GRADES,
-            key=lambda g: g.min_score, reverse=True
+            institutional_grades or _INSTITUTIONAL_GRADES, key=lambda g: g.min_score, reverse=True
         )
         self._res = sorted(
-            research_grades or _RESEARCH_GRADES,
-            key=lambda g: g.min_score, reverse=True
+            research_grades or _RESEARCH_GRADES, key=lambda g: g.min_score, reverse=True
         )
         self._custom_grades: List[GradeThreshold] = []
 
@@ -188,10 +204,16 @@ class HRSAGradeEngine:
         color: str = "gray",
     ) -> None:
         """Add a custom grade threshold to the institutional grade system."""
-        self._inst.append(GradeThreshold(
-            name, min_score, max_score, description, color,
-            rank=len(self._inst),
-        ))
+        self._inst.append(
+            GradeThreshold(
+                name,
+                min_score,
+                max_score,
+                description,
+                color,
+                rank=len(self._inst),
+            )
+        )
         self._inst.sort(key=lambda g: g.min_score, reverse=True)
         self._custom_grades.append(self._inst[0])
 
@@ -207,9 +229,7 @@ class HRSAGradeEngine:
                 return g
         return self._inst[-1]
 
-    def assign_research(
-        self, score: float, confidence: float = 1.0
-    ) -> GradeThreshold:
+    def assign_research(self, score: float, confidence: float = 1.0) -> GradeThreshold:
         """Research grade adjusts the score by confidence."""
         adjusted = score * (0.70 + 0.30 * confidence)
         for g in self._res:
@@ -228,10 +248,9 @@ class HRSAGradeEngine:
             # Check for critical weaknesses
             if category_scores:
                 weaknesses = [
-                    cat for cat, s in category_scores.items()
-                    if s < 50.0 and cat in (
-                        "trading_performance", "robustness", "risk_management"
-                    )
+                    cat
+                    for cat, s in category_scores.items()
+                    if s < 50.0 and cat in ("trading_performance", "robustness", "risk_management")
                 ]
                 if weaknesses:
                     return PromotionRecommendation.REVIEW
@@ -242,17 +261,13 @@ class HRSAGradeEngine:
             return PromotionRecommendation.HOLD
         return PromotionRecommendation.NO
 
-    def assign_risk(
-        self, category_scores: Optional[Dict[str, float]] = None
-    ) -> str:
+    def assign_risk(self, category_scores: Optional[Dict[str, float]] = None) -> str:
         """Compute risk rating from risk-sensitive category scores."""
         if not category_scores:
             return RiskRating.MEDIUM
         risk_cats = ["robustness", "risk_management", "model_stability", "calibration"]
         risk_scores = [
-            category_scores.get(cat, 50.0)
-            for cat in risk_cats
-            if cat in category_scores
+            category_scores.get(cat, 50.0) for cat in risk_cats if cat in category_scores
         ]
         if not risk_scores:
             return RiskRating.MEDIUM
@@ -292,9 +307,9 @@ class HRSAGradeEngine:
         trend_slope: float = 0.0,
     ) -> GradeAssessment:
         inst = self.assign_institutional(composite)
-        res  = self.assign_research(composite, confidence)
+        res = self.assign_research(composite, confidence)
         promo = self.assign_promotion(composite, inst, category_scores)
-        risk  = self.assign_risk(category_scores)
+        risk = self.assign_risk(category_scores)
         future = self.assign_future_potential(trend_slope, composite, confidence)
 
         return GradeAssessment(

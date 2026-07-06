@@ -18,6 +18,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import (
@@ -26,7 +27,6 @@ from trainer.microstructure.micro_models import (
     MarketStateRecord,
     MicrostructureScore,
 )
-
 
 _CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS microstructure_features (
@@ -160,9 +160,15 @@ class MicrostructureDatabase:
                    (bar_id, timestamp, instrument, timeframe, granularity,
                     features_json, created_at)
                    VALUES (?,?,?,?,?,?,?)""",
-                (features.bar_id, features.timestamp, features.instrument,
-                 features.timeframe, features.granularity,
-                 json.dumps(features.to_dict()), time.time()),
+                (
+                    features.bar_id,
+                    features.timestamp,
+                    features.instrument,
+                    features.timeframe,
+                    features.granularity,
+                    json.dumps(features.to_dict()),
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
@@ -172,16 +178,22 @@ class MicrostructureDatabase:
                 """INSERT INTO microstructure_embeddings
                    (timestamp, instrument, timeframe, embedding, dim, created_at)
                    VALUES (?,?,?,?,?,?)""",
-                (emb.timestamp, emb.instrument, emb.timeframe,
-                 json.dumps(emb.embedding), emb.dim, time.time()),
+                (
+                    emb.timestamp,
+                    emb.instrument,
+                    emb.timeframe,
+                    json.dumps(emb.embedding),
+                    emb.dim,
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
     def save_market_state(
         self,
         state_record: MarketStateRecord,
-        instrument:   str = "",
-        timeframe:    str = "H1",
+        instrument: str = "",
+        timeframe: str = "H1",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -190,20 +202,28 @@ class MicrostructureDatabase:
                     momentum_state, volatility_state, liquidity_state,
                     trend_strength, reasoning, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (state_record.timestamp, instrument, timeframe,
-                 state_record.state.value, state_record.confidence,
-                 state_record.momentum_state.value, state_record.volatility_state.value,
-                 state_record.liquidity_state.value, state_record.trend_strength.value,
-                 json.dumps(state_record.reasoning), time.time()),
+                (
+                    state_record.timestamp,
+                    instrument,
+                    timeframe,
+                    state_record.state.value,
+                    state_record.confidence,
+                    state_record.momentum_state.value,
+                    state_record.volatility_state.value,
+                    state_record.liquidity_state.value,
+                    state_record.trend_strength.value,
+                    json.dumps(state_record.reasoning),
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
     def save_score(
         self,
-        score:      MicrostructureScore,
-        timestamp:  float,
+        score: MicrostructureScore,
+        timestamp: float,
         instrument: str = "",
-        timeframe:  str = "H1",
+        timeframe: str = "H1",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -212,18 +232,27 @@ class MicrostructureDatabase:
                     momentum_score, efficiency_score, volatility_score,
                     compression_score, expansion_score, overall_score, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (timestamp, instrument, timeframe,
-                 score.trend_score, score.liquidity_score, score.momentum_score,
-                 score.efficiency_score, score.volatility_score,
-                 score.compression_score, score.expansion_score, score.overall_score,
-                 time.time()),
+                (
+                    timestamp,
+                    instrument,
+                    timeframe,
+                    score.trend_score,
+                    score.liquidity_score,
+                    score.momentum_score,
+                    score.efficiency_score,
+                    score.volatility_score,
+                    score.compression_score,
+                    score.expansion_score,
+                    score.overall_score,
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
     def save_liquidity(
         self,
-        features:   MicrostructureFeatures,
-        liq_state:  str = "NORMAL",
+        features: MicrostructureFeatures,
+        liq_state: str = "NORMAL",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -232,18 +261,27 @@ class MicrostructureDatabase:
                     large_candle_frequency, breakout_strength, reversal_strength,
                     liquidity_vacuum_prob, compression_zone_score, liquidity_state, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (features.timestamp, features.instrument, features.timeframe,
-                 features.spread_proxy, features.gap_frequency,
-                 features.large_candle_frequency, features.breakout_strength,
-                 features.reversal_strength, features.liquidity_vacuum_prob,
-                 features.compression_zone_score, liq_state, time.time()),
+                (
+                    features.timestamp,
+                    features.instrument,
+                    features.timeframe,
+                    features.spread_proxy,
+                    features.gap_frequency,
+                    features.large_candle_frequency,
+                    features.breakout_strength,
+                    features.reversal_strength,
+                    features.liquidity_vacuum_prob,
+                    features.compression_zone_score,
+                    liq_state,
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
     def save_momentum(
         self,
-        features:   MicrostructureFeatures,
-        mom_state:  str = "NEUTRAL",
+        features: MicrostructureFeatures,
+        mom_state: str = "NEUTRAL",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -252,10 +290,19 @@ class MicrostructureDatabase:
                     momentum_deceleration, momentum_exhaustion, directional_persistence,
                     trend_energy, impulse_decay, momentum_state, created_at)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (features.timestamp, features.instrument, features.timeframe,
-                 features.momentum_acceleration, features.momentum_deceleration,
-                 features.momentum_exhaustion, features.directional_persistence,
-                 features.trend_energy, features.impulse_decay, mom_state, time.time()),
+                (
+                    features.timestamp,
+                    features.instrument,
+                    features.timeframe,
+                    features.momentum_acceleration,
+                    features.momentum_deceleration,
+                    features.momentum_exhaustion,
+                    features.directional_persistence,
+                    features.trend_energy,
+                    features.impulse_decay,
+                    mom_state,
+                    time.time(),
+                ),
             )
             self._commit_if_memory(conn)
 
@@ -280,7 +327,7 @@ class MicrostructureDatabase:
     def recent_states(
         self,
         instrument: Optional[str] = None,
-        limit:      int           = 50,
+        limit: int = 50,
     ) -> List[Dict]:
         params: List[Any] = []
         where = ""
@@ -309,8 +356,8 @@ class MicrostructureDatabase:
 
     def stats(self) -> Dict:
         return {
-            "features":     self.count_features(),
-            "embeddings":   self.count_embeddings(),
+            "features": self.count_features(),
+            "embeddings": self.count_embeddings(),
             "market_states": self.count_market_states(),
-            "scores":       self.count_scores(),
+            "scores": self.count_scores(),
         }

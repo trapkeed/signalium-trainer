@@ -58,6 +58,7 @@ class ModelRegistry:
         Returns:
             Decorator function.
         """
+
         def decorator(model_cls: Type[BaseQuantModel]) -> Type[BaseQuantModel]:
             if name in cls._registry:
                 raise KeyError(f"Model '{name}' is already registered.")
@@ -65,6 +66,7 @@ class ModelRegistry:
             if spec is not None:
                 cls._specs[name] = spec
             return model_cls
+
         return decorator
 
     @classmethod
@@ -130,13 +132,15 @@ class ModelRegistry:
         for name in cls.list_models():
             model_cls = cls._registry[name]
             spec = cls._specs.get(name)
-            rows.append({
-                "name": name,
-                "class": model_cls.__name__,
-                "version": spec.version if spec else None,
-                "architecture": spec.architecture if spec else None,
-                "has_spec": spec is not None,
-            })
+            rows.append(
+                {
+                    "name": name,
+                    "class": model_cls.__name__,
+                    "version": spec.version if spec else None,
+                    "architecture": spec.architecture if spec else None,
+                    "has_spec": spec is not None,
+                }
+            )
         return rows
 
     @classmethod

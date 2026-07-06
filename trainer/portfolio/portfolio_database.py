@@ -150,7 +150,8 @@ class PortfolioDatabase:
                     regime, method, weights_json, metrics_json)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    rec["rec_id"], rec.get("timestamp", ""),
+                    rec["rec_id"],
+                    rec.get("timestamp", ""),
                     rec.get("instrument_count", 0),
                     rec.get("expected_return", 0.0),
                     rec.get("expected_volatility", 0.0),
@@ -191,16 +192,15 @@ class PortfolioDatabase:
 
     # ── Correlation Matrices ───────────────────────────────────────────────
 
-    def save_correlation_matrix(self, matrix_id: str, timestamp: str,
-                                  method: str, instruments: List[str],
-                                  pairs: dict) -> None:
+    def save_correlation_matrix(
+        self, matrix_id: str, timestamp: str, method: str, instruments: List[str], pairs: dict
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """INSERT OR REPLACE INTO correlation_matrices
                    (matrix_id, timestamp, method, instruments_json, pairs_json)
                    VALUES (?,?,?,?,?)""",
-                (matrix_id, timestamp, method,
-                 json.dumps(instruments), json.dumps(pairs)),
+                (matrix_id, timestamp, method, json.dumps(instruments), json.dumps(pairs)),
             )
 
     def get_correlation_matrix(self, matrix_id: str) -> Optional[dict]:
@@ -239,9 +239,12 @@ class PortfolioDatabase:
                     by_region_json, alerts_json)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    exp["exp_id"], exp.get("timestamp", ""),
-                    exp.get("gross_exposure", 0.0), exp.get("net_exposure", 0.0),
-                    exp.get("long_exposure", 0.0), exp.get("short_exposure", 0.0),
+                    exp["exp_id"],
+                    exp.get("timestamp", ""),
+                    exp.get("gross_exposure", 0.0),
+                    exp.get("net_exposure", 0.0),
+                    exp.get("long_exposure", 0.0),
+                    exp.get("short_exposure", 0.0),
                     exp.get("diversification_ratio", 0.0),
                     exp.get("alert_count", 0),
                     json.dumps(exp.get("by_asset_class", {})),
@@ -278,8 +281,10 @@ class PortfolioDatabase:
                     iterations, converged, weights_json, metrics_json)
                    VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (
-                    opt["opt_id"], opt.get("timestamp", ""),
-                    opt.get("objective", ""), opt.get("expected_sharpe", 0.0),
+                    opt["opt_id"],
+                    opt.get("timestamp", ""),
+                    opt.get("objective", ""),
+                    opt.get("expected_sharpe", 0.0),
                     opt.get("expected_return", 0.0),
                     opt.get("expected_volatility", 0.0),
                     opt.get("diversification_score", 0.0),
@@ -290,8 +295,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def optimization_history(self, objective: Optional[str] = None,
-                               limit: int = 20) -> List[dict]:
+    def optimization_history(self, objective: Optional[str] = None, limit: int = 20) -> List[dict]:
         with self._conn() as conn:
             if objective:
                 rows = conn.execute(
@@ -322,16 +326,19 @@ class PortfolioDatabase:
                     resilience_score, instrument_impacts_json)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
-                    sc["scenario_id"], sc.get("timestamp", ""),
-                    sc.get("scenario_type", ""), sc.get("base_sharpe", 0.0),
-                    sc.get("stressed_sharpe", 0.0), sc.get("return_impact", 0.0),
-                    sc.get("volatility_impact", 0.0), sc.get("resilience_score", 0.0),
+                    sc["scenario_id"],
+                    sc.get("timestamp", ""),
+                    sc.get("scenario_type", ""),
+                    sc.get("base_sharpe", 0.0),
+                    sc.get("stressed_sharpe", 0.0),
+                    sc.get("return_impact", 0.0),
+                    sc.get("volatility_impact", 0.0),
+                    sc.get("resilience_score", 0.0),
                     json.dumps(sc.get("instrument_impacts", {})),
                 ),
             )
 
-    def scenario_history(self, scenario_type: Optional[str] = None,
-                          limit: int = 20) -> List[dict]:
+    def scenario_history(self, scenario_type: Optional[str] = None, limit: int = 20) -> List[dict]:
         with self._conn() as conn:
             if scenario_type:
                 rows = conn.execute(
@@ -360,8 +367,10 @@ class PortfolioDatabase:
                     expected_return, expected_sharpe, budget_feasible, weights_json)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
-                    alloc["alloc_id"], alloc.get("timestamp", ""),
-                    alloc.get("method", ""), alloc.get("regime", ""),
+                    alloc["alloc_id"],
+                    alloc.get("timestamp", ""),
+                    alloc.get("method", ""),
+                    alloc.get("regime", ""),
                     alloc.get("instrument_count", 0),
                     alloc.get("expected_return", 0.0),
                     alloc.get("expected_sharpe", 0.0),
@@ -387,10 +396,10 @@ class PortfolioDatabase:
 
     def stats(self) -> dict:
         with self._conn() as conn:
-            recs  = conn.execute("SELECT COUNT(*) FROM portfolio_recommendations").fetchone()[0]
+            recs = conn.execute("SELECT COUNT(*) FROM portfolio_recommendations").fetchone()[0]
             corrs = conn.execute("SELECT COUNT(*) FROM correlation_matrices").fetchone()[0]
-            exps  = conn.execute("SELECT COUNT(*) FROM exposure_history").fetchone()[0]
-            opts  = conn.execute("SELECT COUNT(*) FROM optimization_results").fetchone()[0]
+            exps = conn.execute("SELECT COUNT(*) FROM exposure_history").fetchone()[0]
+            opts = conn.execute("SELECT COUNT(*) FROM optimization_results").fetchone()[0]
             scens = conn.execute("SELECT COUNT(*) FROM scenario_results").fetchone()[0]
             allocs = conn.execute("SELECT COUNT(*) FROM allocation_history").fetchone()[0]
             avg_sharpe = conn.execute(

@@ -54,9 +54,7 @@ class ModelEntry:
         entry.experiment_id = d.get("experiment_id", "")
         entry.metrics = d.get("metrics", {})
         raw_ts = d.get("promoted_at")
-        entry.promoted_at = (
-            datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(timezone.utc)
-        )
+        entry.promoted_at = datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(timezone.utc)
         entry.notes = d.get("notes", "")
         return entry
 
@@ -159,9 +157,7 @@ class ChampionRegistry:
         with self._lock:
             entry = self._find(model_name, model_version)
             if entry is None:
-                raise KeyError(
-                    f"Model '{model_name}' v{model_version} is not registered."
-                )
+                raise KeyError(f"Model '{model_name}' v{model_version} is not registered.")
 
             if new_status == ModelStatus.CHAMPION:
                 for other in self._entries.get(model_name, []):
@@ -198,9 +194,7 @@ class ChampionRegistry:
         with self._lock:
             entry = self._find(model_name, model_version)
             if entry is None:
-                raise KeyError(
-                    f"Model '{model_name}' v{model_version} is not registered."
-                )
+                raise KeyError(f"Model '{model_name}' v{model_version} is not registered.")
             entry.status = ModelStatus.RETIRED
             entry.promoted_at = datetime.now(timezone.utc)
             entry.notes = notes
@@ -223,10 +217,7 @@ class ChampionRegistry:
 
     def get_challengers(self, model_name: str) -> list[ModelEntry]:
         """Return all CHALLENGER entries for a model name."""
-        return [
-            e for e in self._entries.get(model_name, [])
-            if e.status == ModelStatus.CHALLENGER
-        ]
+        return [e for e in self._entries.get(model_name, []) if e.status == ModelStatus.CHALLENGER]
 
     def list_all(self, model_name: Optional[str] = None) -> list[ModelEntry]:
         """Return all entries, optionally filtered by model name.
@@ -270,10 +261,7 @@ class ChampionRegistry:
     def _flush(self) -> None:
         """Persist to JSON (call with lock held)."""
         self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            name: [e.to_dict() for e in entries]
-            for name, entries in self._entries.items()
-        }
+        data = {name: [e.to_dict() for e in entries] for name, entries in self._entries.items()}
         self._store_path.write_text(json.dumps(data, indent=2, default=str))
 
     def _load(self) -> None:
@@ -283,8 +271,7 @@ class ChampionRegistry:
         try:
             data = json.loads(self._store_path.read_text())
             self._entries = {
-                name: [ModelEntry.from_dict(e) for e in entries]
-                for name, entries in data.items()
+                name: [ModelEntry.from_dict(e) for e in entries] for name, entries in data.items()
             }
         except Exception:
             self._entries = {}

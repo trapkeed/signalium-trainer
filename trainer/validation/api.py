@@ -30,20 +30,28 @@ from typing import Any, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # API response wrapper
 # ---------------------------------------------------------------------------
 
 
 def _ok(data: Any, message: str = "") -> dict[str, Any]:
-    return {"status": "ok", "message": message, "data": data,
-            "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "message": message,
+        "data": data,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def _error(message: str, code: str = "ERROR") -> dict[str, Any]:
-    return {"status": "error", "code": code, "message": message,
-            "data": None, "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "error",
+        "code": code,
+        "message": message,
+        "data": None,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -87,21 +95,23 @@ class ValidationAPI:
             record = self._db.get_run(run_id)
             if not record:
                 return _error(f"Run {run_id!r} not found.", code="NOT_FOUND")
-            return _ok({
-                "run_id": record.run_id,
-                "model_id": record.model_id,
-                "model_version": record.model_version,
-                "run_timestamp": record.run_timestamp,
-                "status": record.status,
-                "statistical_metrics": record.statistical_metrics,
-                "trading_metrics": record.trading_metrics,
-                "calibration": record.calibration,
-                "drift": record.drift,
-                "monte_carlo": record.monte_carlo,
-                "robustness": record.robustness,
-                "promotion_decision": record.promotion_decision,
-                "leaderboard_score": record.leaderboard_score,
-            })
+            return _ok(
+                {
+                    "run_id": record.run_id,
+                    "model_id": record.model_id,
+                    "model_version": record.model_version,
+                    "run_timestamp": record.run_timestamp,
+                    "status": record.status,
+                    "statistical_metrics": record.statistical_metrics,
+                    "trading_metrics": record.trading_metrics,
+                    "calibration": record.calibration,
+                    "drift": record.drift,
+                    "monte_carlo": record.monte_carlo,
+                    "robustness": record.robustness,
+                    "promotion_decision": record.promotion_decision,
+                    "leaderboard_score": record.leaderboard_score,
+                }
+            )
         except Exception as exc:
             return _error(str(exc))
 
@@ -118,22 +128,24 @@ class ValidationAPI:
                 model_id=model_id, status=status, limit=limit, offset=offset
             )
             total = self._db.count_runs(model_id)
-            return _ok({
-                "runs": [
-                    {
-                        "run_id": r.run_id,
-                        "model_id": r.model_id,
-                        "model_version": r.model_version,
-                        "run_timestamp": r.run_timestamp,
-                        "status": r.status,
-                        "leaderboard_score": r.leaderboard_score,
-                    }
-                    for r in records
-                ],
-                "total": total,
-                "limit": limit,
-                "offset": offset,
-            })
+            return _ok(
+                {
+                    "runs": [
+                        {
+                            "run_id": r.run_id,
+                            "model_id": r.model_id,
+                            "model_version": r.model_version,
+                            "run_timestamp": r.run_timestamp,
+                            "status": r.status,
+                            "leaderboard_score": r.leaderboard_score,
+                        }
+                        for r in records
+                    ],
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                }
+            )
         except Exception as exc:
             return _error(str(exc))
 
@@ -169,12 +181,14 @@ class ValidationAPI:
                 key=lambda e: float(getattr(e, sort_by, 0.0)),
                 reverse=True,
             )
-            return _ok({
-                "entries": [e.to_dict() for e in entries[:limit]],
-                "total": len(entries),
-                "sort_by": sort_by,
-                "champion": self._lb.champion().to_dict() if self._lb.champion() else None,
-            })
+            return _ok(
+                {
+                    "entries": [e.to_dict() for e in entries[:limit]],
+                    "total": len(entries),
+                    "sort_by": sort_by,
+                    "champion": self._lb.champion().to_dict() if self._lb.champion() else None,
+                }
+            )
         except Exception as exc:
             return _error(str(exc))
 
@@ -188,9 +202,7 @@ class ValidationAPI:
 
     # ── Model Comparison ──────────────────────────────────────────────────
 
-    def compare_models(
-        self, model_id_a: str, model_id_b: str
-    ) -> dict[str, Any]:
+    def compare_models(self, model_id_a: str, model_id_b: str) -> dict[str, Any]:
         """Compare two models from the leaderboard.
 
         Args:
@@ -220,11 +232,13 @@ class ValidationAPI:
             record = self._db.get_run(run_id)
             if not record:
                 return _error(f"Run {run_id!r} not found.", code="NOT_FOUND")
-            return _ok({
-                "run_id": run_id,
-                "model_id": record.model_id,
-                "promotion_decision": record.promotion_decision,
-            })
+            return _ok(
+                {
+                    "run_id": run_id,
+                    "model_id": record.model_id,
+                    "promotion_decision": record.promotion_decision,
+                }
+            )
         except Exception as exc:
             return _error(str(exc))
 
@@ -261,18 +275,21 @@ class ValidationAPI:
             self._db.update_status(run_id, "completed")
 
             # Update leaderboard
-            self._lb.update(record.model_id, {
-                "promotion_status": "champion",
-                "is_champion": True,
-            })
-            logger.info(f"ValidationAPI: model {record.model_id!r} approved for promotion by {approver!r}")
+            self._lb.update(
+                record.model_id,
+                {
+                    "promotion_status": "champion",
+                    "is_champion": True,
+                },
+            )
+            logger.info(
+                f"ValidationAPI: model {record.model_id!r} approved for promotion by {approver!r}"
+            )
             return _ok({"run_id": run_id, "model_id": record.model_id, "approved": True})
         except Exception as exc:
             return _error(str(exc))
 
-    def retire_model(
-        self, model_id: str, reason: str = ""
-    ) -> dict[str, Any]:
+    def retire_model(self, model_id: str, reason: str = "") -> dict[str, Any]:
         """Retire a model from the leaderboard.
 
         Args:
@@ -283,12 +300,15 @@ class ValidationAPI:
             API response confirming retirement.
         """
         try:
-            self._lb.update(model_id, {
-                "promotion_status": "retired",
-                "is_retired": True,
-                "is_champion": False,
-                "notes": reason,
-            })
+            self._lb.update(
+                model_id,
+                {
+                    "promotion_status": "retired",
+                    "is_retired": True,
+                    "is_champion": False,
+                    "notes": reason,
+                },
+            )
             logger.info(f"ValidationAPI: model {model_id!r} retired. Reason: {reason}")
             return _ok({"model_id": model_id, "status": "retired"})
         except Exception as exc:
@@ -313,15 +333,16 @@ class ValidationAPI:
             if not record:
                 return _error(f"Run {run_id!r} not found.", code="NOT_FOUND")
             robustness = record.robustness
-            return _ok({
-                "run_id": run_id,
-                "model_id": record.model_id,
-                "robustness_score": robustness.get("overall_robustness_score", 0.0),
-                "failed_scenarios": [
-                    s for s in robustness.get("scenarios", [])
-                    if not s.get("passed", True)
-                ],
-            })
+            return _ok(
+                {
+                    "run_id": run_id,
+                    "model_id": record.model_id,
+                    "robustness_score": robustness.get("overall_robustness_score", 0.0),
+                    "failed_scenarios": [
+                        s for s in robustness.get("scenarios", []) if not s.get("passed", True)
+                    ],
+                }
+            )
         except Exception as exc:
             return _error(str(exc))
 
@@ -332,11 +353,13 @@ class ValidationAPI:
             if not record:
                 return _error(f"Run {run_id!r} not found.", code="NOT_FOUND")
             viz = record.visualization_data
-            return _ok({
-                "run_id": run_id,
-                "walk_forward_timeline": viz.get("walk_forward_timeline"),
-                "performance_trend": viz.get("performance_trend"),
-                "n_folds": record.model_metadata.get("n_validation_folds", 0),
-            })
+            return _ok(
+                {
+                    "run_id": run_id,
+                    "walk_forward_timeline": viz.get("walk_forward_timeline"),
+                    "performance_trend": viz.get("performance_trend"),
+                    "n_folds": record.model_metadata.get("n_validation_folds", 0),
+                }
+            )
         except Exception as exc:
             return _error(str(exc))

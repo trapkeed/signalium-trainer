@@ -19,7 +19,6 @@ from typing import Any, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # FeatureImportanceChartData
 # ---------------------------------------------------------------------------
@@ -157,10 +156,7 @@ class AttentionMapChartData:
         mean = attn_map.mean_attention()  # (batch, seq, seq) — take sample 0
         mat = mean[0].cpu().tolist()
         seq_len = len(mat)
-        labels = [
-            f"t-{seq_len - 1 - i}" if i < seq_len - 1 else "t"
-            for i in range(seq_len)
-        ]
+        labels = [f"t-{seq_len - 1 - i}" if i < seq_len - 1 else "t" for i in range(seq_len)]
         return cls(x_labels=labels, y_labels=labels, matrix=mat)
 
     def to_dict(self) -> dict[str, Any]:
@@ -254,10 +250,7 @@ class AttentionMapVisualizer:
             Multi-line ASCII string suitable for printing or logging.
         """
         if attn_map.is_empty:
-            return (
-                "[No attention map available — "
-                "model uses a non-Transformer backbone]"
-            )
+            return "[No attention map available — " "model uses a non-Transformer backbone]"
 
         try:
             import torch.nn.functional as F
@@ -267,11 +260,15 @@ class AttentionMapVisualizer:
             seq_len = int(mean.shape[0])
 
             grid = mean.unsqueeze(0).unsqueeze(0).float()  # (1, 1, S, S)
-            resized = F.interpolate(
-                grid,
-                size=(self._height, self._width),
-                mode="nearest",
-            ).squeeze().cpu()
+            resized = (
+                F.interpolate(
+                    grid,
+                    size=(self._height, self._width),
+                    mode="nearest",
+                )
+                .squeeze()
+                .cpu()
+            )
 
             lo = float(resized.min().item())
             hi = float(resized.max().item())
@@ -284,10 +281,7 @@ class AttentionMapVisualizer:
             )
             lines = [header, "+" + "-" * self._width + "+"]
             for row in resized.tolist():
-                chars = "".join(
-                    self._SHADES[min(4, int((v - lo) / rng * 5))]
-                    for v in row
-                )
+                chars = "".join(self._SHADES[min(4, int((v - lo) / rng * 5))] for v in row)
                 lines.append("|" + chars + "|")
             lines.append("+" + "-" * self._width + "+")
             lines.append("  darker = higher attention weight")

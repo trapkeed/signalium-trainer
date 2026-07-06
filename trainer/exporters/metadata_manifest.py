@@ -112,6 +112,7 @@ class MetadataManifestBuilder(ManifestBuilder):
         cfg = self._trace_config
         try:
             from trainer.traceability.context import _git_commit, _pytorch_version, _python_version
+
             git_hash = _git_commit(short=True)
             pytorch_ver = _pytorch_version()
             python_ver = _python_version()

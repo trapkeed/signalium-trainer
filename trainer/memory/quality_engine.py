@@ -11,6 +11,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_types import (
@@ -36,8 +37,8 @@ class QualityEngine:
         notes: List[str] = []
 
         snap = record.snapshot
-        out  = record.outcome
-        rea  = record.reasoning
+        out = record.outcome
+        rea = record.reasoning
 
         # 1. Forecast Accuracy
         if out is not None:
@@ -83,8 +84,8 @@ class QualityEngine:
         # 6. Calibration — P(TP) vs actual TP hit
         if out is not None:
             actual_tp = 1.0 if out.hit_tp else 0.0
-            cal_err   = abs(snap.tp_probability - actual_tp)
-            cal       = _clamp(1.0 - cal_err)
+            cal_err = abs(snap.tp_probability - actual_tp)
+            cal = _clamp(1.0 - cal_err)
         else:
             cal = snap.tp_probability  # default to forecast confidence
         sub[QualityFactor.CALIBRATION.value] = _clamp(cal)
@@ -95,7 +96,7 @@ class QualityEngine:
             if out.outcome_type in POSITIVE_OUTCOMES and conf > 0.65:
                 cr = min(1.0, conf + 0.10)
             elif out.outcome_type in NEGATIVE_OUTCOMES and conf > 0.75:
-                cr = max(0.0, 1.0 - conf)   # overconfident in a loser
+                cr = max(0.0, 1.0 - conf)  # overconfident in a loser
                 notes.append("High confidence on a losing decision")
             else:
                 cr = conf
@@ -108,15 +109,17 @@ class QualityEngine:
             ev_ratio = (snap.tp_probability * snap.expected_move) / max(
                 snap.sl_probability * snap.expected_move * 0.5, 1e-9
             )
-            ev = _clamp(ev_ratio / 3.0)   # normalise: 3× RR = 1.0
+            ev = _clamp(ev_ratio / 3.0)  # normalise: 3× RR = 1.0
         else:
             ev = snap.tp_probability
         sub[QualityFactor.EXPECTED_VALUE.value] = _clamp(ev)
 
         # 9. Consistency — reasoning completeness
         reason_items = (
-            len(rea.primary_reasons) + len(rea.supporting_factors)
-            + len(rea.contradicting_factors) + (1 if rea.final_rationale else 0)
+            len(rea.primary_reasons)
+            + len(rea.supporting_factors)
+            + len(rea.contradicting_factors)
+            + (1 if rea.final_rationale else 0)
         )
         con = _clamp(min(reason_items / 8.0, 1.0))
         sub[QualityFactor.CONSISTENCY.value] = _clamp(con)
@@ -127,12 +130,9 @@ class QualityEngine:
         sub[QualityFactor.DECISION_ROBUSTNESS.value] = _clamp(rob)
 
         # Weighted overall
-        overall = sum(
-            QUALITY_WEIGHTS[QualityFactor(k)] * v
-            for k, v in sub.items()
-        )
+        overall = sum(QUALITY_WEIGHTS[QualityFactor(k)] * v for k, v in sub.items())
         overall = _clamp(overall)
-        grade   = grade_from_score(overall)
+        grade = grade_from_score(overall)
 
         logger.debug(
             f"QualityEngine [{record.decision_id[:8]}]: "
@@ -140,10 +140,10 @@ class QualityEngine:
         )
 
         return DecisionScore(
-            overall    = round(overall, 4),
-            grade      = grade,
-            sub_scores = {k: round(v, 4) for k, v in sub.items()},
-            notes      = notes,
+            overall=round(overall, 4),
+            grade=grade,
+            sub_scores={k: round(v, 4) for k, v in sub.items()},
+            notes=notes,
         )
 
     def score_and_attach(self, record: DecisionRecord) -> DecisionScore:

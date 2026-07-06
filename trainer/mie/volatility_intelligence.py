@@ -9,6 +9,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import VolatilityState, clamp
@@ -45,13 +46,13 @@ class VolatilityIntelligenceEngine:
 
     def __init__(
         self,
-        optimal_vol_low:  float = 0.5,   # ratio below baseline = too low
-        optimal_vol_high: float = 2.0,   # ratio above baseline = too high
-        extreme_ratio:    float = 4.0,
+        optimal_vol_low: float = 0.5,  # ratio below baseline = too low
+        optimal_vol_high: float = 2.0,  # ratio above baseline = too high
+        extreme_ratio: float = 4.0,
     ) -> None:
-        self._opt_low  = optimal_vol_low
+        self._opt_low = optimal_vol_low
         self._opt_high = optimal_vol_high
-        self._extreme  = extreme_ratio
+        self._extreme = extreme_ratio
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -68,10 +69,12 @@ class VolatilityIntelligenceEngine:
         # Absolute vol relative to ATR (detects extreme vol even when ratio ≈ 1)
         atr_vol_ratio = curr_vol / max(inp.atr, 1e-9)
 
-        state   = self._classify_state(vol_ratio, atr_vol_ratio)
+        state = self._classify_state(vol_ratio, atr_vol_ratio)
         quality = self._compute_quality(vol_ratio, atr_pct, atr_vol_ratio)
 
-        logger.debug(f"[VI] {inp.symbol} vol_ratio={vol_ratio:.3f} atr_ratio={atr_vol_ratio:.1f} → {state.value} q={quality:.1f}")
+        logger.debug(
+            f"[VI] {inp.symbol} vol_ratio={vol_ratio:.3f} atr_ratio={atr_vol_ratio:.1f} → {state.value} q={quality:.1f}"
+        )
         return VolatilityResult(
             state=state,
             quality=quality,
@@ -95,7 +98,9 @@ class VolatilityIntelligenceEngine:
             return VolatilityState.LOW
         return VolatilityState.VERY_LOW
 
-    def _compute_quality(self, vol_ratio: float, atr_pct: float, atr_vol_ratio: float = 0.0) -> float:
+    def _compute_quality(
+        self, vol_ratio: float, atr_pct: float, atr_vol_ratio: float = 0.0
+    ) -> float:
         """
         Quality is maximised when vol_ratio ≈ 1.0 (normal conditions).
         Penalty applied for both very low and very high volatility.

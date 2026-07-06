@@ -10,6 +10,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import clamp
@@ -18,31 +19,36 @@ from trainer.mie.mie_models import MarketInput, BehaviorSimilarityResult
 # Feature keys used when comparing current market to historical records.
 # Each historical record in `inp.historical_similar` should carry these keys.
 _FEATURE_KEYS = [
-    "adx", "rsi", "vol_ratio", "spread_frac", "momentum_strength",
-    "trend_quality", "session_quality",
+    "adx",
+    "rsi",
+    "vol_ratio",
+    "spread_frac",
+    "momentum_strength",
+    "trend_quality",
+    "session_quality",
 ]
 
 # Feature weights for weighted Euclidean distance
 _FEATURE_WEIGHTS: Dict[str, float] = {
-    "adx":               0.20,
-    "rsi":               0.15,
-    "vol_ratio":         0.20,
-    "spread_frac":       0.15,
+    "adx": 0.20,
+    "rsi": 0.15,
+    "vol_ratio": 0.20,
+    "spread_frac": 0.15,
     "momentum_strength": 0.15,
-    "trend_quality":     0.10,
-    "session_quality":   0.05,
+    "trend_quality": 0.10,
+    "session_quality": 0.05,
 }
 
 # Absolute normalisation scales (fallback when historical stdev = 0).
 # These represent domain-knowledge estimates of typical feature spread.
 _ABSOLUTE_SCALES: Dict[str, float] = {
-    "adx":               25.0,
-    "rsi":               20.0,
-    "vol_ratio":          1.0,
-    "spread_frac":        0.5,
-    "momentum_strength":  1.0,
-    "trend_quality":     30.0,
-    "session_quality":   25.0,
+    "adx": 25.0,
+    "rsi": 20.0,
+    "vol_ratio": 1.0,
+    "spread_frac": 0.5,
+    "momentum_strength": 1.0,
+    "trend_quality": 30.0,
+    "session_quality": 25.0,
 }
 
 
@@ -56,13 +62,13 @@ def _extract_current(inp: MarketInput) -> Dict[str, float]:
     recent = returns[-5:] if len(returns) >= 5 else returns
     mom = sum(recent) / max(len(recent), 1)
     return {
-        "adx":               inp.adx,
-        "rsi":               inp.rsi,
-        "vol_ratio":         vol_ratio,
-        "spread_frac":       spread_frac,
+        "adx": inp.adx,
+        "rsi": inp.rsi,
+        "vol_ratio": vol_ratio,
+        "spread_frac": spread_frac,
         "momentum_strength": mom * 1000.0,
-        "trend_quality":     clamp(inp.adx / 50.0 * 100.0, 0.0, 100.0),
-        "session_quality":   50.0,   # placeholder; caller may override
+        "trend_quality": clamp(inp.adx / 50.0 * 100.0, 0.0, 100.0),
+        "session_quality": 50.0,  # placeholder; caller may override
     }
 
 
@@ -118,7 +124,7 @@ class BehaviorSimilarityEngine:
 
     def __init__(self, min_matches: int = 3, decay: float = 2.0) -> None:
         self._min_matches = min_matches
-        self._decay       = decay
+        self._decay = decay
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -134,28 +140,22 @@ class BehaviorSimilarityEngine:
                 features_used=_FEATURE_KEYS,
             )
 
-        scales = _normalise_scales(
-            [{k: r.get(k, 0.0) for k in _FEATURE_KEYS} for r in records]
-        )
+        scales = _normalise_scales([{k: r.get(k, 0.0) for k in _FEATURE_KEYS} for r in records])
 
         scored: List[Tuple[float, Dict]] = []
         for record in records:
-            feat    = {k: float(record.get(k, 0.0)) for k in _FEATURE_KEYS}
-            dist    = _weighted_distance(current, feat, scales)
-            sim     = _similarity_from_distance(dist, self._decay)
+            feat = {k: float(record.get(k, 0.0)) for k in _FEATURE_KEYS}
+            dist = _weighted_distance(current, feat, scales)
+            sim = _similarity_from_distance(dist, self._decay)
             scored.append((sim, record))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         top = scored[: max(self._min_matches, 3)]
 
         best_score = top[0][0] if top else 0.0
-        avg_score  = statistics.mean(s for s, _ in top) if top else 0.0
+        avg_score = statistics.mean(s for s, _ in top) if top else 0.0
 
-        outcomes = [
-            float(r.get("outcome", 0.0))
-            for _, r in top
-            if "outcome" in r
-        ]
+        outcomes = [float(r.get("outcome", 0.0)) for _, r in top if "outcome" in r]
         if outcomes:
             hist_success = clamp((statistics.mean(outcomes) + 1.0) / 2.0, 0.0, 1.0)
         else:

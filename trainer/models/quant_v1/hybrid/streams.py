@@ -23,7 +23,6 @@ from trainer.models.quant_v1.hybrid.config import (
     SequenceBackboneType,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared building blocks
 # ---------------------------------------------------------------------------
@@ -214,9 +213,7 @@ class MultiTimeframeStream(nn.Module):
                 )
 
         # Infer per-timeframe output dim (all must be equal for pooling)
-        enabled = [
-            cfg for cfg in config.timeframes.values() if cfg.enabled
-        ]
+        enabled = [cfg for cfg in config.timeframes.values() if cfg.enabled]
         tf_embed_dim = enabled[0].out_dim if enabled else 64
 
         self._pooling = config.pooling

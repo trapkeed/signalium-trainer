@@ -152,85 +152,89 @@ class QuantModelV1(BaseQuantModel):
         # ── Phase 14.5 optional heads ────────────────────────────────────
         self.expected_move_head: Optional[ExpectedMoveHead] = (
             ExpectedMoveHead(ctx_dim, mt.expected_move_head)
-            if mt.expected_move_head.enabled else None
+            if mt.expected_move_head.enabled
+            else None
         )
         self.stop_loss_head: Optional[StopLossHead] = (
-            StopLossHead(ctx_dim, mt.stop_loss_head)
-            if mt.stop_loss_head.enabled else None
+            StopLossHead(ctx_dim, mt.stop_loss_head) if mt.stop_loss_head.enabled else None
         )
         self.take_profit_head: Optional[TakeProfitHead] = (
-            TakeProfitHead(ctx_dim, mt.take_profit_head)
-            if mt.take_profit_head.enabled else None
+            TakeProfitHead(ctx_dim, mt.take_profit_head) if mt.take_profit_head.enabled else None
         )
         self.holding_time_head: Optional[HoldingTimeHead] = (
-            HoldingTimeHead(ctx_dim, mt.holding_time_head)
-            if mt.holding_time_head.enabled else None
+            HoldingTimeHead(ctx_dim, mt.holding_time_head) if mt.holding_time_head.enabled else None
         )
         self.tp_probability_head: Optional[TPProbabilityHead] = (
             TPProbabilityHead(ctx_dim, mt.tp_probability_head)
-            if mt.tp_probability_head.enabled else None
+            if mt.tp_probability_head.enabled
+            else None
         )
 
         # ── Phase 14.6 optional heads ────────────────────────────────────
         self.mfe_head: Optional[MFEHead] = (
-            MFEHead(ctx_dim, mt.mfe_head)
-            if mt.mfe_head.enabled else None
+            MFEHead(ctx_dim, mt.mfe_head) if mt.mfe_head.enabled else None
         )
         self.mae_excursion_head: Optional[MAEExcursionHead] = (
             MAEExcursionHead(ctx_dim, mt.mae_excursion_head)
-            if mt.mae_excursion_head.enabled else None
+            if mt.mae_excursion_head.enabled
+            else None
         )
         self.trade_efficiency_head: Optional[TradeEfficiencyHead] = (
             TradeEfficiencyHead(ctx_dim, mt.trade_efficiency_head)
-            if mt.trade_efficiency_head.enabled else None
+            if mt.trade_efficiency_head.enabled
+            else None
         )
         self.reward_risk_head: Optional[RewardRiskHead] = (
-            RewardRiskHead(ctx_dim, mt.reward_risk_head)
-            if mt.reward_risk_head.enabled else None
+            RewardRiskHead(ctx_dim, mt.reward_risk_head) if mt.reward_risk_head.enabled else None
         )
         self.trade_survival_head: Optional[TradeSurvivalHead] = (
             TradeSurvivalHead(ctx_dim, mt.trade_survival_head)
-            if mt.trade_survival_head.enabled else None
+            if mt.trade_survival_head.enabled
+            else None
         )
         self.sl_resilience_head: Optional[SLResilienceHead] = (
             SLResilienceHead(ctx_dim, mt.sl_resilience_head)
-            if mt.sl_resilience_head.enabled else None
+            if mt.sl_resilience_head.enabled
+            else None
         )
         self.tp_achievability_head: Optional[TPAchievabilityHead] = (
             TPAchievabilityHead(ctx_dim, mt.tp_achievability_head)
-            if mt.tp_achievability_head.enabled else None
+            if mt.tp_achievability_head.enabled
+            else None
         )
         self.entry_quality_head: Optional[EntryQualityHead] = (
             EntryQualityHead(ctx_dim, mt.entry_quality_head)
-            if mt.entry_quality_head.enabled else None
+            if mt.entry_quality_head.enabled
+            else None
         )
         self.exit_quality_head: Optional[ExitQualityHead] = (
-            ExitQualityHead(ctx_dim, mt.exit_quality_head)
-            if mt.exit_quality_head.enabled else None
+            ExitQualityHead(ctx_dim, mt.exit_quality_head) if mt.exit_quality_head.enabled else None
         )
         self.market_stability_head: Optional[MarketStabilityHead] = (
             MarketStabilityHead(ctx_dim, mt.market_stability_head)
-            if mt.market_stability_head.enabled else None
+            if mt.market_stability_head.enabled
+            else None
         )
         self.trade_decay_head: Optional[TradeDecayHead] = (
-            TradeDecayHead(ctx_dim, mt.trade_decay_head)
-            if mt.trade_decay_head.enabled else None
+            TradeDecayHead(ctx_dim, mt.trade_decay_head) if mt.trade_decay_head.enabled else None
         )
         self.profit_distribution_head: Optional[ProfitDistributionHead] = (
             ProfitDistributionHead(ctx_dim, mt.profit_distribution_head)
-            if mt.profit_distribution_head.enabled else None
+            if mt.profit_distribution_head.enabled
+            else None
         )
         self.loss_distribution_head: Optional[LossDistributionHead] = (
             LossDistributionHead(ctx_dim, mt.loss_distribution_head)
-            if mt.loss_distribution_head.enabled else None
+            if mt.loss_distribution_head.enabled
+            else None
         )
         self.position_size_quality_head: Optional[PositionSizeQualityHead] = (
             PositionSizeQualityHead(ctx_dim, mt.position_size_quality_head)
-            if mt.position_size_quality_head.enabled else None
+            if mt.position_size_quality_head.enabled
+            else None
         )
         self.uncertainty_head: Optional[UncertaintyHead] = (
-            UncertaintyHead(ctx_dim, mt.uncertainty_head)
-            if mt.uncertainty_head.enabled else None
+            UncertaintyHead(ctx_dim, mt.uncertainty_head) if mt.uncertainty_head.enabled else None
         )
 
         self._initialize_weights()
@@ -441,9 +445,13 @@ class QuantModelV1(BaseQuantModel):
         # Derive phase from active components
         if self.is_hybrid:
             phase = "14.9C"
-        elif any([
-            self.mfe_head, self.mae_excursion_head, self.trade_efficiency_head,
-        ]):
+        elif any(
+            [
+                self.mfe_head,
+                self.mae_excursion_head,
+                self.trade_efficiency_head,
+            ]
+        ):
             phase = "14.6"
         else:
             phase = "14.5"
@@ -456,9 +464,7 @@ class QuantModelV1(BaseQuantModel):
             "supported_outputs": self.enabled_heads,
             "output_version": "3.0.0",
             "prediction_schema": self._build_prediction_schema(),
-            "loss_config": {
-                k: v for k, v in mt.multi_task_loss.__dict__.items()
-            },
+            "loss_config": {k: v for k, v in mt.multi_task_loss.__dict__.items()},
             # Phase 14.9C — architecture readiness fields
             "backbone_type": bb_cfg.type.value,
             "active_streams": [],
@@ -482,15 +488,17 @@ class QuantModelV1(BaseQuantModel):
             meta["active_streams"] = self.hybrid_encoder.enabled_streams
             meta["fusion_strategy"] = fusion_strategy
             # Extend encoder_versions with hybrid stream components
-            meta["encoder_versions"].update({
-                "hybrid_encoder": "14.9A",
-                "raw_market_stream": "14.9A",
-                "multi_timeframe_stream": "14.9A",
-                "engineered_feature_stream": "14.9A",
-                "context_embedding_stream": "14.9A",
-                "market_memory_stream": "14.9A",
-                "adaptive_fusion_layer": "14.9A",
-            })
+            meta["encoder_versions"].update(
+                {
+                    "hybrid_encoder": "14.9A",
+                    "raw_market_stream": "14.9A",
+                    "multi_timeframe_stream": "14.9A",
+                    "engineered_feature_stream": "14.9A",
+                    "context_embedding_stream": "14.9A",
+                    "market_memory_stream": "14.9A",
+                    "adaptive_fusion_layer": "14.9A",
+                }
+            )
         return meta
 
     # ── Private helpers ──────────────────────────────────────────────────
@@ -593,46 +601,76 @@ class QuantModelV1(BaseQuantModel):
             if enabled:
                 schema[key] = desc
 
-        _add(mt.expected_move_head.enabled, "expected_move",
-             f"float — move in {mt.expected_move_head.unit.value}")
-        _add(mt.stop_loss_head.enabled, "stop_loss",
-             f"float ≥0 — SL distance in {mt.stop_loss_head.unit.value}")
-        _add(mt.take_profit_head.enabled, "take_profit",
-             f"float ≥0 — TP distance in {mt.take_profit_head.unit.value}")
-        _add(mt.holding_time_head.enabled, "holding_time",
-             f"float ≥0 — duration in {mt.holding_time_head.unit.value}")
-        _add(mt.tp_probability_head.enabled, "tp_probability",
-             "float [0,1] — P(TP before SL)")
-        _add(mt.mfe_head.enabled, "mfe",
-             f"float ≥0 — MFE in {mt.mfe_head.unit.value}")
-        _add(mt.mae_excursion_head.enabled, "mae_excursion",
-             f"float ≥0 — MAE in {mt.mae_excursion_head.unit.value}")
-        _add(mt.trade_efficiency_head.enabled, "trade_efficiency",
-             "float [0,100] — % move captured")
-        _add(mt.reward_risk_head.enabled, "reward_risk",
-             "float ≥0 — expected R:R ratio")
-        _add(mt.trade_survival_head.enabled, "trade_survival",
-             f"float[K] [0,1] — survival probs at bars {mt.trade_survival_head.survival_bars}")
-        _add(mt.sl_resilience_head.enabled, "sl_resilience",
-             "float [0,1] — P(SL survives noise)")
-        _add(mt.tp_achievability_head.enabled, "tp_achievability",
-             "float [0,1] — P(TP achieved before invalidation)")
-        _add(mt.entry_quality_head.enabled, "entry_quality",
-             "float [0,100] — entry quality score")
-        _add(mt.exit_quality_head.enabled, "exit_quality",
-             "float [0,100] — exit quality score")
-        _add(mt.market_stability_head.enabled, "market_stability",
-             "float[4] — [stable, mod_stable, unstable, highly_unstable] probs")
-        _add(mt.trade_decay_head.enabled, "trade_decay",
-             f"float[{mt.trade_decay_head.decay_steps + 1}] — [decay_prob, curve…]")
-        _add(mt.profit_distribution_head.enabled, "profit_distribution",
-             "float[6] — [mean, median, variance, skewness, ci_lower, ci_upper]")
-        _add(mt.loss_distribution_head.enabled, "loss_distribution",
-             "float[4] — [mean, median, variance, tail_risk]")
-        _add(mt.position_size_quality_head.enabled, "position_size_quality",
-             "float [0,100] — capital allocation quality (NOT lot size)")
-        _add(mt.uncertainty_head.enabled, "uncertainty",
-             "float[2] — [epistemic ≥0, aleatoric ≥0]")
+        _add(
+            mt.expected_move_head.enabled,
+            "expected_move",
+            f"float — move in {mt.expected_move_head.unit.value}",
+        )
+        _add(
+            mt.stop_loss_head.enabled,
+            "stop_loss",
+            f"float ≥0 — SL distance in {mt.stop_loss_head.unit.value}",
+        )
+        _add(
+            mt.take_profit_head.enabled,
+            "take_profit",
+            f"float ≥0 — TP distance in {mt.take_profit_head.unit.value}",
+        )
+        _add(
+            mt.holding_time_head.enabled,
+            "holding_time",
+            f"float ≥0 — duration in {mt.holding_time_head.unit.value}",
+        )
+        _add(mt.tp_probability_head.enabled, "tp_probability", "float [0,1] — P(TP before SL)")
+        _add(mt.mfe_head.enabled, "mfe", f"float ≥0 — MFE in {mt.mfe_head.unit.value}")
+        _add(
+            mt.mae_excursion_head.enabled,
+            "mae_excursion",
+            f"float ≥0 — MAE in {mt.mae_excursion_head.unit.value}",
+        )
+        _add(
+            mt.trade_efficiency_head.enabled, "trade_efficiency", "float [0,100] — % move captured"
+        )
+        _add(mt.reward_risk_head.enabled, "reward_risk", "float ≥0 — expected R:R ratio")
+        _add(
+            mt.trade_survival_head.enabled,
+            "trade_survival",
+            f"float[K] [0,1] — survival probs at bars {mt.trade_survival_head.survival_bars}",
+        )
+        _add(mt.sl_resilience_head.enabled, "sl_resilience", "float [0,1] — P(SL survives noise)")
+        _add(
+            mt.tp_achievability_head.enabled,
+            "tp_achievability",
+            "float [0,1] — P(TP achieved before invalidation)",
+        )
+        _add(mt.entry_quality_head.enabled, "entry_quality", "float [0,100] — entry quality score")
+        _add(mt.exit_quality_head.enabled, "exit_quality", "float [0,100] — exit quality score")
+        _add(
+            mt.market_stability_head.enabled,
+            "market_stability",
+            "float[4] — [stable, mod_stable, unstable, highly_unstable] probs",
+        )
+        _add(
+            mt.trade_decay_head.enabled,
+            "trade_decay",
+            f"float[{mt.trade_decay_head.decay_steps + 1}] — [decay_prob, curve…]",
+        )
+        _add(
+            mt.profit_distribution_head.enabled,
+            "profit_distribution",
+            "float[6] — [mean, median, variance, skewness, ci_lower, ci_upper]",
+        )
+        _add(
+            mt.loss_distribution_head.enabled,
+            "loss_distribution",
+            "float[4] — [mean, median, variance, tail_risk]",
+        )
+        _add(
+            mt.position_size_quality_head.enabled,
+            "position_size_quality",
+            "float [0,100] — capital allocation quality (NOT lot size)",
+        )
+        _add(mt.uncertainty_head.enabled, "uncertainty", "float[2] — [epistemic ≥0, aleatoric ≥0]")
         return schema
 
     def _initialize_weights(self) -> None:
@@ -651,7 +689,7 @@ class QuantModelV1(BaseQuantModel):
                     elif "bias" in name:
                         nn.init.zeros_(param.data)
                         n = param.size(0)
-                        param.data[n // 4: n // 2].fill_(1.0)
+                        param.data[n // 4 : n // 2].fill_(1.0)
             elif isinstance(module, nn.GRU):
                 for name, param in module.named_parameters():
                     if "weight" in name:

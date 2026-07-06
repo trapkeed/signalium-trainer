@@ -17,6 +17,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -31,8 +32,8 @@ def _pearson(a: List[float], b: List[float]) -> float:
         return 0.0
     ma, mb = _mean(a[:n]), _mean(b[:n])
     num = sum((a[i] - ma) * (b[i] - mb) for i in range(n))
-    da  = math.sqrt(sum((v - ma) ** 2 for v in a[:n]))
-    db  = math.sqrt(sum((v - mb) ** 2 for v in b[:n]))
+    da = math.sqrt(sum((v - ma) ** 2 for v in a[:n]))
+    db = math.sqrt(sum((v - mb) ** 2 for v in b[:n]))
     denom = da * db
     if denom == 0:
         return 0.0
@@ -46,10 +47,10 @@ def _tail_correlation(a: List[float], b: List[float], percentile: float = 0.10) 
         return 0.0
     pairs_sorted_a = sorted(range(n), key=lambda i: a[i])
     cutoff = int(n * percentile)
-    tail_idx = set(pairs_sorted_a[:max(1, cutoff)])
+    tail_idx = set(pairs_sorted_a[: max(1, cutoff)])
     # Also include b tail
     pairs_sorted_b = sorted(range(n), key=lambda i: b[i])
-    tail_idx |= set(pairs_sorted_b[:max(1, cutoff)])
+    tail_idx |= set(pairs_sorted_b[: max(1, cutoff)])
     idx = list(tail_idx)
     if len(idx) < 2:
         return 0.0
@@ -61,27 +62,27 @@ class CorrelationEngine:
 
     def __init__(
         self,
-        rolling_window:   int   = 30,
+        rolling_window: int = 30,
         cluster_threshold: float = 0.70,
     ):
-        self._window    = rolling_window
+        self._window = rolling_window
         self._threshold = cluster_threshold
 
     # ── Rolling correlation ───────────────────────────────────────────────────
 
     def rolling_correlation(
         self,
-        returns_a:  List[float],
-        returns_b:  List[float],
-        window:     Optional[int] = None,
+        returns_a: List[float],
+        returns_b: List[float],
+        window: Optional[int] = None,
     ) -> List[float]:
         """Compute rolling Pearson correlation with given window."""
         w = window or self._window
         n = min(len(returns_a), len(returns_b))
         result = []
         for i in range(w - 1, n):
-            a = returns_a[i - w + 1: i + 1]
-            b = returns_b[i - w + 1: i + 1]
+            a = returns_a[i - w + 1 : i + 1]
+            b = returns_b[i - w + 1 : i + 1]
             result.append(round(_pearson(a, b), 4))
         return result
 
@@ -114,7 +115,7 @@ class CorrelationEngine:
 
     def dynamic_correlation(
         self,
-        returns:  Dict[str, List[float]],
+        returns: Dict[str, List[float]],
         lookback: int = 60,
     ) -> Dict[str, float]:
         """Average pairwise correlation for each instrument vs the portfolio."""
@@ -125,8 +126,10 @@ class CorrelationEngine:
             if not others:
                 result[ins] = 0.0
                 continue
-            corrs = [self.current_correlation(returns[ins][-lookback:], returns[o][-lookback:])
-                     for o in others]
+            corrs = [
+                self.current_correlation(returns[ins][-lookback:], returns[o][-lookback:])
+                for o in others
+            ]
             result[ins] = round(sum(corrs) / len(corrs), 4)
         return result
 
@@ -178,17 +181,20 @@ class CorrelationEngine:
 
     def hidden_exposure(
         self,
-        weights:  Dict[str, float],
-        returns:  Dict[str, List[float]],
+        weights: Dict[str, float],
+        returns: Dict[str, List[float]],
     ) -> Dict[str, float]:
         """Effective exposure accounting for correlation."""
         matrix = self.correlation_matrix(returns)
         instruments = list(weights.keys())
         hidden: Dict[str, float] = {}
         for ins in instruments:
-            w     = weights.get(ins, 0.0)
-            corrs = [abs(matrix.get(ins, {}).get(o, 0.0)) * weights.get(o, 0.0)
-                     for o in instruments if o != ins]
+            w = weights.get(ins, 0.0)
+            corrs = [
+                abs(matrix.get(ins, {}).get(o, 0.0)) * weights.get(o, 0.0)
+                for o in instruments
+                if o != ins
+            ]
             hidden[ins] = round(w + sum(corrs), 4)
         return hidden
 
@@ -196,8 +202,8 @@ class CorrelationEngine:
 
     def currency_concentration(
         self,
-        weights:    Dict[str, float],
-        currencies: Dict[str, str],   # instrument → base currency
+        weights: Dict[str, float],
+        currencies: Dict[str, str],  # instrument → base currency
     ) -> Dict[str, float]:
         """Aggregate exposure by base currency."""
         ccy: Dict[str, float] = {}
@@ -210,7 +216,7 @@ class CorrelationEngine:
 
     def tail_correlations(
         self,
-        returns:    Dict[str, List[float]],
+        returns: Dict[str, List[float]],
         percentile: float = 0.10,
     ) -> Dict[str, Dict[str, float]]:
         """Pairwise tail correlations in the lower `percentile` of both series."""
@@ -236,5 +242,7 @@ class CorrelationEngine:
         pairs = []
         for i in range(len(instruments)):
             for j in range(i + 1, len(instruments)):
-                pairs.append(self.current_correlation(returns[instruments[i]], returns[instruments[j]]))
+                pairs.append(
+                    self.current_correlation(returns[instruments[i]], returns[instruments[j]])
+                )
         return round(sum(pairs) / len(pairs), 4) if pairs else 0.0

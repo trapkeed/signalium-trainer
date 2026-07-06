@@ -15,6 +15,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
@@ -33,27 +34,24 @@ class MarketEfficiency:
 
     def analyse_window(
         self,
-        bars:     List[OHLCBar],
+        bars: List[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         if len(bars) < 3:
             return features
 
         closes = [b.close for b in bars]
-        moves  = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+        moves = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
 
         # ── Trend Efficiency (Efficiency Ratio / ER) ──────────────────────────
         # ER = directional move / sum(abs moves)
-        net_move   = abs(closes[-1] - closes[0])
+        net_move = abs(closes[-1] - closes[0])
         total_move = sum(abs(m) for m in moves)
         features.trend_efficiency = _clamp(_safe_div(net_move, total_move, 0.0))
 
         # ── Mean Reversion Probability ────────────────────────────────────────
         # High MRP when market oscillates (moves frequently reverse)
-        reversals = sum(
-            1 for i in range(1, len(moves))
-            if (moves[i] >= 0) != (moves[i - 1] >= 0)
-        )
+        reversals = sum(1 for i in range(1, len(moves)) if (moves[i] >= 0) != (moves[i - 1] >= 0))
         reversal_rate = _safe_div(reversals, len(moves) - 1, 0.0) if len(moves) > 1 else 0.5
         features.mean_reversion_probability = _clamp(reversal_rate)
 
@@ -69,14 +67,16 @@ class MarketEfficiency:
         # ── Directional Stability ─────────────────────────────────────────────
         # High stability = consistent direction across the window
         bullish = sum(1 for m in moves if m > 0)
-        stability = abs(bullish / len(moves) - 0.5) * 2.0   # 0=equal split, 1=all same dir
+        stability = abs(bullish / len(moves) - 0.5) * 2.0  # 0=equal split, 1=all same dir
         features.directional_stability = _clamp(stability)
 
         # ── Noise Level ───────────────────────────────────────────────────────
         # Noise = mean abs(move) / range of whole window
         mean_abs_move = statistics.mean(abs(m) for m in moves) if moves else 0.0
-        total_range   = max(closes) - min(closes)
-        features.noise_level = _clamp(_safe_div(mean_abs_move * len(moves), total_range + mean_abs_move, 0.5))
+        total_range = max(closes) - min(closes)
+        features.noise_level = _clamp(
+            _safe_div(mean_abs_move * len(moves), total_range + mean_abs_move, 0.5)
+        )
 
         logger.debug(
             f"MarketEfficiency: ER={features.trend_efficiency:.3f} "

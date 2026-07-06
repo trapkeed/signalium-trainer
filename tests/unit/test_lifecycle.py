@@ -18,88 +18,103 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 def _load(rel_path: str, mod_name: str):
     path = os.path.join(ROOT, rel_path)
     spec = importlib.util.spec_from_file_location(mod_name, path)
-    mod  = importlib.util.module_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     sys.modules[mod_name] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 # Load all modules in dependency order
-_states   = _load("trainer/lifecycle/lifecycle_states.py",       "trainer.lifecycle.lifecycle_states")
-_models   = _load("trainer/lifecycle/lifecycle_models.py",       "trainer.lifecycle.lifecycle_models")
-_sm       = _load("trainer/lifecycle/state_machine.py",          "trainer.lifecycle.state_machine")
-_te       = _load("trainer/lifecycle/transition_engine.py",      "trainer.lifecycle.transition_engine")
-_pm       = _load("trainer/lifecycle/position_monitor.py",       "trainer.lifecycle.position_monitor")
-_lce      = _load("trainer/lifecycle/lifecycle_confidence.py",   "trainer.lifecycle.lifecycle_confidence")
-_ee       = _load("trainer/lifecycle/event_engine.py",           "trainer.lifecycle.event_engine")
-_are      = _load("trainer/lifecycle/ai_reasoning.py",           "trainer.lifecycle.ai_reasoning")
-_tl       = _load("trainer/lifecycle/trade_lifecycle.py",        "trainer.lifecycle.trade_lifecycle")
-_la       = _load("trainer/lifecycle/lifecycle_analytics.py",    "trainer.lifecycle.lifecycle_analytics")
-_lo       = _load("trainer/lifecycle/lifecycle_optimizer.py",    "trainer.lifecycle.lifecycle_optimizer")
-_db       = _load("trainer/lifecycle/lifecycle_database.py",     "trainer.lifecycle.lifecycle_database")
-_dash     = _load("trainer/lifecycle/lifecycle_dashboard.py",    "trainer.lifecycle.lifecycle_dashboard")
-_api_mod  = _load("trainer/lifecycle/lifecycle_api.py",          "trainer.lifecycle.lifecycle_api")
+_states = _load("trainer/lifecycle/lifecycle_states.py", "trainer.lifecycle.lifecycle_states")
+_models = _load("trainer/lifecycle/lifecycle_models.py", "trainer.lifecycle.lifecycle_models")
+_sm = _load("trainer/lifecycle/state_machine.py", "trainer.lifecycle.state_machine")
+_te = _load("trainer/lifecycle/transition_engine.py", "trainer.lifecycle.transition_engine")
+_pm = _load("trainer/lifecycle/position_monitor.py", "trainer.lifecycle.position_monitor")
+_lce = _load("trainer/lifecycle/lifecycle_confidence.py", "trainer.lifecycle.lifecycle_confidence")
+_ee = _load("trainer/lifecycle/event_engine.py", "trainer.lifecycle.event_engine")
+_are = _load("trainer/lifecycle/ai_reasoning.py", "trainer.lifecycle.ai_reasoning")
+_tl = _load("trainer/lifecycle/trade_lifecycle.py", "trainer.lifecycle.trade_lifecycle")
+_la = _load("trainer/lifecycle/lifecycle_analytics.py", "trainer.lifecycle.lifecycle_analytics")
+_lo = _load("trainer/lifecycle/lifecycle_optimizer.py", "trainer.lifecycle.lifecycle_optimizer")
+_db = _load("trainer/lifecycle/lifecycle_database.py", "trainer.lifecycle.lifecycle_database")
+_dash = _load("trainer/lifecycle/lifecycle_dashboard.py", "trainer.lifecycle.lifecycle_dashboard")
+_api_mod = _load("trainer/lifecycle/lifecycle_api.py", "trainer.lifecycle.lifecycle_api")
 
 # Aliases
-LifecycleState           = _states.LifecycleState
-TERMINAL_STATES          = _states.TERMINAL_STATES
-CLOSING_STATES           = _states.CLOSING_STATES
-POSITION_OPEN_STATES     = _states.POSITION_OPEN_STATES
-PRE_ENTRY_STATES         = _states.PRE_ENTRY_STATES
-VALID_TRANSITIONS        = _states.VALID_TRANSITIONS
-STATE_ORDER              = _states.STATE_ORDER
+LifecycleState = _states.LifecycleState
+TERMINAL_STATES = _states.TERMINAL_STATES
+CLOSING_STATES = _states.CLOSING_STATES
+POSITION_OPEN_STATES = _states.POSITION_OPEN_STATES
+PRE_ENTRY_STATES = _states.PRE_ENTRY_STATES
+VALID_TRANSITIONS = _states.VALID_TRANSITIONS
+STATE_ORDER = _states.STATE_ORDER
 STATE_EXPECTED_DURATION_HOURS = _states.STATE_EXPECTED_DURATION_HOURS
-is_terminal              = _states.is_terminal
-is_position_open         = _states.is_position_open
-can_transition           = _states.can_transition
-valid_next_states        = _states.valid_next_states
+is_terminal = _states.is_terminal
+is_position_open = _states.is_position_open
+can_transition = _states.can_transition
+valid_next_states = _states.valid_next_states
 
-MarketContext            = _models.MarketContext
-PositionMetrics          = _models.PositionMetrics
-StateRecord              = _models.StateRecord
-LifecycleEvent           = _models.LifecycleEvent
-EventType                = _models.EventType
-TransitionResult         = _models.TransitionResult
-LifecycleConfidence      = _models.LifecycleConfidence
+MarketContext = _models.MarketContext
+PositionMetrics = _models.PositionMetrics
+StateRecord = _models.StateRecord
+LifecycleEvent = _models.LifecycleEvent
+EventType = _models.EventType
+TransitionResult = _models.TransitionResult
+LifecycleConfidence = _models.LifecycleConfidence
 
-StateMachine             = _sm.StateMachine
-TransitionRule           = _sm.TransitionRule
+StateMachine = _sm.StateMachine
+TransitionRule = _sm.TransitionRule
 
-TransitionEngine         = _te.TransitionEngine
+TransitionEngine = _te.TransitionEngine
 
-PositionMonitor          = _pm.PositionMonitor
+PositionMonitor = _pm.PositionMonitor
 ManagementRecommendation = _pm.ManagementRecommendation
 
 LifecycleConfidenceEngine = _lce.LifecycleConfidenceEngine
 
-EventEngine              = _ee.EventEngine
+EventEngine = _ee.EventEngine
 
-AiReasoningEngine        = _are.AiReasoningEngine
+AiReasoningEngine = _are.AiReasoningEngine
 
-TradeLifecycle           = _tl.TradeLifecycle
+TradeLifecycle = _tl.TradeLifecycle
 
-LifecycleAnalytics       = _la.LifecycleAnalytics
+LifecycleAnalytics = _la.LifecycleAnalytics
 
-LifecycleOptimizer       = _lo.LifecycleOptimizer
+LifecycleOptimizer = _lo.LifecycleOptimizer
 
-LifecycleDatabase        = _db.LifecycleDatabase
+LifecycleDatabase = _db.LifecycleDatabase
 
-LifecycleDashboard       = _dash.LifecycleDashboard
+LifecycleDashboard = _dash.LifecycleDashboard
 
-LifecycleAPI             = _api_mod.LifecycleAPI
+LifecycleAPI = _api_mod.LifecycleAPI
 
 
 def _ctx(**kw) -> MarketContext:
-    defaults = dict(price=1.25, atr=0.001, spread=0.00015, volatility=0.012,
-                    momentum=0.3, news_risk=0.15, session="LONDON", trend_valid=True)
+    defaults = dict(
+        price=1.25,
+        atr=0.001,
+        spread=0.00015,
+        volatility=0.012,
+        momentum=0.3,
+        news_risk=0.15,
+        session="LONDON",
+        trend_valid=True,
+    )
     defaults.update(kw)
     return MarketContext(**defaults)
 
 
 def _metrics(**kw) -> PositionMetrics:
-    defaults = dict(lots=0.1, entry_price=1.25, current_price=1.252,
-                    unrealised_pnl=0.002, unrealised_pct=0.016, stop_price=1.249,
-                    target_price=1.256, time_in_trade_h=3.0)
+    defaults = dict(
+        lots=0.1,
+        entry_price=1.25,
+        current_price=1.252,
+        unrealised_pnl=0.002,
+        unrealised_pct=0.016,
+        stop_price=1.249,
+        target_price=1.256,
+        time_in_trade_h=3.0,
+    )
     defaults.update(kw)
     return PositionMetrics(**defaults)
 
@@ -198,7 +213,16 @@ class TestLifecycleModels(unittest.TestCase):
     def test_market_context_to_dict_keys(self):
         ctx = _ctx()
         d = ctx.to_dict()
-        for k in ("price", "atr", "spread", "volatility", "momentum", "news_risk", "session", "trend_valid"):
+        for k in (
+            "price",
+            "atr",
+            "spread",
+            "volatility",
+            "momentum",
+            "news_risk",
+            "session",
+            "trend_valid",
+        ):
             self.assertIn(k, d)
 
     def test_position_metrics_to_dict_keys(self):
@@ -209,8 +233,7 @@ class TestLifecycleModels(unittest.TestCase):
 
     def test_lifecycle_event_create(self):
         ev = LifecycleEvent.create(
-            "T001", EventType.STATE_CHANGED, LifecycleState.ACTIVE,
-            "State changed", severity="INFO"
+            "T001", EventType.STATE_CHANGED, LifecycleState.ACTIVE, "State changed", severity="INFO"
         )
         self.assertEqual(ev.trade_id, "T001")
         self.assertIsNotNone(ev.event_id)
@@ -224,8 +247,11 @@ class TestLifecycleModels(unittest.TestCase):
 
     def test_state_record_to_dict(self):
         r = StateRecord(
-            state=LifecycleState.IDEA, timestamp=time.time(),
-            confidence=0.6, reason="test", market_context=_ctx()
+            state=LifecycleState.IDEA,
+            timestamp=time.time(),
+            confidence=0.6,
+            reason="test",
+            market_context=_ctx(),
         )
         d = r.to_dict()
         self.assertIn("state", d)
@@ -234,8 +260,12 @@ class TestLifecycleModels(unittest.TestCase):
 
     def test_transition_result_to_dict(self):
         tr = TransitionResult(
-            from_state=LifecycleState.IDEA, to_state=LifecycleState.WATCHLIST,
-            allowed=True, confidence=0.7, expected_benefit=0.5, risk_rating="LOW"
+            from_state=LifecycleState.IDEA,
+            to_state=LifecycleState.WATCHLIST,
+            allowed=True,
+            confidence=0.7,
+            expected_benefit=0.5,
+            risk_rating="LOW",
         )
         d = tr.to_dict()
         self.assertIn("allowed", d)
@@ -244,9 +274,13 @@ class TestLifecycleModels(unittest.TestCase):
 
     def test_lifecycle_confidence_to_dict(self):
         lc = LifecycleConfidence(
-            state=LifecycleState.ACTIVE, confidence=0.75,
-            expected_duration_h=24.0, expected_reward=0.07,
-            expected_risk=0.05, transition_prob=0.80, failure_prob=0.20
+            state=LifecycleState.ACTIVE,
+            confidence=0.75,
+            expected_duration_h=24.0,
+            expected_reward=0.07,
+            expected_risk=0.05,
+            transition_prob=0.80,
+            failure_prob=0.20,
         )
         d = lc.to_dict()
         for k in ("state", "confidence", "expected_duration_h", "transition_prob", "failure_prob"):
@@ -274,9 +308,7 @@ class TestStateMachine(unittest.TestCase):
         self.assertFalse(result.allowed)
 
     def test_transition_with_no_context(self):
-        result = self.sm.validate_transition(
-            LifecycleState.WATCHLIST, LifecycleState.PREPARATION
-        )
+        result = self.sm.validate_transition(LifecycleState.WATCHLIST, LifecycleState.PREPARATION)
         self.assertIsNotNone(result)
 
     def test_result_has_confidence(self):
@@ -429,18 +461,24 @@ class TestPositionMonitor(unittest.TestCase):
         self.assertEqual(plan.primary, ManagementRecommendation.REDUCE_EXPOSURE)
 
     def test_high_confidence_scale_in(self):
-        plan = self.pm.evaluate("EURUSD", LifecycleState.ACTIVE,
-                                context=_ctx(news_risk=0.1, volatility=0.010, momentum=0.5),
-                                confidence=0.80)
+        plan = self.pm.evaluate(
+            "EURUSD",
+            LifecycleState.ACTIVE,
+            context=_ctx(news_risk=0.1, volatility=0.010, momentum=0.5),
+            confidence=0.80,
+        )
         self.assertEqual(plan.primary, ManagementRecommendation.SCALE_IN)
 
     def test_low_confidence_position_open_reduce(self):
         plan = self.pm.evaluate("EURUSD", LifecycleState.ACTIVE, confidence=0.40)
-        self.assertIn(plan.primary, (
-            ManagementRecommendation.REDUCE_EXPOSURE,
-            ManagementRecommendation.HOLD,
-            ManagementRecommendation.EXIT_IMMEDIATELY,
-        ))
+        self.assertIn(
+            plan.primary,
+            (
+                ManagementRecommendation.REDUCE_EXPOSURE,
+                ManagementRecommendation.HOLD,
+                ManagementRecommendation.EXIT_IMMEDIATELY,
+            ),
+        )
 
     def test_exit_ready_triggers_exit(self):
         plan = self.pm.evaluate("EURUSD", LifecycleState.EXIT_READY)
@@ -524,16 +562,22 @@ class TestEventEngine(unittest.TestCase):
 
     def test_confidence_raised_event(self):
         events = self.ee.detect_events(
-            "T001", LifecycleState.ACTIVE, _ctx(),
-            prev_confidence=0.60, curr_confidence=0.75,
+            "T001",
+            LifecycleState.ACTIVE,
+            _ctx(),
+            prev_confidence=0.60,
+            curr_confidence=0.75,
         )
         types = [e.event_type for e in events]
         self.assertIn("CONFIDENCE_RAISED", types)
 
     def test_confidence_dropped_event(self):
         events = self.ee.detect_events(
-            "T001", LifecycleState.ACTIVE, _ctx(),
-            prev_confidence=0.80, curr_confidence=0.65,
+            "T001",
+            LifecycleState.ACTIVE,
+            _ctx(),
+            prev_confidence=0.80,
+            curr_confidence=0.65,
         )
         types = [e.event_type for e in events]
         self.assertIn("CONFIDENCE_DROPPED", types)
@@ -550,7 +594,9 @@ class TestEventEngine(unittest.TestCase):
 
     def test_trend_invalid_event(self):
         events = self.ee.detect_events(
-            "T001", LifecycleState.WATCHLIST, _ctx(trend_valid=False),
+            "T001",
+            LifecycleState.WATCHLIST,
+            _ctx(trend_valid=False),
             prev_context=_ctx(trend_valid=True),
         )
         types = [e.event_type for e in events]
@@ -607,8 +653,7 @@ class TestAiReasoningEngine(unittest.TestCase):
 
     def test_risk_factors_elevated_news(self):
         report = self.are.generate(
-            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.70,
-            context=_ctx(news_risk=0.60)
+            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.70, context=_ctx(news_risk=0.60)
         )
         self.assertGreater(len(report.risk_factors), 0)
 
@@ -618,15 +663,13 @@ class TestAiReasoningEngine(unittest.TestCase):
 
     def test_confidence_narrative_improving(self):
         report = self.are.generate(
-            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.80,
-            prev_confidence=0.65
+            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.80, prev_confidence=0.65
         )
         self.assertIn("increased", report.confidence_narrative.lower())
 
     def test_confidence_narrative_declining(self):
         report = self.are.generate(
-            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.55,
-            prev_confidence=0.75
+            "T001", "EURUSD", "BUY", LifecycleState.ACTIVE, 0.55, prev_confidence=0.75
         )
         self.assertIn("declined", report.confidence_narrative.lower())
 
@@ -743,8 +786,15 @@ class TestTradeLifecycle(unittest.TestCase):
     def test_to_dict_keys(self):
         tl = self._new()
         d = tl.to_dict()
-        for k in ("trade_id", "instrument", "direction", "current_state",
-                  "confidence", "state_history", "events"):
+        for k in (
+            "trade_id",
+            "instrument",
+            "direction",
+            "current_state",
+            "confidence",
+            "state_history",
+            "events",
+        ):
             self.assertIn(k, d)
 
     def test_summary_compact(self):
@@ -784,10 +834,9 @@ class TestLifecycleAnalytics(unittest.TestCase):
         now = time.time()
         records = []
         for i, st in enumerate(states):
-            r = StateRecord(state=st, timestamp=now + i * 3600,
-                            confidence=0.70, reason="test")
+            r = StateRecord(state=st, timestamp=now + i * 3600, confidence=0.70, reason="test")
             if i > 0:
-                records[i-1].duration_h = 1.0
+                records[i - 1].duration_h = 1.0
             records.append(r)
         return records
 
@@ -856,10 +905,9 @@ class TestLifecycleOptimizer(unittest.TestCase):
         now = time.time()
         records = []
         for i, st in enumerate(states):
-            r = StateRecord(state=st, timestamp=now + i * 3600,
-                            confidence=0.70, reason="test")
+            r = StateRecord(state=st, timestamp=now + i * 3600, confidence=0.70, reason="test")
             if i > 0:
-                records[i-1].duration_h = 1.0
+                records[i - 1].duration_h = 1.0
             records.append(r)
         return records
 
@@ -897,8 +945,7 @@ class TestLifecycleOptimizer(unittest.TestCase):
     def test_high_expiry_rate_generates_finding(self):
         lo = LifecycleOptimizer()
         histories = [
-            self._history([LifecycleState.IDEA, LifecycleState.WATCHLIST])
-            for _ in range(10)
+            self._history([LifecycleState.IDEA, LifecycleState.WATCHLIST]) for _ in range(10)
         ]
         final = [LifecycleState.EXPIRED] * 10
         report = lo.optimise(histories, final)
@@ -907,10 +954,7 @@ class TestLifecycleOptimizer(unittest.TestCase):
 
     def test_finding_has_priority(self):
         lo = LifecycleOptimizer()
-        histories = [
-            self._history([LifecycleState.IDEA, LifecycleState.EXPIRED])
-            for _ in range(5)
-        ]
+        histories = [self._history([LifecycleState.IDEA, LifecycleState.EXPIRED]) for _ in range(5)]
         final = [LifecycleState.EXPIRED] * 5
         report = lo.optimise(histories, final)
         if report.findings:
@@ -931,20 +975,32 @@ class TestLifecycleDatabase(unittest.TestCase):
         self.assertEqual(s["lifecycle_events"], 0)
 
     def test_upsert_lifecycle(self):
-        self.db.upsert_lifecycle({
-            "trade_id": "T001", "instrument": "EURUSD", "direction": "BUY",
-            "current_state": "IDEA", "confidence": 0.60, "created_at": time.time(),
-            "updated_at": time.time(),
-        })
+        self.db.upsert_lifecycle(
+            {
+                "trade_id": "T001",
+                "instrument": "EURUSD",
+                "direction": "BUY",
+                "current_state": "IDEA",
+                "confidence": 0.60,
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+        )
         s = self.db.stats()
         self.assertEqual(s["trade_lifecycle"], 1)
 
     def test_get_lifecycle(self):
-        self.db.upsert_lifecycle({
-            "trade_id": "T002", "instrument": "GBPUSD", "direction": "SELL",
-            "current_state": "WATCHLIST", "confidence": 0.65,
-            "created_at": time.time(), "updated_at": time.time(),
-        })
+        self.db.upsert_lifecycle(
+            {
+                "trade_id": "T002",
+                "instrument": "GBPUSD",
+                "direction": "SELL",
+                "current_state": "WATCHLIST",
+                "confidence": 0.65,
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+        )
         row = self.db.get_lifecycle("T002")
         self.assertIsNotNone(row)
         self.assertEqual(row["trade_id"], "T002")
@@ -966,35 +1022,45 @@ class TestLifecycleDatabase(unittest.TestCase):
 
     def test_insert_state_record(self):
         r = StateRecord(
-            state=LifecycleState.IDEA, timestamp=time.time(),
-            confidence=0.60, reason="test"
+            state=LifecycleState.IDEA, timestamp=time.time(), confidence=0.60, reason="test"
         )
         self.db.insert_state_record("T001", r.to_dict())
         s = self.db.stats()
         self.assertEqual(s["state_history"], 1)
 
     def test_get_state_history(self):
-        r = StateRecord(state=LifecycleState.IDEA, timestamp=time.time(),
-                        confidence=0.60, reason="test2")
+        r = StateRecord(
+            state=LifecycleState.IDEA, timestamp=time.time(), confidence=0.60, reason="test2"
+        )
         self.db.insert_state_record("T004", r.to_dict())
         rows = self.db.get_state_history("T004")
         self.assertEqual(len(rows), 1)
 
     def test_upsert_transition_rule(self):
-        self.db.upsert_transition_rule({
-            "from_state": "IDEA", "to_state": "WATCHLIST",
-            "entry_conditions": [], "exit_conditions": [],
-            "validation_rules": [], "timeout_hours": 24.0,
-            "base_confidence": 0.60, "expected_benefit": 0.4,
-            "risk_rating": "LOW", "description": "Test rule",
-        })
+        self.db.upsert_transition_rule(
+            {
+                "from_state": "IDEA",
+                "to_state": "WATCHLIST",
+                "entry_conditions": [],
+                "exit_conditions": [],
+                "validation_rules": [],
+                "timeout_hours": 24.0,
+                "base_confidence": 0.60,
+                "expected_benefit": 0.4,
+                "risk_rating": "LOW",
+                "description": "Test rule",
+            }
+        )
         rules = self.db.get_transition_rules()
         self.assertEqual(len(rules), 1)
 
     def test_save_analytics_snapshot(self):
-        row_id = self.db.save_analytics_snapshot({
-            "total_trades": 5, "completed_trades": 3,
-        })
+        row_id = self.db.save_analytics_snapshot(
+            {
+                "total_trades": 5,
+                "completed_trades": 3,
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_latest_analytics(self):
@@ -1004,31 +1070,43 @@ class TestLifecycleDatabase(unittest.TestCase):
         self.assertEqual(snap["total_trades"], 10)
 
     def test_save_optimisation(self):
-        row_id = self.db.save_optimisation({
-            "total_analysed": 3,
-            "findings": [],
-            "summary": "Test",
-        })
+        row_id = self.db.save_optimisation(
+            {
+                "total_analysed": 3,
+                "findings": [],
+                "summary": "Test",
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_list_lifecycles(self):
-        self.db.upsert_lifecycle({
-            "trade_id": "T010", "instrument": "EURUSD", "direction": "BUY",
-            "current_state": "ACTIVE", "confidence": 0.75,
-            "created_at": time.time(), "updated_at": time.time(),
-        })
+        self.db.upsert_lifecycle(
+            {
+                "trade_id": "T010",
+                "instrument": "EURUSD",
+                "direction": "BUY",
+                "current_state": "ACTIVE",
+                "confidence": 0.75,
+                "created_at": time.time(),
+                "updated_at": time.time(),
+            }
+        )
         rows = self.db.list_lifecycles()
         self.assertGreater(len(rows), 0)
 
     def test_upsert_updates_existing(self):
         base = {
-            "trade_id": "T020", "instrument": "EURUSD", "direction": "BUY",
-            "current_state": "IDEA", "confidence": 0.60,
-            "created_at": time.time(), "updated_at": time.time(),
+            "trade_id": "T020",
+            "instrument": "EURUSD",
+            "direction": "BUY",
+            "current_state": "IDEA",
+            "confidence": 0.60,
+            "created_at": time.time(),
+            "updated_at": time.time(),
         }
         self.db.upsert_lifecycle(base)
         base["current_state"] = "WATCHLIST"
-        base["confidence"]    = 0.68
+        base["confidence"] = 0.68
         self.db.upsert_lifecycle(base)
         row = self.db.get_lifecycle("T020")
         self.assertEqual(row["current_state"], "WATCHLIST")

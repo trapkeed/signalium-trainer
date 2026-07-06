@@ -8,12 +8,18 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import (
-    MarketRegime, RiskRegime, TradeabilityGrade,
-    REGIME_TRADEABILITY_BASE, RISK_REGIME_MULTIPLIERS, NEWS_IMPACT_PENALTY,
-    tradeability_grade, clamp,
+    MarketRegime,
+    RiskRegime,
+    TradeabilityGrade,
+    REGIME_TRADEABILITY_BASE,
+    RISK_REGIME_MULTIPLIERS,
+    NEWS_IMPACT_PENALTY,
+    tradeability_grade,
+    clamp,
 )
 from trainer.mie.mie_models import (
     MarketInput,
@@ -34,25 +40,25 @@ from trainer.mie.mie_models import (
 # ── Factor weights (must sum to 1.0) ──────────────────────────────────────────
 _FACTOR_WEIGHTS: Dict[str, float] = {
     "prediction_confidence": 0.12,
-    "expected_rr":           0.10,
-    "expected_move":         0.06,
-    "expected_holding":      0.05,
-    "risk_regime":           0.10,
-    "market_regime":         0.10,
-    "liquidity":             0.08,
-    "execution_quality":     0.07,
-    "spread":                0.05,
+    "expected_rr": 0.10,
+    "expected_move": 0.06,
+    "expected_holding": 0.05,
+    "risk_regime": 0.10,
+    "market_regime": 0.10,
+    "liquidity": 0.08,
+    "execution_quality": 0.07,
+    "spread": 0.05,
     "historical_similarity": 0.06,
-    "calibration":           0.06,
-    "portfolio_exposure":    0.05,
-    "news_calendar":         0.04,
-    "trend_stability":       0.04,
-    "momentum_stability":    0.02,
+    "calibration": 0.06,
+    "portfolio_exposure": 0.05,
+    "news_calendar": 0.04,
+    "trend_stability": 0.04,
+    "momentum_stability": 0.02,
 }
 
-assert abs(sum(_FACTOR_WEIGHTS.values()) - 1.0) < 1e-9, (
-    f"Tradeability factor weights must sum to 1.0, got {sum(_FACTOR_WEIGHTS.values()):.6f}"
-)
+assert (
+    abs(sum(_FACTOR_WEIGHTS.values()) - 1.0) < 1e-9
+), f"Tradeability factor weights must sum to 1.0, got {sum(_FACTOR_WEIGHTS.values()):.6f}"
 
 
 def _score_confidence(conf: float) -> float:
@@ -101,7 +107,7 @@ def _score_holding_time(bars: int) -> float:
 def _score_exposure(exposure: float) -> float:
     """Lower portfolio exposure = higher tradeability. Returns 0-100."""
     if exposure >= 0.85:
-        return 0.0     # dangerously concentrated — no tradeability
+        return 0.0  # dangerously concentrated — no tradeability
     if exposure <= 0.20:
         return 100.0
     if exposure <= 0.50:
@@ -138,32 +144,38 @@ class TradeabilityEngine:
 
     def score(
         self,
-        inp:         MarketInput,
-        regime:      Optional[MarketRegimeResult]       = None,
-        risk:        Optional[RiskIntelligenceResult]   = None,
-        liquidity:   Optional[LiquidityResult]          = None,
-        volatility:  Optional[VolatilityResult]         = None,
-        momentum:    Optional[MomentumResult]           = None,
-        trend:       Optional[TrendResult]              = None,
-        similarity:  Optional[BehaviorSimilarityResult] = None,
+        inp: MarketInput,
+        regime: Optional[MarketRegimeResult] = None,
+        risk: Optional[RiskIntelligenceResult] = None,
+        liquidity: Optional[LiquidityResult] = None,
+        volatility: Optional[VolatilityResult] = None,
+        momentum: Optional[MomentumResult] = None,
+        trend: Optional[TrendResult] = None,
+        similarity: Optional[BehaviorSimilarityResult] = None,
         reliability: Optional[PredictionReliabilityResult] = None,
-        calibration: Optional[CalibrationResult]        = None,
-        session:     Optional[SessionResult]            = None,
-        news:        Optional[NewsIntelligenceResult]   = None,
+        calibration: Optional[CalibrationResult] = None,
+        session: Optional[SessionResult] = None,
+        news: Optional[NewsIntelligenceResult] = None,
     ) -> TradeabilityResult:
 
         factors = self._compute_factors(
-            inp, regime, risk, liquidity, volatility,
-            momentum, trend, similarity, reliability, calibration, session, news,
+            inp,
+            regime,
+            risk,
+            liquidity,
+            volatility,
+            momentum,
+            trend,
+            similarity,
+            reliability,
+            calibration,
+            session,
+            news,
         )
 
-        raw_score = sum(
-            factors[k] * _FACTOR_WEIGHTS[k]
-            for k in _FACTOR_WEIGHTS
-            if k in factors
-        )
-        score  = clamp(raw_score, 0.0, 100.0)
-        grade  = tradeability_grade(score)
+        raw_score = sum(factors[k] * _FACTOR_WEIGHTS[k] for k in _FACTOR_WEIGHTS if k in factors)
+        score = clamp(raw_score, 0.0, 100.0)
+        grade = tradeability_grade(score)
         reasons, suggestions = self._build_narrative(factors, score, inp)
 
         logger.debug(f"[TE] {inp.symbol} tradeability={score:.1f} grade={grade.value}")
@@ -179,18 +191,18 @@ class TradeabilityEngine:
 
     def _compute_factors(
         self,
-        inp:         MarketInput,
-        regime:      Optional[MarketRegimeResult],
-        risk:        Optional[RiskIntelligenceResult],
-        liquidity:   Optional[LiquidityResult],
-        volatility:  Optional[VolatilityResult],
-        momentum:    Optional[MomentumResult],
-        trend:       Optional[TrendResult],
-        similarity:  Optional[BehaviorSimilarityResult],
+        inp: MarketInput,
+        regime: Optional[MarketRegimeResult],
+        risk: Optional[RiskIntelligenceResult],
+        liquidity: Optional[LiquidityResult],
+        volatility: Optional[VolatilityResult],
+        momentum: Optional[MomentumResult],
+        trend: Optional[TrendResult],
+        similarity: Optional[BehaviorSimilarityResult],
         reliability: Optional[PredictionReliabilityResult],
         calibration: Optional[CalibrationResult],
-        session:     Optional[SessionResult],
-        news:        Optional[NewsIntelligenceResult],
+        session: Optional[SessionResult],
+        news: Optional[NewsIntelligenceResult],
     ) -> Dict[str, float]:
         f: Dict[str, float] = {}
 
@@ -224,7 +236,7 @@ class TradeabilityEngine:
 
         # 8. Execution quality proxy — mix of spread + liquidity + session
         if session is not None and liquidity is not None:
-            f["execution_quality"] = (session.quality * 0.40 + liquidity.quality * 0.60)
+            f["execution_quality"] = session.quality * 0.40 + liquidity.quality * 0.60
         elif liquidity is not None:
             f["execution_quality"] = liquidity.quality
         else:
@@ -262,7 +274,9 @@ class TradeabilityEngine:
             f["news_calendar"] = clamp(100.0 - news_pen, 0.0, 100.0)
 
         # 14. Trend stability (0-100)
-        f["trend_stability"] = trend.quality if trend is not None else clamp(inp.adx / 50.0 * 100.0, 0.0, 100.0)
+        f["trend_stability"] = (
+            trend.quality if trend is not None else clamp(inp.adx / 50.0 * 100.0, 0.0, 100.0)
+        )
 
         # 15. Momentum stability (0-100)
         f["momentum_stability"] = momentum.quality if momentum is not None else 50.0
@@ -274,10 +288,10 @@ class TradeabilityEngine:
     def _build_narrative(
         self,
         factors: Dict[str, float],
-        score:   float,
-        inp:     MarketInput,
+        score: float,
+        inp: MarketInput,
     ) -> tuple:
-        reasons:     List[str] = []
+        reasons: List[str] = []
         suggestions: List[str] = []
 
         low_factors = {k: v for k, v in factors.items() if v < 40.0}

@@ -55,9 +55,7 @@ class MultiTaskMetrics:
         return result
 
 
-def compute_direction_accuracy(
-    logits: torch.Tensor, targets: torch.Tensor
-) -> float:
+def compute_direction_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
     """Compute direction classification accuracy.
 
     Args:
@@ -71,9 +69,7 @@ def compute_direction_accuracy(
     return float((preds == targets.long()).float().mean().item())
 
 
-def compute_regression_metrics(
-    preds: torch.Tensor, targets: torch.Tensor
-) -> tuple[float, float]:
+def compute_regression_metrics(preds: torch.Tensor, targets: torch.Tensor) -> tuple[float, float]:
     """Compute MAE and RMSE for a regression head.
 
     Args:
@@ -90,9 +86,7 @@ def compute_regression_metrics(
     return mae, rmse
 
 
-def compute_tp_prob_roc_auc(
-    preds: torch.Tensor, targets: torch.Tensor
-) -> Optional[float]:
+def compute_tp_prob_roc_auc(preds: torch.Tensor, targets: torch.Tensor) -> Optional[float]:
     """Compute ROC-AUC for the TP-before-SL binary head.
 
     Requires scikit-learn.  Returns None if only one class is present in
@@ -261,18 +255,14 @@ class MultiTaskMetricsTracker:
         if self._dir_logits:
             all_logits = torch.cat(self._dir_logits)
             all_targets = torch.cat(self._dir_targets)
-            metrics.direction_accuracy = compute_direction_accuracy(
-                all_logits, all_targets
-            )
+            metrics.direction_accuracy = compute_direction_accuracy(all_logits, all_targets)
 
             if self._conf:
                 all_conf = torch.cat(self._conf)
                 preds_cls = all_logits.argmax(dim=-1)
                 correct = (preds_cls == all_targets.long()).float()
                 metrics.confidence_ece = compute_confidence_ece(all_conf, correct)
-                metrics.confidence_reliability = compute_confidence_reliability(
-                    all_conf, correct
-                )
+                metrics.confidence_reliability = compute_confidence_reliability(all_conf, correct)
 
         def _reg(preds: list, tgts: list, prefix: str) -> None:
             if preds:

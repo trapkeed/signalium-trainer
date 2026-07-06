@@ -13,7 +13,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 def _load(rel_path: str):
     full = os.path.join(ROOT, rel_path)
-    spec = importlib.util.spec_from_file_location(rel_path.replace("/", ".").replace(".py", ""), full)
+    spec = importlib.util.spec_from_file_location(
+        rel_path.replace("/", ".").replace(".py", ""), full
+    )
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
@@ -21,83 +23,83 @@ def _load(rel_path: str):
 
 
 # Pre-load all modules in dependency order
-_types   = _load("trainer/icari/icari_types.py")
-_models  = _load("trainer/icari/icari_models.py")
-_alloc   = _load("trainer/icari/allocation_engine.py")
-_budget  = _load("trainer/icari/risk_budget_engine.py")
-_sizing  = _load("trainer/icari/position_sizing_engine.py")
-_dyn     = _load("trainer/icari/dynamic_sizer.py")
-_effic   = _load("trainer/icari/capital_efficiency.py")
-_risk    = _load("trainer/icari/portfolio_risk_engine.py")
-_dd      = _load("trainer/icari/drawdown_manager.py")
-_corr    = _load("trainer/icari/correlation_engine.py")
-_scen    = _load("trainer/icari/scenario_engine.py")
-_optim   = _load("trainer/icari/allocation_optimizer.py")
-_health  = _load("trainer/icari/capital_health.py")
-_db      = _load("trainer/icari/icari_database.py")
-_dash    = _load("trainer/icari/icari_dashboard.py")
-_api     = _load("trainer/icari/icari_api.py")
-_init    = _load("trainer/icari/__init__.py")
+_types = _load("trainer/icari/icari_types.py")
+_models = _load("trainer/icari/icari_models.py")
+_alloc = _load("trainer/icari/allocation_engine.py")
+_budget = _load("trainer/icari/risk_budget_engine.py")
+_sizing = _load("trainer/icari/position_sizing_engine.py")
+_dyn = _load("trainer/icari/dynamic_sizer.py")
+_effic = _load("trainer/icari/capital_efficiency.py")
+_risk = _load("trainer/icari/portfolio_risk_engine.py")
+_dd = _load("trainer/icari/drawdown_manager.py")
+_corr = _load("trainer/icari/correlation_engine.py")
+_scen = _load("trainer/icari/scenario_engine.py")
+_optim = _load("trainer/icari/allocation_optimizer.py")
+_health = _load("trainer/icari/capital_health.py")
+_db = _load("trainer/icari/icari_database.py")
+_dash = _load("trainer/icari/icari_dashboard.py")
+_api = _load("trainer/icari/icari_api.py")
+_init = _load("trainer/icari/__init__.py")
 
 # Convenience aliases
-SizingMethod            = _types.SizingMethod
-RiskBudgetType          = _types.RiskBudgetType
-DrawdownMode            = _types.DrawdownMode
-ScenarioType            = _types.ScenarioType
-OptimizationObjective   = _types.OptimizationObjective
-AllocationRecommendation= _types.AllocationRecommendation
-AllocationStatus        = _types.AllocationStatus
-CapitalHealthGrade      = _types.CapitalHealthGrade
-health_grade            = _types.health_grade
-SCENARIO_FACTORS        = _types.SCENARIO_FACTORS
-DEFAULT_RISK_BUDGETS    = _types.DEFAULT_RISK_BUDGETS
+SizingMethod = _types.SizingMethod
+RiskBudgetType = _types.RiskBudgetType
+DrawdownMode = _types.DrawdownMode
+ScenarioType = _types.ScenarioType
+OptimizationObjective = _types.OptimizationObjective
+AllocationRecommendation = _types.AllocationRecommendation
+AllocationStatus = _types.AllocationStatus
+CapitalHealthGrade = _types.CapitalHealthGrade
+health_grade = _types.health_grade
+SCENARIO_FACTORS = _types.SCENARIO_FACTORS
+DEFAULT_RISK_BUDGETS = _types.DEFAULT_RISK_BUDGETS
 
-AllocationRequest  = _models.AllocationRequest
-AllocationResult   = _models.AllocationResult
-PositionSize       = _models.PositionSize
-RiskBudget         = _models.RiskBudget
-PortfolioRisk      = _models.PortfolioRisk
-CapitalHealth      = _models.CapitalHealth
-ScenarioResult     = _models.ScenarioResult
-DrawdownEvent      = _models.DrawdownEvent
+AllocationRequest = _models.AllocationRequest
+AllocationResult = _models.AllocationResult
+PositionSize = _models.PositionSize
+RiskBudget = _models.RiskBudget
+PortfolioRisk = _models.PortfolioRisk
+CapitalHealth = _models.CapitalHealth
+ScenarioResult = _models.ScenarioResult
+DrawdownEvent = _models.DrawdownEvent
 OptimizationResult = _models.OptimizationResult
 
-AllocationEngine      = _alloc.AllocationEngine
-RiskBudgetEngine      = _budget.RiskBudgetEngine
-PositionSizingEngine  = _sizing.PositionSizingEngine
-DynamicSizer          = _dyn.DynamicSizer
+AllocationEngine = _alloc.AllocationEngine
+RiskBudgetEngine = _budget.RiskBudgetEngine
+PositionSizingEngine = _sizing.PositionSizingEngine
+DynamicSizer = _dyn.DynamicSizer
 CapitalEfficiencyEngine = _effic.CapitalEfficiencyEngine
-PortfolioRiskEngine   = _risk.PortfolioRiskEngine
-DrawdownManager       = _dd.DrawdownManager
-CorrelationEngine     = _corr.CorrelationEngine
-ScenarioEngine        = _scen.ScenarioEngine
-AllocationOptimizer   = _optim.AllocationOptimizer
-CapitalHealthEngine   = _health.CapitalHealthEngine
-IcariDatabase         = _db.IcariDatabase
-IcariDashboard        = _dash.IcariDashboard
-IcariAPI              = _api.IcariAPI
+PortfolioRiskEngine = _risk.PortfolioRiskEngine
+DrawdownManager = _dd.DrawdownManager
+CorrelationEngine = _corr.CorrelationEngine
+ScenarioEngine = _scen.ScenarioEngine
+AllocationOptimizer = _optim.AllocationOptimizer
+CapitalHealthEngine = _health.CapitalHealthEngine
+IcariDatabase = _db.IcariDatabase
+IcariDashboard = _dash.IcariDashboard
+IcariAPI = _api.IcariAPI
 
 
 def make_request(**kwargs) -> AllocationRequest:
     defaults = dict(
-        instrument          = "EURUSD",
-        direction           = "LONG",
-        forecast_confidence = 0.75,
-        research_score      = 0.70,
-        execution_score     = 0.65,
-        expected_value      = 0.01,
-        expected_return     = 0.02,
-        expected_drawdown   = 0.05,
-        portfolio_exposure  = 0.30,
-        correlation         = 0.20,
-        market_regime       = "NORMAL",
-        volatility          = 0.008,
-        liquidity           = 0.90,
-        model_confidence    = 0.72,
-        ensemble_confidence = 0.68,
-        decision_quality    = 0.70,
-        atr                 = 0.00080,
-        capital             = 100_000.0,
+        instrument="EURUSD",
+        direction="LONG",
+        forecast_confidence=0.75,
+        research_score=0.70,
+        execution_score=0.65,
+        expected_value=0.01,
+        expected_return=0.02,
+        expected_drawdown=0.05,
+        portfolio_exposure=0.30,
+        correlation=0.20,
+        market_regime="NORMAL",
+        volatility=0.008,
+        liquidity=0.90,
+        model_confidence=0.72,
+        ensemble_confidence=0.68,
+        decision_quality=0.70,
+        atr=0.00080,
+        capital=100_000.0,
     )
     defaults.update(kwargs)
     return AllocationRequest(**defaults)
@@ -111,6 +113,7 @@ def make_returns(n: int = 60) -> list:
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Types & Enums
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestIcariTypes(unittest.TestCase):
 
@@ -170,8 +173,8 @@ class TestIcariTypes(unittest.TestCase):
 
     def test_scenario_factors_flash_crash(self):
         f = SCENARIO_FACTORS[ScenarioType.FLASH_CRASH]
-        self.assertLess(f[0], 0)      # negative return
-        self.assertGreater(f[1], 1.0) # high vol
+        self.assertLess(f[0], 0)  # negative return
+        self.assertGreater(f[1], 1.0)  # high vol
 
     def test_default_risk_budgets_count(self):
         self.assertEqual(len(DEFAULT_RISK_BUDGETS), 12)
@@ -185,6 +188,7 @@ class TestIcariTypes(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. Models
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestIcariModels(unittest.TestCase):
 
@@ -200,7 +204,9 @@ class TestIcariModels(unittest.TestCase):
         self.assertIn("forecast_confidence", d)
 
     def test_allocation_result_to_dict(self):
-        r = AllocationResult(instrument="GBPUSD", status=AllocationStatus.APPROVED, allocation_frac=0.1)
+        r = AllocationResult(
+            instrument="GBPUSD", status=AllocationStatus.APPROVED, allocation_frac=0.1
+        )
         d = r.to_dict()
         self.assertEqual(d["status"], "APPROVED")
         self.assertIn("allocation_frac", d)
@@ -255,9 +261,9 @@ class TestIcariModels(unittest.TestCase):
 
     def test_optimization_result_to_dict(self):
         r = OptimizationResult(
-            objective = OptimizationObjective.MAX_SHARPE,
-            weights   = {"EURUSD": 0.5, "GBPUSD": 0.5},
-            converged = True,
+            objective=OptimizationObjective.MAX_SHARPE,
+            weights={"EURUSD": 0.5, "GBPUSD": 0.5},
+            converged=True,
         )
         d = r.to_dict()
         self.assertTrue(d["converged"])
@@ -267,6 +273,7 @@ class TestIcariModels(unittest.TestCase):
 # 3. Allocation Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestAllocationEngine(unittest.TestCase):
 
     def setUp(self):
@@ -274,43 +281,69 @@ class TestAllocationEngine(unittest.TestCase):
 
     def test_weights_sum_to_one(self):
         from trainer.icari.allocation_engine import _WEIGHTS
+
         self.assertAlmostEqual(sum(_WEIGHTS.values()), 1.0, places=9)
 
     def test_high_confidence_approved(self):
-        req = make_request(forecast_confidence=0.90, research_score=0.88, execution_score=0.85,
-                           model_confidence=0.90, ensemble_confidence=0.88, decision_quality=0.85,
-                           liquidity=0.95)
+        req = make_request(
+            forecast_confidence=0.90,
+            research_score=0.88,
+            execution_score=0.85,
+            model_confidence=0.90,
+            ensemble_confidence=0.88,
+            decision_quality=0.85,
+            liquidity=0.95,
+        )
         result = self.engine.allocate(req)
         self.assertEqual(result.status, AllocationStatus.APPROVED)
         self.assertGreater(result.allocation_frac, 0.0)
 
     def test_low_confidence_denied(self):
         # Force negative EV/return so those factors contribute 0 to composite
-        req = make_request(forecast_confidence=0.10, research_score=0.10, execution_score=0.10,
-                           model_confidence=0.10, ensemble_confidence=0.10, decision_quality=0.10,
-                           liquidity=0.10, expected_value=-0.01, expected_return=-0.02)
+        req = make_request(
+            forecast_confidence=0.10,
+            research_score=0.10,
+            execution_score=0.10,
+            model_confidence=0.10,
+            ensemble_confidence=0.10,
+            decision_quality=0.10,
+            liquidity=0.10,
+            expected_value=-0.01,
+            expected_return=-0.02,
+        )
         result = self.engine.allocate(req)
         self.assertEqual(result.status, AllocationStatus.DENIED)
         self.assertEqual(result.allocation_frac, 0.0)
         self.assertEqual(result.allocation_usd, 0.0)
 
     def test_denied_has_skip_trade_recommendation(self):
-        req = make_request(forecast_confidence=0.05, research_score=0.05, execution_score=0.05,
-                           model_confidence=0.05, ensemble_confidence=0.05, decision_quality=0.05,
-                           liquidity=0.05, expected_value=-0.01, expected_return=-0.02)
+        req = make_request(
+            forecast_confidence=0.05,
+            research_score=0.05,
+            execution_score=0.05,
+            model_confidence=0.05,
+            ensemble_confidence=0.05,
+            decision_quality=0.05,
+            liquidity=0.05,
+            expected_value=-0.01,
+            expected_return=-0.02,
+        )
         result = self.engine.allocate(req)
         self.assertIn(AllocationRecommendation.SKIP_TRADE, result.recommendations)
 
     def test_trending_regime_gives_higher_allocation(self):
-        req_normal   = make_request(market_regime="NORMAL")
+        req_normal = make_request(market_regime="NORMAL")
         req_trending = make_request(market_regime="TRENDING")
-        r_normal   = self.engine.allocate(req_normal)
+        r_normal = self.engine.allocate(req_normal)
         r_trending = self.engine.allocate(req_trending)
-        if r_normal.status == AllocationStatus.APPROVED and r_trending.status == AllocationStatus.APPROVED:
+        if (
+            r_normal.status == AllocationStatus.APPROVED
+            and r_trending.status == AllocationStatus.APPROVED
+        ):
             self.assertGreaterEqual(r_trending.allocation_frac, r_normal.allocation_frac)
 
     def test_volatile_regime_lower_allocation(self):
-        req_normal  = make_request(market_regime="NORMAL")
+        req_normal = make_request(market_regime="NORMAL")
         req_volatile = make_request(market_regime="VOLATILE")
         r_n = self.engine.allocate(req_normal)
         r_v = self.engine.allocate(req_volatile)
@@ -318,14 +351,20 @@ class TestAllocationEngine(unittest.TestCase):
             self.assertLessEqual(r_v.allocation_frac, r_n.allocation_frac)
 
     def test_allocation_never_exceeds_max(self):
-        req = make_request(forecast_confidence=1.0, research_score=1.0, execution_score=1.0,
-                           model_confidence=1.0, ensemble_confidence=1.0, decision_quality=1.0,
-                           liquidity=1.0)
+        req = make_request(
+            forecast_confidence=1.0,
+            research_score=1.0,
+            execution_score=1.0,
+            model_confidence=1.0,
+            ensemble_confidence=1.0,
+            decision_quality=1.0,
+            liquidity=1.0,
+        )
         result = self.engine.allocate(req)
         self.assertLessEqual(result.allocation_frac, 0.25)
 
     def test_high_exposure_reduces_allocation(self):
-        req_low  = make_request(portfolio_exposure=0.20)
+        req_low = make_request(portfolio_exposure=0.20)
         req_high = make_request(portfolio_exposure=0.85)
         r_l = self.engine.allocate(req_low)
         r_h = self.engine.allocate(req_high)
@@ -342,7 +381,9 @@ class TestAllocationEngine(unittest.TestCase):
         req = make_request()
         result = self.engine.allocate(req)
         # Both values are independently rounded, so check within $2
-        self.assertAlmostEqual(result.allocation_usd, result.allocation_frac * req.capital, delta=2.0)
+        self.assertAlmostEqual(
+            result.allocation_usd, result.allocation_frac * req.capital, delta=2.0
+        )
 
     def test_batch_allocation(self):
         reqs = [make_request(instrument=f"INS{i}") for i in range(5)]
@@ -377,6 +418,7 @@ class TestAllocationEngine(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. Risk Budget Engine
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestRiskBudgetEngine(unittest.TestCase):
 
@@ -453,6 +495,7 @@ class TestRiskBudgetEngine(unittest.TestCase):
 # 5. Position Sizing Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestPositionSizingEngine(unittest.TestCase):
 
     def setUp(self):
@@ -478,7 +521,7 @@ class TestPositionSizingEngine(unittest.TestCase):
         self.assertEqual(r.method, SizingMethod.ATR_ADJUSTED)
 
     def test_volatility_adjusted_smaller_in_high_vol(self):
-        req_low  = make_request(volatility=0.005)
+        req_low = make_request(volatility=0.005)
         req_high = make_request(volatility=0.05)
         e = self._engine(SizingMethod.VOLATILITY_ADJUSTED)
         r_l = e.size(req_low)
@@ -515,7 +558,9 @@ class TestPositionSizingEngine(unittest.TestCase):
     def test_fractional_kelly_smaller_than_full(self):
         req = make_request(forecast_confidence=0.60, expected_return=0.03, expected_drawdown=0.02)
         e_full = PositionSizingEngine(method=SizingMethod.KELLY, risk_frac=0.02, kelly_frac=0.5)
-        e_frac = PositionSizingEngine(method=SizingMethod.FRACTIONAL_KELLY, risk_frac=0.02, kelly_frac=0.5)
+        e_frac = PositionSizingEngine(
+            method=SizingMethod.FRACTIONAL_KELLY, risk_frac=0.02, kelly_frac=0.5
+        )
         r_full = e_full.size(req)
         r_frac = e_frac.size(req)
         self.assertLessEqual(r_frac.units, r_full.units + 0.001)
@@ -527,8 +572,14 @@ class TestPositionSizingEngine(unittest.TestCase):
 
     def test_custom_fn_called(self):
         def my_fn(req):
-            return PositionSize(instrument=req.instrument, method=SizingMethod.CUSTOM,
-                                units=999.0, risk_amount=1.0, risk_frac=0.01)
+            return PositionSize(
+                instrument=req.instrument,
+                method=SizingMethod.CUSTOM,
+                units=999.0,
+                risk_amount=1.0,
+                risk_frac=0.01,
+            )
+
         e = PositionSizingEngine(method=SizingMethod.CUSTOM, custom_fn=my_fn)
         r = e.size(self.req)
         self.assertAlmostEqual(r.units, 999.0)
@@ -551,11 +602,12 @@ class TestPositionSizingEngine(unittest.TestCase):
 # 6. Dynamic Sizer
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestDynamicSizer(unittest.TestCase):
 
     def setUp(self):
         self.sizer = DynamicSizer(drawdown_soft_limit=0.05, drawdown_hard_limit=0.10)
-        self.req   = make_request()
+        self.req = make_request()
 
     def test_basic_size_returns_result(self):
         r = self.sizer.size(self.req)
@@ -578,7 +630,7 @@ class TestDynamicSizer(unittest.TestCase):
 
     def test_session_tokyo_smaller_than_london(self):
         r_london = self.sizer.size(self.req, session="LONDON")
-        r_tokyo  = self.sizer.size(self.req, session="TOKYO")
+        r_tokyo = self.sizer.size(self.req, session="TOKYO")
         self.assertGreater(r_london.units, r_tokyo.units)
 
     def test_low_liquidity_reduces_size(self):
@@ -619,6 +671,7 @@ class TestDynamicSizer(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 # 7. Capital Efficiency
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestCapitalEfficiency(unittest.TestCase):
 
@@ -671,10 +724,11 @@ class TestCapitalEfficiency(unittest.TestCase):
 # 8. Portfolio Risk Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestPortfolioRiskEngine(unittest.TestCase):
 
     def setUp(self):
-        self.engine  = PortfolioRiskEngine()
+        self.engine = PortfolioRiskEngine()
         self.returns = {
             "EURUSD": make_returns(60),
             "GBPUSD": make_returns(60),
@@ -739,6 +793,7 @@ class TestPortfolioRiskEngine(unittest.TestCase):
 # 9. Drawdown Manager
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestDrawdownManager(unittest.TestCase):
 
     def setUp(self):
@@ -754,15 +809,15 @@ class TestDrawdownManager(unittest.TestCase):
         self.assertEqual(self.dm.mode, DrawdownMode.NORMAL)
 
     def test_soft_limit_triggered(self):
-        self.dm.update(94_500.0)   # 5.5% drawdown
+        self.dm.update(94_500.0)  # 5.5% drawdown
         self.assertEqual(self.dm.mode, DrawdownMode.SOFT_LIMIT)
 
     def test_hard_limit_triggered(self):
-        self.dm.update(89_000.0)   # 11% drawdown
+        self.dm.update(89_000.0)  # 11% drawdown
         self.assertEqual(self.dm.mode, DrawdownMode.HARD_LIMIT)
 
     def test_emergency_lockdown_triggered(self):
-        self.dm.update(79_000.0)   # 21% drawdown
+        self.dm.update(79_000.0)  # 21% drawdown
         self.assertEqual(self.dm.mode, DrawdownMode.EMERGENCY_LOCKDOWN)
         self.assertTrue(self.dm.is_locked())
 
@@ -774,9 +829,9 @@ class TestDrawdownManager(unittest.TestCase):
         self.assertFalse(self.dm.can_trade())
 
     def test_risk_multiplier_decreases_with_dd(self):
-        self.dm.update(94_500.0)   # soft
+        self.dm.update(94_500.0)  # soft
         m_soft = self.dm.risk_multiplier
-        self.dm.update(89_000.0)   # hard
+        self.dm.update(89_000.0)  # hard
         m_hard = self.dm.risk_multiplier
         self.assertGreater(m_soft, m_hard)
 
@@ -787,7 +842,7 @@ class TestDrawdownManager(unittest.TestCase):
     def test_new_high_resets_event(self):
         self.dm.update(94_000.0)
         self.assertIsNotNone(self.dm._active_event)
-        self.dm.update(101_000.0)   # new peak
+        self.dm.update(101_000.0)  # new peak
         self.assertIsNone(self.dm._active_event)
 
     def test_events_recorded(self):
@@ -820,16 +875,77 @@ class TestDrawdownManager(unittest.TestCase):
 # 10. Correlation Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestCorrelationEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = CorrelationEngine(rolling_window=10)
-        self.r1 = [0.01, -0.005, 0.008, -0.003, 0.012, -0.004, 0.009, -0.002, 0.007, -0.001,
-                   0.01, -0.005, 0.008, -0.003, 0.012, -0.004, 0.009, -0.002, 0.007, -0.001]
-        self.r2 = [0.009, -0.004, 0.007, -0.002, 0.011, -0.003, 0.008, -0.001, 0.006, -0.001,
-                   0.009, -0.004, 0.007, -0.002, 0.011, -0.003, 0.008, -0.001, 0.006, -0.001]
-        self.r3 = [-0.01, 0.005, -0.008, 0.003, -0.012, 0.004, -0.009, 0.002, -0.007, 0.001,
-                   -0.01, 0.005, -0.008, 0.003, -0.012, 0.004, -0.009, 0.002, -0.007, 0.001]
+        self.r1 = [
+            0.01,
+            -0.005,
+            0.008,
+            -0.003,
+            0.012,
+            -0.004,
+            0.009,
+            -0.002,
+            0.007,
+            -0.001,
+            0.01,
+            -0.005,
+            0.008,
+            -0.003,
+            0.012,
+            -0.004,
+            0.009,
+            -0.002,
+            0.007,
+            -0.001,
+        ]
+        self.r2 = [
+            0.009,
+            -0.004,
+            0.007,
+            -0.002,
+            0.011,
+            -0.003,
+            0.008,
+            -0.001,
+            0.006,
+            -0.001,
+            0.009,
+            -0.004,
+            0.007,
+            -0.002,
+            0.011,
+            -0.003,
+            0.008,
+            -0.001,
+            0.006,
+            -0.001,
+        ]
+        self.r3 = [
+            -0.01,
+            0.005,
+            -0.008,
+            0.003,
+            -0.012,
+            0.004,
+            -0.009,
+            0.002,
+            -0.007,
+            0.001,
+            -0.01,
+            0.005,
+            -0.008,
+            0.003,
+            -0.012,
+            0.004,
+            -0.009,
+            0.002,
+            -0.007,
+            0.001,
+        ]
 
     def test_current_correlation_identical(self):
         c = self.engine.current_correlation(self.r1, self.r1)
@@ -879,7 +995,7 @@ class TestCorrelationEngine(unittest.TestCase):
         self.assertIn("A", he)
 
     def test_currency_concentration(self):
-        weights    = {"EURUSD": 0.4, "GBPUSD": 0.3, "USDJPY": 0.3}
+        weights = {"EURUSD": 0.4, "GBPUSD": 0.3, "USDJPY": 0.3}
         currencies = {"EURUSD": "EUR", "GBPUSD": "GBP", "USDJPY": "USD"}
         cc = self.engine.currency_concentration(weights, currencies)
         self.assertAlmostEqual(sum(cc.values()), 1.0, places=4)
@@ -901,12 +1017,13 @@ class TestCorrelationEngine(unittest.TestCase):
 # 11. Scenario Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestScenarioEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = ScenarioEngine(capital=100_000.0)
         self.weights = {"EURUSD": 0.5, "XAUUSD": 0.3, "BTCUSD": 0.2}
-        self.vols    = {"EURUSD": 0.008, "XAUUSD": 0.012, "BTCUSD": 0.04}
+        self.vols = {"EURUSD": 0.008, "XAUUSD": 0.012, "BTCUSD": 0.04}
 
     def test_flash_crash_negative_return(self):
         r = self.engine.run(ScenarioType.FLASH_CRASH, self.weights, self.vols)
@@ -959,6 +1076,7 @@ class TestScenarioEngine(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 # 12. Allocation Optimizer
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestAllocationOptimizer(unittest.TestCase):
 
@@ -1026,14 +1144,19 @@ class TestAllocationOptimizer(unittest.TestCase):
 # 13. Capital Health Engine
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestCapitalHealthEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = CapitalHealthEngine()
-        self.pr     = PortfolioRisk(
-            var_95=0.012, var_99=0.020, cvar_95=0.016,
-            max_expected_drawdown=0.08, portfolio_volatility=0.08,
-            diversification_ratio=1.8, risk_concentration=0.25,
+        self.pr = PortfolioRisk(
+            var_95=0.012,
+            var_99=0.020,
+            cvar_95=0.016,
+            max_expected_drawdown=0.08,
+            portfolio_volatility=0.08,
+            diversification_ratio=1.8,
+            risk_concentration=0.25,
             risk_contribution={"A": 0.5, "B": 0.5},
         )
 
@@ -1052,7 +1175,9 @@ class TestCapitalHealthEngine(unittest.TestCase):
 
     def test_lockdown_lowers_risk_score(self):
         h_normal = self.engine.score(self.pr, utilisation=0.60, drawdown_mode=DrawdownMode.NORMAL)
-        h_lock   = self.engine.score(self.pr, utilisation=0.60, drawdown_mode=DrawdownMode.EMERGENCY_LOCKDOWN)
+        h_lock = self.engine.score(
+            self.pr, utilisation=0.60, drawdown_mode=DrawdownMode.EMERGENCY_LOCKDOWN
+        )
         self.assertGreater(h_normal.risk_score, h_lock.risk_score)
 
     def test_more_instruments_better_diversification(self):
@@ -1072,7 +1197,7 @@ class TestCapitalHealthEngine(unittest.TestCase):
         self.assertIsNotNone(h)
 
     def test_trend_direction(self):
-        low_pr  = PortfolioRisk(var_95=0.03, portfolio_volatility=0.15)
+        low_pr = PortfolioRisk(var_95=0.03, portfolio_volatility=0.15)
         high_pr = PortfolioRisk(var_95=0.01, portfolio_volatility=0.05)
         self.engine.score(low_pr, utilisation=0.30)
         self.engine.score(high_pr, utilisation=0.70)
@@ -1083,7 +1208,7 @@ class TestCapitalHealthEngine(unittest.TestCase):
         allocs = [
             {"status": "APPROVED", "confidence": 0.80},
             {"status": "APPROVED", "confidence": 0.75},
-            {"status": "DENIED",   "confidence": 0.30},
+            {"status": "DENIED", "confidence": 0.30},
         ]
         h = self.engine.score(self.pr, utilisation=0.60, allocation_results=allocs)
         self.assertGreater(h.allocation_quality, 0.0)
@@ -1093,6 +1218,7 @@ class TestCapitalHealthEngine(unittest.TestCase):
 # 14. ICARI Database
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestIcariDatabase(unittest.TestCase):
 
     def setUp(self):
@@ -1100,12 +1226,12 @@ class TestIcariDatabase(unittest.TestCase):
 
     def _make_allocation_result(self):
         return AllocationResult(
-            instrument      = "EURUSD",
-            status          = AllocationStatus.APPROVED,
-            allocation_frac = 0.10,
-            allocation_usd  = 10_000.0,
-            confidence      = 0.75,
-            rationale       = "Test allocation",
+            instrument="EURUSD",
+            status=AllocationStatus.APPROVED,
+            allocation_frac=0.10,
+            allocation_usd=10_000.0,
+            confidence=0.75,
+            rationale="Test allocation",
         )
 
     def test_save_allocation_increments_count(self):
@@ -1151,7 +1277,9 @@ class TestIcariDatabase(unittest.TestCase):
 
     def test_worst_scenario(self):
         self.db.save_scenario(ScenarioResult(scenario=ScenarioType.RISK_ON, resilience_score=0.90))
-        self.db.save_scenario(ScenarioResult(scenario=ScenarioType.FLASH_CRASH, resilience_score=0.20))
+        self.db.save_scenario(
+            ScenarioResult(scenario=ScenarioType.FLASH_CRASH, resilience_score=0.20)
+        )
         worst = self.db.worst_scenario()
         self.assertIsNotNone(worst)
         self.assertAlmostEqual(worst["resilience"], 0.20, places=3)
@@ -1169,15 +1297,17 @@ class TestIcariDatabase(unittest.TestCase):
 
     def test_save_optimization(self):
         r = OptimizationResult(
-            objective = OptimizationObjective.MAX_SHARPE,
-            weights   = {"A": 0.5, "B": 0.5},
-            converged = True,
+            objective=OptimizationObjective.MAX_SHARPE,
+            weights={"A": 0.5, "B": 0.5},
+            converged=True,
         )
         self.db.save_optimization(r)
         self.assertEqual(self.db.count_optimizations(), 1)
 
     def test_save_drawdown_event(self):
-        e = DrawdownEvent(peak=100_000.0, trough=93_000.0, drawdown=0.07, mode=DrawdownMode.SOFT_LIMIT)
+        e = DrawdownEvent(
+            peak=100_000.0, trough=93_000.0, drawdown=0.07, mode=DrawdownMode.SOFT_LIMIT
+        )
         self.db.save_drawdown_event(e)
         self.assertEqual(self.db.count_drawdown_events(), 1)
 
@@ -1189,8 +1319,14 @@ class TestIcariDatabase(unittest.TestCase):
 
     def test_stats_all_tables(self):
         s = self.db.stats()
-        for key in ["allocations", "risk_snapshots", "health_snapshots",
-                    "scenarios", "optimizations", "drawdown_events"]:
+        for key in [
+            "allocations",
+            "risk_snapshots",
+            "health_snapshots",
+            "scenarios",
+            "optimizations",
+            "drawdown_events",
+        ]:
             self.assertIn(key, s)
 
 
@@ -1198,18 +1334,23 @@ class TestIcariDatabase(unittest.TestCase):
 # 15. ICARI Dashboard
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class TestIcariDashboard(unittest.TestCase):
 
     def setUp(self):
         self.dash = IcariDashboard()
         self.result = AllocationResult(
-            instrument="EURUSD", status=AllocationStatus.APPROVED,
-            allocation_frac=0.10, allocation_usd=10_000.0, confidence=0.75,
+            instrument="EURUSD",
+            status=AllocationStatus.APPROVED,
+            allocation_frac=0.10,
+            allocation_usd=10_000.0,
+            confidence=0.75,
         )
-        self.pr = PortfolioRisk(var_95=0.012, var_99=0.020,
-                                diversification_ratio=1.8, risk_concentration=0.2)
+        self.pr = PortfolioRisk(
+            var_95=0.012, var_99=0.020, diversification_ratio=1.8, risk_concentration=0.2
+        )
         self.budgets = [RiskBudget(budget_type=RiskBudgetType.DAILY, limit=0.02, used=0.01)]
-        self.health  = CapitalHealth(overall_score=0.75, grade=CapitalHealthGrade.GOOD)
+        self.health = CapitalHealth(overall_score=0.75, grade=CapitalHealthGrade.GOOD)
 
     def test_capital_allocation_view(self):
         v = self.dash.capital_allocation([self.result])
@@ -1227,7 +1368,7 @@ class TestIcariDashboard(unittest.TestCase):
 
     def test_exposure_dashboard_view(self):
         weights = {"EURUSD": 0.6, "GBPUSD": 0.4}
-        rc      = {"EURUSD": 0.6, "GBPUSD": 0.4}
+        rc = {"EURUSD": 0.6, "GBPUSD": 0.4}
         v = self.dash.exposure_dashboard(weights, rc)
         self.assertEqual(v["view"], "EXPOSURE_DASHBOARD")
 
@@ -1273,18 +1414,18 @@ class TestIcariDashboard(unittest.TestCase):
 
     def test_all_dashboards_returns_7(self):
         v = self.dash.all_dashboards(
-            results        = [self.result],
-            portfolio_risk = self.pr,
-            budgets        = self.budgets,
-            weights        = {"EURUSD": 1.0},
-            risk_contrib   = {"EURUSD": 1.0},
-            dd_events      = [],
-            current_dd     = 0.0,
-            dd_mode        = DrawdownMode.NORMAL,
-            risk_mult      = 1.0,
-            health         = self.health,
-            opt_results    = [],
-            scenario_results = [],
+            results=[self.result],
+            portfolio_risk=self.pr,
+            budgets=self.budgets,
+            weights={"EURUSD": 1.0},
+            risk_contrib={"EURUSD": 1.0},
+            dd_events=[],
+            current_dd=0.0,
+            dd_mode=DrawdownMode.NORMAL,
+            risk_mult=1.0,
+            health=self.health,
+            opt_results=[],
+            scenario_results=[],
         )
         self.assertEqual(len(v), 7)
 
@@ -1292,6 +1433,7 @@ class TestIcariDashboard(unittest.TestCase):
 # ══════════════════════════════════════════════════════════════════════════════
 # 16. ICARI API (Integration)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestIcariAPI(unittest.TestCase):
 
@@ -1304,16 +1446,27 @@ class TestIcariAPI(unittest.TestCase):
         self.assertIn("status", d)
 
     def test_allocate_approved_has_usd(self):
-        req = make_request(forecast_confidence=0.90, research_score=0.88,
-                           model_confidence=0.88, ensemble_confidence=0.85, decision_quality=0.87)
+        req = make_request(
+            forecast_confidence=0.90,
+            research_score=0.88,
+            model_confidence=0.88,
+            ensemble_confidence=0.85,
+            decision_quality=0.87,
+        )
         d = self.api.allocate(req)
         if d["status"] == "APPROVED":
             self.assertGreater(d["allocation_usd"], 0.0)
 
     def test_allocate_denied_zero_usd(self):
-        req = make_request(forecast_confidence=0.01, research_score=0.01,
-                           execution_score=0.01, model_confidence=0.01,
-                           ensemble_confidence=0.01, decision_quality=0.01, liquidity=0.01)
+        req = make_request(
+            forecast_confidence=0.01,
+            research_score=0.01,
+            execution_score=0.01,
+            model_confidence=0.01,
+            ensemble_confidence=0.01,
+            decision_quality=0.01,
+            liquidity=0.01,
+        )
         d = self.api.allocate(req)
         self.assertEqual(d["status"], "DENIED")
         self.assertEqual(d["allocation_usd"], 0.0)
@@ -1392,13 +1545,13 @@ class TestIcariAPI(unittest.TestCase):
 
     def test_scenario(self):
         weights = {"EURUSD": 0.6, "BTCUSD": 0.4}
-        vols    = {"EURUSD": 0.008, "BTCUSD": 0.04}
+        vols = {"EURUSD": 0.008, "BTCUSD": 0.04}
         d = self.api.scenario(ScenarioType.FLASH_CRASH, weights, vols)
         self.assertIn("resilience_score", d)
 
     def test_scenario_all(self):
         weights = {"EURUSD": 0.6, "BTCUSD": 0.4}
-        vols    = {"EURUSD": 0.008, "BTCUSD": 0.04}
+        vols = {"EURUSD": 0.008, "BTCUSD": 0.04}
         d = self.api.scenario_all(weights, vols)
         self.assertIn("scenarios", d)
         self.assertEqual(len(d["scenarios"]), 11)

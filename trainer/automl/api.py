@@ -38,7 +38,6 @@ from trainer.automl.ranking import ExperimentRanker
 from trainer.automl.objectives import ObjectiveScorer, build_research_scorer
 from trainer.automl.visualization import AutoMLVisualizationBuilder
 
-
 # ---------------------------------------------------------------------------
 # Response helpers
 # ---------------------------------------------------------------------------
@@ -80,11 +79,13 @@ class AutoMLAPI:
         viz: AutoMLVisualizationBuilder for chart data.
     """
 
-    def __init__(self,
-                 database: AutoMLDatabase,
-                 ranker: Optional[ExperimentRanker] = None,
-                 scorer: Optional[ObjectiveScorer] = None,
-                 viz: Optional[AutoMLVisualizationBuilder] = None) -> None:
+    def __init__(
+        self,
+        database: AutoMLDatabase,
+        ranker: Optional[ExperimentRanker] = None,
+        scorer: Optional[ObjectiveScorer] = None,
+        viz: Optional[AutoMLVisualizationBuilder] = None,
+    ) -> None:
         self.db = database
         self.ranker = ranker or ExperimentRanker()
         self.scorer = scorer or build_research_scorer()
@@ -98,6 +99,7 @@ class AutoMLAPI:
         """Create and persist a new search job from a config dict."""
         try:
             from trainer.automl.experiment import SearchJob
+
             job = SearchJob(
                 name=job_config.get("name", "search_job"),
                 strategy=job_config.get("strategy", "random"),
@@ -134,8 +136,7 @@ class AutoMLAPI:
             logger.error(f"get_job failed: {e}")
             return _error(str(e), "GET_JOB_ERROR")
 
-    def list_jobs(self, status: Optional[str] = None,
-                  limit: int = 50) -> Dict[str, Any]:
+    def list_jobs(self, status: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
         """List all search jobs."""
         try:
             jobs = self.db.list_jobs(status=status, limit=limit)
@@ -174,16 +175,18 @@ class AutoMLAPI:
         except Exception as e:
             return _error(str(e), "GET_TRIAL_ERROR")
 
-    def list_trials(self, job_id: Optional[str] = None,
-                    status: Optional[str] = None,
-                    backbone: Optional[str] = None,
-                    limit: int = 100,
-                    offset: int = 0) -> Dict[str, Any]:
+    def list_trials(
+        self,
+        job_id: Optional[str] = None,
+        status: Optional[str] = None,
+        backbone: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
         """List experiment records with optional filters."""
         try:
             records = self.db.list_records(
-                job_id=job_id, status=status,
-                backbone=backbone, limit=limit, offset=offset
+                job_id=job_id, status=status, backbone=backbone, limit=limit, offset=offset
             )
             return _ok({"trials": records, "count": len(records)})
         except Exception as e:
@@ -208,9 +211,9 @@ class AutoMLAPI:
     # Leaderboard
     # -----------------------------------------------------------------------
 
-    def get_leaderboard(self, job_id: Optional[str] = None,
-                        limit: int = 20,
-                        sort_by: str = "primary_score") -> Dict[str, Any]:
+    def get_leaderboard(
+        self, job_id: Optional[str] = None, limit: int = 20, sort_by: str = "primary_score"
+    ) -> Dict[str, Any]:
         """Return ranked experiment leaderboard."""
         try:
             if job_id:
@@ -219,11 +222,13 @@ class AutoMLAPI:
                 records = self.db.list_records(status="completed", limit=500)
             ranking = self.ranker.rank_all(records)
             top = [e.to_dict() for e in ranking[:limit]]
-            return _ok({
-                "leaderboard": top,
-                "total": len(ranking),
-                "job_id": job_id,
-            })
+            return _ok(
+                {
+                    "leaderboard": top,
+                    "total": len(ranking),
+                    "job_id": job_id,
+                }
+            )
         except Exception as e:
             return _error(str(e), "LEADERBOARD_ERROR")
 
@@ -240,18 +245,17 @@ class AutoMLAPI:
                 records = self.db.list_records(status="completed", limit=500)
             if not records:
                 return _ok({"pareto": [], "total": 0})
-            metrics_list = [
-                r.get("validation_results") or r.get("config") or {}
-                for r in records
-            ]
+            metrics_list = [r.get("validation_results") or r.get("config") or {} for r in records]
             pareto_idxs = self.scorer.pareto_front(metrics_list)
             pareto = [records[i] for i in pareto_idxs]
-            return _ok({
-                "pareto": pareto,
-                "pareto_indices": pareto_idxs,
-                "total_evaluated": len(records),
-                "n_pareto": len(pareto),
-            })
+            return _ok(
+                {
+                    "pareto": pareto,
+                    "pareto_indices": pareto_idxs,
+                    "total_evaluated": len(records),
+                    "n_pareto": len(pareto),
+                }
+            )
         except Exception as e:
             return _error(str(e), "PARETO_ERROR")
 
@@ -259,8 +263,9 @@ class AutoMLAPI:
     # Promotion
     # -----------------------------------------------------------------------
 
-    def get_promotion_candidates(self, job_id: Optional[str] = None,
-                                 limit: int = 20) -> Dict[str, Any]:
+    def get_promotion_candidates(
+        self, job_id: Optional[str] = None, limit: int = 20
+    ) -> Dict[str, Any]:
         """Return trials that passed promotion criteria."""
         try:
             if job_id:
@@ -269,21 +274,21 @@ class AutoMLAPI:
             else:
                 all_records = self.db.list_records(status="completed", limit=500)
                 candidates = [r for r in all_records if r.get("promotion_eligible")]
-            candidates.sort(
-                key=lambda r: r.get("primary_score") or 0.0, reverse=True
-            )
+            candidates.sort(key=lambda r: r.get("primary_score") or 0.0, reverse=True)
             history = self.db.get_promotion_history(job_id=job_id, limit=50)
-            return _ok({
-                "candidates": candidates[:limit],
-                "total_candidates": len(candidates),
-                "promotion_history": history,
-            })
+            return _ok(
+                {
+                    "candidates": candidates[:limit],
+                    "total_candidates": len(candidates),
+                    "promotion_history": history,
+                }
+            )
         except Exception as e:
             return _error(str(e), "PROMOTION_CANDIDATES_ERROR")
 
-    def approve_promotion(self, trial_id: str, job_id: str,
-                          model_version: str = "",
-                          notes: str = "") -> Dict[str, Any]:
+    def approve_promotion(
+        self, trial_id: str, job_id: str, model_version: str = "", notes: str = ""
+    ) -> Dict[str, Any]:
         """Manually approve a trial for promotion to champion."""
         try:
             self.db.save_promotion_decision(
@@ -299,11 +304,14 @@ class AutoMLAPI:
                 notes=notes or "Manually approved via AutoML API.",
             )
             logger.info(f"Manual promotion approved: trial {trial_id}")
-            return _ok({
-                "trial_id": trial_id,
-                "champion_status": True,
-                "manually_approved": True,
-            }, "Promotion approved")
+            return _ok(
+                {
+                    "trial_id": trial_id,
+                    "champion_status": True,
+                    "manually_approved": True,
+                },
+                "Promotion approved",
+            )
         except Exception as e:
             return _error(str(e), "APPROVE_PROMOTION_ERROR")
 
@@ -324,11 +332,13 @@ class AutoMLAPI:
                 pareto_idxs = pareto_response["data"].get("pareto_indices")
             dashboard = self.viz.full_dashboard(records, pareto_indices=pareto_idxs)
             backbone_summary = self.db.backbone_summary(job_id)
-            return _ok({
-                "charts": dashboard,
-                "backbone_summary": backbone_summary,
-                "stats": self.db.stats(),
-            })
+            return _ok(
+                {
+                    "charts": dashboard,
+                    "backbone_summary": backbone_summary,
+                    "stats": self.db.stats(),
+                }
+            )
         except Exception as e:
             return _error(str(e), "DASHBOARD_ERROR")
 
@@ -350,8 +360,9 @@ class AutoMLAPI:
     # Champion/Challenger workflow
     # -----------------------------------------------------------------------
 
-    def champion_challenger_compare(self, champion_trial_id: str,
-                                    challenger_trial_id: str) -> Dict[str, Any]:
+    def champion_challenger_compare(
+        self, champion_trial_id: str, challenger_trial_id: str
+    ) -> Dict[str, Any]:
         """Compare champion and challenger side-by-side."""
         try:
             champion = self.db.get_record(champion_trial_id)
@@ -369,22 +380,24 @@ class AutoMLAPI:
             winner = "champion" if champ_score >= chall_score else "challenger"
             score_delta = chall_score - champ_score
 
-            return _ok({
-                "champion": {
-                    "trial_id": champion_trial_id,
-                    "score": champ_score,
-                    "backbone": champion.get("backbone"),
-                    "metrics": champ_metrics,
-                },
-                "challenger": {
-                    "trial_id": challenger_trial_id,
-                    "score": chall_score,
-                    "backbone": challenger.get("backbone"),
-                    "metrics": chall_metrics,
-                },
-                "winner": winner,
-                "score_delta": round(score_delta, 6),
-                "challenger_improves": score_delta > 0,
-            })
+            return _ok(
+                {
+                    "champion": {
+                        "trial_id": champion_trial_id,
+                        "score": champ_score,
+                        "backbone": champion.get("backbone"),
+                        "metrics": champ_metrics,
+                    },
+                    "challenger": {
+                        "trial_id": challenger_trial_id,
+                        "score": chall_score,
+                        "backbone": challenger.get("backbone"),
+                        "metrics": chall_metrics,
+                    },
+                    "winner": winner,
+                    "score_delta": round(score_delta, 6),
+                    "challenger_improves": score_delta > 0,
+                }
+            )
         except Exception as e:
             return _error(str(e), "CHAMPION_CHALLENGER_ERROR")

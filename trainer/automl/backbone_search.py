@@ -27,7 +27,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Backbone specification
 # ---------------------------------------------------------------------------
@@ -190,8 +189,9 @@ class BackboneCatalog:
     def get(self, name: str) -> BackboneSpec:
         """Get a backbone spec by name."""
         if name not in self._backbones:
-            raise KeyError(f"Backbone {name!r} not in catalog. "
-                           f"Available: {list(self._backbones)}")
+            raise KeyError(
+                f"Backbone {name!r} not in catalog. " f"Available: {list(self._backbones)}"
+            )
         return self._backbones[name]
 
     def list_names(self) -> List[str]:
@@ -202,10 +202,13 @@ class BackboneCatalog:
         """Return all registered backbone specs."""
         return list(self._backbones.values())
 
-    def generate_variants(self, base_name: str,
-                          hidden_sizes: Optional[List[int]] = None,
-                          num_layers_list: Optional[List[int]] = None,
-                          dropout_values: Optional[List[float]] = None) -> List[BackboneSpec]:
+    def generate_variants(
+        self,
+        base_name: str,
+        hidden_sizes: Optional[List[int]] = None,
+        num_layers_list: Optional[List[int]] = None,
+        dropout_values: Optional[List[float]] = None,
+    ) -> List[BackboneSpec]:
         """Generate parameter variants for a base backbone.
 
         Returns one BackboneSpec per unique combination of overrides.
@@ -219,14 +222,13 @@ class BackboneCatalog:
             for l in layers:
                 for d in dropouts:
                     import copy
+
                     variant = copy.deepcopy(base)
                     variant.hidden_size = h
                     variant.num_layers = l
                     variant.dropout = d
                     variant.name = f"{base_name}_h{h}_l{l}_d{int(d*100)}"
-                    variant.display_name = (
-                        f"{base.display_name} (H={h}, L={l}, D={d:.2f})"
-                    )
+                    variant.display_name = f"{base.display_name} (H={h}, L={l}, D={d:.2f})"
                     variants.append(variant)
         return variants
 
@@ -235,6 +237,7 @@ class BackboneCatalog:
         name = config.get("name", "lstm")
         base = self.get(name)
         import copy
+
         spec = copy.deepcopy(base)
         for k, v in config.items():
             if hasattr(spec, k):
@@ -242,9 +245,7 @@ class BackboneCatalog:
         return spec
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "backbones": {k: v.to_dict() for k, v in self._backbones.items()}
-        }
+        return {"backbones": {k: v.to_dict() for k, v in self._backbones.items()}}
 
 
 # ---------------------------------------------------------------------------
@@ -297,8 +298,9 @@ class BackboneSearcher:
         backbones: List of backbone names to evaluate (None = all).
     """
 
-    def __init__(self, catalog: Optional[BackboneCatalog] = None,
-                 backbones: Optional[List[str]] = None) -> None:
+    def __init__(
+        self, catalog: Optional[BackboneCatalog] = None, backbones: Optional[List[str]] = None
+    ) -> None:
         self.catalog = catalog or BackboneCatalog()
         self.backbones = backbones or self.catalog.list_names()
 
@@ -323,7 +325,6 @@ class BackboneSearcher:
             "best_backbone": ranked[0].backbone_name if ranked else None,
             "best_score": ranked[0].score if ranked else None,
             "rankings": [
-                {"rank": r.rank, "backbone": r.backbone_name, "score": r.score}
-                for r in ranked
+                {"rank": r.rank, "backbone": r.backbone_name, "score": r.score} for r in ranked
             ],
         }

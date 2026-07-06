@@ -32,7 +32,6 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, Generator, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # HRSADatabase
 # ---------------------------------------------------------------------------
@@ -212,13 +211,22 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    hs.score_id, hs.experiment_id, hs.name,
-                    hs.level3_composite, hs.confidence,
-                    hs.institutional_grade, hs.research_grade,
-                    hs.promotion_recommendation, hs.risk_rating,
-                    hs.future_potential, hs.instrument, hs.timeframe,
-                    hs.backbone, hs.model_family,
-                    hs.level1_metric_count, hs.total_weight_used,
+                    hs.score_id,
+                    hs.experiment_id,
+                    hs.name,
+                    hs.level3_composite,
+                    hs.confidence,
+                    hs.institutional_grade,
+                    hs.research_grade,
+                    hs.promotion_recommendation,
+                    hs.risk_rating,
+                    hs.future_potential,
+                    hs.instrument,
+                    hs.timeframe,
+                    hs.backbone,
+                    hs.model_family,
+                    hs.level1_metric_count,
+                    hs.total_weight_used,
                     hs.scored_at,
                 ),
             )
@@ -234,9 +242,16 @@ class HRSADatabase:
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
-                        hs.score_id, hs.experiment_id, cat, result.display_name,
-                        result.score, result.confidence, result.weight,
-                        result.grade, result.metric_count, result.coverage,
+                        hs.score_id,
+                        hs.experiment_id,
+                        cat,
+                        result.display_name,
+                        result.score,
+                        result.confidence,
+                        result.weight,
+                        result.grade,
+                        result.metric_count,
+                        result.coverage,
                         json.dumps(result.metric_scores),
                         json.dumps(result.raw_values),
                         ts,
@@ -266,10 +281,15 @@ class HRSADatabase:
                     VALUES (?,?,?,?,?,?,?,?,?)
                     """,
                     (
-                        hs.score_id, hs.experiment_id, hs.level3_composite,
-                        ga.institutional_grade, ga.research_grade,
-                        ga.promotion_recommendation, ga.risk_rating,
-                        ga.future_potential, ts,
+                        hs.score_id,
+                        hs.experiment_id,
+                        hs.level3_composite,
+                        ga.institutional_grade,
+                        ga.research_grade,
+                        ga.promotion_recommendation,
+                        ga.risk_rating,
+                        ga.future_potential,
+                        ts,
                     ),
                 )
 
@@ -302,9 +322,14 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?)
                 """,
                 (
-                    sim.simulation_id, experiment_id, sim.scenario_name,
-                    sim.original_composite, sim.simulated_composite, sim.delta,
-                    json.dumps(sim.to_dict()), ts,
+                    sim.simulation_id,
+                    experiment_id,
+                    sim.scenario_name,
+                    sim.original_composite,
+                    sim.simulated_composite,
+                    sim.delta,
+                    json.dumps(sim.to_dict()),
+                    ts,
                 ),
             )
 
@@ -319,9 +344,15 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    record.experiment_id, record.name, record.role,
-                    record.composite, record.confidence, record.institutional_grade,
-                    json.dumps(record.category_scores), record.generation, ts,
+                    record.experiment_id,
+                    record.name,
+                    record.role,
+                    record.composite,
+                    record.confidence,
+                    record.institutional_grade,
+                    json.dumps(record.category_scores),
+                    record.generation,
+                    ts,
                 ),
             )
 
@@ -362,9 +393,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def category_history(
-        self, experiment_id: str, category: str
-    ) -> List[Dict[str, Any]]:
+    def category_history(self, experiment_id: str, category: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -378,9 +407,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def metric_history(
-        self, experiment_id: str, metric_name: str
-    ) -> List[Dict[str, Any]]:
+    def metric_history(self, experiment_id: str, metric_name: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -483,24 +510,18 @@ class HRSADatabase:
 
     def stats(self) -> Dict[str, Any]:
         with self._conn() as conn:
-            total = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_score_history"
-            ).fetchone()["n"]
+            total = conn.execute("SELECT COUNT(*) as n FROM hrsa_score_history").fetchone()["n"]
             avg_comp = conn.execute(
                 "SELECT AVG(composite) as a FROM hrsa_score_history"
             ).fetchone()["a"]
             max_comp = conn.execute(
                 "SELECT MAX(composite) as m FROM hrsa_score_history"
             ).fetchone()["m"]
-            simulations = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_whatif"
-            ).fetchone()["n"]
-            explanations = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_explanations"
-            ).fetchone()["n"]
-            benchmarks = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_benchmarks"
-            ).fetchone()["n"]
+            simulations = conn.execute("SELECT COUNT(*) as n FROM hrsa_whatif").fetchone()["n"]
+            explanations = conn.execute("SELECT COUNT(*) as n FROM hrsa_explanations").fetchone()[
+                "n"
+            ]
+            benchmarks = conn.execute("SELECT COUNT(*) as n FROM hrsa_benchmarks").fetchone()["n"]
         return {
             "total_scores": total,
             "average_composite": round(avg_comp, 2) if avg_comp else None,

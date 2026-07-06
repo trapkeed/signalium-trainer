@@ -88,7 +88,9 @@ class TestHybridInput:
 
 class TestRawMarketStream:
     def _make(self, out_dim: int = CTX_DIM, enabled: bool = True) -> RawMarketStream:
-        cfg = RawMarketStreamConfig(input_dim=RAW_DIM, hidden_dim=16, out_dim=out_dim, num_layers=1, enabled=enabled)
+        cfg = RawMarketStreamConfig(
+            input_dim=RAW_DIM, hidden_dim=16, out_dim=out_dim, num_layers=1, enabled=enabled
+        )
         return RawMarketStream(cfg)
 
     def test_output_shape(self) -> None:
@@ -109,15 +111,20 @@ class TestRawMarketStream:
         assert not stream.enabled
 
     def test_layer_norm_disabled(self) -> None:
-        cfg = RawMarketStreamConfig(input_dim=RAW_DIM, hidden_dim=16, out_dim=CTX_DIM, use_layer_norm=False)
+        cfg = RawMarketStreamConfig(
+            input_dim=RAW_DIM, hidden_dim=16, out_dim=CTX_DIM, use_layer_norm=False
+        )
         stream = RawMarketStream(cfg)
         x = torch.randn(BATCH, SEQ, RAW_DIM)
         assert stream(x).shape == (BATCH, CTX_DIM)
 
     def test_gru_backbone(self) -> None:
         from trainer.models.quant_v1.hybrid.config import SequenceBackboneType
+
         cfg = RawMarketStreamConfig(
-            input_dim=RAW_DIM, hidden_dim=16, out_dim=CTX_DIM,
+            input_dim=RAW_DIM,
+            hidden_dim=16,
+            out_dim=CTX_DIM,
             backbone_type=SequenceBackboneType.GRU,
         )
         stream = RawMarketStream(cfg)
@@ -131,7 +138,9 @@ class TestRawMarketStream:
 
 def _mtf_config(enabled_tfs: list[str], out_dim: int = CTX_DIM) -> MultiTimeframeStreamConfig:
     tfs = {
-        tf: TimeframeEncoderConfig(enabled=(tf in enabled_tfs), input_dim=RAW_DIM, hidden_dim=8, out_dim=8)
+        tf: TimeframeEncoderConfig(
+            enabled=(tf in enabled_tfs), input_dim=RAW_DIM, hidden_dim=8, out_dim=8
+        )
         for tf in ["1m", "5m", "15m", "1h"]
     }
     return MultiTimeframeStreamConfig(enabled=True, timeframes=tfs, out_dim=out_dim, pooling="mean")
@@ -160,9 +169,13 @@ class TestMultiTimeframeStream:
         assert (out == 0).all()
 
     def test_attention_pooling(self) -> None:
-        tfs = {tf: TimeframeEncoderConfig(enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8)
-               for tf in ["1m", "5m"]}
-        cfg = MultiTimeframeStreamConfig(enabled=True, timeframes=tfs, out_dim=CTX_DIM, pooling="attention")
+        tfs = {
+            tf: TimeframeEncoderConfig(enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8)
+            for tf in ["1m", "5m"]
+        }
+        cfg = MultiTimeframeStreamConfig(
+            enabled=True, timeframes=tfs, out_dim=CTX_DIM, pooling="attention"
+        )
         stream = MultiTimeframeStream(cfg)
         inp = {tf: torch.randn(BATCH, SEQ, RAW_DIM) for tf in ["1m", "5m"]}
         assert stream(inp).shape == (BATCH, CTX_DIM)
@@ -187,7 +200,9 @@ class TestMultiTimeframeStream:
 
 class TestEngineeredFeatureStream:
     def _make(self) -> EngineeredFeatureStream:
-        cfg = EngineeredFeatureStreamConfig(input_dim=FEAT_DIM, hidden_dim=16, out_dim=CTX_DIM, num_layers=2)
+        cfg = EngineeredFeatureStreamConfig(
+            input_dim=FEAT_DIM, hidden_dim=16, out_dim=CTX_DIM, num_layers=2
+        )
         return EngineeredFeatureStream(cfg)
 
     def test_output_shape(self) -> None:
@@ -196,7 +211,9 @@ class TestEngineeredFeatureStream:
         assert stream(x).shape == (BATCH, CTX_DIM)
 
     def test_single_layer(self) -> None:
-        cfg = EngineeredFeatureStreamConfig(input_dim=FEAT_DIM, hidden_dim=16, out_dim=CTX_DIM, num_layers=1)
+        cfg = EngineeredFeatureStreamConfig(
+            input_dim=FEAT_DIM, hidden_dim=16, out_dim=CTX_DIM, num_layers=1
+        )
         stream = EngineeredFeatureStream(cfg)
         assert stream(torch.randn(BATCH, FEAT_DIM)).shape == (BATCH, CTX_DIM)
 
@@ -343,8 +360,14 @@ class TestDynamicFeatureGate:
         gate = self._make()
         _, w = gate(torch.randn(BATCH, FEAT_DIM), torch.randn(BATCH, CTX_DIM))
         stats = gate.gate_statistics(w)
-        required = {"gate_mean", "gate_min", "gate_max", "gate_std",
-                    "gate_amplified_frac", "gate_suppressed_frac"}
+        required = {
+            "gate_mean",
+            "gate_min",
+            "gate_max",
+            "gate_std",
+            "gate_amplified_frac",
+            "gate_suppressed_frac",
+        }
         assert required == set(stats.keys())
 
     def test_amplified_suppressed_fracs_sum_to_one(self) -> None:
@@ -445,8 +468,12 @@ def _minimal_hybrid_config(latent_dim: int = LATENT) -> HybridEncoderConfig:
         multi_timeframe=MultiTimeframeStreamConfig(
             enabled=True,
             timeframes={
-                "1m": TimeframeEncoderConfig(enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8),
-                "5m": TimeframeEncoderConfig(enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8),
+                "1m": TimeframeEncoderConfig(
+                    enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8
+                ),
+                "5m": TimeframeEncoderConfig(
+                    enabled=True, input_dim=RAW_DIM, hidden_dim=8, out_dim=8
+                ),
             },
             out_dim=CTX_DIM,
             pooling="mean",
@@ -507,8 +534,11 @@ class TestHybridEncoder:
     def test_enabled_streams_all_enabled(self, encoder: HybridEncoder) -> None:
         streams = encoder.enabled_streams
         assert set(streams) == {
-            "raw_market", "multi_timeframe", "engineered_features",
-            "context_embeddings", "market_memory",
+            "raw_market",
+            "multi_timeframe",
+            "engineered_features",
+            "context_embeddings",
+            "market_memory",
         }
 
     def test_gradient_flows_through_all_streams(self, encoder: HybridEncoder) -> None:
@@ -692,6 +722,7 @@ class TestHybridConfig:
 
     def test_default_supports_all_timeframes(self) -> None:
         from trainer.models.quant_v1.hybrid.config import SUPPORTED_TIMEFRAMES
+
         cfg = MultiTimeframeStreamConfig()
         for tf in SUPPORTED_TIMEFRAMES:
             assert tf in cfg.timeframes

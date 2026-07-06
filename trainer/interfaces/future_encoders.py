@@ -34,7 +34,6 @@ import torch
 
 from trainer.interfaces.base import BaseExternalEncoder
 
-
 # ---------------------------------------------------------------------------
 # Reinforcement Learning Interface
 # ---------------------------------------------------------------------------

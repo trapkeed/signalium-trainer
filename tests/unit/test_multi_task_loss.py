@@ -64,6 +64,7 @@ def _labels(enabled_heads: list[str] | None = None) -> dict[str, torch.Tensor]:
 # Output type
 # ---------------------------------------------------------------------------
 
+
 class TestLossOutputType:
     def test_returns_multi_task_loss_output(self, criterion: MultiTaskLoss) -> None:
         out = criterion(_preds(), _labels())
@@ -85,6 +86,7 @@ class TestLossOutputType:
 # ---------------------------------------------------------------------------
 # Per-head loss components
 # ---------------------------------------------------------------------------
+
 
 class TestPerHeadLosses:
     def test_direction_loss_always_computed(self, criterion: MultiTaskLoss) -> None:
@@ -122,6 +124,7 @@ class TestPerHeadLosses:
 # Partial head sets (some heads missing)
 # ---------------------------------------------------------------------------
 
+
 class TestPartialHeads:
     def test_direction_only_works(self, criterion: MultiTaskLoss) -> None:
         preds = {"direction_logits": torch.randn(BATCH, NUM_CLASSES)}
@@ -151,12 +154,16 @@ class TestPartialHeads:
 # Loss types
 # ---------------------------------------------------------------------------
 
+
 class TestRegressionLossTypes:
-    @pytest.mark.parametrize("loss_type", [
-        RegressionLossType.MSE,
-        RegressionLossType.MAE,
-        RegressionLossType.HUBER,
-    ])
+    @pytest.mark.parametrize(
+        "loss_type",
+        [
+            RegressionLossType.MSE,
+            RegressionLossType.MAE,
+            RegressionLossType.HUBER,
+        ],
+    )
     def test_regression_loss_types(
         self, config: MultiTaskLossConfig, loss_type: RegressionLossType
     ) -> None:
@@ -181,6 +188,7 @@ class TestRegressionLossTypes:
 # to_dict()
 # ---------------------------------------------------------------------------
 
+
 class TestLossToDict:
     def test_to_dict_contains_total(self, criterion: MultiTaskLoss) -> None:
         out = criterion(_preds(), _labels())
@@ -197,9 +205,14 @@ class TestLossToDict:
         out = criterion(_preds(), _labels())
         d = out.to_dict()
         expected = {
-            "loss_total", "loss_direction", "loss_expected_move",
-            "loss_stop_loss", "loss_take_profit", "loss_holding_time",
-            "loss_tp_probability", "loss_confidence",
+            "loss_total",
+            "loss_direction",
+            "loss_expected_move",
+            "loss_stop_loss",
+            "loss_take_profit",
+            "loss_holding_time",
+            "loss_tp_probability",
+            "loss_confidence",
         }
         assert expected.issubset(d.keys())
 
@@ -207,6 +220,7 @@ class TestLossToDict:
 # ---------------------------------------------------------------------------
 # Gradient flow
 # ---------------------------------------------------------------------------
+
 
 class TestLossGradientFlow:
     def test_total_loss_has_grad(self, criterion: MultiTaskLoss) -> None:

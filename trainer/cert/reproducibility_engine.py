@@ -8,11 +8,11 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 from trainer.cert.cert_models import CertificationInput, ReproducibilityResult
-
 
 _CHECKS = [
     "DATASET_VERSION",
@@ -54,10 +54,10 @@ class ReproducibilityEngine:
 
     def overall_score(self, results: List[ReproducibilityResult]) -> float:
         weights = {
-            CheckStatus.PASS:           100.0,
-            CheckStatus.WARNING:         60.0,
-            CheckStatus.FAIL:            10.0,
-            CheckStatus.NOT_APPLICABLE:  70.0,
+            CheckStatus.PASS: 100.0,
+            CheckStatus.WARNING: 60.0,
+            CheckStatus.FAIL: 10.0,
+            CheckStatus.NOT_APPLICABLE: 70.0,
         }
         if not results:
             return 50.0

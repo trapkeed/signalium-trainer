@@ -11,7 +11,6 @@ import time
 import unittest
 from pathlib import Path
 
-
 # ── Spec-from-file loader ─────────────────────────────────────────────────────
 
 ROOT = Path(__file__).parent.parent.parent
@@ -22,65 +21,66 @@ def _load(name: str, rel: str):
     """Load a trainer.memory sub-module without importing torch."""
     path = ROOT / "trainer" / rel
     spec = importlib.util.spec_from_file_location(name, path)
-    mod  = importlib.util.module_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 # Load in dependency order
-dt  = _load("trainer.memory.decision_types",      "memory/decision_types.py")
-dm  = _load("trainer.memory.decision_models",     "memory/decision_models.py")
-mem = _load("trainer.memory.decision_memory",     "memory/decision_memory.py")
-ot  = _load("trainer.memory.outcome_tracker",     "memory/outcome_tracker.py")
-qe  = _load("trainer.memory.quality_engine",      "memory/quality_engine.py")
-ce  = _load("trainer.memory.counterfactual_engine","memory/counterfactual_engine.py")
-pd  = _load("trainer.memory.pattern_discovery",   "memory/pattern_discovery.py")
-se  = _load("trainer.memory.self_evaluation",     "memory/self_evaluation.py")
-kb  = _load("trainer.memory.knowledge_base",      "memory/knowledge_base.py")
-dl  = _load("trainer.memory.decision_lineage",    "memory/decision_lineage.py")
-db_ = _load("trainer.memory.decision_benchmarking","memory/decision_benchmarking.py")
-ms  = _load("trainer.memory.memory_search",       "memory/memory_search.py")
-mdb = _load("trainer.memory.memory_database",     "memory/memory_database.py")
-mdash = _load("trainer.memory.memory_dashboard",  "memory/memory_dashboard.py")
-mapi_mod = _load("trainer.memory.memory_api",     "memory/memory_api.py")
+dt = _load("trainer.memory.decision_types", "memory/decision_types.py")
+dm = _load("trainer.memory.decision_models", "memory/decision_models.py")
+mem = _load("trainer.memory.decision_memory", "memory/decision_memory.py")
+ot = _load("trainer.memory.outcome_tracker", "memory/outcome_tracker.py")
+qe = _load("trainer.memory.quality_engine", "memory/quality_engine.py")
+ce = _load("trainer.memory.counterfactual_engine", "memory/counterfactual_engine.py")
+pd = _load("trainer.memory.pattern_discovery", "memory/pattern_discovery.py")
+se = _load("trainer.memory.self_evaluation", "memory/self_evaluation.py")
+kb = _load("trainer.memory.knowledge_base", "memory/knowledge_base.py")
+dl = _load("trainer.memory.decision_lineage", "memory/decision_lineage.py")
+db_ = _load("trainer.memory.decision_benchmarking", "memory/decision_benchmarking.py")
+ms = _load("trainer.memory.memory_search", "memory/memory_search.py")
+mdb = _load("trainer.memory.memory_database", "memory/memory_database.py")
+mdash = _load("trainer.memory.memory_dashboard", "memory/memory_dashboard.py")
+mapi_mod = _load("trainer.memory.memory_api", "memory/memory_api.py")
 
 # Aliases
-DecisionType       = dt.DecisionType
-OutcomeType        = dt.OutcomeType
-QualityFactor      = dt.QualityFactor
-MarketRegime       = dt.MarketRegime
-VolatilityRegime   = dt.VolatilityRegime
-DecisionGrade      = dt.DecisionGrade
-QUALITY_WEIGHTS    = dt.QUALITY_WEIGHTS
-POSITIVE_OUTCOMES  = dt.POSITIVE_OUTCOMES
-NEGATIVE_OUTCOMES  = dt.NEGATIVE_OUTCOMES
-grade_from_score   = dt.grade_from_score
+DecisionType = dt.DecisionType
+OutcomeType = dt.OutcomeType
+QualityFactor = dt.QualityFactor
+MarketRegime = dt.MarketRegime
+VolatilityRegime = dt.VolatilityRegime
+DecisionGrade = dt.DecisionGrade
+QUALITY_WEIGHTS = dt.QUALITY_WEIGHTS
+POSITIVE_OUTCOMES = dt.POSITIVE_OUTCOMES
+NEGATIVE_OUTCOMES = dt.NEGATIVE_OUTCOMES
+grade_from_score = dt.grade_from_score
 
-DecisionSnapshot   = dm.DecisionSnapshot
-DecisionReasoning  = dm.DecisionReasoning
-DecisionOutcome    = dm.DecisionOutcome
-DecisionScore      = dm.DecisionScore
+DecisionSnapshot = dm.DecisionSnapshot
+DecisionReasoning = dm.DecisionReasoning
+DecisionOutcome = dm.DecisionOutcome
+DecisionScore = dm.DecisionScore
 CounterfactualResult = dm.CounterfactualResult
-DecisionRecord     = dm.DecisionRecord
+DecisionRecord = dm.DecisionRecord
 
-DecisionMemory     = mem.DecisionMemory
-OutcomeTracker     = ot.OutcomeTracker
-QualityEngine      = qe.QualityEngine
+DecisionMemory = mem.DecisionMemory
+OutcomeTracker = ot.OutcomeTracker
+QualityEngine = qe.QualityEngine
 CounterfactualEngine = ce.CounterfactualEngine
-PatternDiscovery   = pd.PatternDiscovery
+PatternDiscovery = pd.PatternDiscovery
 SelfEvaluationEngine = se.SelfEvaluationEngine
-KnowledgeBase      = kb.KnowledgeBase
-DecisionLineage    = dl.DecisionLineage
+KnowledgeBase = kb.KnowledgeBase
+DecisionLineage = dl.DecisionLineage
 DecisionBenchmarking = db_.DecisionBenchmarking
-MemorySearch       = ms.MemorySearch
-SearchQuery        = ms.SearchQuery
-MemoryDatabase     = mdb.MemoryDatabase
-MemoryDashboard    = mdash.MemoryDashboard
-MemoryAPI          = mapi_mod.MemoryAPI
+MemorySearch = ms.MemorySearch
+SearchQuery = ms.SearchQuery
+MemoryDatabase = mdb.MemoryDatabase
+MemoryDashboard = mdash.MemoryDashboard
+MemoryAPI = mapi_mod.MemoryAPI
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def make_snap(
     instrument="EURUSD",
@@ -137,13 +137,13 @@ def make_rea(
     rationale="Strong trend with momentum alignment.",
 ) -> DecisionReasoning:
     return DecisionReasoning(
-        primary_reasons         = primary or ["Uptrend confirmed", "RSI bullish"],
-        supporting_factors      = supporting or ["MACD positive", "Session peak"],
-        contradicting_factors   = contradicting or ["High spread"],
-        risk_factors            = risks or ["News risk", "Low liquidity"],
-        uncertainty_sources     = ["Forecast uncertainty ±0.002"],
-        alternatives_considered = alternatives or ["WAIT", "NO_TRADE", "SCALE_IN"],
-        final_rationale         = rationale,
+        primary_reasons=primary or ["Uptrend confirmed", "RSI bullish"],
+        supporting_factors=supporting or ["MACD positive", "Session peak"],
+        contradicting_factors=contradicting or ["High spread"],
+        risk_factors=risks or ["News risk", "Low liquidity"],
+        uncertainty_sources=["Forecast uncertainty ±0.002"],
+        alternatives_considered=alternatives or ["WAIT", "NO_TRADE", "SCALE_IN"],
+        final_rationale=rationale,
     )
 
 
@@ -158,44 +158,49 @@ def make_record(
     tags=None,
 ) -> DecisionRecord:
     return DecisionRecord.create(
-        decision_type = decision_type or DecisionType.BUY,
-        instrument    = instrument,
-        snapshot      = make_snap(
-            instrument=instrument, regime=regime, session=session,
-            confidence=confidence, tp_prob=tp_prob, sl_prob=sl_prob,
+        decision_type=decision_type or DecisionType.BUY,
+        instrument=instrument,
+        snapshot=make_snap(
+            instrument=instrument,
+            regime=regime,
+            session=session,
+            confidence=confidence,
+            tp_prob=tp_prob,
+            sl_prob=sl_prob,
         ),
-        reasoning     = make_rea(),
-        tags          = tags or ["test"],
+        reasoning=make_rea(),
+        tags=tags or ["test"],
     )
 
 
 def add_positive_outcome(record: DecisionRecord, pnl=0.0015, holding_h=20.0) -> None:
     record.outcome = DecisionOutcome(
-        outcome_type             = OutcomeType.HIT_TP,
-        actual_direction_correct = True,
-        actual_pnl               = pnl,
-        actual_pnl_pct           = pnl / 1.10,
-        hit_tp                   = True,
-        hit_sl                   = False,
-        holding_time_h           = holding_h,
-        recorded_at              = time.time(),
+        outcome_type=OutcomeType.HIT_TP,
+        actual_direction_correct=True,
+        actual_pnl=pnl,
+        actual_pnl_pct=pnl / 1.10,
+        hit_tp=True,
+        hit_sl=False,
+        holding_time_h=holding_h,
+        recorded_at=time.time(),
     )
 
 
 def add_negative_outcome(record: DecisionRecord, pnl=-0.0010, holding_h=5.0) -> None:
     record.outcome = DecisionOutcome(
-        outcome_type             = OutcomeType.HIT_SL,
-        actual_direction_correct = False,
-        actual_pnl               = pnl,
-        actual_pnl_pct           = pnl / 1.10,
-        hit_tp                   = False,
-        hit_sl                   = True,
-        holding_time_h           = holding_h,
-        recorded_at              = time.time(),
+        outcome_type=OutcomeType.HIT_SL,
+        actual_direction_correct=False,
+        actual_pnl=pnl,
+        actual_pnl_pct=pnl / 1.10,
+        hit_tp=False,
+        hit_sl=True,
+        holding_time_h=holding_h,
+        recorded_at=time.time(),
     )
 
 
 # ── Test suite ────────────────────────────────────────────────────────────────
+
 
 class TestDecisionTypes(unittest.TestCase):
     """Tests for decision_types.py"""
@@ -207,8 +212,19 @@ class TestDecisionTypes(unittest.TestCase):
 
     def test_all_decision_types_present(self):
         types = {t.value for t in DecisionType}
-        for v in ("BUY","SELL","NO_TRADE","WAIT","CANCEL","SCALE_IN",
-                   "SCALE_OUT","MOVE_STOP","MOVE_TARGET","PARTIAL_CLOSE","EXIT"):
+        for v in (
+            "BUY",
+            "SELL",
+            "NO_TRADE",
+            "WAIT",
+            "CANCEL",
+            "SCALE_IN",
+            "SCALE_OUT",
+            "MOVE_STOP",
+            "MOVE_TARGET",
+            "PARTIAL_CLOSE",
+            "EXIT",
+        ):
             self.assertIn(v, types)
 
     def test_outcome_types(self):
@@ -218,9 +234,18 @@ class TestDecisionTypes(unittest.TestCase):
 
     def test_all_outcome_types_present(self):
         types = {t.value for t in OutcomeType}
-        for v in ("CORRECT_DIRECTION","INCORRECT_DIRECTION","HIT_TP","HIT_SL",
-                   "CANCELLED","EXPIRED","MISSED_OPPORTUNITY","PARTIAL_SUCCESS",
-                   "NO_TRADE","UNEXPECTED_MARKET_EVENT"):
+        for v in (
+            "CORRECT_DIRECTION",
+            "INCORRECT_DIRECTION",
+            "HIT_TP",
+            "HIT_SL",
+            "CANCELLED",
+            "EXPIRED",
+            "MISSED_OPPORTUNITY",
+            "PARTIAL_SUCCESS",
+            "NO_TRADE",
+            "UNEXPECTED_MARKET_EVENT",
+        ):
             self.assertIn(v, types)
 
     def test_quality_factors(self):
@@ -277,10 +302,10 @@ class TestDecisionModels(unittest.TestCase):
 
     def test_outcome_to_dict(self):
         out = DecisionOutcome(
-            outcome_type = OutcomeType.HIT_TP,
-            actual_pnl   = 0.0015,
-            hit_tp       = True,
-            recorded_at  = time.time(),
+            outcome_type=OutcomeType.HIT_TP,
+            actual_pnl=0.0015,
+            hit_tp=True,
+            recorded_at=time.time(),
         )
         d = out.to_dict()
         self.assertEqual(d["outcome_type"], "HIT_TP")
@@ -315,10 +340,10 @@ class TestDecisionModels(unittest.TestCase):
 
     def test_decision_score_to_dict(self):
         score = DecisionScore(
-            overall    = 0.75,
-            grade      = DecisionGrade.GOOD,
-            sub_scores = {"FORECAST_ACCURACY": 0.80},
-            notes      = [],
+            overall=0.75,
+            grade=DecisionGrade.GOOD,
+            sub_scores={"FORECAST_ACCURACY": 0.80},
+            notes=[],
         )
         d = score.to_dict()
         self.assertEqual(d["grade"], "GOOD")
@@ -352,10 +377,10 @@ class TestDecisionMemory(unittest.TestCase):
 
     def test_record_decision_method(self):
         r = self.mem.record_decision(
-            decision_type = DecisionType.SELL,
-            instrument    = "GBPUSD",
-            snapshot      = make_snap(instrument="GBPUSD"),
-            reasoning     = make_rea(),
+            decision_type=DecisionType.SELL,
+            instrument="GBPUSD",
+            snapshot=make_snap(instrument="GBPUSD"),
+            reasoning=make_rea(),
         )
         self.assertEqual(r.decision_type, DecisionType.SELL)
         self.assertEqual(self.mem.total(), 1)
@@ -369,10 +394,10 @@ class TestDecisionMemory(unittest.TestCase):
         r = make_record()
         self.mem.store(r)
         ok = self.mem.record_outcome(
-            decision_id  = r.decision_id,
-            outcome_type = OutcomeType.HIT_TP,
-            actual_pnl   = 0.0015,
-            hit_tp       = True,
+            decision_id=r.decision_id,
+            outcome_type=OutcomeType.HIT_TP,
+            actual_pnl=0.0015,
+            hit_tp=True,
         )
         self.assertTrue(ok)
         fetched = self.mem.get(r.decision_id)
@@ -403,16 +428,20 @@ class TestDecisionMemory(unittest.TestCase):
         self.assertEqual(len(hi), 1)
 
     def test_filter_has_outcome(self):
-        r1 = make_record(); add_positive_outcome(r1)
+        r1 = make_record()
+        add_positive_outcome(r1)
         r2 = make_record()
-        self.mem.store(r1); self.mem.store(r2)
+        self.mem.store(r1)
+        self.mem.store(r2)
         with_out = self.mem.filter(has_outcome=True)
         self.assertEqual(len(with_out), 1)
 
     def test_decisions_with_outcomes(self):
-        r1 = make_record(); add_positive_outcome(r1)
+        r1 = make_record()
+        add_positive_outcome(r1)
         r2 = make_record()
-        self.mem.store(r1); self.mem.store(r2)
+        self.mem.store(r1)
+        self.mem.store(r2)
         self.assertEqual(len(self.mem.decisions_with_outcomes()), 1)
         self.assertEqual(len(self.mem.decisions_without_outcomes()), 1)
 
@@ -495,22 +524,32 @@ class TestOutcomeTracker(unittest.TestCase):
     def test_tp_hit_rate(self):
         records = []
         for _ in range(3):
-            r = make_record(); add_positive_outcome(r); records.append(r)
+            r = make_record()
+            add_positive_outcome(r)
+            records.append(r)
         for _ in range(2):
-            r = make_record(); add_negative_outcome(r); records.append(r)
+            r = make_record()
+            add_negative_outcome(r)
+            records.append(r)
         self.assertAlmostEqual(self.tracker.tp_hit_rate(records), 0.60, places=4)
 
     def test_sl_hit_rate(self):
         records = []
         for _ in range(3):
-            r = make_record(); add_positive_outcome(r); records.append(r)
+            r = make_record()
+            add_positive_outcome(r)
+            records.append(r)
         for _ in range(2):
-            r = make_record(); add_negative_outcome(r); records.append(r)
+            r = make_record()
+            add_negative_outcome(r)
+            records.append(r)
         self.assertAlmostEqual(self.tracker.sl_hit_rate(records), 0.40, places=4)
 
     def test_by_session_grouping(self):
-        r1 = make_record(session="LONDON"); add_positive_outcome(r1)
-        r2 = make_record(session="NY"); add_negative_outcome(r2)
+        r1 = make_record(session="LONDON")
+        add_positive_outcome(r1)
+        r2 = make_record(session="NY")
+        add_negative_outcome(r2)
         s = self.tracker.summarise([r1, r2])
         self.assertIn("LONDON", s.by_session)
         self.assertIn("NY", s.by_session)
@@ -590,8 +629,8 @@ class TestQualityEngine(unittest.TestCase):
         r = make_record(confidence=0.85, tp_prob=0.80, sl_prob=0.10)
         r.snapshot.liquidity_estimate = 1.0
         r.snapshot.portfolio_exposure = 0.01
-        r.snapshot.correlation_risk   = 0.01
-        r.snapshot.expected_move      = 0.003
+        r.snapshot.correlation_risk = 0.01
+        r.snapshot.expected_move = 0.003
         add_positive_outcome(r)
         r.outcome.hit_tp = True
         r.outcome.actual_direction_correct = True
@@ -808,9 +847,9 @@ class TestKnowledgeBase(unittest.TestCase):
 
     def test_add_and_get(self):
         e = self.kb.create_entry(
-            entry_type  = "MODEL",
-            title       = "Ensemble v3",
-            description = "Champion ensemble model",
+            entry_type="MODEL",
+            title="Ensemble v3",
+            description="Champion ensemble model",
         )
         fetched = self.kb.get(e.entry_id)
         self.assertIsNotNone(fetched)
@@ -883,26 +922,26 @@ class TestDecisionLineage(unittest.TestCase):
 
     def test_create_lineage(self):
         rec = self.lineage.create_lineage(
-            decision_id   = "dec-001",
-            model_version = "v1.5",
-            dataset_name  = "DS_2024",
-            feature_set   = "FS_v3",
-            training_run  = "RUN_42",
-            experiment    = "EXP_007",
-            git_commit    = "abc1234",
+            decision_id="dec-001",
+            model_version="v1.5",
+            dataset_name="DS_2024",
+            feature_set="FS_v3",
+            training_run="RUN_42",
+            experiment="EXP_007",
+            git_commit="abc1234",
         )
         self.assertIsNotNone(rec)
         self.assertGreater(rec.depth, 0)
 
     def test_full_lineage_depth(self):
         rec = self.lineage.create_lineage(
-            decision_id   = "dec-002",
-            model_version = "v2.0",
-            dataset_name  = "DS_2025",
-            feature_set   = "FS_v4",
-            training_run  = "RUN_50",
-            experiment    = "EXP_010",
-            git_commit    = "def5678",
+            decision_id="dec-002",
+            model_version="v2.0",
+            dataset_name="DS_2025",
+            feature_set="FS_v4",
+            training_run="RUN_50",
+            experiment="EXP_010",
+            git_commit="def5678",
         )
         # Decision + Forecast + Model + Dataset + FeatureSet + TrainingRun + Experiment + GitCommit = 8
         self.assertEqual(rec.depth, 8)
@@ -918,9 +957,9 @@ class TestDecisionLineage(unittest.TestCase):
 
     def test_lineage_node_types(self):
         rec = self.lineage.create_lineage(
-            decision_id  = "dec-xyz",
-            model_version = "vtest",
-            git_commit   = "commitabc",
+            decision_id="dec-xyz",
+            model_version="vtest",
+            git_commit="commitabc",
         )
         types = [n.node_type for n in rec.nodes]
         self.assertIn("DECISION", types)
@@ -929,9 +968,9 @@ class TestDecisionLineage(unittest.TestCase):
 
     def test_root_and_leaf(self):
         rec = self.lineage.create_lineage(
-            decision_id  = "dec-rl",
-            model_version = "v1",
-            git_commit   = "cmt123",
+            decision_id="dec-rl",
+            model_version="v1",
+            git_commit="cmt123",
         )
         self.assertEqual(rec.leaf.node_type, "DECISION")
         self.assertEqual(rec.root.node_type, "GIT_COMMIT")
@@ -967,9 +1006,13 @@ class TestDecisionBenchmarking(unittest.TestCase):
     def _make_records_for_bench(self, n_pos=6, n_neg=4):
         records = []
         for _ in range(n_pos):
-            r = make_record(); add_positive_outcome(r); records.append(r)
+            r = make_record()
+            add_positive_outcome(r)
+            records.append(r)
         for _ in range(n_neg):
-            r = make_record(); add_negative_outcome(r); records.append(r)
+            r = make_record()
+            add_negative_outcome(r)
+            records.append(r)
         return records
 
     def test_default_baselines_present(self):
@@ -1009,6 +1052,7 @@ class TestDecisionBenchmarking(unittest.TestCase):
 
     def test_add_custom_baseline(self):
         from trainer.memory.decision_benchmarking import BenchmarkBaseline
+
         bl = BenchmarkBaseline("MY_BASELINE", 0.55, 0.65, 0.0003, 50)
         self.bench.add_baseline(bl)
         names = [b["name"] for b in self.bench.list_baselines()]
@@ -1160,7 +1204,7 @@ class TestMemoryDatabase(unittest.TestCase):
     def test_idempotent_save(self):
         r = make_record()
         self.db.save_decision(r)
-        self.db.save_decision(r)   # INSERT OR REPLACE
+        self.db.save_decision(r)  # INSERT OR REPLACE
         self.assertEqual(self.db.count_decisions(), 1)
 
 
@@ -1250,10 +1294,10 @@ class TestMemoryAPI(unittest.TestCase):
 
     def test_record_and_get_decision(self):
         record = self.api.record_decision(
-            decision_type = DecisionType.BUY,
-            instrument    = "EURUSD",
-            snapshot      = make_snap(),
-            reasoning     = make_rea(),
+            decision_type=DecisionType.BUY,
+            instrument="EURUSD",
+            snapshot=make_snap(),
+            reasoning=make_rea(),
         )
         d = self.api.get_decision(record.decision_id)
         self.assertIsNotNone(d)
@@ -1264,26 +1308,26 @@ class TestMemoryAPI(unittest.TestCase):
 
     def test_record_outcome_via_api(self):
         record = self.api.record_decision(
-            decision_type = DecisionType.BUY,
-            instrument    = "EURUSD",
-            snapshot      = make_snap(),
-            reasoning     = make_rea(),
+            decision_type=DecisionType.BUY,
+            instrument="EURUSD",
+            snapshot=make_snap(),
+            reasoning=make_rea(),
         )
         ok = self.api.record_outcome(
-            decision_id  = record.decision_id,
-            outcome_type = OutcomeType.HIT_TP,
-            actual_pnl   = 0.0015,
-            hit_tp       = True,
-            direction_correct = True,
+            decision_id=record.decision_id,
+            outcome_type=OutcomeType.HIT_TP,
+            actual_pnl=0.0015,
+            hit_tp=True,
+            direction_correct=True,
         )
         self.assertTrue(ok)
 
     def test_score_decision(self):
         record = self.api.record_decision(
-            decision_type = DecisionType.BUY,
-            instrument    = "EURUSD",
-            snapshot      = make_snap(),
-            reasoning     = make_rea(),
+            decision_type=DecisionType.BUY,
+            instrument="EURUSD",
+            snapshot=make_snap(),
+            reasoning=make_rea(),
         )
         self.api.record_outcome(record.decision_id, OutcomeType.HIT_TP, hit_tp=True)
         score = self.api.score_decision(record.decision_id)
@@ -1293,24 +1337,20 @@ class TestMemoryAPI(unittest.TestCase):
 
     def test_score_all(self):
         for _ in range(3):
-            r = self.api.record_decision(
-                DecisionType.BUY, "EURUSD", make_snap(), make_rea()
-            )
+            r = self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
         result = self.api.score_all()
         self.assertEqual(result["scored"], 3)
 
     def test_analyse_counterfactuals(self):
-        record = self.api.record_decision(
-            DecisionType.BUY, "EURUSD", make_snap(), make_rea()
+        record = self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
+        self.api.record_outcome(
+            record.decision_id, OutcomeType.HIT_TP, hit_tp=True, actual_pnl=0.0015
         )
-        self.api.record_outcome(record.decision_id, OutcomeType.HIT_TP, hit_tp=True, actual_pnl=0.0015)
         cfs = self.api.analyse_counterfactuals(record.decision_id)
         self.assertGreater(len(cfs), 0)
 
     def test_summarise_outcomes(self):
-        record = self.api.record_decision(
-            DecisionType.BUY, "EURUSD", make_snap(), make_rea()
-        )
+        record = self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
         self.api.record_outcome(record.decision_id, OutcomeType.HIT_TP, hit_tp=True)
         summary = self.api.summarise_outcomes()
         self.assertIn("win_rate", summary)
@@ -1320,7 +1360,12 @@ class TestMemoryAPI(unittest.TestCase):
             r = self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
             self.api.record_outcome(r.decision_id, OutcomeType.HIT_TP, hit_tp=True)
         for _ in range(5):
-            r = self.api.record_decision(DecisionType.SELL, "GBPUSD", make_snap(instrument="GBPUSD", session="NY"), make_rea())
+            r = self.api.record_decision(
+                DecisionType.SELL,
+                "GBPUSD",
+                make_snap(instrument="GBPUSD", session="NY"),
+                make_rea(),
+            )
             self.api.record_outcome(r.decision_id, OutcomeType.HIT_SL, hit_sl=True)
         report = self.api.discover_patterns()
         self.assertIn("patterns", report)
@@ -1336,7 +1381,9 @@ class TestMemoryAPI(unittest.TestCase):
     def test_search_decisions(self):
         for _ in range(3):
             self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
-        self.api.record_decision(DecisionType.SELL, "GBPUSD", make_snap(instrument="GBPUSD"), make_rea())
+        self.api.record_decision(
+            DecisionType.SELL, "GBPUSD", make_snap(instrument="GBPUSD"), make_rea()
+        )
         result = self.api.search_decisions(SearchQuery(instrument="EURUSD"))
         self.assertEqual(result["total_found"], 3)
 
@@ -1349,9 +1396,9 @@ class TestMemoryAPI(unittest.TestCase):
     def test_build_lineage(self):
         record = self.api.record_decision(DecisionType.BUY, "EURUSD", make_snap(), make_rea())
         lin = self.api.build_lineage(
-            decision_id   = record.decision_id,
-            model_version = "v2.0",
-            git_commit    = "abc1234",
+            decision_id=record.decision_id,
+            model_version="v2.0",
+            git_commit="abc1234",
         )
         self.assertIsNotNone(lin)
         self.assertIn("lineage_id", lin)

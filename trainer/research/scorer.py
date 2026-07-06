@@ -62,7 +62,6 @@ from trainer.research.confidence import ConfidenceCalculator, ConfidenceInputs, 
 from trainer.research.grades import GradeResult, GradeSystem
 from trainer.research.weights import ALL_CATEGORIES, ScoringWeights
 
-
 # ---------------------------------------------------------------------------
 # ResearchScoreInputs
 # ---------------------------------------------------------------------------
@@ -75,32 +74,30 @@ class ResearchScoreInputs:
     experiment_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     name: str = ""
-    scored_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Category inputs
-    validation:   ValidationQualityInputs    = field(default_factory=ValidationQualityInputs)
-    trading:      TradingPerformanceInputs   = field(default_factory=TradingPerformanceInputs)
-    robustness:   RobustnessInputs           = field(default_factory=RobustnessInputs)
-    calibration:  CalibrationInputs          = field(default_factory=CalibrationInputs)
-    generalization: GeneralizationInputs     = field(default_factory=GeneralizationInputs)
-    efficiency:   EfficiencyInputs           = field(default_factory=EfficiencyInputs)
-    explainability: ExplainabilityInputs     = field(default_factory=ExplainabilityInputs)
-    operational:  OperationalReadinessInputs = field(default_factory=OperationalReadinessInputs)
+    validation: ValidationQualityInputs = field(default_factory=ValidationQualityInputs)
+    trading: TradingPerformanceInputs = field(default_factory=TradingPerformanceInputs)
+    robustness: RobustnessInputs = field(default_factory=RobustnessInputs)
+    calibration: CalibrationInputs = field(default_factory=CalibrationInputs)
+    generalization: GeneralizationInputs = field(default_factory=GeneralizationInputs)
+    efficiency: EfficiencyInputs = field(default_factory=EfficiencyInputs)
+    explainability: ExplainabilityInputs = field(default_factory=ExplainabilityInputs)
+    operational: OperationalReadinessInputs = field(default_factory=OperationalReadinessInputs)
 
     # Confidence inputs (independent of category scores)
-    confidence:   ConfidenceInputs           = field(default_factory=ConfidenceInputs)
+    confidence: ConfidenceInputs = field(default_factory=ConfidenceInputs)
 
     # Metadata for filtering / leaderboard
-    instrument:       str = ""
-    timeframe:        str = ""
-    backbone:         str = ""
-    architecture:     str = ""
-    dataset_version:  str = ""
-    feature_version:  str = ""
-    model_family:     str = ""
-    tags: List[str]       = field(default_factory=list)
+    instrument: str = ""
+    timeframe: str = ""
+    backbone: str = ""
+    architecture: str = ""
+    dataset_version: str = ""
+    feature_version: str = ""
+    model_family: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -113,8 +110,8 @@ class CategoryScore:
     """Score for one weighted category."""
 
     category: str
-    score: float           # 0–100
-    weight: float          # fraction, e.g. 0.25
+    score: float  # 0–100
+    weight: float  # fraction, e.g. 0.25
     weighted_score: float  # score * weight (0–100)
     sub_scores: Dict[str, float] = field(default_factory=dict)
 
@@ -141,12 +138,10 @@ class ResearchScore:
     experiment_id: str = ""
     model_id: str = ""
     name: str = ""
-    scored_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Composite score
-    composite: float = 0.0     # 0–100
+    composite: float = 0.0  # 0–100
 
     # Grade
     grade_label: str = ""
@@ -165,8 +160,8 @@ class ResearchScore:
 
     # Metadata
     instrument: str = ""
-    timeframe:  str = ""
-    backbone:   str = ""
+    timeframe: str = ""
+    backbone: str = ""
     architecture: str = ""
     dataset_version: str = ""
     feature_version: str = ""
@@ -252,16 +247,14 @@ class ResearchScore:
             f"Research Score: {self.composite:.1f}/100  [{self.grade_label}]",
             f"Experiment:     {self.name or self.experiment_id}",
             f"Promotion:      {'YES' if self.promotion_eligible else 'NO'}",
-            f"Confidence:     {self.confidence_score():.0%}"
-            if self.confidence else "",
+            f"Confidence:     {self.confidence_score():.0%}" if self.confidence else "",
             "",
             "Category Breakdown:",
         ]
         for cs in self.category_scores:
             bar = "█" * int(cs.score / 10)
             lines.append(
-                f"  {cs.category:<24} {cs.score:5.1f}/100  "
-                f"({cs.weight*100:.0f}%)  {bar}"
+                f"  {cs.category:<24} {cs.score:5.1f}/100  " f"({cs.weight*100:.0f}%)  {bar}"
             )
         return "\n".join(line for line in lines if line is not None)
 
@@ -288,24 +281,24 @@ class ResearchScorer:
         self._confidence_calc = ConfidenceCalculator()
 
         self._category_scorers = {
-            "validation_quality":    ValidationQualityScorer(),
-            "trading_performance":   TradingPerformanceScorer(),
-            "robustness":            RobustnessScorer(),
-            "calibration":           CalibrationScorer(),
-            "generalization":        GeneralizationScorer(),
-            "efficiency":            EfficiencyScorer(),
-            "explainability":        ExplainabilityScorer(),
+            "validation_quality": ValidationQualityScorer(),
+            "trading_performance": TradingPerformanceScorer(),
+            "robustness": RobustnessScorer(),
+            "calibration": CalibrationScorer(),
+            "generalization": GeneralizationScorer(),
+            "efficiency": EfficiencyScorer(),
+            "explainability": ExplainabilityScorer(),
             "operational_readiness": OperationalReadinessScorer(),
         }
 
         self._category_inputs_map = {
-            "validation_quality":    "validation",
-            "trading_performance":   "trading",
-            "robustness":            "robustness",
-            "calibration":           "calibration",
-            "generalization":        "generalization",
-            "efficiency":            "efficiency",
-            "explainability":        "explainability",
+            "validation_quality": "validation",
+            "trading_performance": "trading",
+            "robustness": "robustness",
+            "calibration": "calibration",
+            "generalization": "generalization",
+            "efficiency": "efficiency",
+            "explainability": "explainability",
             "operational_readiness": "operational",
         }
 
@@ -327,13 +320,15 @@ class ResearchScorer:
             weight = weights_dict[cat]
             weighted = cat_score_val * weight
             composite += weighted
-            category_scores.append(CategoryScore(
-                category=cat,
-                score=cat_score_val,
-                weight=weight,
-                weighted_score=weighted,
-                sub_scores=sub_scores,
-            ))
+            category_scores.append(
+                CategoryScore(
+                    category=cat,
+                    score=cat_score_val,
+                    weight=weight,
+                    weighted_score=weighted,
+                    sub_scores=sub_scores,
+                )
+            )
 
         composite = _clamp(composite)
 
@@ -400,9 +395,7 @@ class ResearchScorer:
             # renormalise
             total = sum(perturbed.values())
             perturbed = {k: v / total for k, v in perturbed.items()}
-            temp_scorer = ResearchScorer(
-                ScoringWeights.from_dict(perturbed), self._grades
-            )
+            temp_scorer = ResearchScorer(ScoringWeights.from_dict(perturbed), self._grades)
             perturbed_score = temp_scorer.score(inputs).composite
             result[cat] = round(perturbed_score - base, 3)
         return result

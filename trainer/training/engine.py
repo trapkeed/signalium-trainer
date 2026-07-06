@@ -127,9 +127,7 @@ class TrainingEngine:
             self._log_epoch(epoch, combined)
             self._step_scheduler(val_metrics.get("val_loss", float("inf")))
 
-            monitor_value = val_metrics.get(
-                self._config.checkpoint.monitor_metric, float("inf")
-            )
+            monitor_value = val_metrics.get(self._config.checkpoint.monitor_metric, float("inf"))
 
             self._checkpoint_manager.save(
                 epoch=epoch,
@@ -265,33 +263,48 @@ class TrainingEngine:
 
         if cfg.type == OptimizerType.ADAM:
             return torch.optim.Adam(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         if cfg.type == OptimizerType.ADAMW:
             return torch.optim.AdamW(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         if cfg.type == OptimizerType.SGD:
             return torch.optim.SGD(
-                params, lr=cfg.learning_rate, momentum=cfg.momentum,
+                params,
+                lr=cfg.learning_rate,
+                momentum=cfg.momentum,
                 weight_decay=cfg.weight_decay,
             )
         if cfg.type == OptimizerType.RMSPROP:
             return torch.optim.RMSprop(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
                 momentum=cfg.momentum,
             )
         if cfg.type == OptimizerType.ADAGRAD:
             return torch.optim.Adagrad(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
                 eps=cfg.eps,
             )
         if cfg.type == OptimizerType.ADAMAX:
             return torch.optim.Adamax(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         raise ValueError(f"Unknown optimizer type: {cfg.type}")
 
@@ -325,12 +338,13 @@ class TrainingEngine:
                 opt, T_max=cfg.T_max, eta_min=cfg.eta_min
             )
         if cfg.type == SchedulerType.STEP:
-            return torch.optim.lr_scheduler.StepLR(
-                opt, step_size=cfg.step_size, gamma=cfg.gamma
-            )
+            return torch.optim.lr_scheduler.StepLR(opt, step_size=cfg.step_size, gamma=cfg.gamma)
         if cfg.type == SchedulerType.REDUCE_ON_PLATEAU:
             return torch.optim.lr_scheduler.ReduceLROnPlateau(
-                opt, mode="min", patience=cfg.patience, factor=cfg.factor,
+                opt,
+                mode="min",
+                patience=cfg.patience,
+                factor=cfg.factor,
             )
         if cfg.type == SchedulerType.EXPONENTIAL:
             return torch.optim.lr_scheduler.ExponentialLR(opt, gamma=cfg.gamma)

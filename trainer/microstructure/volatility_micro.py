@@ -15,6 +15,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
@@ -32,14 +33,14 @@ class VolatilityMicrostructure:
     """Derives volatility microstructure features from a window of OHLC bars."""
 
     # Thresholds
-    EXPANSION_THRESHOLD   = 1.30   # 30% above avg = expansion
-    COMPRESSION_THRESHOLD = 0.70   # 30% below avg = compression
-    SHOCK_Z_SCORE         = 2.50   # Z-score for shock detection
-    LARGE_CANDLE_MULTIPLE = 1.50   # range > 1.5× avg = large candle
+    EXPANSION_THRESHOLD = 1.30  # 30% above avg = expansion
+    COMPRESSION_THRESHOLD = 0.70  # 30% below avg = compression
+    SHOCK_Z_SCORE = 2.50  # Z-score for shock detection
+    LARGE_CANDLE_MULTIPLE = 1.50  # range > 1.5× avg = large candle
 
     def analyse_window(
         self,
-        bars:     List[OHLCBar],
+        bars: List[OHLCBar],
         features: MicrostructureFeatures,
         atr_period: int = 14,
     ) -> MicrostructureFeatures:
@@ -59,9 +60,9 @@ class VolatilityMicrostructure:
         ratio = current_range / avg_range
 
         # ATR Expansion / Compression (0–1 scale)
-        features.atr_expansion   = _clamp((ratio - 1.0) / (self.EXPANSION_THRESHOLD - 1.0))
-        features.atr_compression  = _clamp((1.0 - ratio) / (1.0 - self.COMPRESSION_THRESHOLD))
-        features.range_expansion  = 1.0 if ratio >= self.EXPANSION_THRESHOLD else 0.0
+        features.atr_expansion = _clamp((ratio - 1.0) / (self.EXPANSION_THRESHOLD - 1.0))
+        features.atr_compression = _clamp((1.0 - ratio) / (1.0 - self.COMPRESSION_THRESHOLD))
+        features.range_expansion = 1.0 if ratio >= self.EXPANSION_THRESHOLD else 0.0
         features.range_compression = 1.0 if ratio <= self.COMPRESSION_THRESHOLD else 0.0
 
         # Volatility Clustering — std(ranges) / mean(ranges)
@@ -73,21 +74,20 @@ class VolatilityMicrostructure:
 
         # Volatility Persistence — autocorrelation (lag-1) of ranges
         if len(window_ranges) >= 4:
-            features.volatility_persistence = _clamp(
-                abs(self._autocorr_lag1(window_ranges))
-            )
+            features.volatility_persistence = _clamp(abs(self._autocorr_lag1(window_ranges)))
 
         # Volatility Shock — Z-score of current range
         if len(window_ranges) >= 4:
             std_r = statistics.stdev(window_ranges)
             if std_r > 1e-10:
                 z = (current_range - avg_range) / std_r
-                features.volatility_shock = 1.0 if z > self.SHOCK_Z_SCORE else _clamp(z / self.SHOCK_Z_SCORE)
+                features.volatility_shock = (
+                    1.0 if z > self.SHOCK_Z_SCORE else _clamp(z / self.SHOCK_Z_SCORE)
+                )
 
         # Noise Ratio — 1 - avg(body/range) = proportion of wicks
         body_ratios = [
-            abs(b.close - b.open) / b.range if b.range > 1e-10 else 0.0
-            for b in bars[-atr_period:]
+            abs(b.close - b.open) / b.range if b.range > 1e-10 else 0.0 for b in bars[-atr_period:]
         ]
         avg_body_ratio = statistics.mean(body_ratios) if body_ratios else 0.5
         features.noise_ratio = _clamp(1.0 - avg_body_ratio)

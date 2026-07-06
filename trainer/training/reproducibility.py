@@ -44,7 +44,6 @@ from loguru import logger
 
 from trainer.utils.git import get_git_commit, is_dirty
 
-
 # ---------------------------------------------------------------------------
 # Run fingerprint
 # ---------------------------------------------------------------------------
@@ -141,9 +140,7 @@ class ReproducibilityManager:
         commit = get_git_commit()
         dirty = is_dirty()
         if dirty:
-            warnings.append(
-                "Working tree has uncommitted changes — run is not fully reproducible."
-            )
+            warnings.append("Working tree has uncommitted changes — run is not fully reproducible.")
         if commit is None:
             warnings.append("Not in a git repository — git commit unavailable.")
 
@@ -249,14 +246,11 @@ class ReproducibilityManager:
             )
 
         if ref.seed != current_seed:
-            issues.append(
-                f"Seed mismatch: current={current_seed}, reference={ref.seed}"
-            )
+            issues.append(f"Seed mismatch: current={current_seed}, reference={ref.seed}")
 
         if check_git and current_commit != ref.git_commit:
             issues.append(
-                f"Git commit mismatch: current={current_commit}, "
-                f"reference={ref.git_commit}"
+                f"Git commit mismatch: current={current_commit}, " f"reference={ref.git_commit}"
             )
 
         if check_versions:
@@ -297,9 +291,7 @@ class ReproducibilityManager:
         Returns:
             64-character lowercase hex string (SHA-256).
         """
-        serialised = json.dumps(
-            _serialise(config), sort_keys=True, default=str
-        )
+        serialised = json.dumps(_serialise(config), sort_keys=True, default=str)
         return hashlib.sha256(serialised.encode("utf-8")).hexdigest()
 
     # ------------------------------------------------------------------
@@ -336,9 +328,7 @@ class ReproducibilityManager:
         if "torch" in state:
             torch.set_rng_state(torch.tensor(state["torch"], dtype=torch.uint8))
         if "cuda" in state and torch.cuda.is_available():
-            tensors = [
-                torch.tensor(s, dtype=torch.uint8) for s in state["cuda"]
-            ]
+            tensors = [torch.tensor(s, dtype=torch.uint8) for s in state["cuda"]]
             torch.cuda.set_rng_state_all(tensors)
 
 

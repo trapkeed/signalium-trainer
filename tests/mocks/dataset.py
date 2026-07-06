@@ -34,9 +34,7 @@ class MockDataset(BaseDataset):
     ) -> None:
         super().__init__(root=Path("/tmp/mock"), split=split)
         rng = np.random.default_rng(seed)
-        self._x = torch.tensor(
-            rng.standard_normal((n_samples, feature_dim)), dtype=torch.float32
-        )
+        self._x = torch.tensor(rng.standard_normal((n_samples, feature_dim)), dtype=torch.float32)
         self._y = torch.tensor(rng.integers(0, num_classes, n_samples), dtype=torch.long)
         self._feature_dim = feature_dim
         self._num_classes = num_classes

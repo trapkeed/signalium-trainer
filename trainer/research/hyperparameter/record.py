@@ -90,10 +90,22 @@ class HyperparameterRecord:
             HyperparameterRecord.
         """
         known = {
-            "learning_rate", "hidden_size", "num_layers", "dropout",
-            "optimizer", "scheduler", "epochs", "batch_size", "window_length",
-            "gradient_clip", "weight_decay", "warmup_steps", "label_smoothing",
-            "loss_type", "focal_gamma", "class_balance_strategy",
+            "learning_rate",
+            "hidden_size",
+            "num_layers",
+            "dropout",
+            "optimizer",
+            "scheduler",
+            "epochs",
+            "batch_size",
+            "window_length",
+            "gradient_clip",
+            "weight_decay",
+            "warmup_steps",
+            "label_smoothing",
+            "loss_type",
+            "focal_gamma",
+            "class_balance_strategy",
             "early_stopping_patience",
         }
         kwargs: dict[str, Any] = {}

@@ -31,15 +31,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_expert(expert_id: str = None, family: str = "lstm",
-                  specs: list = None, status: str = "active") -> "ExpertModel":
+def _make_expert(
+    expert_id: str = None, family: str = "lstm", specs: list = None, status: str = "active"
+) -> "ExpertModel":
     from trainer.ensemble.expert import ExpertModel, SpecializationType
+
     return ExpertModel(
         expert_id=expert_id or str(uuid.uuid4()),
         name=f"Expert {family}",
@@ -49,21 +50,32 @@ def _make_expert(expert_id: str = None, family: str = "lstm",
     )
 
 
-def _make_prediction(expert_id: str = None, buy: float = 0.6,
-                      sell: float = 0.2, no_trade: float = 0.2,
-                      confidence: float = 0.75,
-                      regime: str = "trending_up") -> "ExpertPrediction":
+def _make_prediction(
+    expert_id: str = None,
+    buy: float = 0.6,
+    sell: float = 0.2,
+    no_trade: float = 0.2,
+    confidence: float = 0.75,
+    regime: str = "trending_up",
+) -> "ExpertPrediction":
     from trainer.ensemble.expert import ExpertPrediction
+
     return ExpertPrediction(
         expert_id=expert_id or str(uuid.uuid4()),
-        buy_prob=buy, sell_prob=sell, no_trade_prob=no_trade,
-        confidence=confidence, uncertainty=0.25,
-        regime=regime, instrument="EURUSD", timeframe="H1",
+        buy_prob=buy,
+        sell_prob=sell,
+        no_trade_prob=no_trade,
+        confidence=confidence,
+        uncertainty=0.25,
+        regime=regime,
+        instrument="EURUSD",
+        timeframe="H1",
     )
 
 
 def _make_registry_with_experts(n: int = 3) -> "ExpertRegistry":
     from trainer.ensemble.expert import ExpertRegistry
+
     registry = ExpertRegistry()
     for i in range(n):
         registry.register(_make_expert(expert_id=f"expert_{i:02d}"))
@@ -78,6 +90,7 @@ def _make_registry_with_experts(n: int = 3) -> "ExpertRegistry":
 class TestExpertPrediction:
     def test_probabilities_normalized(self):
         from trainer.ensemble.expert import ExpertPrediction
+
         p = ExpertPrediction("e1", buy_prob=0.6, sell_prob=0.6, no_trade_prob=0.6)
         total = p.buy_prob + p.sell_prob + p.no_trade_prob
         assert abs(total - 1.0) < 1e-6
@@ -96,16 +109,19 @@ class TestExpertPrediction:
 
     def test_is_high_confidence_true(self):
         from trainer.ensemble.expert import ExpertPrediction
+
         p = ExpertPrediction("e1", confidence=0.8, uncertainty=0.2)
         assert p.is_high_confidence is True
 
     def test_is_high_confidence_false(self):
         from trainer.ensemble.expert import ExpertPrediction
+
         p = ExpertPrediction("e1", confidence=0.5, uncertainty=0.6)
         assert p.is_high_confidence is False
 
     def test_to_from_dict(self):
         from trainer.ensemble.expert import ExpertPrediction
+
         p = _make_prediction("e1")
         p2 = ExpertPrediction.from_dict(p.to_dict())
         assert p2.expert_id == "e1"
@@ -149,6 +165,7 @@ class TestExpertModel:
 
     def test_predict_custom_fn(self):
         from trainer.ensemble.expert import ExpertPrediction
+
         e = _make_expert()
         e.predict_fn = lambda features: ExpertPrediction(
             expert_id=e.expert_id, buy_prob=0.9, sell_prob=0.05, no_trade_prob=0.05
@@ -161,6 +178,7 @@ class TestExpertModel:
         d = e.to_dict()
         e2 = _make_expert.__wrapped__(d) if hasattr(_make_expert, "__wrapped__") else None
         from trainer.ensemble.expert import ExpertModel
+
         e2 = ExpertModel.from_dict(d)
         assert e2.expert_id == "eid1"
         assert e2.model_family == "gru"
@@ -169,6 +187,7 @@ class TestExpertModel:
 class TestExpertRegistry:
     def test_register_and_get(self):
         from trainer.ensemble.expert import ExpertRegistry
+
         r = ExpertRegistry()
         e = _make_expert("e1")
         r.register(e)
@@ -176,6 +195,7 @@ class TestExpertRegistry:
 
     def test_get_or_raise_missing(self):
         from trainer.ensemble.expert import ExpertRegistry
+
         r = ExpertRegistry()
         with pytest.raises(KeyError):
             r.get_or_raise("nonexistent")
@@ -207,6 +227,7 @@ class TestExpertRegistry:
 
     def test_by_family(self):
         from trainer.ensemble.expert import ExpertRegistry
+
         r = ExpertRegistry()
         r.register(_make_expert("e1", family="lstm"))
         r.register(_make_expert("e2", family="gru"))
@@ -222,6 +243,7 @@ class TestExpertRegistry:
 
     def test_to_from_dict(self):
         from trainer.ensemble.expert import ExpertRegistry
+
         r = _make_registry_with_experts(2)
         d = r.to_dict()
         r2 = ExpertRegistry.from_dict(d)
@@ -229,6 +251,7 @@ class TestExpertRegistry:
 
     def test_build_default_registry(self):
         from trainer.ensemble.expert import build_default_registry
+
         r = build_default_registry()
         assert r.n_experts == 1
         experts = r.all_experts()
@@ -243,8 +266,9 @@ class TestExpertRegistry:
 
 def _make_predictions(n: int = 3) -> List["ExpertPrediction"]:
     return [
-        _make_prediction(expert_id=f"e{i}", buy=0.5 + i * 0.1,
-                         sell=0.3 - i * 0.05, no_trade=0.2 - i * 0.05)
+        _make_prediction(
+            expert_id=f"e{i}", buy=0.5 + i * 0.1, sell=0.3 - i * 0.05, no_trade=0.2 - i * 0.05
+        )
         for i in range(n)
     ]
 
@@ -257,6 +281,7 @@ def _uniform_weights(predictions) -> Dict[str, float]:
 class TestSimpleAveraging:
     def test_result_sums_to_one(self):
         from trainer.ensemble.strategies import SimpleAveragingStrategy
+
         s = SimpleAveragingStrategy()
         r = s.combine(_make_predictions(3))
         total = r.buy_prob + r.sell_prob + r.no_trade_prob
@@ -264,18 +289,21 @@ class TestSimpleAveraging:
 
     def test_empty_predictions(self):
         from trainer.ensemble.strategies import SimpleAveragingStrategy
+
         s = SimpleAveragingStrategy()
         r = s.combine([])
         assert r.n_experts == 0
 
     def test_n_experts(self):
         from trainer.ensemble.strategies import SimpleAveragingStrategy
+
         s = SimpleAveragingStrategy()
         r = s.combine(_make_predictions(4))
         assert r.n_experts == 4
 
     def test_strategy_name(self):
         from trainer.ensemble.strategies import SimpleAveragingStrategy
+
         s = SimpleAveragingStrategy()
         r = s.combine(_make_predictions(2))
         assert r.strategy == "simple_averaging"
@@ -284,6 +312,7 @@ class TestSimpleAveraging:
 class TestWeightedAveraging:
     def test_higher_weight_shifts_result(self):
         from trainer.ensemble.strategies import WeightedAveragingStrategy
+
         s = WeightedAveragingStrategy()
         preds = [
             _make_prediction("e1", buy=0.9, sell=0.05, no_trade=0.05),
@@ -295,6 +324,7 @@ class TestWeightedAveraging:
 
     def test_weight_map_in_result(self):
         from trainer.ensemble.strategies import WeightedAveragingStrategy
+
         s = WeightedAveragingStrategy()
         preds = _make_predictions(2)
         w = {"e0": 0.7, "e1": 0.3}
@@ -305,6 +335,7 @@ class TestWeightedAveraging:
 class TestHardVoting:
     def test_winner_gets_prob_one(self):
         from trainer.ensemble.strategies import HardVotingStrategy
+
         s = HardVotingStrategy()
         preds = [
             _make_prediction("e1", buy=0.8, sell=0.1, no_trade=0.1),
@@ -317,6 +348,7 @@ class TestHardVoting:
 
     def test_agreement_in_metadata(self):
         from trainer.ensemble.strategies import HardVotingStrategy
+
         s = HardVotingStrategy()
         preds = _make_predictions(3)
         r = s.combine(preds)
@@ -326,15 +358,16 @@ class TestHardVoting:
 class TestSoftVoting:
     def test_sums_to_one(self):
         from trainer.ensemble.strategies import SoftVotingStrategy
+
         s = SoftVotingStrategy()
         r = s.combine(_make_predictions(3))
         assert abs(r.buy_prob + r.sell_prob + r.no_trade_prob - 1.0) < 1e-5
 
     def test_agreement_boosts_confidence(self):
         from trainer.ensemble.strategies import SoftVotingStrategy
+
         s = SoftVotingStrategy()
-        unanimous = [_make_prediction(f"e{i}", buy=0.9, sell=0.05, no_trade=0.05)
-                     for i in range(3)]
+        unanimous = [_make_prediction(f"e{i}", buy=0.9, sell=0.05, no_trade=0.05) for i in range(3)]
         divided = [
             _make_prediction("e1", buy=0.9, sell=0.05, no_trade=0.05),
             _make_prediction("e2", buy=0.1, sell=0.85, no_trade=0.05),
@@ -348,6 +381,7 @@ class TestSoftVoting:
 class TestMixtureOfExperts:
     def test_softmax_concentrates_at_low_temperature(self):
         from trainer.ensemble.strategies import MixtureOfExpertsStrategy
+
         s = MixtureOfExpertsStrategy(temperature=0.1)
         preds = [
             _make_prediction("e1", buy=0.9, sell=0.05, no_trade=0.05),
@@ -358,6 +392,7 @@ class TestMixtureOfExperts:
 
     def test_metadata_has_top_expert(self):
         from trainer.ensemble.strategies import MixtureOfExpertsStrategy
+
         s = MixtureOfExpertsStrategy()
         preds = _make_predictions(2)
         r = s.combine(preds, {"e0": 1.0, "e1": 0.1})
@@ -367,6 +402,7 @@ class TestMixtureOfExperts:
 class TestStackingStrategy:
     def test_combine_returns_result(self):
         from trainer.ensemble.strategies import StackingStrategy
+
         s = StackingStrategy()
         preds = _make_predictions(3)
         r = s.combine(preds)
@@ -375,6 +411,7 @@ class TestStackingStrategy:
 
     def test_update_changes_weights(self):
         from trainer.ensemble.strategies import StackingStrategy
+
         s = StackingStrategy(learning_rate=0.5)
         preds = _make_predictions(2)
         before = dict(s._weights)
@@ -385,12 +422,14 @@ class TestStackingStrategy:
 class TestBuildStrategy:
     def test_all_strategies_build(self):
         from trainer.ensemble.strategies import AVAILABLE_STRATEGIES, build_strategy
+
         for name in AVAILABLE_STRATEGIES:
             s = build_strategy(name)
             assert s.name == name
 
     def test_unknown_raises(self):
         from trainer.ensemble.strategies import build_strategy
+
         with pytest.raises(ValueError):
             build_strategy("evolutionary")
 
@@ -398,21 +437,26 @@ class TestBuildStrategy:
 class TestEnsembleResult:
     def test_predicted_class(self):
         from trainer.ensemble.strategies import EnsembleResult
+
         r = EnsembleResult(buy_prob=0.7, sell_prob=0.2, no_trade_prob=0.1)
         assert r.predicted_class == "buy"
 
     def test_institutional_forecast_string(self):
         from trainer.ensemble.strategies import EnsembleResult
-        r = EnsembleResult(buy_prob=0.8, sell_prob=0.1, no_trade_prob=0.1,
-                            confidence=0.85, agreement_score=0.9)
+
+        r = EnsembleResult(
+            buy_prob=0.8, sell_prob=0.1, no_trade_prob=0.1, confidence=0.85, agreement_score=0.9
+        )
         forecast = r.institutional_forecast
         assert "LONG" in forecast
         assert "HIGH CONFIDENCE" in forecast
 
     def test_to_dict(self):
         from trainer.ensemble.strategies import EnsembleResult
-        r = EnsembleResult(buy_prob=0.6, sell_prob=0.2, no_trade_prob=0.2,
-                            strategy="soft_voting", n_experts=3)
+
+        r = EnsembleResult(
+            buy_prob=0.6, sell_prob=0.2, no_trade_prob=0.2, strategy="soft_voting", n_experts=3
+        )
         d = r.to_dict()
         assert d["strategy"] == "soft_voting"
         assert d["n_experts"] == 3
@@ -426,6 +470,7 @@ class TestEnsembleResult:
 class TestDynamicWeightEngine:
     def setup_method(self):
         from trainer.ensemble.weighting import DynamicWeightEngine
+
         self.engine = DynamicWeightEngine()
         self.experts = [_make_expert(f"e{i}") for i in range(3)]
 
@@ -440,6 +485,7 @@ class TestDynamicWeightEngine:
 
     def test_regime_boost_favors_transformer(self):
         from trainer.ensemble.expert import ExpertModel, ModelFamily
+
         transformer = ExpertModel(expert_id="trans", model_family=ModelFamily.TRANSFORMER_ENCODER)
         lstm = ExpertModel(expert_id="lstm_e", model_family=ModelFamily.LSTM)
         experts = [transformer, lstm]
@@ -465,6 +511,7 @@ class TestDynamicWeightEngine:
 class TestWeightFactorConfig:
     def test_to_from_dict(self):
         from trainer.ensemble.weighting import WeightFactorConfig
+
         cfg = WeightFactorConfig(regime_boost=3.0, min_weight=0.1)
         d = cfg.to_dict()
         cfg2 = WeightFactorConfig.from_dict(d)
@@ -481,22 +528,26 @@ class TestExpertRouter:
     def setup_method(self):
         from trainer.ensemble.routing import ExpertRouter
         from trainer.ensemble.weighting import DynamicWeightEngine
+
         self.registry = _make_registry_with_experts(4)
         self.engine = DynamicWeightEngine()
         self.router = ExpertRouter(self.registry, self.engine)
 
     def test_route_returns_decision(self):
         from trainer.ensemble.routing import RoutingDecision
+
         decision = self.router.route()
         assert isinstance(decision, RoutingDecision)
         assert len(decision.selected_expert_ids) >= 1
 
     def test_route_with_context(self):
-        decision = self.router.route(context={
-            "regime": "trending_up",
-            "instrument": "EURUSD",
-            "timeframe": "H1",
-        })
+        decision = self.router.route(
+            context={
+                "regime": "trending_up",
+                "instrument": "EURUSD",
+                "timeframe": "H1",
+            }
+        )
         assert decision.regime == "trending_up"
         assert decision.instrument == "EURUSD"
 
@@ -521,6 +572,7 @@ class TestExpertRouter:
 class TestRoutingDecision:
     def test_to_dict(self):
         from trainer.ensemble.routing import RoutingDecision
+
         d = RoutingDecision(
             regime="trending_up",
             instrument="EURUSD",
@@ -541,6 +593,7 @@ class TestRoutingDecision:
 class TestMetaFeatureBuilder:
     def test_build_returns_list(self):
         from trainer.ensemble.meta_model import MetaFeatureBuilder
+
         builder = MetaFeatureBuilder()
         preds = _make_predictions(3)
         weights = {p.expert_id: 1.0 / 3 for p in preds}
@@ -550,6 +603,7 @@ class TestMetaFeatureBuilder:
 
     def test_empty_predictions(self):
         from trainer.ensemble.meta_model import MetaFeatureBuilder
+
         builder = MetaFeatureBuilder()
         features = builder.build([], {}, {})
         assert all(isinstance(f, float) for f in features)
@@ -558,6 +612,7 @@ class TestMetaFeatureBuilder:
 class TestEnsembleMetaModel:
     def test_predict_fallback_before_training(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=10)
         preds = _make_predictions(2)
         weights = {p.expert_id: 0.5 for p in preds}
@@ -566,6 +621,7 @@ class TestEnsembleMetaModel:
 
     def test_update_increments_samples(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=5)
         preds = _make_predictions(2)
         weights = {p.expert_id: 0.5 for p in preds}
@@ -575,6 +631,7 @@ class TestEnsembleMetaModel:
 
     def test_activates_after_min_samples(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=5)
         preds = _make_predictions(2)
         weights = {p.expert_id: 0.5 for p in preds}
@@ -584,6 +641,7 @@ class TestEnsembleMetaModel:
 
     def test_predict_after_training(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=3)
         preds = _make_predictions(3)
         weights = {p.expert_id: 1.0 / 3 for p in preds}
@@ -595,12 +653,17 @@ class TestEnsembleMetaModel:
 
     def test_fit_returns_losses(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=2)
         preds = _make_predictions(2)
         weights = {p.expert_id: 0.5 for p in preds}
         examples = [
-            {"predictions": [p.to_dict() for p in preds],
-             "weights": weights, "context": {}, "true_class": "buy"}
+            {
+                "predictions": [p.to_dict() for p in preds],
+                "weights": weights,
+                "context": {},
+                "true_class": "buy",
+            }
             for _ in range(5)
         ]
         losses = meta.fit(examples)
@@ -609,6 +672,7 @@ class TestEnsembleMetaModel:
 
     def test_to_from_dict(self):
         from trainer.ensemble.meta_model import EnsembleMetaModel
+
         meta = EnsembleMetaModel(min_samples_to_activate=2)
         preds = _make_predictions(2)
         weights = {p.expert_id: 0.5 for p in preds}
@@ -619,9 +683,16 @@ class TestEnsembleMetaModel:
 
     def test_institutional_forecast_format(self):
         from trainer.ensemble.meta_model import MetaPrediction
-        pred = MetaPrediction(buy_prob=0.8, sell_prob=0.1, no_trade_prob=0.1,
-                               confidence=0.85, agreement_score=0.9,
-                               n_experts=3, regime="trending_up")
+
+        pred = MetaPrediction(
+            buy_prob=0.8,
+            sell_prob=0.1,
+            no_trade_prob=0.1,
+            confidence=0.85,
+            agreement_score=0.9,
+            n_experts=3,
+            regime="trending_up",
+        )
         forecast = pred.institutional_forecast
         assert "LONG" in forecast
         assert "[A]" in forecast or "[B]" in forecast or "[C]" in forecast
@@ -635,6 +706,7 @@ class TestEnsembleMetaModel:
 class TestExpertCalibrator:
     def setup_method(self):
         from trainer.ensemble.calibration import ExpertCalibrator
+
         self.cal = ExpertCalibrator(n_bins=5)
 
     def test_update_and_report(self):
@@ -677,6 +749,7 @@ class TestExpertCalibrator:
 
     def test_is_well_calibrated(self):
         from trainer.ensemble.calibration import CalibrationReport
+
         r = CalibrationReport("e", ece=0.03)
         assert r.is_well_calibrated
         r2 = CalibrationReport("e", ece=0.10)
@@ -703,14 +776,19 @@ class TestExpertCalibrator:
 class TestExpertFailureAnalyzer:
     def setup_method(self):
         from trainer.ensemble.failure_analysis import ExpertFailureAnalyzer
+
         self.analyzer = ExpertFailureAnalyzer()
 
     def test_record_returns_event(self):
         from trainer.ensemble.failure_analysis import FailureEvent
+
         event = self.analyzer.record(
-            expert_id="e1", regime="trending_up",
-            predicted_class="buy", ensemble_class="buy",
-            true_class="buy", confidence=0.8,
+            expert_id="e1",
+            regime="trending_up",
+            predicted_class="buy",
+            ensemble_class="buy",
+            true_class="buy",
+            confidence=0.8,
         )
         assert isinstance(event, FailureEvent)
         assert event.agrees_with_ensemble is True
@@ -718,7 +796,9 @@ class TestExpertFailureAnalyzer:
 
     def test_disagreement_detected(self):
         event = self.analyzer.record(
-            "e1", predicted_class="buy", ensemble_class="sell",
+            "e1",
+            predicted_class="buy",
+            ensemble_class="sell",
             true_class="sell",
         )
         assert not event.agrees_with_ensemble
@@ -727,7 +807,8 @@ class TestExpertFailureAnalyzer:
     def test_report_accuracy(self):
         for i in range(10):
             self.analyzer.record(
-                "e1", predicted_class="buy",
+                "e1",
+                predicted_class="buy",
                 true_class="buy" if i < 7 else "sell",
             )
         report = self.analyzer.get_report("e1")
@@ -736,11 +817,11 @@ class TestExpertFailureAnalyzer:
 
     def test_regime_accuracy(self):
         for _ in range(5):
-            self.analyzer.record("e1", regime="trending_up",
-                                  predicted_class="buy", true_class="buy")
+            self.analyzer.record(
+                "e1", regime="trending_up", predicted_class="buy", true_class="buy"
+            )
         for _ in range(5):
-            self.analyzer.record("e1", regime="ranging",
-                                  predicted_class="buy", true_class="sell")
+            self.analyzer.record("e1", regime="ranging", predicted_class="buy", true_class="sell")
         report = self.analyzer.get_report("e1")
         assert report.regime_accuracy["trending_up"] == pytest.approx(1.0)
         assert report.regime_accuracy["ranging"] == pytest.approx(0.0)
@@ -765,8 +846,9 @@ class TestExpertFailureAnalyzer:
     def test_top_performers(self):
         for i in range(3):
             for _ in range(10):
-                self.analyzer.record(f"e{i}", predicted_class="buy",
-                                      true_class="buy" if _ < (10 - i * 2) else "sell")
+                self.analyzer.record(
+                    f"e{i}", predicted_class="buy", true_class="buy" if _ < (10 - i * 2) else "sell"
+                )
         performers = self.analyzer.top_performers(n=2)
         assert len(performers) <= 2
 
@@ -779,12 +861,13 @@ class TestExpertFailureAnalyzer:
 class TestOnlineScorer:
     def setup_method(self):
         from trainer.ensemble.online_scoring import OnlineScorer
+
         self.scorer = OnlineScorer(window=50, min_window_for_metrics=5)
 
     def test_record_returns_record(self):
         from trainer.ensemble.online_scoring import PredictionRecord
-        rec = self.scorer.record("e1", predicted_class="buy",
-                                  true_class="buy", profit_pnl=100.0)
+
+        rec = self.scorer.record("e1", predicted_class="buy", true_class="buy", profit_pnl=100.0)
         assert isinstance(rec, PredictionRecord)
         assert rec.is_correct is True
         assert rec.is_profitable is True
@@ -808,11 +891,9 @@ class TestOnlineScorer:
         assert m.trend == "insufficient_data"
 
     def test_alert_low_accuracy(self):
-        scorer = __import__("trainer.ensemble.online_scoring",
-                             fromlist=["OnlineScorer"]).OnlineScorer(
-            window=10, min_window_for_metrics=5,
-            alert_accuracy_threshold=0.60
-        )
+        scorer = __import__(
+            "trainer.ensemble.online_scoring", fromlist=["OnlineScorer"]
+        ).OnlineScorer(window=10, min_window_for_metrics=5, alert_accuracy_threshold=0.60)
         for _ in range(5):
             scorer.record("e1", "buy", "sell")
         alerts = scorer.check_alerts()
@@ -853,6 +934,7 @@ class TestEnsembleDatabase:
 
     def _db(self):
         from trainer.ensemble.database import EnsembleDatabase
+
         return EnsembleDatabase(self.db_path)
 
     def test_save_and_get_expert(self):
@@ -893,14 +975,18 @@ class TestEnsembleDatabase:
         db = self._db()
         result = {
             "result_id": "r1",
-            "buy_prob": 0.6, "sell_prob": 0.2, "no_trade_prob": 0.2,
-            "confidence": 0.8, "uncertainty": 0.2,
-            "predicted_class": "buy", "strategy": "soft_voting",
-            "n_experts": 3, "agreement_score": 0.8,
+            "buy_prob": 0.6,
+            "sell_prob": 0.2,
+            "no_trade_prob": 0.2,
+            "confidence": 0.8,
+            "uncertainty": 0.2,
+            "predicted_class": "buy",
+            "strategy": "soft_voting",
+            "n_experts": 3,
+            "agreement_score": 0.8,
             "weight_map": {"e1": 0.5, "e2": 0.5},
         }
-        db.save_ensemble_result(result, regime="trending_up",
-                                 instrument="EURUSD", true_class="buy")
+        db.save_ensemble_result(result, regime="trending_up", instrument="EURUSD", true_class="buy")
         results = db.list_ensemble_results()
         assert len(results) == 1
         assert results[0]["predicted_class"] == "buy"
@@ -909,8 +995,12 @@ class TestEnsembleDatabase:
 
     def test_save_and_get_meta_model(self):
         db = self._db()
-        meta_dict = {"model_id": "m1", "meta_version": "1.0",
-                      "n_training_samples": 100, "layer": None}
+        meta_dict = {
+            "model_id": "m1",
+            "meta_version": "1.0",
+            "n_training_samples": 100,
+            "layer": None,
+        }
         db.save_meta_model(meta_dict)
         retrieved = db.get_latest_meta_model()
         assert retrieved is not None
@@ -982,6 +1072,7 @@ class TestEnsembleDatabase:
 class TestEnsembleLeaderboard:
     def setup_method(self):
         from trainer.ensemble.leaderboard import EnsembleLeaderboard
+
         self.lb = EnsembleLeaderboard()
 
     def test_update_expert_creates_entry(self):
@@ -1044,6 +1135,7 @@ class TestEnsembleLeaderboard:
 class TestEnsembleVisualizationBuilder:
     def setup_method(self):
         from trainer.ensemble.visualization import EnsembleVisualizationBuilder
+
         self.viz = EnsembleVisualizationBuilder()
 
     def test_expert_weight_chart(self):
@@ -1090,10 +1182,7 @@ class TestEnsembleVisualizationBuilder:
         assert "note" in chart
 
     def test_expert_performance_timeline(self):
-        records = [
-            {"expert_id": "e1", "is_correct": 1 if i % 2 == 0 else 0}
-            for i in range(10)
-        ]
+        records = [{"expert_id": "e1", "is_correct": 1 if i % 2 == 0 else 0} for i in range(10)]
         chart = self.viz.expert_performance_timeline(records, window=5)
         assert chart["chart_type"] == "line"
 
@@ -1112,8 +1201,7 @@ class TestEnsembleVisualizationBuilder:
             vote_records=[{"expert_id": "e1", "voted_class": "buy"}],
             agreement_matrix_data={
                 "expert_ids": ["e1", "e2"],
-                "matrix": {"e1": {"e1": 1.0, "e2": 0.8},
-                            "e2": {"e1": 0.8, "e2": 1.0}},
+                "matrix": {"e1": {"e1": 1.0, "e2": 0.8}, "e2": {"e1": 0.8, "e2": 1.0}},
             },
             ensemble_results=[{"confidence": 0.75}],
             performance_records=[{"expert_id": "e1", "is_correct": 1}],
@@ -1121,9 +1209,13 @@ class TestEnsembleVisualizationBuilder:
             ensemble_metrics={"accuracy": 0.7},
         )
         expected = [
-            "expert_weight_chart", "voting_distribution", "agreement_matrix",
-            "confidence_distribution", "weight_evolution",
-            "expert_performance_timeline", "ensemble_vs_expert_accuracy",
+            "expert_weight_chart",
+            "voting_distribution",
+            "agreement_matrix",
+            "confidence_distribution",
+            "weight_evolution",
+            "expert_performance_timeline",
+            "ensemble_vs_expert_accuracy",
         ]
         for key in expected:
             assert key in dashboard
@@ -1139,6 +1231,7 @@ class TestEnsembleAPI:
         self.tmpdir = tempfile.mkdtemp()
         from trainer.ensemble.database import EnsembleDatabase
         from trainer.ensemble.api import EnsembleAPI
+
         self.db = EnsembleDatabase(os.path.join(self.tmpdir, "api_test.db"))
         self.api = EnsembleAPI(self.db)
 
@@ -1146,10 +1239,14 @@ class TestEnsembleAPI:
         self.db.close()
 
     def test_register_expert(self):
-        resp = self.api.register_expert({
-            "name": "Test Expert", "model_family": "lstm",
-            "specializations": ["general"], "version": "1.0.0",
-        })
+        resp = self.api.register_expert(
+            {
+                "name": "Test Expert",
+                "model_family": "lstm",
+                "specializations": ["general"],
+                "version": "1.0.0",
+            }
+        )
         assert resp["status"] == "ok"
         assert resp["data"]["name"] == "Test Expert"
 
@@ -1230,6 +1327,7 @@ class TestEnsembleExporter:
 
     def test_export_expert(self):
         from trainer.ensemble.export import EnsembleExporter
+
         exp = EnsembleExporter(self.registry)
         d = exp.export_expert("expert_00")
         assert d["export_type"] == "expert"
@@ -1237,12 +1335,14 @@ class TestEnsembleExporter:
 
     def test_export_all_experts(self):
         from trainer.ensemble.export import EnsembleExporter
+
         exp = EnsembleExporter(self.registry)
         all_e = exp.export_all_experts()
         assert len(all_e) == 2
 
     def test_export_bundle(self):
         from trainer.ensemble.export import EnsembleExporter
+
         exp = EnsembleExporter(self.registry)
         bundle = exp.export_bundle()
         assert bundle["bundle_type"] == "ensemble_bundle"
@@ -1252,6 +1352,7 @@ class TestEnsembleExporter:
 
     def test_export_inference_contract(self):
         from trainer.ensemble.export import EnsembleExporter
+
         exp = EnsembleExporter(self.registry, strategy_name="soft_voting")
         contract = exp.export_inference_contract()
         assert contract["contract_type"] == "ensemble_inference_contract"
@@ -1261,6 +1362,7 @@ class TestEnsembleExporter:
 
     def test_save_and_load_bundle(self):
         from trainer.ensemble.export import EnsembleExporter
+
         exp = EnsembleExporter(self.registry)
         bundle = exp.export_bundle()
         path = os.path.join(self.tmpdir, "bundle.json")
@@ -1281,6 +1383,7 @@ class TestEnsembleEngine:
 
     def _make_engine(self, strategy: str = "soft_voting") -> "EnsembleEngine":
         from trainer.ensemble.engine import EnsembleEngine, EnsembleConfig
+
         cfg = EnsembleConfig(
             db_path=os.path.join(self.tmpdir, "engine_test.db"),
             strategy=strategy,
@@ -1299,6 +1402,7 @@ class TestEnsembleEngine:
     def test_register_expert_adds_to_registry(self):
         engine = self._make_engine()
         from trainer.ensemble.expert import ExpertModel
+
         new_expert = ExpertModel(
             expert_id="expert_new",
             name="New Expert",
@@ -1310,6 +1414,7 @@ class TestEnsembleEngine:
 
     def test_predict_returns_bundle(self):
         from trainer.ensemble.engine import PredictionBundle
+
         engine = self._make_engine()
         bundle = engine.predict(
             features={"close": 1.1},
@@ -1356,6 +1461,7 @@ class TestEnsembleEngine:
     def test_retire_expert(self):
         engine = self._make_engine()
         from trainer.ensemble.expert import ExpertModel
+
         e = ExpertModel(expert_id="to_retire", name="To Retire", model_family="gru")
         engine.register_expert(e)
         engine.retire_expert("to_retire")
@@ -1391,6 +1497,7 @@ class TestEnsembleEngine:
 
     def test_all_strategies_work_in_engine(self):
         from trainer.ensemble.strategies import AVAILABLE_STRATEGIES
+
         for strategy in AVAILABLE_STRATEGIES:
             engine = self._make_engine(strategy=strategy)
             bundle = engine.predict({})
@@ -1406,10 +1513,13 @@ class TestEnsembleEngine:
 
     def test_from_config(self):
         from trainer.ensemble.engine import EnsembleEngine
-        engine = EnsembleEngine.from_config({
-            "db_path": os.path.join(self.tmpdir, "from_config.db"),
-            "strategy": "weighted_averaging",
-        })
+
+        engine = EnsembleEngine.from_config(
+            {
+                "db_path": os.path.join(self.tmpdir, "from_config.db"),
+                "strategy": "weighted_averaging",
+            }
+        )
         assert engine.config.strategy == "weighted_averaging"
         engine.close()
 
@@ -1431,21 +1541,26 @@ class TestEnsembleEngine:
 class TestEnsembleConfig:
     def test_defaults(self):
         from trainer.ensemble.engine import EnsembleConfig
+
         cfg = EnsembleConfig()
         assert cfg.strategy == "soft_voting"
         assert cfg.rolling_window == 200
 
     def test_from_dict(self):
         from trainer.ensemble.engine import EnsembleConfig
-        cfg = EnsembleConfig.from_dict({
-            "strategy": "hard_voting",
-            "rolling_window": 100,
-        })
+
+        cfg = EnsembleConfig.from_dict(
+            {
+                "strategy": "hard_voting",
+                "rolling_window": 100,
+            }
+        )
         assert cfg.strategy == "hard_voting"
         assert cfg.rolling_window == 100
 
     def test_to_dict(self):
         from trainer.ensemble.engine import EnsembleConfig
+
         cfg = EnsembleConfig(strategy="blending")
         d = cfg.to_dict()
         assert d["strategy"] == "blending"
@@ -1459,23 +1574,54 @@ class TestEnsembleConfig:
 class TestPublicAPI:
     def test_all_exports_importable(self):
         from trainer.ensemble import (
-            SpecializationType, ModelFamily, ExpertPrediction,
-            ExpertModel, ExpertRegistry, build_default_registry,
-            EnsembleResult, BaseEnsembleStrategy, SimpleAveragingStrategy,
-            WeightedAveragingStrategy, PerformanceWeightedStrategy,
-            HardVotingStrategy, SoftVotingStrategy, MixtureOfExpertsStrategy,
-            StackingStrategy, BlendingStrategy, build_strategy,
-            AVAILABLE_STRATEGIES, WeightFactorConfig, DynamicWeightEngine,
-            REGIME_FAMILY_AFFINITY, RoutingDecision, RouterConfig, ExpertRouter,
-            MetaPrediction, MetaFeatureBuilder, EnsembleMetaModel,
-            CalibrationReport, ExpertCalibrator, FailureEvent,
-            ExpertFailureReport, ExpertFailureAnalyzer, PredictionRecord,
-            RollingMetrics, OnlineScorer, EnsembleDatabase, LeaderboardEntry,
-            EnsembleLeaderboard, EnsembleVisualizationBuilder, EnsembleAPI,
-            EnsembleExporter, EnsembleConfig, PredictionBundle, EnsembleEngine,
+            SpecializationType,
+            ModelFamily,
+            ExpertPrediction,
+            ExpertModel,
+            ExpertRegistry,
+            build_default_registry,
+            EnsembleResult,
+            BaseEnsembleStrategy,
+            SimpleAveragingStrategy,
+            WeightedAveragingStrategy,
+            PerformanceWeightedStrategy,
+            HardVotingStrategy,
+            SoftVotingStrategy,
+            MixtureOfExpertsStrategy,
+            StackingStrategy,
+            BlendingStrategy,
+            build_strategy,
+            AVAILABLE_STRATEGIES,
+            WeightFactorConfig,
+            DynamicWeightEngine,
+            REGIME_FAMILY_AFFINITY,
+            RoutingDecision,
+            RouterConfig,
+            ExpertRouter,
+            MetaPrediction,
+            MetaFeatureBuilder,
+            EnsembleMetaModel,
+            CalibrationReport,
+            ExpertCalibrator,
+            FailureEvent,
+            ExpertFailureReport,
+            ExpertFailureAnalyzer,
+            PredictionRecord,
+            RollingMetrics,
+            OnlineScorer,
+            EnsembleDatabase,
+            LeaderboardEntry,
+            EnsembleLeaderboard,
+            EnsembleVisualizationBuilder,
+            EnsembleAPI,
+            EnsembleExporter,
+            EnsembleConfig,
+            PredictionBundle,
+            EnsembleEngine,
         )
 
     def test_all_names_in_all(self):
         import trainer.ensemble as m
+
         for name in m.__all__:
             assert hasattr(m, name), f"Missing from module: {name}"

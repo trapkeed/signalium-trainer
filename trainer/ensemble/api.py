@@ -55,8 +55,7 @@ def _ok(data: Any, message: str = "ok") -> Dict[str, Any]:
 
 
 def _err(code: str, message: str) -> Dict[str, Any]:
-    return {"status": "error", "code": code, "message": message,
-            "data": None, "timestamp": _ts()}
+    return {"status": "error", "code": code, "message": message, "data": None, "timestamp": _ts()}
 
 
 class EnsembleAPI:
@@ -155,8 +154,7 @@ class EnsembleAPI:
             logger.error(f"get_ensemble_prediction: {e}")
             return _err("GET_RESULT_ERROR", str(e))
 
-    def list_predictions(self, strategy: Optional[str] = None,
-                         limit: int = 50) -> Dict[str, Any]:
+    def list_predictions(self, strategy: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
         try:
             results = self.db.list_ensemble_results(strategy=strategy, limit=limit)
             return _ok({"predictions": results, "count": len(results)})
@@ -168,26 +166,25 @@ class EnsembleAPI:
     # Weight endpoints
     # -----------------------------------------------------------------------
 
-    def get_weights(self, context: Optional[Dict[str, Any]] = None
-                    ) -> Dict[str, Any]:
+    def get_weights(self, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         try:
             experts = self.registry.active_experts()
             weights = self.weight_engine.compute_weights(experts, context or {})
-            return _ok({
-                "weights": weights,
-                "context": context or {},
-                "n_experts": len(weights),
-            })
+            return _ok(
+                {
+                    "weights": weights,
+                    "context": context or {},
+                    "n_experts": len(weights),
+                }
+            )
         except Exception as e:
             logger.error(f"get_weights: {e}")
             return _err("GET_WEIGHTS_ERROR", str(e))
 
-    def get_weight_history(self, expert_id: str, limit: int = 100
-                           ) -> Dict[str, Any]:
+    def get_weight_history(self, expert_id: str, limit: int = 100) -> Dict[str, Any]:
         try:
             history = self.db.get_weight_history(expert_id, limit=limit)
-            return _ok({"expert_id": expert_id, "history": history,
-                        "count": len(history)})
+            return _ok({"expert_id": expert_id, "history": history, "count": len(history)})
         except Exception as e:
             logger.error(f"get_weight_history: {e}")
             return _err("WEIGHT_HISTORY_ERROR", str(e))
@@ -205,8 +202,7 @@ class EnsembleAPI:
     # Routing endpoints
     # -----------------------------------------------------------------------
 
-    def get_routing_history(self, regime: Optional[str] = None,
-                             limit: int = 50) -> Dict[str, Any]:
+    def get_routing_history(self, regime: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
         try:
             history = self.db.list_routing_decisions(regime=regime, limit=limit)
             return _ok({"history": history, "count": len(history)})
@@ -218,8 +214,9 @@ class EnsembleAPI:
     # Leaderboard endpoints
     # -----------------------------------------------------------------------
 
-    def get_leaderboard(self, include_retired: bool = False,
-                        entity_type: Optional[str] = None) -> Dict[str, Any]:
+    def get_leaderboard(
+        self, include_retired: bool = False, entity_type: Optional[str] = None
+    ) -> Dict[str, Any]:
         try:
             rankings = self.leaderboard.get_rankings(
                 include_retired=include_retired,
@@ -249,12 +246,10 @@ class EnsembleAPI:
     # Performance endpoints
     # -----------------------------------------------------------------------
 
-    def get_performance_history(self, expert_id: str,
-                                 limit: int = 100) -> Dict[str, Any]:
+    def get_performance_history(self, expert_id: str, limit: int = 100) -> Dict[str, Any]:
         try:
             history = self.db.get_performance_history(expert_id, limit=limit)
-            return _ok({"expert_id": expert_id, "history": history,
-                        "count": len(history)})
+            return _ok({"expert_id": expert_id, "history": history, "count": len(history)})
         except Exception as e:
             logger.error(f"get_performance_history: {e}")
             return _err("PERF_HISTORY_ERROR", str(e))
@@ -282,17 +277,22 @@ class EnsembleAPI:
             vote_records = []
             for r in ensemble_results:
                 for eid, w in r.get("weight_map", {}).items():
-                    vote_records.append({
-                        "expert_id": eid,
-                        "voted_class": r.get("predicted_class", "no_trade"),
-                        "weight": w,
-                        "confidence": r.get("confidence", 0.5),
-                    })
+                    vote_records.append(
+                        {
+                            "expert_id": eid,
+                            "voted_class": r.get("predicted_class", "no_trade"),
+                            "weight": w,
+                            "confidence": r.get("confidence", 0.5),
+                        }
+                    )
             agreement_data = {
                 "expert_ids": [e.expert_id for e in experts],
-                "matrix": {e.expert_id: {e2.expert_id: 1.0 if e.expert_id == e2.expert_id else None
-                                           for e2 in experts}
-                           for e in experts},
+                "matrix": {
+                    e.expert_id: {
+                        e2.expert_id: 1.0 if e.expert_id == e2.expert_id else None for e2 in experts
+                    }
+                    for e in experts
+                },
             }
             performance_records = []
             for expert in experts:
@@ -307,11 +307,13 @@ class EnsembleAPI:
                 performance_records=performance_records,
                 expert_names={e.expert_id: e.name for e in experts},
             )
-            return _ok({
-                "charts": charts,
-                "stats": self.db.stats(),
-                "leaderboard_summary": self.leaderboard.summary(),
-            })
+            return _ok(
+                {
+                    "charts": charts,
+                    "stats": self.db.stats(),
+                    "leaderboard_summary": self.leaderboard.summary(),
+                }
+            )
         except Exception as e:
             logger.error(f"get_dashboard: {traceback.format_exc()}")
             return _err("DASHBOARD_ERROR", str(e))

@@ -16,7 +16,9 @@ from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple
 
 from trainer.portfolio.portfolio_instruments import (
-    InstrumentInfo, InstrumentRegistry, ModelForecast,
+    InstrumentInfo,
+    InstrumentRegistry,
+    ModelForecast,
 )
 
 
@@ -118,16 +120,24 @@ _DIRECT_CONFLICTS: List[Tuple[str, str, str]] = [
 ]
 
 _SAFE_HAVEN_RISK_PAIRS: List[Tuple[str, str]] = [
-    ("XAUUSD",  "NAS100"),
-    ("XAUUSD",  "SPX500"),
-    ("XAUUSD",  "BTCUSD"),
-    ("USDCHF",  "AUDUSD"),
-    ("USDCHF",  "NZDUSD"),
-    ("USDJPY",  "AUDUSD"),
-    ("USDJPY",  "NZDUSD"),
+    ("XAUUSD", "NAS100"),
+    ("XAUUSD", "SPX500"),
+    ("XAUUSD", "BTCUSD"),
+    ("USDCHF", "AUDUSD"),
+    ("USDCHF", "NZDUSD"),
+    ("USDJPY", "AUDUSD"),
+    ("USDJPY", "NZDUSD"),
 ]
 
-_RISK_ON_INSTRUMENTS: Set[str] = {"NAS100", "US30", "SPX500", "BTCUSD", "ETHUSD", "AUDUSD", "NZDUSD"}
+_RISK_ON_INSTRUMENTS: Set[str] = {
+    "NAS100",
+    "US30",
+    "SPX500",
+    "BTCUSD",
+    "ETHUSD",
+    "AUDUSD",
+    "NZDUSD",
+}
 _SAFE_HAVEN_INSTRUMENTS: Set[str] = {"XAUUSD", "USDCHF", "USDJPY"}
 
 
@@ -172,14 +182,17 @@ class ConflictResolver:
             if usd_a != 0 and usd_b != 0 and usd_a != usd_b:
                 severity = (fc_a.confidence + fc_b.confidence) / 2
                 resolution = self._resolve_priority(fc_a, fc_b)
-                conflicts.append(ConflictDetail(
-                    instrument_a=a, instrument_b=b,
-                    conflict_type=ConflictType.DIRECT_CURRENCY,
-                    description=desc,
-                    severity=severity,
-                    resolution=resolution,
-                    reasoning=self._resolution_reasoning(resolution, fc_a, fc_b),
-                ))
+                conflicts.append(
+                    ConflictDetail(
+                        instrument_a=a,
+                        instrument_b=b,
+                        conflict_type=ConflictType.DIRECT_CURRENCY,
+                        description=desc,
+                        severity=severity,
+                        resolution=resolution,
+                        reasoning=self._resolution_reasoning(resolution, fc_a, fc_b),
+                    )
+                )
                 if resolution == Resolution.IGNORE:
                     ignore_set.add(b if fc_b.confidence < fc_a.confidence else a)
                 elif resolution == Resolution.REDUCE:
@@ -197,40 +210,53 @@ class ConflictResolver:
             risk_bullish = fc_risk.direction == "BUY"
             if safe_bullish and risk_bullish:
                 severity = (fc_safe.confidence + fc_risk.confidence) / 2 * 0.7
-                conflicts.append(ConflictDetail(
-                    instrument_a=safe, instrument_b=risk,
-                    conflict_type=ConflictType.SAFE_HAVEN_RISK,
-                    description=f"Safe-haven {safe} BUY conflicts with risk-on {risk} BUY",
-                    severity=severity,
-                    resolution=Resolution.REDUCE,
-                    reasoning="Safe-haven and risk-on assets rarely both rally simultaneously; reduce smaller position.",
-                ))
+                conflicts.append(
+                    ConflictDetail(
+                        instrument_a=safe,
+                        instrument_b=risk,
+                        conflict_type=ConflictType.SAFE_HAVEN_RISK,
+                        description=f"Safe-haven {safe} BUY conflicts with risk-on {risk} BUY",
+                        severity=severity,
+                        resolution=Resolution.REDUCE,
+                        reasoning="Safe-haven and risk-on assets rarely both rally simultaneously; reduce smaller position.",
+                    )
+                )
                 reduce_set.add(safe if fc_safe.confidence < fc_risk.confidence else risk)
             elif safe_bullish and not risk_bullish:
-                reinforcements.append(ReinforcementDetail(
-                    instrument_a=safe, instrument_b=risk,
-                    description=f"Safe-haven {safe} BUY + {risk} SELL reinforce risk-off bias",
-                    strength=(fc_safe.confidence + fc_risk.confidence) / 2,
-                ))
+                reinforcements.append(
+                    ReinforcementDetail(
+                        instrument_a=safe,
+                        instrument_b=risk,
+                        description=f"Safe-haven {safe} BUY + {risk} SELL reinforce risk-off bias",
+                        strength=(fc_safe.confidence + fc_risk.confidence) / 2,
+                    )
+                )
             elif not safe_bullish and risk_bullish:
-                reinforcements.append(ReinforcementDetail(
-                    instrument_a=safe, instrument_b=risk,
-                    description=f"Safe-haven {safe} SELL + {risk} BUY reinforce risk-on bias",
-                    strength=(fc_safe.confidence + fc_risk.confidence) / 2,
-                ))
+                reinforcements.append(
+                    ReinforcementDetail(
+                        instrument_a=safe,
+                        instrument_b=risk,
+                        description=f"Safe-haven {safe} SELL + {risk} BUY reinforce risk-on bias",
+                        strength=(fc_safe.confidence + fc_risk.confidence) / 2,
+                    )
+                )
 
         # Risk-on cluster — all same direction = reinforcing
         risk_on_in_forecasts = [(fc_map[s], s) for s in _RISK_ON_INSTRUMENTS if s in fc_map]
         if len(risk_on_in_forecasts) >= 2:
             dirs = [fc.direction for fc, _ in risk_on_in_forecasts]
             if all(d == dirs[0] for d in dirs) and dirs[0] != "NEUTRAL":
-                strength = sum(fc.confidence for fc, _ in risk_on_in_forecasts) / len(risk_on_in_forecasts)
-                reinforcements.append(ReinforcementDetail(
-                    instrument_a=risk_on_in_forecasts[0][1],
-                    instrument_b=risk_on_in_forecasts[-1][1],
-                    description=f"All {len(risk_on_in_forecasts)} risk-on instruments agree ({dirs[0]}) — strong reinforcement",
-                    strength=strength,
-                ))
+                strength = sum(fc.confidence for fc, _ in risk_on_in_forecasts) / len(
+                    risk_on_in_forecasts
+                )
+                reinforcements.append(
+                    ReinforcementDetail(
+                        instrument_a=risk_on_in_forecasts[0][1],
+                        instrument_b=risk_on_in_forecasts[-1][1],
+                        description=f"All {len(risk_on_in_forecasts)} risk-on instruments agree ({dirs[0]}) — strong reinforcement",
+                        strength=strength,
+                    )
+                )
 
         conflicted = {c.instrument_a for c in conflicts} | {c.instrument_b for c in conflicts}
         clean = [f for f in forecasts if f.instrument not in ignore_set]
@@ -271,15 +297,17 @@ class ConflictResolver:
         result = []
         for fc in forecasts:
             if fc.instrument in reduce_set:
-                result.append(ModelForecast(
-                    instrument=fc.instrument,
-                    direction=fc.direction,
-                    confidence=fc.confidence * 0.60,
-                    expected_return=fc.expected_return * 0.60,
-                    expected_risk=fc.expected_risk,
-                    timestamp=fc.timestamp,
-                    metadata={**fc.metadata, "conflict_reduced": True},
-                ))
+                result.append(
+                    ModelForecast(
+                        instrument=fc.instrument,
+                        direction=fc.direction,
+                        confidence=fc.confidence * 0.60,
+                        expected_return=fc.expected_return * 0.60,
+                        expected_risk=fc.expected_risk,
+                        timestamp=fc.timestamp,
+                        metadata={**fc.metadata, "conflict_reduced": True},
+                    )
+                )
             else:
                 result.append(fc)
         return result

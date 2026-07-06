@@ -79,6 +79,7 @@ def x() -> torch.Tensor:
 # Migration verification — quant_v1 components implement framework ABCs
 # ---------------------------------------------------------------------------
 
+
 class TestFrameworkMigration:
     def test_input_encoder_is_base_feature_encoder(self, small_cfg: QuantV1Config) -> None:
         enc = InputEncoder(small_cfg.encoder)
@@ -96,7 +97,9 @@ class TestFrameworkMigration:
         bb = GRUBackbone(INPUT_DIM, gru_cfg)
         assert isinstance(bb, BaseSequenceEncoder)
 
-    def test_classification_head_is_base_classification_head(self, small_cfg: QuantV1Config) -> None:
+    def test_classification_head_is_base_classification_head(
+        self, small_cfg: QuantV1Config
+    ) -> None:
         head = ClassificationHead(64, small_cfg.classification_head)
         assert isinstance(head, BaseClassificationHead)
 
@@ -116,6 +119,7 @@ class TestFrameworkMigration:
 # ---------------------------------------------------------------------------
 # QuantModelV1 still functions after migration
 # ---------------------------------------------------------------------------
+
 
 class TestLSTMStillFunctions:
     @torch.no_grad()
@@ -146,6 +150,7 @@ class TestLSTMStillFunctions:
 # ModelFactory integration
 # ---------------------------------------------------------------------------
 
+
 class TestModelFactoryIntegration:
     def test_factory_creates_working_model(self) -> None:
         model = ModelFactory.create("quant_v1", TrainerConfig())
@@ -173,6 +178,7 @@ class TestModelFactoryIntegration:
 # InferenceAdapter integration
 # ---------------------------------------------------------------------------
 
+
 class TestInferenceAdapterIntegration:
     def test_pytorch_adapter_predict(self, model: QuantModelV1, x: torch.Tensor) -> None:
         adapter = InferenceAdapterFactory.from_model(model)
@@ -182,8 +188,11 @@ class TestInferenceAdapterIntegration:
         assert "predicted_class" in result
         assert result["probabilities"].shape == (BATCH, NUM_CLASSES)
 
-    def test_confidence_gate_zeroes_low_confidence(self, model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_confidence_gate_zeroes_low_confidence(
+        self, model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         from trainer.framework.contracts.model_output import CLASS_NO_TRADE
+
         adapter = InferenceAdapterFactory.from_model(model, confidence_threshold=2.0)
         result = adapter.predict(x)
         # Threshold > 1.0 means nothing passes → all NO_TRADE
@@ -193,6 +202,7 @@ class TestInferenceAdapterIntegration:
 # ---------------------------------------------------------------------------
 # MetricsEngine integration through mini training loop
 # ---------------------------------------------------------------------------
+
 
 class TestMetricsEngineIntegration:
     def test_metrics_across_mini_training_loop(self, model: QuantModelV1, x: torch.Tensor) -> None:
@@ -220,6 +230,7 @@ class TestMetricsEngineIntegration:
 # ---------------------------------------------------------------------------
 # ModelSpec registration integration
 # ---------------------------------------------------------------------------
+
 
 class TestModelSpecRegistration:
     def test_register_and_retrieve_spec(self) -> None:
@@ -249,6 +260,7 @@ class TestModelSpecRegistration:
 
     def test_registry_summary_shows_quant_v1(self) -> None:
         from trainer.registry.registry import ModelRegistry
+
         rows = ModelRegistry.summary()
         quant_row = next((r for r in rows if r["name"] == "quant_v1"), None)
         assert quant_row is not None

@@ -22,7 +22,6 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
@@ -93,8 +92,7 @@ class AttributionResult:
         n = min(k, len(scores_1d))
         top_idx = rank_key.topk(n).indices.tolist()
         names = (
-            self.feature_names if self.feature_names
-            else [f"f{i}" for i in range(len(scores_1d))]
+            self.feature_names if self.feature_names else [f"f{i}" for i in range(len(scores_1d))]
         )
         return [(names[i], float(scores_1d[i])) for i in top_idx]
 

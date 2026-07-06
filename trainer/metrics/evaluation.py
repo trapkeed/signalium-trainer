@@ -46,12 +46,12 @@ class EvaluationMetrics:
         self._precision = torchmetrics.Precision(
             task=task, num_classes=num_classes, average="macro"
         ).to(self._device)
-        self._recall = torchmetrics.Recall(
-            task=task, num_classes=num_classes, average="macro"
-        ).to(self._device)
-        self._f1 = torchmetrics.F1Score(
-            task=task, num_classes=num_classes, average="macro"
-        ).to(self._device)
+        self._recall = torchmetrics.Recall(task=task, num_classes=num_classes, average="macro").to(
+            self._device
+        )
+        self._f1 = torchmetrics.F1Score(task=task, num_classes=num_classes, average="macro").to(
+            self._device
+        )
 
     def compute(
         self,
@@ -105,8 +105,7 @@ class EvaluationMetrics:
 
         # Prediction distribution
         results["prediction_distribution"] = {
-            int(cls): int(count)
-            for cls, count in zip(*np.unique(preds_np, return_counts=True))
+            int(cls): int(count) for cls, count in zip(*np.unique(preds_np, return_counts=True))
         }
 
         # Calibration — expected calibration error (ECE)
@@ -120,6 +119,7 @@ class EvaluationMetrics:
 
     def _confusion_matrix(self, targets: np.ndarray, preds: np.ndarray) -> np.ndarray:
         from sklearn.metrics import confusion_matrix
+
         return confusion_matrix(targets, preds)
 
     @staticmethod

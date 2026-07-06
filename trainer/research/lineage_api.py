@@ -68,7 +68,6 @@ from trainer.research.snapshots import (
 )
 from trainer.research.timeline import ResearchTimeline, TimelineEventType
 
-
 # ---------------------------------------------------------------------------
 # Response envelope
 # ---------------------------------------------------------------------------
@@ -130,7 +129,9 @@ class LineageAPI:
         self._kg = knowledge_graph
         self._differ = ExperimentDiffer(tree)
         self._dashboard = DashboardBuilder(tree, timeline, cost_tracker, knowledge_graph)
-        self._exporter = ResearchExporter(tree, timeline, cost_tracker, knowledge_graph, self._differ)
+        self._exporter = ResearchExporter(
+            tree, timeline, cost_tracker, knowledge_graph, self._differ
+        )
 
     # ------------------------------------------------------------------
     # Lineage: experiment CRUD
@@ -166,16 +167,19 @@ class LineageAPI:
             self._tl.record_experiment_started(node_id, name, researcher)
             # Register in knowledge graph
             self._kg.register_experiment_node(
-                node_id, name,
+                node_id,
+                name,
                 {"researcher": researcher, "branch": branch, "project": project},
             )
             if parent_id and self._kg.get_node(parent_id):
                 try:
                     from trainer.research.knowledge_graph import EdgeType
+
                     self._kg.add_edge(parent_id, node_id, EdgeType.PARENT_OF)
                 except Exception:
                     pass
             return {"node_id": node_id, "name": name}
+
         return _wrap("lineage.register_experiment", _do)
 
     def start_experiment(self, node_id: str) -> Dict[str, Any]:
@@ -193,6 +197,7 @@ class LineageAPI:
             name = node.name if node else node_id
             self._tl.record_experiment_completed(node_id, name, status, accuracy)
             return {"node_id": node_id, "status": status}
+
         return _wrap("lineage.complete_experiment", _do)
 
     def get_experiment(self, node_id: str) -> Dict[str, Any]:
@@ -201,6 +206,7 @@ class LineageAPI:
             if node is None:
                 raise KeyError(node_id)
             return node.to_dict()
+
         return _wrap("lineage.get_experiment", _do)
 
     def get_lineage_report(self, node_id: str) -> Dict[str, Any]:
@@ -212,44 +218,49 @@ class LineageAPI:
     def get_ancestors(self, node_id: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.ancestors(node_id)]
+
         return _wrap("lineage.get_ancestors", _do)
 
     def get_descendants(self, node_id: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.descendants(node_id)]
+
         return _wrap("lineage.get_descendants", _do)
 
     def get_by_branch(self, branch: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.by_branch(branch)]
+
         return _wrap("lineage.get_by_branch", _do)
 
     def get_by_project(self, project: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.by_project(project)]
+
         return _wrap("lineage.get_by_project", _do)
 
     def get_by_status(self, status: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.by_status(status)]
+
         return _wrap("lineage.get_by_status", _do)
 
     def get_by_researcher(self, researcher: str) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [n.to_dict() for n in self._tree.by_researcher(researcher)]
+
         return _wrap("lineage.get_by_researcher", _do)
 
     # ------------------------------------------------------------------
     # Snapshot attachment
     # ------------------------------------------------------------------
 
-    def attach_environment(
-        self, node_id: str, env_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def attach_environment(self, node_id: str, env_dict: Dict[str, Any]) -> Dict[str, Any]:
         def _do() -> Dict[str, Any]:
             env = EnvironmentSnapshot.from_dict(env_dict)
             self._tree.attach_environment(node_id, env)
             return {"node_id": node_id, "snapshot_id": env.snapshot_id}
+
         return _wrap("lineage.attach_environment", _do)
 
     def attach_dataset_snapshot(
@@ -259,16 +270,19 @@ class LineageAPI:
             ds = DatasetSnapshot.from_dict(snapshot_dict)
             self._tree.attach_dataset_snapshot(node_id, ds)
             ds_node_id = self._kg.register_dataset_node(
-                ds.dataset_version, ds.dataset_hash,
+                ds.dataset_version,
+                ds.dataset_hash,
                 {"sample_count": ds.sample_count, "quality": ds.data_quality_score},
             )
             if self._kg.get_node(node_id):
                 from trainer.research.knowledge_graph import EdgeType
+
                 try:
                     self._kg.add_edge(node_id, ds_node_id, EdgeType.USES_DATASET)
                 except Exception:
                     pass
             return {"node_id": node_id, "snapshot_id": ds.snapshot_id}
+
         return _wrap("lineage.attach_dataset_snapshot", _do)
 
     def attach_feature_snapshot(
@@ -281,30 +295,33 @@ class LineageAPI:
                 feat_nid = self._kg.register_feature_node(feat_name)
                 if self._kg.get_node(node_id):
                     from trainer.research.knowledge_graph import EdgeType
+
                     try:
                         self._kg.add_edge(node_id, feat_nid, EdgeType.USES_FEATURE)
                     except Exception:
                         pass
             return {"node_id": node_id, "snapshot_id": fs.snapshot_id}
+
         return _wrap("lineage.attach_feature_snapshot", _do)
 
-    def attach_model_snapshot(
-        self, node_id: str, snapshot_dict: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def attach_model_snapshot(self, node_id: str, snapshot_dict: Dict[str, Any]) -> Dict[str, Any]:
         def _do() -> Dict[str, Any]:
             ms = ModelSnapshot.from_dict(snapshot_dict)
             self._tree.attach_model_snapshot(node_id, ms)
             mdl_nid = self._kg.register_model_node(
-                node_id, ms.checkpoint_hash,
+                node_id,
+                ms.checkpoint_hash,
                 {"architecture": ms.architecture, "backbone": ms.backbone},
             )
             if self._kg.get_node(node_id):
                 from trainer.research.knowledge_graph import EdgeType
+
                 try:
                     self._kg.add_edge(node_id, mdl_nid, EdgeType.HAS_MODEL)
                 except Exception:
                     pass
             return {"node_id": node_id, "snapshot_id": ms.snapshot_id}
+
         return _wrap("lineage.attach_model_snapshot", _do)
 
     def attach_validation_snapshot(
@@ -320,6 +337,7 @@ class LineageAPI:
                 promotion_decision=vs.promotion_decision,
             )
             return {"node_id": node_id, "snapshot_id": vs.snapshot_id}
+
         return _wrap("lineage.attach_validation_snapshot", _do)
 
     def record_cost(
@@ -359,42 +377,48 @@ class LineageAPI:
                 )
             self._tl.record_cost(entity_id, cost.total_cost_usd, gpu_hours)
             return cost.to_dict()
+
         return _wrap("lineage.record_cost", _do)
 
     # ------------------------------------------------------------------
     # Differencing
     # ------------------------------------------------------------------
 
-    def compare_experiments(
-        self, node_id_a: str, node_id_b: str
-    ) -> Dict[str, Any]:
+    def compare_experiments(self, node_id_a: str, node_id_b: str) -> Dict[str, Any]:
         return _wrap(
             "lineage.compare_experiments",
             lambda: self._differ.compare_experiments(node_id_a, node_id_b).to_dict(),
         )
 
-    def compare_models(
-        self, node_id_a: str, node_id_b: str
-    ) -> Dict[str, Any]:
+    def compare_models(self, node_id_a: str, node_id_b: str) -> Dict[str, Any]:
         def _do() -> Any:
             diff = self._differ.compare_models(node_id_a, node_id_b)
-            return diff.to_dict() if diff else {"message": "One or both nodes missing model snapshot"}
+            return (
+                diff.to_dict() if diff else {"message": "One or both nodes missing model snapshot"}
+            )
+
         return _wrap("lineage.compare_models", _do)
 
-    def compare_datasets(
-        self, node_id_a: str, node_id_b: str
-    ) -> Dict[str, Any]:
+    def compare_datasets(self, node_id_a: str, node_id_b: str) -> Dict[str, Any]:
         def _do() -> Any:
             diff = self._differ.compare_datasets(node_id_a, node_id_b)
-            return diff.to_dict() if diff else {"message": "One or both nodes missing dataset snapshot"}
+            return (
+                diff.to_dict()
+                if diff
+                else {"message": "One or both nodes missing dataset snapshot"}
+            )
+
         return _wrap("lineage.compare_datasets", _do)
 
-    def compare_features(
-        self, node_id_a: str, node_id_b: str
-    ) -> Dict[str, Any]:
+    def compare_features(self, node_id_a: str, node_id_b: str) -> Dict[str, Any]:
         def _do() -> Any:
             diff = self._differ.compare_features(node_id_a, node_id_b)
-            return diff.to_dict() if diff else {"message": "One or both nodes missing feature snapshot"}
+            return (
+                diff.to_dict()
+                if diff
+                else {"message": "One or both nodes missing feature snapshot"}
+            )
+
         return _wrap("lineage.compare_features", _do)
 
     # ------------------------------------------------------------------
@@ -413,6 +437,7 @@ class LineageAPI:
         def _do() -> Dict[str, Any]:
             nid = self._kg.add_node(node_type, label, attributes)
             return {"node_id": nid}
+
         return _wrap("kg.add_graph_node", _do)
 
     def add_graph_edge(
@@ -425,6 +450,7 @@ class LineageAPI:
         def _do() -> Dict[str, Any]:
             eid = self._kg.add_edge(source_id, target_id, edge_type, attributes)
             return {"edge_id": eid}
+
         return _wrap("kg.add_graph_edge", _do)
 
     def get_node_neighbours(
@@ -434,21 +460,18 @@ class LineageAPI:
         edge_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
-            return [
-                n.to_dict()
-                for n in self._kg.neighbours(node_id, direction, edge_type)
-            ]
+            return [n.to_dict() for n in self._kg.neighbours(node_id, direction, edge_type)]
+
         return _wrap("kg.get_node_neighbours", _do)
 
     def get_model_lineage(self, model_node_id: str) -> Dict[str, Any]:
         return _wrap("kg.get_model_lineage", self._kg.model_lineage, model_node_id)
 
-    def get_shortest_path(
-        self, source_id: str, target_id: str
-    ) -> Dict[str, Any]:
+    def get_shortest_path(self, source_id: str, target_id: str) -> Dict[str, Any]:
         def _do() -> Dict[str, Any]:
             path = self._kg.shortest_path(source_id, target_id)
             return {"path": path, "length": len(path)}
+
         return _wrap("kg.get_shortest_path", _do)
 
     def get_graph_export(self) -> Dict[str, Any]:
@@ -473,6 +496,7 @@ class LineageAPI:
     def get_recent_events(self, n: int = 20) -> Dict[str, Any]:
         def _do() -> List[Dict[str, Any]]:
             return [e.to_dict() for e in self._tl.recent(n)]
+
         return _wrap("timeline.get_recent_events", _do)
 
     def record_timeline_event(
@@ -494,6 +518,7 @@ class LineageAPI:
                 researcher=researcher,
             )
             return {"event_id": eid}
+
         return _wrap("timeline.record_event", _do)
 
     # ------------------------------------------------------------------
@@ -507,6 +532,7 @@ class LineageAPI:
         def _do() -> Any:
             cost = self._costs.get(entity_id)
             return cost.to_dict() if cost else {"message": f"No cost record for {entity_id}"}
+
         return _wrap("cost.get_experiment_cost", _do)
 
     def record_cost_estimate(
@@ -533,6 +559,7 @@ class LineageAPI:
                 researcher=researcher,
             )
             return cost.to_dict()
+
         return _wrap("cost.record_cost_estimate", _do)
 
     # ------------------------------------------------------------------
@@ -549,22 +576,20 @@ class LineageAPI:
     # Export
     # ------------------------------------------------------------------
 
-    def export_experiment_card(
-        self, node_id: str, as_markdown: bool = False
-    ) -> Dict[str, Any]:
+    def export_experiment_card(self, node_id: str, as_markdown: bool = False) -> Dict[str, Any]:
         def _do() -> Any:
             if as_markdown:
                 return {"markdown": self._exporter.experiment_card_markdown(node_id)}
             return self._exporter.experiment_card(node_id)
+
         return _wrap("export.experiment_card", _do)
 
-    def export_lineage_report(
-        self, node_id: str, as_markdown: bool = False
-    ) -> Dict[str, Any]:
+    def export_lineage_report(self, node_id: str, as_markdown: bool = False) -> Dict[str, Any]:
         def _do() -> Any:
             if as_markdown:
                 return {"markdown": self._exporter.lineage_report_markdown(node_id)}
             return self._exporter.lineage_report(node_id)
+
         return _wrap("export.lineage_report", _do)
 
     def export_research_report(self, as_markdown: bool = False) -> Dict[str, Any]:
@@ -572,6 +597,7 @@ class LineageAPI:
             if as_markdown:
                 return {"markdown": self._exporter.research_report_markdown()}
             return self._exporter.research_report()
+
         return _wrap("export.research_report", _do)
 
     def export_experiment_tree(self) -> Dict[str, Any]:
@@ -594,4 +620,5 @@ class LineageAPI:
                 "total_cost_usd": self._costs.total_cost_usd(),
                 "total_gpu_hours": self._costs.total_gpu_hours(),
             }
+
         return _wrap("lineage.get_stats", _do)

@@ -38,7 +38,6 @@ from loguru import logger
 from trainer.ensemble.expert import ExpertModel, ExpertRegistry, SpecializationType
 from trainer.ensemble.weighting import DynamicWeightEngine
 
-
 # ---------------------------------------------------------------------------
 # Routing decision
 # ---------------------------------------------------------------------------
@@ -70,9 +69,7 @@ class RoutingDecision:
     routing_reason: str = ""
     n_experts_available: int = 0
     n_experts_selected: int = 0
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -145,18 +142,22 @@ class ExpertRouter:
         config: RouterConfig for routing behavior.
     """
 
-    def __init__(self,
-                 registry: ExpertRegistry,
-                 weight_engine: Optional[DynamicWeightEngine] = None,
-                 config: Optional[RouterConfig] = None) -> None:
+    def __init__(
+        self,
+        registry: ExpertRegistry,
+        weight_engine: Optional[DynamicWeightEngine] = None,
+        config: Optional[RouterConfig] = None,
+    ) -> None:
         self.registry = registry
         self.weight_engine = weight_engine or DynamicWeightEngine()
         self.config = config or RouterConfig()
         self._routing_history: List[RoutingDecision] = []
 
-    def route(self, context: Optional[Dict[str, Any]] = None,
-              recent_metrics: Optional[Dict[str, Dict[str, float]]] = None
-              ) -> RoutingDecision:
+    def route(
+        self,
+        context: Optional[Dict[str, Any]] = None,
+        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
+    ) -> RoutingDecision:
         """Select experts and compute weights for a prediction request.
 
         Args:
@@ -178,18 +179,14 @@ class ExpertRouter:
 
         if cfg.use_instrument_filter and instrument:
             instr_filtered = [
-                e for e in candidates
-                if not e.instruments or instrument in e.instruments
+                e for e in candidates if not e.instruments or instrument in e.instruments
             ]
             if instr_filtered or not cfg.fallback_to_all:
                 candidates = instr_filtered
                 reasons.append(f"instrument={instrument}")
 
         if cfg.use_timeframe_filter and timeframe:
-            tf_filtered = [
-                e for e in candidates
-                if not e.timeframes or timeframe in e.timeframes
-            ]
+            tf_filtered = [e for e in candidates if not e.timeframes or timeframe in e.timeframes]
             if tf_filtered or not cfg.fallback_to_all:
                 candidates = tf_filtered
                 reasons.append(f"timeframe={timeframe}")
@@ -204,8 +201,7 @@ class ExpertRouter:
 
         if cfg.min_weight_threshold > 0:
             candidates = [
-                e for e in candidates
-                if weights.get(e.expert_id, 0.0) >= cfg.min_weight_threshold
+                e for e in candidates if weights.get(e.expert_id, 0.0) >= cfg.min_weight_threshold
             ]
 
         if cfg.max_experts is not None:
@@ -214,17 +210,16 @@ class ExpertRouter:
                 key=lambda e: weights.get(e.expert_id, 0.0),
                 reverse=True,
             )
-            candidates = sorted_experts[:cfg.max_experts]
+            candidates = sorted_experts[: cfg.max_experts]
             reasons.append(f"top_{cfg.max_experts}")
 
         if len(candidates) < cfg.min_experts and cfg.fallback_to_all:
-            candidates = self.registry.active_experts()[:max(cfg.min_experts, 1)]
+            candidates = self.registry.active_experts()[: max(cfg.min_experts, 1)]
             reasons.append("fallback_min_experts")
 
         total = sum(weights.get(e.expert_id, 1.0) for e in candidates)
         selected_weights = {
-            e.expert_id: weights.get(e.expert_id, 1.0) / max(total, 1e-9)
-            for e in candidates
+            e.expert_id: weights.get(e.expert_id, 1.0) / max(total, 1e-9) for e in candidates
         }
 
         decision = RoutingDecision(
@@ -238,14 +233,12 @@ class ExpertRouter:
             n_experts_selected=len(candidates),
         )
         self._routing_history.append(decision)
-        logger.debug(
-            f"Router: regime={regime} → {len(candidates)} experts selected"
-        )
+        logger.debug(f"Router: regime={regime} → {len(candidates)} experts selected")
         return decision
 
-    def route_and_predict(self, features: Dict[str, Any],
-                          context: Optional[Dict[str, Any]] = None
-                          ) -> tuple:
+    def route_and_predict(
+        self, features: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> tuple:
         """Route and collect expert predictions in one call.
 
         Returns:
@@ -270,10 +263,7 @@ class ExpertRouter:
         unique_regimes = list(set(regimes))
         return {
             "total_routes": len(self._routing_history),
-            "regime_distribution": {
-                r: regimes.count(r) for r in unique_regimes
-            },
-            "avg_experts_selected": sum(
-                d.n_experts_selected for d in self._routing_history
-            ) / len(self._routing_history),
+            "regime_distribution": {r: regimes.count(r) for r in unique_regimes},
+            "avg_experts_selected": sum(d.n_experts_selected for d in self._routing_history)
+            / len(self._routing_history),
         }

@@ -50,7 +50,6 @@ from trainer.research.snapshots import (
 )
 from trainer.research.timeline import ResearchTimeline, TimelineEventType
 
-
 # ===========================================================================
 # Fixtures
 # ===========================================================================
@@ -105,8 +104,7 @@ def feature_snapshot() -> FeatureSnapshot:
         feature_names=["rsi_14", "macd_12_26", "atr_14"],
         feature_importance={"rsi_14": 0.35, "macd_12_26": 0.40, "atr_14": 0.25},
         feature_drift_status={"rsi_14": "stable", "macd_12_26": "stable"},
-        feature_lifecycle_status={"rsi_14": "active", "macd_12_26": "active",
-                                   "atr_14": "active"},
+        feature_lifecycle_status={"rsi_14": "active", "macd_12_26": "active", "atr_14": "active"},
         feature_set_hash="sha256:feat_set_001",
     )
 
@@ -267,9 +265,7 @@ class TestDatasetSnapshot:
         diff = dataset_snapshot.diff(other)
         assert diff == {}
 
-    def test_diff_detects_instrument_change(
-        self, dataset_snapshot: DatasetSnapshot
-    ) -> None:
+    def test_diff_detects_instrument_change(self, dataset_snapshot: DatasetSnapshot) -> None:
         other = DatasetSnapshot.from_dict(dataset_snapshot.to_dict())
         other.instruments = ["ES", "NQ", "GC"]  # CL → GC
         diff = dataset_snapshot.diff(other)
@@ -277,9 +273,7 @@ class TestDatasetSnapshot:
         assert "GC" in diff["instruments"]["added"]
         assert "CL" in diff["instruments"]["removed"]
 
-    def test_diff_detects_version_change(
-        self, dataset_snapshot: DatasetSnapshot
-    ) -> None:
+    def test_diff_detects_version_change(self, dataset_snapshot: DatasetSnapshot) -> None:
         other = DatasetSnapshot.from_dict(dataset_snapshot.to_dict())
         other.dataset_version = "v2.4.0"
         diff = dataset_snapshot.diff(other)
@@ -313,9 +307,7 @@ class TestFeatureSnapshot:
         assert "features_removed" in diff
         assert "atr_14" in diff["features_removed"]
 
-    def test_diff_detects_importance_shift(
-        self, feature_snapshot: FeatureSnapshot
-    ) -> None:
+    def test_diff_detects_importance_shift(self, feature_snapshot: FeatureSnapshot) -> None:
         other = FeatureSnapshot.from_dict(feature_snapshot.to_dict())
         other.feature_importance["rsi_14"] = 0.15  # dropped from 0.35
         diff = feature_snapshot.diff(other)
@@ -405,9 +397,7 @@ class TestLineageNode:
         node = LineageNode()
         assert node.reproducibility_score() == 0.0
 
-    def test_reproducibility_score_with_env(
-        self, env_snapshot: EnvironmentSnapshot
-    ) -> None:
+    def test_reproducibility_score_with_env(self, env_snapshot: EnvironmentSnapshot) -> None:
         node = LineageNode(environment=env_snapshot)
         assert node.reproducibility_score() >= 0.75
 
@@ -550,18 +540,14 @@ class TestDifferencing:
         diff = ModelDiff.compare(model_snapshot, other)
         assert diff.hyperparameter_changed()
 
-    def test_validation_diff_improved(
-        self, validation_snapshot: ValidationSnapshot
-    ) -> None:
+    def test_validation_diff_improved(self, validation_snapshot: ValidationSnapshot) -> None:
         better = ValidationSnapshot.from_dict(validation_snapshot.to_dict())
         better.walk_forward_accuracy = 0.720
         diff = ValidationDiff.compare(validation_snapshot, better)
         assert diff.performance_improved
         assert not diff.is_identical
 
-    def test_experiment_differ_full(
-        self, populated_tree: LineageTree
-    ) -> None:
+    def test_experiment_differ_full(self, populated_tree: LineageTree) -> None:
         nodes = populated_tree.all_nodes()
         root = next(n for n in nodes if n.name == "baseline_v1")
         child = next(n for n in nodes if n.name == "transformer_v2")
@@ -572,9 +558,7 @@ class TestDifferencing:
         # Child has no snapshots so diffs should be None
         assert diff.dataset_diff is None
 
-    def test_differ_missing_node_raises(
-        self, populated_tree: LineageTree
-    ) -> None:
+    def test_differ_missing_node_raises(self, populated_tree: LineageTree) -> None:
         differ = ExperimentDiffer(populated_tree)
         with pytest.raises(KeyError):
             differ.compare_experiments("bad_id", "also_bad")
@@ -658,8 +642,7 @@ class TestKnowledgeGraph:
 class TestResearchTimeline:
     def test_record_event(self) -> None:
         tl = ResearchTimeline()
-        eid = tl.record(TimelineEventType.EXPERIMENT_STARTED, entity_id="e1",
-                        description="started")
+        eid = tl.record(TimelineEventType.EXPERIMENT_STARTED, entity_id="e1", description="started")
         assert eid
         assert tl.total_events() == 1
 
@@ -831,9 +814,7 @@ class TestResearchExporter:
     ) -> ResearchExporter:
         return ResearchExporter(populated_tree, timeline, cost_tracker, kg)
 
-    def test_experiment_card(
-        self, exporter: ResearchExporter, populated_tree: LineageTree
-    ) -> None:
+    def test_experiment_card(self, exporter: ResearchExporter, populated_tree: LineageTree) -> None:
         root = populated_tree.roots()[0]
         card = exporter.experiment_card(root.node_id)
         assert card["card_type"] == "experiment_card"
@@ -848,9 +829,7 @@ class TestResearchExporter:
         assert "# Experiment Card" in md
         assert "baseline_v1" in md
 
-    def test_lineage_report(
-        self, exporter: ResearchExporter, populated_tree: LineageTree
-    ) -> None:
+    def test_lineage_report(self, exporter: ResearchExporter, populated_tree: LineageTree) -> None:
         root = populated_tree.roots()[0]
         report = exporter.lineage_report(root.node_id)
         assert report["report_type"] == "lineage_report"
@@ -985,9 +964,7 @@ class TestLineageAPI:
         node_id = resp["data"]["node_id"]
         start_resp = api.start_experiment(node_id)
         assert start_resp["status"] == "ok"
-        complete_resp = api.complete_experiment(
-            node_id, status="succeeded", accuracy=0.71
-        )
+        complete_resp = api.complete_experiment(node_id, status="succeeded", accuracy=0.71)
         assert complete_resp["status"] == "ok"
 
     def test_get_experiment(self, api: LineageAPI) -> None:

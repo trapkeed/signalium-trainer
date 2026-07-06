@@ -32,7 +32,6 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # AttentionMap — result container
 # ---------------------------------------------------------------------------
@@ -166,11 +165,13 @@ class AttentionExtractor:
 
     def _hook_fn(self, name: str):
         """Build a hook closure that captures attention weights by layer name."""
+
         def fn(module, inp, output):
             if isinstance(output, tuple) and len(output) > 1:
                 attn_weights = output[1]
                 if attn_weights is not None:
                     self._captured.append((name, attn_weights.detach().cpu()))
+
         return fn
 
     @contextlib.contextmanager

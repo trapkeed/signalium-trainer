@@ -38,7 +38,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS lineage_nodes (
     node_id         TEXT PRIMARY KEY,
@@ -187,25 +186,32 @@ class LineageDatabase:
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            conn.execute(sql, (
-                d["node_id"], d.get("name", ""), d.get("researcher", "system"),
-                d.get("purpose", ""), d.get("parent_id"),
-                json.dumps(d.get("child_ids", [])),
-                d.get("branch", "main"), d.get("project", ""),
-                d.get("status", "planned"), d["created_at"],
-                d.get("completed_at"),
-                d.get("notes", ""),
-                json.dumps(d.get("tags", [])),
-                d.get("gpu_hours", 0.0), d.get("cpu_hours", 0.0),
-                d.get("training_cost_usd", 0.0),
-                d.get("storage_cost_usd", 0.0),
-                d.get("validation_cost_usd", 0.0),
-            ))
+            conn.execute(
+                sql,
+                (
+                    d["node_id"],
+                    d.get("name", ""),
+                    d.get("researcher", "system"),
+                    d.get("purpose", ""),
+                    d.get("parent_id"),
+                    json.dumps(d.get("child_ids", [])),
+                    d.get("branch", "main"),
+                    d.get("project", ""),
+                    d.get("status", "planned"),
+                    d["created_at"],
+                    d.get("completed_at"),
+                    d.get("notes", ""),
+                    json.dumps(d.get("tags", [])),
+                    d.get("gpu_hours", 0.0),
+                    d.get("cpu_hours", 0.0),
+                    d.get("training_cost_usd", 0.0),
+                    d.get("storage_cost_usd", 0.0),
+                    d.get("validation_cost_usd", 0.0),
+                ),
+            )
 
     def load_all_nodes(self) -> List[Dict[str, Any]]:
-        rows = self._conn().execute(
-            "SELECT * FROM lineage_nodes ORDER BY created_at"
-        ).fetchall()
+        rows = self._conn().execute("SELECT * FROM lineage_nodes ORDER BY created_at").fetchall()
         result = []
         for row in rows:
             d = dict(row)
@@ -215,9 +221,11 @@ class LineageDatabase:
         return result
 
     def get_node(self, node_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn().execute(
-            "SELECT * FROM lineage_nodes WHERE node_id=?", (node_id,)
-        ).fetchone()
+        row = (
+            self._conn()
+            .execute("SELECT * FROM lineage_nodes WHERE node_id=?", (node_id,))
+            .fetchone()
+        )
         if row is None:
             return None
         d = dict(row)
@@ -238,19 +246,25 @@ class LineageDatabase:
         VALUES (?,?,?,?)
         """
         with self._conn() as conn:
-            conn.execute(sql, (
-                snapshot_id, node_id,
-                json.dumps(data),
-                data.get("captured_at", datetime.now(timezone.utc).isoformat()),
-            ))
+            conn.execute(
+                sql,
+                (
+                    snapshot_id,
+                    node_id,
+                    json.dumps(data),
+                    data.get("captured_at", datetime.now(timezone.utc).isoformat()),
+                ),
+            )
 
-    def _load_snapshot(
-        self, table: str, node_id: str
-    ) -> Optional[Dict[str, Any]]:
-        row = self._conn().execute(
-            f"SELECT data_json FROM {table} WHERE node_id=? ORDER BY captured_at DESC LIMIT 1",
-            (node_id,),
-        ).fetchone()
+    def _load_snapshot(self, table: str, node_id: str) -> Optional[Dict[str, Any]]:
+        row = (
+            self._conn()
+            .execute(
+                f"SELECT data_json FROM {table} WHERE node_id=? ORDER BY captured_at DESC LIMIT 1",
+                (node_id,),
+            )
+            .fetchone()
+        )
         if row is None:
             return None
         return json.loads(row[0])
@@ -297,26 +311,37 @@ class LineageDatabase:
         VALUES (?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            conn.execute(sql, (
-                data["cost_id"], data["entity_id"],
-                data.get("entity_type", "experiment"),
-                data.get("project", ""), data.get("branch", ""),
-                data.get("researcher", "system"),
-                data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
-                json.dumps(data),
-            ))
+            conn.execute(
+                sql,
+                (
+                    data["cost_id"],
+                    data["entity_id"],
+                    data.get("entity_type", "experiment"),
+                    data.get("project", ""),
+                    data.get("branch", ""),
+                    data.get("researcher", "system"),
+                    data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+                    json.dumps(data),
+                ),
+            )
 
     def load_all_costs(self) -> List[Dict[str, Any]]:
-        rows = self._conn().execute(
-            "SELECT data_json FROM cost_records ORDER BY recorded_at"
-        ).fetchall()
+        rows = (
+            self._conn()
+            .execute("SELECT data_json FROM cost_records ORDER BY recorded_at")
+            .fetchall()
+        )
         return [json.loads(r[0]) for r in rows]
 
     def load_cost_by_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
-        row = self._conn().execute(
-            "SELECT data_json FROM cost_records WHERE entity_id=? ORDER BY recorded_at DESC LIMIT 1",
-            (entity_id,),
-        ).fetchone()
+        row = (
+            self._conn()
+            .execute(
+                "SELECT data_json FROM cost_records WHERE entity_id=? ORDER BY recorded_at DESC LIMIT 1",
+                (entity_id,),
+            )
+            .fetchone()
+        )
         if row is None:
             return None
         return json.loads(row[0])
@@ -333,18 +358,22 @@ class LineageDatabase:
         VALUES (?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            conn.execute(sql, (
-                data["event_id"], data["event_type"],
-                data.get("entity_id", ""), data.get("entity_type", ""),
-                data.get("description", ""), data.get("researcher", "system"),
-                data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
-                json.dumps(data.get("attributes", {})),
-            ))
+            conn.execute(
+                sql,
+                (
+                    data["event_id"],
+                    data["event_type"],
+                    data.get("entity_id", ""),
+                    data.get("entity_type", ""),
+                    data.get("description", ""),
+                    data.get("researcher", "system"),
+                    data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+                    json.dumps(data.get("attributes", {})),
+                ),
+            )
 
     def load_all_timeline_events(self) -> List[Dict[str, Any]]:
-        rows = self._conn().execute(
-            "SELECT * FROM timeline_events ORDER BY recorded_at"
-        ).fetchall()
+        rows = self._conn().execute("SELECT * FROM timeline_events ORDER BY recorded_at").fetchall()
         result = []
         for row in rows:
             d = dict(row)
@@ -362,15 +391,20 @@ class LineageDatabase:
         VALUES (1, ?, ?)
         """
         with self._conn() as conn:
-            conn.execute(sql, (
-                json.dumps(data),
-                datetime.now(timezone.utc).isoformat(),
-            ))
+            conn.execute(
+                sql,
+                (
+                    json.dumps(data),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
 
     def load_knowledge_graph(self) -> Optional[Dict[str, Any]]:
-        row = self._conn().execute(
-            "SELECT data_json FROM knowledge_graph_blobs WHERE id=1"
-        ).fetchone()
+        row = (
+            self._conn()
+            .execute("SELECT data_json FROM knowledge_graph_blobs WHERE id=1")
+            .fetchone()
+        )
         if row is None:
             return None
         return json.loads(row[0])
@@ -382,24 +416,16 @@ class LineageDatabase:
     def stats(self) -> Dict[str, Any]:
         conn = self._conn()
         return {
-            "lineage_nodes": conn.execute(
-                "SELECT COUNT(*) FROM lineage_nodes"
-            ).fetchone()[0],
-            "cost_records": conn.execute(
-                "SELECT COUNT(*) FROM cost_records"
-            ).fetchone()[0],
-            "timeline_events": conn.execute(
-                "SELECT COUNT(*) FROM timeline_events"
-            ).fetchone()[0],
+            "lineage_nodes": conn.execute("SELECT COUNT(*) FROM lineage_nodes").fetchone()[0],
+            "cost_records": conn.execute("SELECT COUNT(*) FROM cost_records").fetchone()[0],
+            "timeline_events": conn.execute("SELECT COUNT(*) FROM timeline_events").fetchone()[0],
             "environment_snapshots": conn.execute(
                 "SELECT COUNT(*) FROM environment_snapshots"
             ).fetchone()[0],
-            "model_snapshots": conn.execute(
-                "SELECT COUNT(*) FROM model_snapshots"
-            ).fetchone()[0],
-            "dataset_snapshots": conn.execute(
-                "SELECT COUNT(*) FROM dataset_snapshots"
-            ).fetchone()[0],
+            "model_snapshots": conn.execute("SELECT COUNT(*) FROM model_snapshots").fetchone()[0],
+            "dataset_snapshots": conn.execute("SELECT COUNT(*) FROM dataset_snapshots").fetchone()[
+                0
+            ],
             "validation_snapshots": conn.execute(
                 "SELECT COUNT(*) FROM validation_snapshots"
             ).fetchone()[0],

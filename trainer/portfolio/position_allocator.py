@@ -186,8 +186,7 @@ class PositionAllocator:
 
     @staticmethod
     def _return_scaled(forecasts: List[ModelForecast]) -> Dict[str, float]:
-        scores = {f.instrument: max(abs(f.signed_return()) * f.confidence, 1e-6)
-                  for f in forecasts}
+        scores = {f.instrument: max(abs(f.signed_return()) * f.confidence, 1e-6) for f in forecasts}
         total = sum(scores.values())
         return {k: v / total for k, v in scores.items()}
 
@@ -204,8 +203,9 @@ class PositionAllocator:
         return {k: v / total for k, v in scores.items()}
 
     @staticmethod
-    def _minimum_variance(forecasts: List[ModelForecast],
-                           matrix: Optional[CorrelationMatrix]) -> Dict[str, float]:
+    def _minimum_variance(
+        forecasts: List[ModelForecast], matrix: Optional[CorrelationMatrix]
+    ) -> Dict[str, float]:
         if matrix is None or len(forecasts) < 2:
             return PositionAllocator._risk_parity(forecasts)
         n = len(forecasts)
@@ -215,21 +215,23 @@ class PositionAllocator:
         # Greedy minimum-variance approximation: penalize high correlation
         weights: Dict[str, float] = {}
         for i, sym in enumerate(syms):
-            avg_corr = sum(
-                abs(matrix.get(sym, syms[j]))
-                for j in range(n) if j != i
-            ) / max(n - 1, 1)
+            avg_corr = sum(abs(matrix.get(sym, syms[j])) for j in range(n) if j != i) / max(
+                n - 1, 1
+            )
             risk_penalty = risks[sym] * (1 + avg_corr)
             weights[sym] = 1.0 / max(risk_penalty, 1e-6)
 
         total = sum(weights.values())
         return {k: v / total for k, v in weights.items()}
 
-    def _hybrid(self, forecasts: List[ModelForecast],
-                matrix: Optional[CorrelationMatrix],
-                regime: Optional[RegimeAssessment]) -> Dict[str, float]:
-        w_conf  = self._confidence_weight(forecasts)
-        w_risk  = self._risk_parity(forecasts)
+    def _hybrid(
+        self,
+        forecasts: List[ModelForecast],
+        matrix: Optional[CorrelationMatrix],
+        regime: Optional[RegimeAssessment],
+    ) -> Dict[str, float]:
+        w_conf = self._confidence_weight(forecasts)
+        w_risk = self._risk_parity(forecasts)
         w_sharpe = self._sharpe_scaled(forecasts)
 
         blend: Dict[str, float] = {}
@@ -244,9 +246,9 @@ class PositionAllocator:
         return {k: v / max(total, 1e-9) for k, v in blend.items()}
 
     @staticmethod
-    def _apply_regime(weights: Dict[str, float],
-                      forecasts: List[ModelForecast],
-                      regime: RegimeAssessment) -> Dict[str, float]:
+    def _apply_regime(
+        weights: Dict[str, float], forecasts: List[ModelForecast], regime: RegimeAssessment
+    ) -> Dict[str, float]:
         pos_scale = regime.adjustment_factors.get("position_size", 1.0)
         result = {k: v * pos_scale for k, v in weights.items()}
         # Re-normalize
@@ -256,8 +258,7 @@ class PositionAllocator:
         return {k: v / total for k, v in result.items()}
 
     @staticmethod
-    def _to_signed(weights: Dict[str, float],
-                   forecasts: List[ModelForecast]) -> Dict[str, float]:
+    def _to_signed(weights: Dict[str, float], forecasts: List[ModelForecast]) -> Dict[str, float]:
         fc_map = {f.instrument: f for f in forecasts}
         signed = {}
         for sym, w in weights.items():
@@ -282,10 +283,7 @@ class PositionAllocator:
         norm_w = {k: v / total_w for k, v in weights.items()}
         fc_map = {f.instrument: f for f in forecasts}
 
-        er = sum(
-            norm_w.get(fc.instrument, 0.0) * fc.signed_return()
-            for fc in forecasts
-        )
+        er = sum(norm_w.get(fc.instrument, 0.0) * fc.signed_return() for fc in forecasts)
         var = 0.0
         syms = [f.instrument for f in forecasts]
         for i, si in enumerate(syms):
@@ -299,9 +297,11 @@ class PositionAllocator:
         return er, ev, es
 
     @staticmethod
-    def _diversification_ratio(weights: Dict[str, float],
-                                forecasts: List[ModelForecast],
-                                matrix: Optional[CorrelationMatrix]) -> float:
+    def _diversification_ratio(
+        weights: Dict[str, float],
+        forecasts: List[ModelForecast],
+        matrix: Optional[CorrelationMatrix],
+    ) -> float:
         weights_abs = {k: abs(v) for k, v in weights.items()}
         total = sum(weights_abs.values())
         if total < 1e-9:
@@ -313,9 +313,13 @@ class PositionAllocator:
     @staticmethod
     def _empty_result(method: AllocationMethod) -> AllocationResult:
         return AllocationResult(
-            weights={}, signed_weights={},
+            weights={},
+            signed_weights={},
             method=method.value,
-            expected_return=0.0, expected_volatility=0.0, expected_sharpe=0.0,
-            diversification_ratio=0.0, budget_feasible=True,
+            expected_return=0.0,
+            expected_volatility=0.0,
+            expected_sharpe=0.0,
+            diversification_ratio=0.0,
+            budget_feasible=True,
             instrument_count=0,
         )

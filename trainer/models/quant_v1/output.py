@@ -15,7 +15,6 @@ from typing import Any, Optional
 import torch
 import torch.nn as nn
 
-
 # ---------------------------------------------------------------------------
 # Original output (unchanged — backward compatible)
 # ---------------------------------------------------------------------------
@@ -186,12 +185,28 @@ class MultiTaskQuantModelOutput:
             "no_trade_prob": self.no_trade_prob,
         }
         _opt_fields = [
-            "expected_move", "stop_loss", "take_profit", "holding_time",
-            "tp_probability", "mfe", "mae_excursion", "trade_efficiency",
-            "reward_risk", "trade_survival", "sl_resilience", "tp_achievability",
-            "entry_quality", "exit_quality", "market_stability", "trade_decay",
-            "profit_distribution", "loss_distribution", "position_size_quality",
-            "uncertainty", "prediction_timestamp", "model_version",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+            "mfe",
+            "mae_excursion",
+            "trade_efficiency",
+            "reward_risk",
+            "trade_survival",
+            "sl_resilience",
+            "tp_achievability",
+            "entry_quality",
+            "exit_quality",
+            "market_stability",
+            "trade_decay",
+            "profit_distribution",
+            "loss_distribution",
+            "position_size_quality",
+            "uncertainty",
+            "prediction_timestamp",
+            "model_version",
         ]
         for f in _opt_fields:
             val = getattr(self, f)

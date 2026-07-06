@@ -36,7 +36,6 @@ from typing import Any, Optional
 import numpy as np
 import torch
 
-
 # ---------------------------------------------------------------------------
 # Drift report
 # ---------------------------------------------------------------------------
@@ -87,9 +86,7 @@ class DriftReport:
     regime_drift_jsd: float = 0.0
     n_drifted_features: int = 0
     drift_severity: str = "none"
-    detected_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    detected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def summary(self) -> str:
         lines = [
@@ -202,17 +199,18 @@ class DriftAnalyzer:
             jsd = self._jsd_histograms(x_r[:, i], x_c[:, i])
             mean_shift = float(x_c[:, i].mean() - x_r[:, i].mean())
             std_shift = float(x_c[:, i].std() - x_r[:, i].std())
-            name = (feature_names[i] if feature_names and i < len(feature_names)
-                    else f"feature_{i}")
-            feature_drifts.append(FeatureDriftStats(
-                feature_idx=i,
-                feature_name=name,
-                psi=psi,
-                jsd=jsd,
-                mean_shift=mean_shift,
-                std_shift=std_shift,
-                is_drifted=psi > self._psi_thresh,
-            ))
+            name = feature_names[i] if feature_names and i < len(feature_names) else f"feature_{i}"
+            feature_drifts.append(
+                FeatureDriftStats(
+                    feature_idx=i,
+                    feature_name=name,
+                    psi=psi,
+                    jsd=jsd,
+                    mean_shift=mean_shift,
+                    std_shift=std_shift,
+                    is_drifted=psi > self._psi_thresh,
+                )
+            )
 
         n_drifted = sum(1 for f in feature_drifts if f.is_drifted)
 
@@ -326,9 +324,7 @@ class DriftAnalyzer:
         return float(np.clip(jsd, 0, 1))
 
     @staticmethod
-    def _classify_severity(
-        max_psi: float, pred_jsd: float, label_jsd: float
-    ) -> str:
+    def _classify_severity(max_psi: float, pred_jsd: float, label_jsd: float) -> str:
         if max_psi > 0.25 or pred_jsd > 0.20 or label_jsd > 0.15:
             return "severe"
         if max_psi > 0.10 or pred_jsd > 0.10 or label_jsd > 0.08:

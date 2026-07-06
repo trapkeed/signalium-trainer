@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 def _default_hybrid_encoder_config() -> "HybridEncoderConfig":
     from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
+
     return HybridEncoderConfig(enabled=False)
 
 
@@ -241,9 +242,7 @@ class MarketStabilityHeadConfig:
     dropout: float = 0.2
     num_classes: int = 4
     label_names: list[str] = field(
-        default_factory=lambda: [
-            "stable", "moderately_stable", "unstable", "highly_unstable"
-        ]
+        default_factory=lambda: ["stable", "moderately_stable", "unstable", "highly_unstable"]
     )
 
 
@@ -371,9 +370,7 @@ class QuantV1Config:
 
     encoder: InputEncoderConfig = field(default_factory=InputEncoderConfig)
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
-    classification_head: ClassificationHeadConfig = field(
-        default_factory=ClassificationHeadConfig
-    )
+    classification_head: ClassificationHeadConfig = field(default_factory=ClassificationHeadConfig)
     confidence_head: ConfidenceHeadConfig = field(default_factory=ConfidenceHeadConfig)
     loss: LossConfig = field(default_factory=LossConfig)
     balancing: BalancingConfig = field(default_factory=BalancingConfig)

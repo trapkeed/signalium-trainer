@@ -63,8 +63,7 @@ class WarmupScheduler:
         # Base LR is the LR the optimizer was configured with
         self._base_lrs = [pg["lr"] for pg in optimizer.param_groups]
         self._start_lrs = [
-            (start_lr if start_lr is not None else lr * 0.01)
-            for lr in self._base_lrs
+            (start_lr if start_lr is not None else lr * 0.01) for lr in self._base_lrs
         ]
 
         # Set initial LR to start_lr if warmup active

@@ -37,7 +37,6 @@ from loguru import logger
 
 from trainer.ensemble.expert import ExpertModel
 
-
 # ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
@@ -201,16 +200,25 @@ class EnsembleDatabase:
                 created_at, updated_at, metadata_json)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                expert.expert_id, expert.name, expert.model_family,
+                expert.expert_id,
+                expert.name,
+                expert.model_family,
                 json.dumps(expert.specializations),
                 json.dumps(expert.instruments),
                 json.dumps(expert.timeframes),
-                expert.version, expert.checkpoint_path,
-                expert.model_version, expert.phase, expert.status,
-                expert.weight, expert.recent_accuracy,
-                expert.recent_sharpe, expert.calibration_error,
-                expert.n_predictions, expert.n_correct,
-                expert.created_at, expert.updated_at,
+                expert.version,
+                expert.checkpoint_path,
+                expert.model_version,
+                expert.phase,
+                expert.status,
+                expert.weight,
+                expert.recent_accuracy,
+                expert.recent_sharpe,
+                expert.calibration_error,
+                expert.n_predictions,
+                expert.n_correct,
+                expert.created_at,
+                expert.updated_at,
                 json.dumps(expert.metadata),
             ),
         )
@@ -226,13 +234,10 @@ class EnsembleDatabase:
     def list_experts(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
         if status:
             rows = self._conn.execute(
-                "SELECT * FROM expert_models WHERE status = ? ORDER BY created_at",
-                (status,)
+                "SELECT * FROM expert_models WHERE status = ? ORDER BY created_at", (status,)
             ).fetchall()
         else:
-            rows = self._conn.execute(
-                "SELECT * FROM expert_models ORDER BY created_at"
-            ).fetchall()
+            rows = self._conn.execute("SELECT * FROM expert_models ORDER BY created_at").fetchall()
         return [self._expert_row(r) for r in rows]
 
     def _expert_row(self, row: sqlite3.Row) -> Dict[str, Any]:
@@ -260,10 +265,14 @@ class EnsembleDatabase:
     # Ensemble results
     # -----------------------------------------------------------------------
 
-    def save_ensemble_result(self, result: Dict[str, Any],
-                              regime: str = "", instrument: str = "",
-                              timeframe: str = "", true_class: Optional[str] = None
-                              ) -> str:
+    def save_ensemble_result(
+        self,
+        result: Dict[str, Any],
+        regime: str = "",
+        instrument: str = "",
+        timeframe: str = "",
+        true_class: Optional[str] = None,
+    ) -> str:
         result_id = result.get("result_id") or str(uuid.uuid4())
         is_correct = None
         if true_class is not None:
@@ -286,8 +295,11 @@ class EnsembleDatabase:
                 result.get("strategy", ""),
                 result.get("n_experts", 0),
                 result.get("agreement_score", 0.0),
-                regime, instrument, timeframe,
-                true_class, is_correct,
+                regime,
+                instrument,
+                timeframe,
+                true_class,
+                is_correct,
                 json.dumps(result.get("weight_map", {})),
                 json.dumps(result.get("metadata", {})),
                 datetime.now(timezone.utc).isoformat(),
@@ -296,17 +308,18 @@ class EnsembleDatabase:
         self._conn.commit()
         return result_id
 
-    def list_ensemble_results(self, strategy: Optional[str] = None,
-                               limit: int = 100) -> List[Dict[str, Any]]:
+    def list_ensemble_results(
+        self, strategy: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         if strategy:
             rows = self._conn.execute(
                 "SELECT * FROM ensemble_results WHERE strategy = ? "
-                "ORDER BY created_at DESC LIMIT ?", (strategy, limit)
+                "ORDER BY created_at DESC LIMIT ?",
+                (strategy, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM ensemble_results ORDER BY created_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM ensemble_results ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
@@ -351,23 +364,34 @@ class EnsembleDatabase:
     # Weight history
     # -----------------------------------------------------------------------
 
-    def save_weight_entry(self, expert_id: str, weight: float,
-                          regime: str = "", instrument: str = "",
-                          timeframe: str = "") -> None:
+    def save_weight_entry(
+        self,
+        expert_id: str,
+        weight: float,
+        regime: str = "",
+        instrument: str = "",
+        timeframe: str = "",
+    ) -> None:
         self._conn.execute(
             """INSERT INTO weight_history
                (entry_id, expert_id, weight, regime, instrument, timeframe, recorded_at)
                VALUES (?,?,?,?,?,?,?)""",
-            (str(uuid.uuid4()), expert_id, weight, regime, instrument, timeframe,
-             datetime.now(timezone.utc).isoformat()),
+            (
+                str(uuid.uuid4()),
+                expert_id,
+                weight,
+                regime,
+                instrument,
+                timeframe,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
         self._conn.commit()
 
-    def get_weight_history(self, expert_id: str, limit: int = 200
-                           ) -> List[Dict[str, Any]]:
+    def get_weight_history(self, expert_id: str, limit: int = 200) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM weight_history WHERE expert_id = ? "
-            "ORDER BY recorded_at DESC LIMIT ?", (expert_id, limit)
+            "SELECT * FROM weight_history WHERE expert_id = ? " "ORDER BY recorded_at DESC LIMIT ?",
+            (expert_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -397,17 +421,18 @@ class EnsembleDatabase:
         self._conn.commit()
         return did
 
-    def list_routing_decisions(self, regime: Optional[str] = None,
-                                limit: int = 100) -> List[Dict[str, Any]]:
+    def list_routing_decisions(
+        self, regime: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         if regime:
             rows = self._conn.execute(
                 "SELECT * FROM routing_decisions WHERE regime = ? "
-                "ORDER BY decided_at DESC LIMIT ?", (regime, limit)
+                "ORDER BY decided_at DESC LIMIT ?",
+                (regime, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM routing_decisions ORDER BY decided_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM routing_decisions ORDER BY decided_at DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
@@ -421,15 +446,18 @@ class EnsembleDatabase:
     # Performance history
     # -----------------------------------------------------------------------
 
-    def save_performance_record(self, expert_id: str,
-                                 predicted_class: str,
-                                 true_class: Optional[str] = None,
-                                 profit_pnl: float = 0.0,
-                                 confidence: float = 0.5,
-                                 uncertainty: float = 0.5,
-                                 regime: str = "",
-                                 instrument: str = "",
-                                 timeframe: str = "") -> str:
+    def save_performance_record(
+        self,
+        expert_id: str,
+        predicted_class: str,
+        true_class: Optional[str] = None,
+        profit_pnl: float = 0.0,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+        regime: str = "",
+        instrument: str = "",
+        timeframe: str = "",
+    ) -> str:
         record_id = str(uuid.uuid4())
         is_correct = None
         if true_class is not None:
@@ -440,18 +468,29 @@ class EnsembleDatabase:
                 confidence, uncertainty, regime, instrument, timeframe,
                 is_correct, recorded_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (record_id, expert_id, predicted_class, true_class, profit_pnl,
-             confidence, uncertainty, regime, instrument, timeframe,
-             is_correct, datetime.now(timezone.utc).isoformat()),
+            (
+                record_id,
+                expert_id,
+                predicted_class,
+                true_class,
+                profit_pnl,
+                confidence,
+                uncertainty,
+                regime,
+                instrument,
+                timeframe,
+                is_correct,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
         self._conn.commit()
         return record_id
 
-    def get_performance_history(self, expert_id: str,
-                                 limit: int = 200) -> List[Dict[str, Any]]:
+    def get_performance_history(self, expert_id: str, limit: int = 200) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM performance_history WHERE expert_id = ? "
-            "ORDER BY recorded_at DESC LIMIT ?", (expert_id, limit)
+            "ORDER BY recorded_at DESC LIMIT ?",
+            (expert_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -459,21 +498,28 @@ class EnsembleDatabase:
     # Voting history
     # -----------------------------------------------------------------------
 
-    def save_vote(self, result_id: str, expert_id: str,
-                  voted_class: str, confidence: float, weight: float) -> None:
+    def save_vote(
+        self, result_id: str, expert_id: str, voted_class: str, confidence: float, weight: float
+    ) -> None:
         self._conn.execute(
             """INSERT INTO voting_history
                (vote_id, result_id, expert_id, voted_class, confidence, weight, recorded_at)
                VALUES (?,?,?,?,?,?,?)""",
-            (str(uuid.uuid4()), result_id, expert_id, voted_class,
-             confidence, weight, datetime.now(timezone.utc).isoformat()),
+            (
+                str(uuid.uuid4()),
+                result_id,
+                expert_id,
+                voted_class,
+                confidence,
+                weight,
+                datetime.now(timezone.utc).isoformat(),
+            ),
         )
         self._conn.commit()
 
     def get_voting_history(self, result_id: str) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM voting_history WHERE result_id = ? ORDER BY recorded_at",
-            (result_id,)
+            "SELECT * FROM voting_history WHERE result_id = ? ORDER BY recorded_at", (result_id,)
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -482,24 +528,16 @@ class EnsembleDatabase:
     # -----------------------------------------------------------------------
 
     def stats(self) -> Dict[str, Any]:
-        n_experts = self._conn.execute(
-            "SELECT COUNT(*) as n FROM expert_models"
-        ).fetchone()["n"]
+        n_experts = self._conn.execute("SELECT COUNT(*) as n FROM expert_models").fetchone()["n"]
         n_active = self._conn.execute(
             "SELECT COUNT(*) as n FROM expert_models WHERE status IN ('active','champion','experimental')"
         ).fetchone()["n"]
-        n_results = self._conn.execute(
-            "SELECT COUNT(*) as n FROM ensemble_results"
-        ).fetchone()["n"]
+        n_results = self._conn.execute("SELECT COUNT(*) as n FROM ensemble_results").fetchone()["n"]
         n_correct = self._conn.execute(
             "SELECT COUNT(*) as n FROM ensemble_results WHERE is_correct = 1"
         ).fetchone()["n"]
-        n_weights = self._conn.execute(
-            "SELECT COUNT(*) as n FROM weight_history"
-        ).fetchone()["n"]
-        n_routes = self._conn.execute(
-            "SELECT COUNT(*) as n FROM routing_decisions"
-        ).fetchone()["n"]
+        n_weights = self._conn.execute("SELECT COUNT(*) as n FROM weight_history").fetchone()["n"]
+        n_routes = self._conn.execute("SELECT COUNT(*) as n FROM routing_decisions").fetchone()["n"]
         return {
             "total_experts": n_experts,
             "active_experts": n_active,

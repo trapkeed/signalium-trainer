@@ -167,25 +167,47 @@ class MarketRegimeClassifier:
         # Derived series
         true_range = self._true_range(h, l, c)
         atr = self._rolling_mean(true_range, self._vol_w)
-        avg_atr = float(np.mean(atr[self._vol_w:])) if n > self._vol_w else float(np.mean(true_range))
+        avg_atr = (
+            float(np.mean(atr[self._vol_w :])) if n > self._vol_w else float(np.mean(true_range))
+        )
         slope = self._price_slope(c, self._trend_w)
         avg_range = self._rolling_mean(h - l, self._trend_w)
 
         labels: list[MarketRegime] = []
         for i in range(n):
             lbl = self._classify_bar(
-                i, n, c, h, l, v, true_range, atr, avg_atr, slope, avg_range,
-                ts, news,
+                i,
+                n,
+                c,
+                h,
+                l,
+                v,
+                true_range,
+                atr,
+                avg_atr,
+                slope,
+                avg_range,
+                ts,
+                news,
             )
             labels.append(lbl)
         return labels
 
     def _classify_bar(
         self,
-        i: int, n: int,
-        c, h, l, v,
-        true_range, atr, avg_atr, slope, avg_range,
-        ts, news,
+        i: int,
+        n: int,
+        c,
+        h,
+        l,
+        v,
+        true_range,
+        atr,
+        avg_atr,
+        slope,
+        avg_range,
+        ts,
+        news,
     ) -> MarketRegime:
         # News period (highest priority)
         if news is not None and news[i]:
@@ -194,7 +216,7 @@ class MarketRegimeClassifier:
         # Session open / close (requires timestamps)
         if ts is not None:
             # Seconds in day
-        #   session_sec = int(ts[i]) % 86400
+            #   session_sec = int(ts[i]) % 86400
             bar_in_day = int(ts[i]) % 86400
             if bar_in_day < self._open_bars * 3600:
                 return MarketRegime.SESSION_OPEN
@@ -217,7 +239,7 @@ class MarketRegimeClassifier:
         # Compression / expansion
         if i >= self._trend_w:
             recent_range = float(avg_range[i])
-            overall_avg_range = float(np.mean(avg_range[:i + 1]))
+            overall_avg_range = float(np.mean(avg_range[: i + 1]))
             if overall_avg_range > 0:
                 range_ratio = recent_range / overall_avg_range
                 if range_ratio < self._comp_thresh:
@@ -237,17 +259,21 @@ class MarketRegimeClassifier:
         if abs_slope > self._strong_thresh:
             # Check for breakout vs pullback vs trend
             if i > 0:
-                prev_high = float(np.max(h[max(0, i - self._trend_w):i]))
-                prev_low = float(np.min(l[max(0, i - self._trend_w):i]))
+                prev_high = float(np.max(h[max(0, i - self._trend_w) : i]))
+                prev_low = float(np.min(l[max(0, i - self._trend_w) : i]))
                 if c[i] > prev_high:
                     return MarketRegime.BREAKOUT
                 if c[i] < prev_low:
                     return MarketRegime.BREAKOUT
-            return MarketRegime.TRENDING_STRONG if abs_slope > self._strong_thresh * 1.5 else MarketRegime.TRENDING_WEAK
+            return (
+                MarketRegime.TRENDING_STRONG
+                if abs_slope > self._strong_thresh * 1.5
+                else MarketRegime.TRENDING_WEAK
+            )
 
         # Accumulation / distribution (volume-based)
         if i > 0 and v is not None:
-            avg_vol = float(np.mean(v[max(0, i - self._trend_w):i + 1]))
+            avg_vol = float(np.mean(v[max(0, i - self._trend_w) : i + 1]))
             if avg_vol > 0:
                 vol_ratio = float(v[i]) / avg_vol
                 price_change = c[i] - c[i - 1] if i > 0 else 0
@@ -278,7 +304,7 @@ class MarketRegimeClassifier:
         result = np.zeros_like(arr)
         for i in range(len(arr)):
             start = max(0, i - window + 1)
-            result[i] = arr[start:i + 1].mean()
+            result[i] = arr[start : i + 1].mean()
         return result
 
     @staticmethod
@@ -286,7 +312,7 @@ class MarketRegimeClassifier:
         """Normalised price slope (regression coefficient / mean price)."""
         slopes = np.zeros(len(c))
         for i in range(window, len(c)):
-            y = c[i - window:i]
+            y = c[i - window : i]
             x = np.arange(window, dtype=float)
             if y.mean() > 0:
                 slopes[i] = float(np.polyfit(x, y, 1)[0]) / y.mean()

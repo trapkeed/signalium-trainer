@@ -9,6 +9,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.cert.cert_types import CheckStatus, ValidationCheck, clamp
@@ -39,14 +40,14 @@ class ValidationSuite:
 
     # Thresholds: (pass, warning)
     _THRESHOLDS: Dict[str, tuple] = {
-        ValidationCheck.WALK_FORWARD.value:     (60.0, 40.0),
-        ValidationCheck.OUT_OF_SAMPLE.value:    (65.0, 45.0),
-        ValidationCheck.CROSS_REGIME.value:     (55.0, 35.0),
+        ValidationCheck.WALK_FORWARD.value: (60.0, 40.0),
+        ValidationCheck.OUT_OF_SAMPLE.value: (65.0, 45.0),
+        ValidationCheck.CROSS_REGIME.value: (55.0, 35.0),
         ValidationCheck.CROSS_INSTRUMENT.value: (50.0, 30.0),
-        ValidationCheck.CROSS_TIMEFRAME.value:  (50.0, 30.0),
-        ValidationCheck.CALIBRATION.value:      (60.0, 40.0),
-        ValidationCheck.GENERALIZATION.value:   (55.0, 35.0),
-        ValidationCheck.STABILITY.value:        (55.0, 35.0),
+        ValidationCheck.CROSS_TIMEFRAME.value: (50.0, 30.0),
+        ValidationCheck.CALIBRATION.value: (60.0, 40.0),
+        ValidationCheck.GENERALIZATION.value: (55.0, 35.0),
+        ValidationCheck.STABILITY.value: (55.0, 35.0),
     }
 
     def run_all(self, inp: CertificationInput) -> List[ValidationResult]:
@@ -80,8 +81,8 @@ class ValidationSuite:
         avg_wr = statistics.mean(win_rates) if win_rates else 0.5
         # Score: sharpe contrib (0-60) + win_rate contrib (0-40)
         sharpe_score = clamp(avg_sharpe * 30.0, 0.0, 60.0)
-        wr_score     = clamp((avg_wr - 0.4) / 0.2 * 40.0, 0.0, 40.0)
-        score        = clamp(sharpe_score + wr_score)
+        wr_score = clamp((avg_wr - 0.4) / 0.2 * 40.0, 0.0, 40.0)
+        score = clamp(sharpe_score + wr_score)
         p, w = self._THRESHOLDS[ValidationCheck.WALK_FORWARD.value]
         return ValidationResult(
             check=ValidationCheck.WALK_FORWARD,
@@ -96,13 +97,13 @@ class ValidationSuite:
 
     def _out_of_sample(self, inp: CertificationInput) -> ValidationResult:
         sharpe = inp.oos_sharpe
-        wr     = inp.oos_win_rate
-        dd     = inp.oos_max_drawdown
+        wr = inp.oos_win_rate
+        dd = inp.oos_max_drawdown
         # Score: sharpe (0-50) + win_rate (0-30) + drawdown penalty (0-20)
         sharpe_s = clamp(sharpe * 25.0, 0.0, 50.0)
-        wr_s     = clamp((wr - 0.4) / 0.2 * 30.0, 0.0, 30.0)
-        dd_s     = clamp((1.0 - dd / 0.5) * 20.0, 0.0, 20.0)
-        score    = clamp(sharpe_s + wr_s + dd_s)
+        wr_s = clamp((wr - 0.4) / 0.2 * 30.0, 0.0, 30.0)
+        dd_s = clamp((1.0 - dd / 0.5) * 20.0, 0.0, 20.0)
+        score = clamp(sharpe_s + wr_s + dd_s)
         p, w = self._THRESHOLDS[ValidationCheck.OUT_OF_SAMPLE.value]
         return ValidationResult(
             check=ValidationCheck.OUT_OF_SAMPLE,
@@ -125,10 +126,10 @@ class ValidationSuite:
                 details={"note": "no cross-regime data"},
             )
         scores = [r.get("score", 50.0) for r in results]
-        avg    = statistics.mean(scores)
+        avg = statistics.mean(scores)
         # Penalise high variance across regimes
-        stdev  = statistics.stdev(scores) if len(scores) > 1 else 0.0
-        score  = clamp(avg - stdev * 0.5)
+        stdev = statistics.stdev(scores) if len(scores) > 1 else 0.0
+        score = clamp(avg - stdev * 0.5)
         p, w = self._THRESHOLDS[ValidationCheck.CROSS_REGIME.value]
         return ValidationResult(
             check=ValidationCheck.CROSS_REGIME,
@@ -151,7 +152,7 @@ class ValidationSuite:
                 details={"note": "no cross-instrument data"},
             )
         scores = [r.get("score", 50.0) for r in results]
-        score  = clamp(statistics.mean(scores))
+        score = clamp(statistics.mean(scores))
         p, w = self._THRESHOLDS[ValidationCheck.CROSS_INSTRUMENT.value]
         return ValidationResult(
             check=ValidationCheck.CROSS_INSTRUMENT,
@@ -170,7 +171,7 @@ class ValidationSuite:
                 details={"note": "no cross-timeframe data"},
             )
         scores = [r.get("score", 50.0) for r in results]
-        score  = clamp(statistics.mean(scores))
+        score = clamp(statistics.mean(scores))
         p, w = self._THRESHOLDS[ValidationCheck.CROSS_TIMEFRAME.value]
         return ValidationResult(
             check=ValidationCheck.CROSS_TIMEFRAME,
@@ -181,13 +182,13 @@ class ValidationSuite:
 
     def _calibration(self, inp: CertificationInput) -> ValidationResult:
         # calibration_score is 0-1; convert to 0-100
-        calib  = clamp(inp.calibration_score * 100.0)
-        brier  = inp.brier_score   # lower better: 0.25=random, 0=perfect
-        ece    = inp.ece           # lower better
+        calib = clamp(inp.calibration_score * 100.0)
+        brier = inp.brier_score  # lower better: 0.25=random, 0=perfect
+        ece = inp.ece  # lower better
         # brier penalty
         brier_pen = clamp(brier * 100.0, 0.0, 25.0)
-        ece_pen   = clamp(ece * 100.0, 0.0, 20.0)
-        score     = clamp(calib - brier_pen - ece_pen)
+        ece_pen = clamp(ece * 100.0, 0.0, 20.0)
+        score = clamp(calib - brier_pen - ece_pen)
         p, w = self._THRESHOLDS[ValidationCheck.CALIBRATION.value]
         return ValidationResult(
             check=ValidationCheck.CALIBRATION,
@@ -201,7 +202,7 @@ class ValidationSuite:
         )
 
     def _generalization(self, inp: CertificationInput) -> ValidationResult:
-        score  = clamp(inp.generalization_score)
+        score = clamp(inp.generalization_score)
         p, w = self._THRESHOLDS[ValidationCheck.GENERALIZATION.value]
         status = CheckStatus.NOT_APPLICABLE if score == 0.0 else _status(score, p, w)
         return ValidationResult(
@@ -212,7 +213,7 @@ class ValidationSuite:
         )
 
     def _stability(self, inp: CertificationInput) -> ValidationResult:
-        score  = clamp(inp.stability_score)
+        score = clamp(inp.stability_score)
         p, w = self._THRESHOLDS[ValidationCheck.STABILITY.value]
         status = CheckStatus.NOT_APPLICABLE if score == 0.0 else _status(score, p, w)
         return ValidationResult(

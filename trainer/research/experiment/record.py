@@ -15,7 +15,9 @@ def _git_commit() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         return result.stdout.strip() or "unknown"
     except Exception:
@@ -36,20 +38,21 @@ def _hardware_info() -> dict[str, Any]:
     }
     try:
         import os
+
         info["cpu_count"] = os.cpu_count()
     except Exception:
         pass
     try:
         import torch
+
         if torch.cuda.is_available():
             info["gpu"] = torch.cuda.get_device_name(0)
-            info["gpu_memory_gb"] = round(
-                torch.cuda.get_device_properties(0).total_memory / 1e9, 2
-            )
+            info["gpu_memory_gb"] = round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2)
     except Exception:
         pass
     try:
         import psutil
+
         info["ram_gb"] = round(psutil.virtual_memory().total / 1e9, 2)
     except Exception:
         pass
@@ -114,9 +117,7 @@ class ExperimentRecord:
         self.metrics = metrics
         self.end_time = datetime.now(timezone.utc)
         if self.start_time:
-            self.training_duration_seconds = (
-                self.end_time - self.start_time
-            ).total_seconds()
+            self.training_duration_seconds = (self.end_time - self.start_time).total_seconds()
         self.status = "completed"
 
     def fail(self, reason: str = "") -> None:
@@ -183,7 +184,9 @@ class ExperimentRecord:
         rec.status = d.get("status", "unknown")
         rec.notes = d.get("notes", "")
         raw_start = d.get("start_time")
-        rec.start_time = datetime.fromisoformat(raw_start) if raw_start else datetime.now(timezone.utc)
+        rec.start_time = (
+            datetime.fromisoformat(raw_start) if raw_start else datetime.now(timezone.utc)
+        )
         raw_end = d.get("end_time")
         rec.end_time = datetime.fromisoformat(raw_end) if raw_end else None
         return rec

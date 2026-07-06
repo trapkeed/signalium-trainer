@@ -104,12 +104,11 @@ class ModelFactory:
             Sorted list of model name strings.
         """
         from trainer.registry.registry import ModelRegistry
+
         return ModelRegistry.list_models()
 
     @classmethod
-    def _build_model_config(
-        cls, name: str, config_dict: dict[str, Any]
-    ) -> Optional[Any]:
+    def _build_model_config(cls, name: str, config_dict: dict[str, Any]) -> Optional[Any]:
         """Build a model-specific config from a raw dict.
 
         Each model family handles its own config construction. This keeps

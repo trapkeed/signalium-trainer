@@ -45,6 +45,7 @@ def benchmark(
 
     if model:
         from trainer.registry import ModelRegistry
+
         try:
             model_cls = ModelRegistry.get(model)
             table.add_row("Model", model_cls.__name__)

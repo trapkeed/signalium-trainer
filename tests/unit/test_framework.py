@@ -40,6 +40,7 @@ NUM_CLASSES = 3
 # Abstract base class contract tests
 # ---------------------------------------------------------------------------
 
+
 class TestFrameworkABCs:
     """Verify ABCs enforce the correct abstract method signatures."""
 
@@ -71,6 +72,7 @@ class TestFrameworkABCs:
 # ---------------------------------------------------------------------------
 # ModelInput contract
 # ---------------------------------------------------------------------------
+
 
 class TestModelInput:
     def test_valid_3d_tensor(self) -> None:
@@ -111,6 +113,7 @@ class TestModelInput:
 # ModelOutput contract
 # ---------------------------------------------------------------------------
 
+
 class TestModelOutput:
     @pytest.fixture()
     def output(self) -> ModelOutput:
@@ -134,8 +137,15 @@ class TestModelOutput:
 
     def test_to_dict_required_keys(self, output: ModelOutput) -> None:
         d = output.to_dict()
-        for key in ("logits", "probabilities", "confidence", "predicted_class",
-                    "buy_prob", "sell_prob", "no_trade_prob"):
+        for key in (
+            "logits",
+            "probabilities",
+            "confidence",
+            "predicted_class",
+            "buy_prob",
+            "sell_prob",
+            "no_trade_prob",
+        ):
             assert key in d
 
     def test_gate_by_confidence_high_threshold(self, output: ModelOutput) -> None:
@@ -150,6 +160,7 @@ class TestModelOutput:
 # ---------------------------------------------------------------------------
 # ModelSpec contract
 # ---------------------------------------------------------------------------
+
 
 class TestModelSpec:
     def test_to_dict_has_required_keys(self) -> None:
@@ -176,42 +187,50 @@ class TestModelSpec:
 # ModelFactory
 # ---------------------------------------------------------------------------
 
+
 class TestModelFactory:
     def test_list_available_includes_quant_v1(self) -> None:
         from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
+
         assert "quant_v1" in ModelFactory.list_available()
 
     def test_create_quant_v1_by_name(self) -> None:
         from trainer.config.schema import TrainerConfig
         from trainer.models.quant_v1.model import QuantModelV1
+
         model = ModelFactory.create("quant_v1", TrainerConfig())
         assert isinstance(model, QuantModelV1)
 
     def test_create_with_model_config(self) -> None:
         from trainer.config.schema import TrainerConfig
         from trainer.models.quant_v1.config import QuantV1Config, InputEncoderConfig
+
         cfg = QuantV1Config(encoder=InputEncoderConfig(input_dim=32, hidden_dim=64))
         model = ModelFactory.create("quant_v1", TrainerConfig(), model_config=cfg)
         assert model.feature_dim == 32
 
     def test_create_unknown_model_raises(self) -> None:
         from trainer.config.schema import TrainerConfig
+
         with pytest.raises(KeyError, match="not found"):
             ModelFactory.create("does_not_exist", TrainerConfig())
 
     def test_from_dict_basic(self) -> None:
         from trainer.config.schema import TrainerConfig
         from trainer.models.quant_v1.model import QuantModelV1
+
         model = ModelFactory.from_dict({"name": "quant_v1"}, TrainerConfig())
         assert isinstance(model, QuantModelV1)
 
     def test_from_dict_missing_name_raises(self) -> None:
         from trainer.config.schema import TrainerConfig
+
         with pytest.raises(KeyError, match="'name'"):
             ModelFactory.from_dict({"backbone": {}}, TrainerConfig())
 
     def test_from_dict_with_backbone_override(self) -> None:
         from trainer.config.schema import TrainerConfig
+
         model = ModelFactory.from_dict(
             {"name": "quant_v1", "backbone": {"type": "gru", "hidden_size": 64}},
             TrainerConfig(),
@@ -223,9 +242,11 @@ class TestModelFactory:
 # Enhanced ModelRegistry
 # ---------------------------------------------------------------------------
 
+
 class TestEnhancedModelRegistry:
     def test_get_spec_returns_none_without_spec(self) -> None:
         from trainer.registry.registry import ModelRegistry
+
         # quant_v1 may or may not have a spec depending on import order
         # — just verify the API exists and returns without crashing
         result = ModelRegistry.get_spec("quant_v1")
@@ -248,10 +269,15 @@ class TestEnhancedModelRegistry:
         @ModelRegistry.register(test_name, spec=spec)
         class _TestModel(BaseQuantModel):
             @property
-            def feature_dim(self): return 8
+            def feature_dim(self):
+                return 8
+
             @property
-            def num_classes(self): return 3
-            def forward(self, x): return torch.randn(x.shape[0], 3)
+            def num_classes(self):
+                return 3
+
+            def forward(self, x):
+                return torch.randn(x.shape[0], 3)
 
         assert ModelRegistry.has_spec(test_name)
         retrieved = ModelRegistry.get_spec(test_name)
@@ -265,6 +291,7 @@ class TestEnhancedModelRegistry:
     def test_summary_includes_all_models(self) -> None:
         from trainer.registry.registry import ModelRegistry
         from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
+
         rows = ModelRegistry.summary()
         names = [r["name"] for r in rows]
         assert "quant_v1" in names
@@ -272,6 +299,7 @@ class TestEnhancedModelRegistry:
     def test_summary_row_has_expected_keys(self) -> None:
         from trainer.registry.registry import ModelRegistry
         from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
+
         rows = ModelRegistry.summary()
         for row in rows:
             assert {"name", "class", "version", "architecture", "has_spec"}.issubset(row.keys())
@@ -280,6 +308,7 @@ class TestEnhancedModelRegistry:
 # ---------------------------------------------------------------------------
 # MetricsEngine
 # ---------------------------------------------------------------------------
+
 
 class TestMetricsEngine:
     @pytest.fixture()
@@ -296,8 +325,14 @@ class TestMetricsEngine:
         logits, targets = batch_data
         engine.update(logits, targets)
         result = engine.compute()
-        for key in ("loss", "accuracy", "precision_macro", "recall_macro",
-                    "f1_macro", "f1_weighted"):
+        for key in (
+            "loss",
+            "accuracy",
+            "precision_macro",
+            "recall_macro",
+            "f1_macro",
+            "f1_weighted",
+        ):
             assert key in result, f"Missing key: {key}"
 
     def test_compute_per_class_keys(self, engine: MetricsEngine, batch_data) -> None:
@@ -318,6 +353,7 @@ class TestMetricsEngine:
         engine.update(logits, targets)
         result = engine.compute()
         import math
+
         assert math.isfinite(result["loss"])
 
     def test_reset_clears_state(self, engine: MetricsEngine, batch_data) -> None:

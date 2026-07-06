@@ -53,13 +53,17 @@ class PortfolioDashboard:
         for i, a in enumerate(matrix.instruments):
             for j, b in enumerate(matrix.instruments):
                 corr = matrix.get(a, b)
-                cells.append({
-                    "row": i, "col": j,
-                    "instrument_a": a, "instrument_b": b,
-                    "correlation": round(corr, 4),
-                    "colour": _colour(corr, -1.0, 1.0),
-                    "label": f"{corr:+.2f}",
-                })
+                cells.append(
+                    {
+                        "row": i,
+                        "col": j,
+                        "instrument_a": a,
+                        "instrument_b": b,
+                        "correlation": round(corr, 4),
+                        "colour": _colour(corr, -1.0, 1.0),
+                        "label": f"{corr:+.2f}",
+                    }
+                )
         return {
             "type": "correlation_heatmap",
             "instruments": matrix.instruments,
@@ -74,14 +78,27 @@ class PortfolioDashboard:
 
     def exposure_chart(self, exposure: Optional[ExposureReport]) -> dict:
         if exposure is None:
-            return {"type": "exposure_chart", "by_asset_class": [], "by_currency": [], "by_region": []}
+            return {
+                "type": "exposure_chart",
+                "by_asset_class": [],
+                "by_currency": [],
+                "by_region": [],
+            }
 
         def _bars(d: Dict[str, float], title: str) -> List[dict]:
             return sorted(
-                [{"label": k, "value": round(v, 4), "abs_value": round(abs(v), 4),
-                  "direction": "long" if v > 0 else ("short" if v < 0 else "neutral")}
-                 for k, v in d.items() if abs(v) > 1e-6],
-                key=lambda x: abs(x["value"]), reverse=True,
+                [
+                    {
+                        "label": k,
+                        "value": round(v, 4),
+                        "abs_value": round(abs(v), 4),
+                        "direction": "long" if v > 0 else ("short" if v < 0 else "neutral"),
+                    }
+                    for k, v in d.items()
+                    if abs(v) > 1e-6
+                ],
+                key=lambda x: abs(x["value"]),
+                reverse=True,
             )
 
         return {
@@ -114,8 +131,7 @@ class PortfolioDashboard:
             w = 1.0 / len(forecasts)
             weights = {f.instrument: w for f in forecasts}
         total_var = sum(
-            (abs(weights.get(fc.instrument, 0.0)) * fc.expected_risk) ** 2
-            for fc in forecasts
+            (abs(weights.get(fc.instrument, 0.0)) * fc.expected_risk) ** 2 for fc in forecasts
         )
         total_vol = math.sqrt(max(total_var, 0.0))
         segments = []
@@ -123,14 +139,16 @@ class PortfolioDashboard:
             w = abs(weights.get(fc.instrument, 0.0))
             risk_contrib = w * fc.expected_risk
             pct = risk_contrib / max(total_vol, 1e-9)
-            segments.append({
-                "instrument": fc.instrument,
-                "weight": round(w, 4),
-                "individual_risk": round(fc.expected_risk, 4),
-                "risk_contribution": round(risk_contrib, 4),
-                "risk_pct": round(pct, 4),
-                "direction": fc.direction,
-            })
+            segments.append(
+                {
+                    "instrument": fc.instrument,
+                    "weight": round(w, 4),
+                    "individual_risk": round(fc.expected_risk, 4),
+                    "risk_contribution": round(risk_contrib, 4),
+                    "risk_pct": round(pct, 4),
+                    "direction": fc.direction,
+                }
+            )
         segments.sort(key=lambda x: x["risk_contribution"], reverse=True)
         return {
             "type": "risk_allocation_chart",
@@ -194,9 +212,12 @@ class PortfolioDashboard:
             "history": history,
             "best_by_objective": by_obj,
             "objective_comparison": [
-                {"objective": k, "sharpe": round(v["expected_sharpe"], 4),
-                 "return": round(v["expected_return"], 4),
-                 "volatility": round(v["expected_volatility"], 4)}
+                {
+                    "objective": k,
+                    "sharpe": round(v["expected_sharpe"], 4),
+                    "return": round(v["expected_return"], 4),
+                    "volatility": round(v["expected_volatility"], 4),
+                }
                 for k, v in by_obj.items()
             ],
         }
@@ -214,16 +235,19 @@ class PortfolioDashboard:
             "type": "scenario_dashboard",
             "scenarios": history,
             "resilience_ranking": [
-                {"scenario_type": r["scenario_type"],
-                 "resilience_score": r["resilience_score"],
-                 "stressed_sharpe": r["stressed_sharpe"]}
+                {
+                    "scenario_type": r["scenario_type"],
+                    "resilience_score": r["resilience_score"],
+                    "stressed_sharpe": r["stressed_sharpe"],
+                }
                 for r in resilience_ranking[:10]
             ],
             "worst_scenario": worst,
             "best_scenario": best,
             "average_resilience": (
                 round(sum(r["resilience_score"] for r in history) / len(history), 4)
-                if history else None
+                if history
+                else None
             ),
         }
 
@@ -250,21 +274,59 @@ class PortfolioDashboard:
             return "Critical"
 
         cards = [
-            {"metric": "Expected Sharpe",        "value": round(metrics.expected_sharpe, 2),       "grade": _grade_value(metrics.expected_sharpe, -0.5, 2.5)},
-            {"metric": "Expected Return",         "value": f"{metrics.expected_return:.2%}",         "grade": _grade_value(metrics.expected_return, -0.05, 0.30)},
-            {"metric": "Expected Volatility",     "value": f"{metrics.expected_volatility:.2%}",     "grade": _grade_value(metrics.expected_volatility, 0.05, 0.50, False)},
-            {"metric": "Expected Drawdown",       "value": f"{metrics.expected_drawdown:.2%}",       "grade": _grade_value(metrics.expected_drawdown, 0.05, 0.50, False)},
-            {"metric": "Diversification Score",   "value": round(metrics.diversification_score, 3), "grade": _grade_value(metrics.diversification_score, 0.0, 1.0)},
-            {"metric": "Correlation Risk",        "value": round(metrics.correlation_risk, 3),       "grade": _grade_value(metrics.correlation_risk, 0.0, 1.0, False)},
-            {"metric": "Concentration Score",     "value": round(metrics.concentration_score, 3),   "grade": _grade_value(metrics.concentration_score, 0.0, 1.0, False)},
-            {"metric": "Weighted Confidence",     "value": round(metrics.weighted_confidence, 3),   "grade": _grade_value(metrics.weighted_confidence, 0.3, 0.95)},
+            {
+                "metric": "Expected Sharpe",
+                "value": round(metrics.expected_sharpe, 2),
+                "grade": _grade_value(metrics.expected_sharpe, -0.5, 2.5),
+            },
+            {
+                "metric": "Expected Return",
+                "value": f"{metrics.expected_return:.2%}",
+                "grade": _grade_value(metrics.expected_return, -0.05, 0.30),
+            },
+            {
+                "metric": "Expected Volatility",
+                "value": f"{metrics.expected_volatility:.2%}",
+                "grade": _grade_value(metrics.expected_volatility, 0.05, 0.50, False),
+            },
+            {
+                "metric": "Expected Drawdown",
+                "value": f"{metrics.expected_drawdown:.2%}",
+                "grade": _grade_value(metrics.expected_drawdown, 0.05, 0.50, False),
+            },
+            {
+                "metric": "Diversification Score",
+                "value": round(metrics.diversification_score, 3),
+                "grade": _grade_value(metrics.diversification_score, 0.0, 1.0),
+            },
+            {
+                "metric": "Correlation Risk",
+                "value": round(metrics.correlation_risk, 3),
+                "grade": _grade_value(metrics.correlation_risk, 0.0, 1.0, False),
+            },
+            {
+                "metric": "Concentration Score",
+                "value": round(metrics.concentration_score, 3),
+                "grade": _grade_value(metrics.concentration_score, 0.0, 1.0, False),
+            },
+            {
+                "metric": "Weighted Confidence",
+                "value": round(metrics.weighted_confidence, 3),
+                "grade": _grade_value(metrics.weighted_confidence, 0.3, 0.95),
+            },
         ]
         if exposure:
-            cards.append({
-                "metric": "Exposure Alerts",
-                "value": len(exposure.alerts),
-                "grade": "Critical" if any(a.severity == "high" for a in exposure.alerts) else ("Adequate" if exposure.alerts else "Strong"),
-            })
+            cards.append(
+                {
+                    "metric": "Exposure Alerts",
+                    "value": len(exposure.alerts),
+                    "grade": (
+                        "Critical"
+                        if any(a.severity == "high" for a in exposure.alerts)
+                        else ("Adequate" if exposure.alerts else "Strong")
+                    ),
+                }
+            )
 
         return {
             "type": "portfolio_scorecard",
@@ -291,12 +353,12 @@ class PortfolioDashboard:
         graph: Optional[DependencyGraphSnapshot] = None,
     ) -> dict:
         return {
-            "correlation_heatmap":  self.correlation_heatmap(matrix),
-            "exposure_chart":       self.exposure_chart(exposure),
-            "risk_allocation":      self.risk_allocation_chart(forecasts, weights),
-            "dependency_graph":     self.dependency_graph_chart(graph),
-            "portfolio_timeline":   self.portfolio_timeline(),
+            "correlation_heatmap": self.correlation_heatmap(matrix),
+            "exposure_chart": self.exposure_chart(exposure),
+            "risk_allocation": self.risk_allocation_chart(forecasts, weights),
+            "dependency_graph": self.dependency_graph_chart(graph),
+            "portfolio_timeline": self.portfolio_timeline(),
             "optimization_dashboard": self.optimization_dashboard(),
-            "scenario_dashboard":   self.scenario_dashboard(),
-            "portfolio_scorecard":  self.portfolio_scorecard(metrics, exposure) if metrics else {},
+            "scenario_dashboard": self.scenario_dashboard(),
+            "portfolio_scorecard": self.portfolio_scorecard(metrics, exposure) if metrics else {},
         }

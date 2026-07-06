@@ -27,7 +27,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # IRSEScoreDashboard
 # ---------------------------------------------------------------------------
@@ -43,10 +42,10 @@ class IRSEScoreDashboard:
         benchmarker: Any,
         database: Any,
     ) -> None:
-        self._lb      = leaderboard
-        self._trends  = trend_tracker
-        self._bm      = benchmarker
-        self._db      = database
+        self._lb = leaderboard
+        self._trends = trend_tracker
+        self._bm = benchmarker
+        self._db = database
 
     # ------------------------------------------------------------------
     # 1. Research Score Timeline
@@ -93,14 +92,14 @@ class IRSEScoreDashboard:
             }
 
         axes = [
-            {"axis": "Validation",    "key": "validation_quality_score"},
-            {"axis": "Trading",       "key": "trading_performance_score"},
-            {"axis": "Robustness",    "key": "robustness_score"},
-            {"axis": "Calibration",   "key": "calibration_score"},
-            {"axis": "Generalization","key": "generalization_score"},
-            {"axis": "Efficiency",    "key": "efficiency_score"},
-            {"axis": "Explainability","key": "explainability_score"},
-            {"axis": "Operational",   "key": "operational_readiness_score"},
+            {"axis": "Validation", "key": "validation_quality_score"},
+            {"axis": "Trading", "key": "trading_performance_score"},
+            {"axis": "Robustness", "key": "robustness_score"},
+            {"axis": "Calibration", "key": "calibration_score"},
+            {"axis": "Generalization", "key": "generalization_score"},
+            {"axis": "Efficiency", "key": "efficiency_score"},
+            {"axis": "Explainability", "key": "explainability_score"},
+            {"axis": "Operational", "key": "operational_readiness_score"},
         ]
 
         points = [
@@ -142,16 +141,18 @@ class IRSEScoreDashboard:
         series = []
         for cat_key in categories:
             label = cat_key.replace("_score", "").replace("_", " ").title()
-            series.append({
-                "category": label,
-                "values": [
-                    {
-                        "experiment": e.get("name", e.get("experiment_id", "")),
-                        "score": e.get(cat_key, 0.0),
-                    }
-                    for e in top_entries
-                ],
-            })
+            series.append(
+                {
+                    "category": label,
+                    "values": [
+                        {
+                            "experiment": e.get("name", e.get("experiment_id", "")),
+                            "score": e.get(cat_key, 0.0),
+                        }
+                        for e in top_entries
+                    ],
+                }
+            )
 
         return {
             "type": "category_breakdown",
@@ -165,9 +166,7 @@ class IRSEScoreDashboard:
     # 4. Benchmark Comparison
     # ------------------------------------------------------------------
 
-    def benchmark_comparison(
-        self, subject_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def benchmark_comparison(self, subject_id: Optional[str] = None) -> Dict[str, Any]:
         """Side-by-side category scores across all benchmark roles."""
         report = self._bm.full_benchmark_report()
         records = report.get("ranking", [])
@@ -186,15 +185,15 @@ class IRSEScoreDashboard:
         models_data = []
         for rec in records[:8]:
             cat_scores = rec.get("category_scores", {})
-            models_data.append({
-                "experiment_id": rec["experiment_id"],
-                "name": rec.get("name", rec["experiment_id"]),
-                "role": rec.get("role", ""),
-                "composite": rec.get("composite", 0.0),
-                "category_scores": {
-                    cat: cat_scores.get(cat, 0.0) for cat in categories
-                },
-            })
+            models_data.append(
+                {
+                    "experiment_id": rec["experiment_id"],
+                    "name": rec.get("name", rec["experiment_id"]),
+                    "role": rec.get("role", ""),
+                    "composite": rec.get("composite", 0.0),
+                    "category_scores": {cat: cat_scores.get(cat, 0.0) for cat in categories},
+                }
+            )
 
         return {
             "type": "benchmark_comparison",
@@ -250,11 +249,13 @@ class IRSEScoreDashboard:
 
         rows = []
         for e in entries:
-            rows.append({
-                "experiment": e.get("name", e.get("experiment_id", "")),
-                "composite": e.get("composite", 0.0),
-                "scores": [e.get(cat, 0.0) for cat in categories],
-            })
+            rows.append(
+                {
+                    "experiment": e.get("name", e.get("experiment_id", "")),
+                    "composite": e.get("composite", 0.0),
+                    "scores": [e.get(cat, 0.0) for cat in categories],
+                }
+            )
 
         return {
             "type": "score_heatmap",
@@ -282,10 +283,7 @@ class IRSEScoreDashboard:
             for snap in history
             if snap.get("is_champion")
         ]
-        all_series = [
-            {"x": snap["recorded_at"], "y": snap["composite"]}
-            for snap in history
-        ]
+        all_series = [{"x": snap["recorded_at"], "y": snap["composite"]} for snap in history]
 
         dist = self._trends.score_distribution()
 
@@ -311,11 +309,11 @@ class IRSEScoreDashboard:
         """Build all 7 dashboards and return in a bundle."""
         dashboards: Dict[str, Any] = {
             "research_score_timeline": self.research_score_timeline(limit=top_n * 3),
-            "category_breakdown":      self.category_breakdown(top_n=top_n),
-            "benchmark_comparison":    self.benchmark_comparison(),
-            "leaderboard":             self.leaderboard_dashboard(top_n=top_n),
-            "score_heatmap":           self.score_heatmap(top_n=top_n),
-            "historical_evolution":    self.historical_evolution(),
+            "category_breakdown": self.category_breakdown(top_n=top_n),
+            "benchmark_comparison": self.benchmark_comparison(),
+            "leaderboard": self.leaderboard_dashboard(top_n=top_n),
+            "score_heatmap": self.score_heatmap(top_n=top_n),
+            "historical_evolution": self.historical_evolution(),
         }
         if sample_experiment_id:
             dashboards["radar_chart"] = self.radar_chart(sample_experiment_id)

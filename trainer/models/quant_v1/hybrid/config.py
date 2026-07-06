@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-
 # ---------------------------------------------------------------------------
 # Enumerations
 # ---------------------------------------------------------------------------
@@ -74,9 +73,17 @@ class RawMarketStreamConfig:
     """
 
     enabled: bool = True
-    input_features: list[str] = field(default_factory=lambda: [
-        "open", "high", "low", "close", "volume", "tick_volume", "spread",
-    ])
+    input_features: list[str] = field(
+        default_factory=lambda: [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "tick_volume",
+            "spread",
+        ]
+    )
     input_dim: int = 7
     hidden_dim: int = 128
     num_layers: int = 1
@@ -193,14 +200,14 @@ class ContextEmbeddingStreamConfig:
     enabled: bool = True
     embeddings: dict[str, EmbeddingSpec] = field(
         default_factory=lambda: {
-            "instrument": EmbeddingSpec(vocab_size=64,  embed_dim=16),
-            "timeframe":  EmbeddingSpec(vocab_size=8,   embed_dim=8),
-            "session":    EmbeddingSpec(vocab_size=8,   embed_dim=8),
-            "hour":       EmbeddingSpec(vocab_size=24,  embed_dim=8),
-            "day":        EmbeddingSpec(vocab_size=7,   embed_dim=4),
-            "week":       EmbeddingSpec(vocab_size=54,  embed_dim=8),
-            "month":      EmbeddingSpec(vocab_size=12,  embed_dim=4),
-            "regime":     EmbeddingSpec(vocab_size=8,   embed_dim=8),
+            "instrument": EmbeddingSpec(vocab_size=64, embed_dim=16),
+            "timeframe": EmbeddingSpec(vocab_size=8, embed_dim=8),
+            "session": EmbeddingSpec(vocab_size=8, embed_dim=8),
+            "hour": EmbeddingSpec(vocab_size=24, embed_dim=8),
+            "day": EmbeddingSpec(vocab_size=7, embed_dim=4),
+            "week": EmbeddingSpec(vocab_size=54, embed_dim=8),
+            "month": EmbeddingSpec(vocab_size=12, embed_dim=4),
+            "regime": EmbeddingSpec(vocab_size=8, embed_dim=8),
         }
     )
     out_dim: int = 64
@@ -301,24 +308,14 @@ class HybridEncoderConfig:
     """
 
     enabled: bool = False
-    raw_market: RawMarketStreamConfig = field(
-        default_factory=RawMarketStreamConfig
-    )
-    multi_timeframe: MultiTimeframeStreamConfig = field(
-        default_factory=MultiTimeframeStreamConfig
-    )
+    raw_market: RawMarketStreamConfig = field(default_factory=RawMarketStreamConfig)
+    multi_timeframe: MultiTimeframeStreamConfig = field(default_factory=MultiTimeframeStreamConfig)
     engineered_features: EngineeredFeatureStreamConfig = field(
         default_factory=EngineeredFeatureStreamConfig
     )
     context_embeddings: ContextEmbeddingStreamConfig = field(
         default_factory=ContextEmbeddingStreamConfig
     )
-    market_memory: MarketMemoryStreamConfig = field(
-        default_factory=MarketMemoryStreamConfig
-    )
-    feature_gate: DynamicFeatureGateConfig = field(
-        default_factory=DynamicFeatureGateConfig
-    )
-    fusion: AdaptiveFusionConfig = field(
-        default_factory=AdaptiveFusionConfig
-    )
+    market_memory: MarketMemoryStreamConfig = field(default_factory=MarketMemoryStreamConfig)
+    feature_gate: DynamicFeatureGateConfig = field(default_factory=DynamicFeatureGateConfig)
+    fusion: AdaptiveFusionConfig = field(default_factory=AdaptiveFusionConfig)

@@ -48,9 +48,11 @@ def _load(short_name: str):
 # Pre-register package stub so sub-imports resolve correctly
 if "trainer" not in sys.modules:
     import types
+
     sys.modules["trainer"] = types.ModuleType("trainer")
 if "trainer.cert" not in sys.modules:
     import types
+
     pkg = types.ModuleType("trainer.cert")
     sys.modules["trainer.cert"] = pkg
 
@@ -60,20 +62,61 @@ for _name in _LOAD_ORDER:
 
 # ── Convenience helpers ───────────────────────────────────────────────────────
 
-def _types():    return _load("cert_types")
-def _models():   return _load("cert_models")
-def _db_mod():   return _load("cert_database")
-def _vs():       return _load("validation_suite")
-def _se():       return _load("stress_engine")
-def _mc():       return _load("monte_carlo_engine")
-def _be():       return _load("benchmark_engine")
-def _re():       return _load("reproducibility_engine")
-def _sec():      return _load("security_engine")
-def _oe():       return _load("operational_engine")
-def _cl():       return _load("checklist_engine")
-def _sc():       return _load("scorecard_engine")
-def _dash():     return _load("cert_dashboard")
-def _api_mod():  return _load("cert_api")
+
+def _types():
+    return _load("cert_types")
+
+
+def _models():
+    return _load("cert_models")
+
+
+def _db_mod():
+    return _load("cert_database")
+
+
+def _vs():
+    return _load("validation_suite")
+
+
+def _se():
+    return _load("stress_engine")
+
+
+def _mc():
+    return _load("monte_carlo_engine")
+
+
+def _be():
+    return _load("benchmark_engine")
+
+
+def _re():
+    return _load("reproducibility_engine")
+
+
+def _sec():
+    return _load("security_engine")
+
+
+def _oe():
+    return _load("operational_engine")
+
+
+def _cl():
+    return _load("checklist_engine")
+
+
+def _sc():
+    return _load("scorecard_engine")
+
+
+def _dash():
+    return _load("cert_dashboard")
+
+
+def _api_mod():
+    return _load("cert_api")
 
 
 def _good_input(**kwargs):
@@ -108,32 +151,52 @@ def _good_input(**kwargs):
         checkpoint_hash="deadbeef01",
         model_hash="cafebabe02",
         security_checks={
-            "AUTHENTICATION": True, "AUTHORIZATION": True, "AUDIT_LOGGING": True,
-            "API_SECURITY": True, "SECRETS_MANAGEMENT": True,
-            "INPUT_VALIDATION": True, "DEPENDENCY_REVIEW": True, "ENCRYPTION": True,
+            "AUTHENTICATION": True,
+            "AUTHORIZATION": True,
+            "AUDIT_LOGGING": True,
+            "API_SECURITY": True,
+            "SECRETS_MANAGEMENT": True,
+            "INPUT_VALIDATION": True,
+            "DEPENDENCY_REVIEW": True,
+            "ENCRYPTION": True,
         },
         operational_checks={
-            "MONITORING_ENABLED": True, "ALERTS_CONFIGURED": True,
-            "HEALTH_CHECKS_PASSING": True, "ROLLBACK_AVAILABLE": True,
-            "BACKUPS_VERIFIED": True, "LOGGING_FUNCTIONAL": True,
-            "DOCUMENTATION_COMPLETE": True, "RECOVERY_PROCEDURES_VERIFIED": True,
+            "MONITORING_ENABLED": True,
+            "ALERTS_CONFIGURED": True,
+            "HEALTH_CHECKS_PASSING": True,
+            "ROLLBACK_AVAILABLE": True,
+            "BACKUPS_VERIFIED": True,
+            "LOGGING_FUNCTIONAL": True,
+            "DOCUMENTATION_COMPLETE": True,
+            "RECOVERY_PROCEDURES_VERIFIED": True,
         },
         benchmark_values={
-            "INFERENCE_LATENCY": 20.0, "TRAINING_TIME": 1200.0,
-            "GPU_USAGE": 70.0, "CPU_USAGE": 55.0, "MEMORY_USAGE": 3000.0,
-            "DISK_USAGE": 400.0, "MODEL_SIZE": 128.0,
-            "API_THROUGHPUT": 250.0, "RESPONSE_TIME": 60.0,
+            "INFERENCE_LATENCY": 20.0,
+            "TRAINING_TIME": 1200.0,
+            "GPU_USAGE": 70.0,
+            "CPU_USAGE": 55.0,
+            "MEMORY_USAGE": 3000.0,
+            "DISK_USAGE": 400.0,
+            "MODEL_SIZE": 128.0,
+            "API_THROUGHPUT": 250.0,
+            "RESPONSE_TIME": 60.0,
         },
         notes="Fully validated model for production.",
         tags=["production", "certified"],
     )
     defaults.update(kwargs)
-    return M.CertificationInput(**{k: v for k, v in defaults.items()
-                                    if hasattr(M.CertificationInput, '__dataclass_fields__') and
-                                    k in M.CertificationInput.__dataclass_fields__})
+    return M.CertificationInput(
+        **{
+            k: v
+            for k, v in defaults.items()
+            if hasattr(M.CertificationInput, "__dataclass_fields__")
+            and k in M.CertificationInput.__dataclass_fields__
+        }
+    )
 
 
 # ── cert_types ────────────────────────────────────────────────────────────────
+
 
 class TestCertTypes(unittest.TestCase):
 
@@ -213,6 +276,7 @@ class TestCertTypes(unittest.TestCase):
 
 
 # ── cert_models ───────────────────────────────────────────────────────────────
+
 
 class TestCertModels(unittest.TestCase):
 
@@ -303,8 +367,9 @@ class TestCertModels(unittest.TestCase):
     def test_security_result_to_dict(self):
         M = _models()
         T = _types()
-        sr = M.SecurityResult(check_name="AUTHENTICATION", status=T.CheckStatus.FAIL,
-                               risk_level=T.RiskLevel.CRITICAL)
+        sr = M.SecurityResult(
+            check_name="AUTHENTICATION", status=T.CheckStatus.FAIL, risk_level=T.RiskLevel.CRITICAL
+        )
         d = sr.to_dict()
         self.assertEqual(d["risk_level"], "CRITICAL")
 
@@ -362,6 +427,7 @@ class TestCertModels(unittest.TestCase):
 
 # ── cert_database ─────────────────────────────────────────────────────────────
 
+
 class TestCertDatabase(unittest.TestCase):
 
     def setUp(self):
@@ -369,114 +435,170 @@ class TestCertDatabase(unittest.TestCase):
         self.db = DB.CertDatabase()  # :memory:
 
     def test_tables_created(self):
-        for tbl in ["certification_runs", "certification_results",
-                     "certification_criteria", "benchmark_results",
-                     "audit_packages", "production_approvals"]:
+        for tbl in [
+            "certification_runs",
+            "certification_results",
+            "certification_criteria",
+            "benchmark_results",
+            "audit_packages",
+            "production_approvals",
+        ]:
             count = self.db.table_count(tbl)
             self.assertGreaterEqual(count, 0, f"table {tbl} not accessible")
 
     def test_save_and_get_run(self):
-        self.db.save_run({
-            "run_id": "run-001", "model_id": "m1", "model_name": "TestModel",
-            "started_at": time.time(),
-        })
+        self.db.save_run(
+            {
+                "run_id": "run-001",
+                "model_id": "m1",
+                "model_name": "TestModel",
+                "started_at": time.time(),
+            }
+        )
         rec = self.db.get_run("run-001")
         self.assertIsNotNone(rec)
         self.assertEqual(rec["run_id"], "run-001")
 
     def test_save_run_upsert(self):
         self.db.save_run({"run_id": "run-u1", "model_id": "m1", "started_at": time.time()})
-        self.db.save_run({"run_id": "run-u1", "model_id": "m1", "started_at": time.time(),
-                          "decision_status": "CERTIFIED", "overall_score": 85.0})
+        self.db.save_run(
+            {
+                "run_id": "run-u1",
+                "model_id": "m1",
+                "started_at": time.time(),
+                "decision_status": "CERTIFIED",
+                "overall_score": 85.0,
+            }
+        )
         rec = self.db.get_run("run-u1")
         self.assertEqual(rec["decision_status"], "CERTIFIED")
 
     def test_get_runs_for_model(self):
         for i in range(3):
-            self.db.save_run({"run_id": f"run-m{i}", "model_id": "model-X",
-                               "started_at": time.time()})
+            self.db.save_run(
+                {"run_id": f"run-m{i}", "model_id": "model-X", "started_at": time.time()}
+            )
         runs = self.db.get_runs_for_model("model-X")
         self.assertEqual(len(runs), 3)
 
     def test_save_stage_result(self):
         self.db.save_run({"run_id": "run-s1", "model_id": "m1", "started_at": time.time()})
-        row_id = self.db.save_stage_result({
-            "run_id": "run-s1", "stage": "VALIDATION", "status": "PASS", "score": 90.0,
-        })
+        row_id = self.db.save_stage_result(
+            {
+                "run_id": "run-s1",
+                "stage": "VALIDATION",
+                "status": "PASS",
+                "score": 90.0,
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_stage_results(self):
         self.db.save_run({"run_id": "run-s2", "model_id": "m1", "started_at": time.time()})
         for stage in ["RESEARCH", "VALIDATION", "BENCHMARK"]:
-            self.db.save_stage_result({"run_id": "run-s2", "stage": stage,
-                                        "status": "PASS", "score": 80.0})
+            self.db.save_stage_result(
+                {"run_id": "run-s2", "stage": stage, "status": "PASS", "score": 80.0}
+            )
         stages = self.db.get_stage_results("run-s2")
         self.assertEqual(len(stages), 3)
 
     def test_save_checklist_item(self):
         self.db.save_run({"run_id": "run-c1", "model_id": "m1", "started_at": time.time()})
-        row_id = self.db.save_checklist_item("run-c1", {
-            "check_id": "VL-001", "category": "VALIDATION",
-            "description": "OOS Sharpe > 0", "mandatory": True,
-            "status": "PASS", "risk_level": "HIGH",
-        })
+        row_id = self.db.save_checklist_item(
+            "run-c1",
+            {
+                "check_id": "VL-001",
+                "category": "VALIDATION",
+                "description": "OOS Sharpe > 0",
+                "mandatory": True,
+                "status": "PASS",
+                "risk_level": "HIGH",
+            },
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_checklist(self):
         self.db.save_run({"run_id": "run-c2", "model_id": "m1", "started_at": time.time()})
         for i in range(5):
-            self.db.save_checklist_item("run-c2", {
-                "check_id": f"VL-{i:03d}", "status": "PASS",
-            })
+            self.db.save_checklist_item(
+                "run-c2",
+                {
+                    "check_id": f"VL-{i:03d}",
+                    "status": "PASS",
+                },
+            )
         items = self.db.get_checklist("run-c2")
         self.assertEqual(len(items), 5)
 
     def test_save_benchmark(self):
         self.db.save_run({"run_id": "run-b1", "model_id": "m1", "started_at": time.time()})
-        row_id = self.db.save_benchmark({
-            "run_id": "run-b1", "metric": "INFERENCE_LATENCY",
-            "value": 25.0, "unit": "ms", "threshold": 50.0, "status": "PASS",
-        })
+        row_id = self.db.save_benchmark(
+            {
+                "run_id": "run-b1",
+                "metric": "INFERENCE_LATENCY",
+                "value": 25.0,
+                "unit": "ms",
+                "threshold": 50.0,
+                "status": "PASS",
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_benchmarks(self):
         self.db.save_run({"run_id": "run-b2", "model_id": "m1", "started_at": time.time()})
         for m in ["INFERENCE_LATENCY", "MEMORY_USAGE", "API_THROUGHPUT"]:
-            self.db.save_benchmark({"run_id": "run-b2", "metric": m, "value": 1.0,
-                                     "unit": "ms", "status": "PASS"})
+            self.db.save_benchmark(
+                {"run_id": "run-b2", "metric": m, "value": 1.0, "unit": "ms", "status": "PASS"}
+            )
         bm = self.db.get_benchmarks("run-b2")
         self.assertEqual(len(bm), 3)
 
     def test_save_audit_package(self):
         self.db.save_run({"run_id": "run-a1", "model_id": "m1", "started_at": time.time()})
-        row_id = self.db.save_audit_package({
-            "run_id": "run-a1", "executive_summary": "All good.",
-            "generated_at": time.time(),
-        })
+        row_id = self.db.save_audit_package(
+            {
+                "run_id": "run-a1",
+                "executive_summary": "All good.",
+                "generated_at": time.time(),
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_audit_package(self):
         self.db.save_run({"run_id": "run-a2", "model_id": "m1", "started_at": time.time()})
-        self.db.save_audit_package({
-            "run_id": "run-a2", "certification_report": "Certified.",
-            "generated_at": time.time(),
-        })
+        self.db.save_audit_package(
+            {
+                "run_id": "run-a2",
+                "certification_report": "Certified.",
+                "generated_at": time.time(),
+            }
+        )
         pkg = self.db.get_audit_package("run-a2")
         self.assertIsNotNone(pkg)
         self.assertEqual(pkg["certification_report"], "Certified.")
 
     def test_save_approval(self):
         self.db.save_run({"run_id": "run-p1", "model_id": "m1", "started_at": time.time()})
-        row_id = self.db.save_approval({
-            "run_id": "run-p1", "model_id": "m1",
-            "approved_by": "Head of Risk", "approval_status": "APPROVED",
-        })
+        row_id = self.db.save_approval(
+            {
+                "run_id": "run-p1",
+                "model_id": "m1",
+                "approved_by": "Head of Risk",
+                "approval_status": "APPROVED",
+            }
+        )
         self.assertGreater(row_id, 0)
 
     def test_get_approvals(self):
         self.db.save_run({"run_id": "run-p2", "model_id": "m-prod", "started_at": time.time()})
-        self.db.save_approval({"run_id": "run-p2", "model_id": "m-prod",
-                                "approved_by": "CTO", "approval_status": "APPROVED"})
+        self.db.save_approval(
+            {
+                "run_id": "run-p2",
+                "model_id": "m-prod",
+                "approved_by": "CTO",
+                "approval_status": "APPROVED",
+            }
+        )
         approvals = self.db.get_approvals("m-prod")
         self.assertEqual(len(approvals), 1)
 
@@ -486,11 +608,15 @@ class TestCertDatabase(unittest.TestCase):
 
     def test_get_latest_certified(self):
         for i, status in enumerate(["REJECTED", "CERTIFIED"]):
-            self.db.save_run({
-                "run_id": f"run-lc{i}", "model_id": "m-lc",
-                "started_at": time.time() + i,
-                "decision_status": status, "overall_score": 80.0,
-            })
+            self.db.save_run(
+                {
+                    "run_id": f"run-lc{i}",
+                    "model_id": "m-lc",
+                    "started_at": time.time() + i,
+                    "decision_status": status,
+                    "overall_score": 80.0,
+                }
+            )
         rec = self.db.get_latest_certified("m-lc")
         self.assertIsNotNone(rec)
         self.assertEqual(rec["decision_status"], "CERTIFIED")
@@ -502,6 +628,7 @@ class TestCertDatabase(unittest.TestCase):
 
 # ── validation_suite ──────────────────────────────────────────────────────────
 
+
 class TestValidationSuite(unittest.TestCase):
 
     def setUp(self):
@@ -511,13 +638,18 @@ class TestValidationSuite(unittest.TestCase):
     def _inp(self, **kw):
         M = _models()
         defaults = dict(
-            oos_sharpe=1.5, oos_win_rate=0.58, oos_max_drawdown=0.15,
+            oos_sharpe=1.5,
+            oos_win_rate=0.58,
+            oos_max_drawdown=0.15,
             walk_forward_results=[{"sharpe": 1.2, "win_rate": 0.56}] * 4,
             cross_regime_results=[{"score": 65.0}] * 3,
             cross_instrument_results=[{"score": 60.0}] * 2,
             cross_timeframe_results=[{"score": 62.0}] * 2,
-            generalization_score=68.0, stability_score=70.0,
-            calibration_score=0.70, brier_score=0.20, ece=0.10,
+            generalization_score=68.0,
+            stability_score=70.0,
+            calibration_score=0.70,
+            brier_score=0.20,
+            ece=0.10,
         )
         defaults.update(kw)
         return M.CertificationInput(**defaults)
@@ -550,9 +682,9 @@ class TestValidationSuite(unittest.TestCase):
         self.assertEqual(wf.status.value, "WARNING")
 
     def test_walk_forward_pass_with_data(self):
-        results = self.suite.run_all(self._inp(
-            walk_forward_results=[{"sharpe": 2.0, "win_rate": 0.65}] * 6
-        ))
+        results = self.suite.run_all(
+            self._inp(walk_forward_results=[{"sharpe": 2.0, "win_rate": 0.65}] * 6)
+        )
         wf = next(r for r in results if r.check.value == "WALK_FORWARD")
         self.assertIn(wf.status.value, ["PASS", "WARNING"])
 
@@ -567,9 +699,7 @@ class TestValidationSuite(unittest.TestCase):
         self.assertEqual(ci.status.value, "NOT_APPLICABLE")
 
     def test_calibration_pass(self):
-        results = self.suite.run_all(self._inp(
-            calibration_score=0.90, brier_score=0.10, ece=0.05
-        ))
+        results = self.suite.run_all(self._inp(calibration_score=0.90, brier_score=0.10, ece=0.05))
         cal = next(r for r in results if r.check.value == "CALIBRATION")
         self.assertIn(cal.status.value, ["PASS", "WARNING"])
 
@@ -592,6 +722,7 @@ class TestValidationSuite(unittest.TestCase):
 
 # ── stress_engine ─────────────────────────────────────────────────────────────
 
+
 class TestStressEngine(unittest.TestCase):
 
     def setUp(self):
@@ -601,7 +732,9 @@ class TestStressEngine(unittest.TestCase):
     def _inp(self, stress_results=None):
         M = _models()
         return M.CertificationInput(
-            oos_sharpe=1.5, oos_win_rate=0.58, oos_max_drawdown=0.15,
+            oos_sharpe=1.5,
+            oos_win_rate=0.58,
+            oos_max_drawdown=0.15,
             stress_results=stress_results or {},
         )
 
@@ -622,19 +755,33 @@ class TestStressEngine(unittest.TestCase):
             self.assertGreaterEqual(r.degradation_pct, 0.0)
 
     def test_provided_result_used_over_simulation(self):
-        results = self.engine.run_all(self._inp(stress_results={
-            "HIGH_VOLATILITY": {"degradation_pct": 5.0, "max_drawdown": 0.10,
-                                 "sharpe_under_stress": 1.2},
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                stress_results={
+                    "HIGH_VOLATILITY": {
+                        "degradation_pct": 5.0,
+                        "max_drawdown": 0.10,
+                        "sharpe_under_stress": 1.2,
+                    },
+                }
+            )
+        )
         hv = next(r for r in results if r.scenario.value == "HIGH_VOLATILITY")
         self.assertAlmostEqual(hv.degradation_pct, 5.0)
         self.assertEqual(hv.status.value, "PASS")
 
     def test_flash_crash_high_degradation_fails(self):
-        results = self.engine.run_all(self._inp(stress_results={
-            "FLASH_CRASH": {"degradation_pct": 80.0, "max_drawdown": 0.50,
-                             "sharpe_under_stress": -0.2},
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                stress_results={
+                    "FLASH_CRASH": {
+                        "degradation_pct": 80.0,
+                        "max_drawdown": 0.50,
+                        "sharpe_under_stress": -0.2,
+                    },
+                }
+            )
+        )
         fc = next(r for r in results if r.scenario.value == "FLASH_CRASH")
         self.assertEqual(fc.status.value, "FAIL")
 
@@ -655,6 +802,7 @@ class TestStressEngine(unittest.TestCase):
 
 # ── monte_carlo_engine ────────────────────────────────────────────────────────
 
+
 class TestMonteCarloEngine(unittest.TestCase):
 
     def setUp(self):
@@ -664,7 +812,9 @@ class TestMonteCarloEngine(unittest.TestCase):
     def _inp(self, monte_carlo_results=None):
         M = _models()
         return M.CertificationInput(
-            oos_sharpe=1.5, oos_win_rate=0.58, oos_max_drawdown=0.15,
+            oos_sharpe=1.5,
+            oos_win_rate=0.58,
+            oos_max_drawdown=0.15,
             monte_carlo_results=monte_carlo_results or {},
         )
 
@@ -674,9 +824,12 @@ class TestMonteCarloEngine(unittest.TestCase):
 
     def test_technique_names_correct(self):
         expected = {
-            "RANDOMIZED_TRADE_ORDER", "BOOTSTRAP_SAMPLING",
-            "SEQUENCE_PERTURBATION", "NOISE_INJECTION",
-            "PARAMETER_SENSITIVITY", "CONFIDENCE_INTERVAL_ESTIMATION",
+            "RANDOMIZED_TRADE_ORDER",
+            "BOOTSTRAP_SAMPLING",
+            "SEQUENCE_PERTURBATION",
+            "NOISE_INJECTION",
+            "PARAMETER_SENSITIVITY",
+            "CONFIDENCE_INTERVAL_ESTIMATION",
         }
         results = self.engine.run_all(self._inp())
         got = {r.technique for r in results}
@@ -696,8 +849,11 @@ class TestMonteCarloEngine(unittest.TestCase):
     def test_provided_result_overrides_simulation(self):
         provided = {
             "BOOTSTRAP_SAMPLING": {
-                "mean_return": 0.05, "std_return": 0.02,
-                "ci_low": 0.01, "ci_high": 0.09, "prob_profitable": 0.80,
+                "mean_return": 0.05,
+                "std_return": 0.02,
+                "ci_low": 0.01,
+                "ci_high": 0.09,
+                "prob_profitable": 0.80,
             }
         }
         results = self.engine.run_all(self._inp(monte_carlo_results=provided))
@@ -708,8 +864,11 @@ class TestMonteCarloEngine(unittest.TestCase):
     def test_low_prob_profitable_fails(self):
         provided = {
             "NOISE_INJECTION": {
-                "mean_return": -0.02, "std_return": 0.05,
-                "ci_low": -0.30, "ci_high": -0.01, "prob_profitable": 0.20,
+                "mean_return": -0.02,
+                "std_return": 0.05,
+                "ci_low": -0.30,
+                "ci_high": -0.01,
+                "prob_profitable": 0.20,
             }
         }
         results = self.engine.run_all(self._inp(monte_carlo_results=provided))
@@ -736,6 +895,7 @@ class TestMonteCarloEngine(unittest.TestCase):
 
 
 # ── benchmark_engine ──────────────────────────────────────────────────────────
+
 
 class TestBenchmarkEngine(unittest.TestCase):
 
@@ -765,39 +925,60 @@ class TestBenchmarkEngine(unittest.TestCase):
         self.assertIn("PASS", statuses)
 
     def test_high_latency_fails(self):
-        results = self.engine.run_all(self._inp({
-            "INFERENCE_LATENCY": 200.0,
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                {
+                    "INFERENCE_LATENCY": 200.0,
+                }
+            )
+        )
         lat = next(r for r in results if r.metric.value == "INFERENCE_LATENCY")
         self.assertEqual(lat.status.value, "FAIL")
 
     def test_low_latency_passes(self):
-        results = self.engine.run_all(self._inp({
-            "INFERENCE_LATENCY": 10.0,
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                {
+                    "INFERENCE_LATENCY": 10.0,
+                }
+            )
+        )
         lat = next(r for r in results if r.metric.value == "INFERENCE_LATENCY")
         self.assertEqual(lat.status.value, "PASS")
 
     def test_low_api_throughput_fails(self):
-        results = self.engine.run_all(self._inp({
-            "API_THROUGHPUT": 20.0,   # need > 100 rps
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                {
+                    "API_THROUGHPUT": 20.0,  # need > 100 rps
+                }
+            )
+        )
         thr = next(r for r in results if r.metric.value == "API_THROUGHPUT")
         self.assertEqual(thr.status.value, "FAIL")
 
     def test_high_api_throughput_passes(self):
-        results = self.engine.run_all(self._inp({
-            "API_THROUGHPUT": 500.0,
-        }))
+        results = self.engine.run_all(
+            self._inp(
+                {
+                    "API_THROUGHPUT": 500.0,
+                }
+            )
+        )
         thr = next(r for r in results if r.metric.value == "API_THROUGHPUT")
         self.assertEqual(thr.status.value, "PASS")
 
     def test_overall_score_full_pass(self):
         bv = {
-            "INFERENCE_LATENCY": 10.0, "TRAINING_TIME": 600.0,
-            "GPU_USAGE": 60.0, "CPU_USAGE": 40.0, "MEMORY_USAGE": 2000.0,
-            "DISK_USAGE": 200.0, "MODEL_SIZE": 64.0,
-            "API_THROUGHPUT": 500.0, "RESPONSE_TIME": 30.0,
+            "INFERENCE_LATENCY": 10.0,
+            "TRAINING_TIME": 600.0,
+            "GPU_USAGE": 60.0,
+            "CPU_USAGE": 40.0,
+            "MEMORY_USAGE": 2000.0,
+            "DISK_USAGE": 200.0,
+            "MODEL_SIZE": 64.0,
+            "API_THROUGHPUT": 500.0,
+            "RESPONSE_TIME": 30.0,
         }
         results = self.engine.run_all(self._inp(bv))
         score = self.engine.overall_score(results)
@@ -810,6 +991,7 @@ class TestBenchmarkEngine(unittest.TestCase):
 
 # ── reproducibility_engine ────────────────────────────────────────────────────
 
+
 class TestReproducibilityEngine(unittest.TestCase):
 
     def setUp(self):
@@ -819,10 +1001,16 @@ class TestReproducibilityEngine(unittest.TestCase):
     def _inp(self, **kw):
         M = _models()
         defaults = dict(
-            dataset_version="v1.0", feature_version="v1.0", label_version="v1.0",
-            training_config={"lr": 1e-3}, random_seed=42, git_commit="abc1234",
-            environment="python3.11", package_versions={"numpy": "1.24", "torch": "2.0", "sklearn": "1.2"},
-            checkpoint_hash="deadbeef01", model_hash="cafebabe02",
+            dataset_version="v1.0",
+            feature_version="v1.0",
+            label_version="v1.0",
+            training_config={"lr": 1e-3},
+            random_seed=42,
+            git_commit="abc1234",
+            environment="python3.11",
+            package_versions={"numpy": "1.24", "torch": "2.0", "sklearn": "1.2"},
+            checkpoint_hash="deadbeef01",
+            model_hash="cafebabe02",
         )
         defaults.update(kw)
         return M.CertificationInput(**defaults)
@@ -885,6 +1073,7 @@ class TestReproducibilityEngine(unittest.TestCase):
 
 # ── security_engine ───────────────────────────────────────────────────────────
 
+
 class TestSecurityEngine(unittest.TestCase):
 
     def setUp(self):
@@ -897,9 +1086,14 @@ class TestSecurityEngine(unittest.TestCase):
 
     def _all_pass(self):
         return {
-            "AUTHENTICATION": True, "AUTHORIZATION": True, "AUDIT_LOGGING": True,
-            "API_SECURITY": True, "SECRETS_MANAGEMENT": True,
-            "INPUT_VALIDATION": True, "DEPENDENCY_REVIEW": True, "ENCRYPTION": True,
+            "AUTHENTICATION": True,
+            "AUTHORIZATION": True,
+            "AUDIT_LOGGING": True,
+            "API_SECURITY": True,
+            "SECRETS_MANAGEMENT": True,
+            "INPUT_VALIDATION": True,
+            "DEPENDENCY_REVIEW": True,
+            "ENCRYPTION": True,
         }
 
     def test_run_all_returns_8_results(self):
@@ -945,6 +1139,7 @@ class TestSecurityEngine(unittest.TestCase):
 
 # ── operational_engine ────────────────────────────────────────────────────────
 
+
 class TestOperationalEngine(unittest.TestCase):
 
     def setUp(self):
@@ -957,10 +1152,14 @@ class TestOperationalEngine(unittest.TestCase):
 
     def _all_pass(self):
         return {
-            "MONITORING_ENABLED": True, "ALERTS_CONFIGURED": True,
-            "HEALTH_CHECKS_PASSING": True, "ROLLBACK_AVAILABLE": True,
-            "BACKUPS_VERIFIED": True, "LOGGING_FUNCTIONAL": True,
-            "DOCUMENTATION_COMPLETE": True, "RECOVERY_PROCEDURES_VERIFIED": True,
+            "MONITORING_ENABLED": True,
+            "ALERTS_CONFIGURED": True,
+            "HEALTH_CHECKS_PASSING": True,
+            "ROLLBACK_AVAILABLE": True,
+            "BACKUPS_VERIFIED": True,
+            "LOGGING_FUNCTIONAL": True,
+            "DOCUMENTATION_COMPLETE": True,
+            "RECOVERY_PROCEDURES_VERIFIED": True,
         }
 
     def test_run_all_returns_8_results(self):
@@ -1010,6 +1209,7 @@ class TestOperationalEngine(unittest.TestCase):
 
 # ── checklist_engine ──────────────────────────────────────────────────────────
 
+
 class TestChecklistEngine(unittest.TestCase):
 
     def setUp(self):
@@ -1018,18 +1218,40 @@ class TestChecklistEngine(unittest.TestCase):
 
     def _build(self, **kw):
         M = _models()
-        inp = M.CertificationInput(**kw) if kw else M.CertificationInput(
-            model_id="m1", git_commit="abc1234",
-            research_quality_score=80.0,
-            oos_sharpe=1.5, oos_win_rate=0.60, oos_max_drawdown=0.15,
-            calibration_score=0.70, brier_score=0.20, ece=0.10,
-            dataset_version="v1", feature_version="v1", label_version="v1",
-            random_seed=42, model_hash="deadbeef01", checkpoint_hash="cafebabe02",
-            security_checks={"AUTHENTICATION": True, "AUTHORIZATION": True,
-                              "SECRETS_MANAGEMENT": True, "API_SECURITY": True, "ENCRYPTION": True},
-            operational_checks={"MONITORING_ENABLED": True, "ALERTS_CONFIGURED": True,
-                                  "HEALTH_CHECKS_PASSING": True, "ROLLBACK_AVAILABLE": True,
-                                  "LOGGING_FUNCTIONAL": True},
+        inp = (
+            M.CertificationInput(**kw)
+            if kw
+            else M.CertificationInput(
+                model_id="m1",
+                git_commit="abc1234",
+                research_quality_score=80.0,
+                oos_sharpe=1.5,
+                oos_win_rate=0.60,
+                oos_max_drawdown=0.15,
+                calibration_score=0.70,
+                brier_score=0.20,
+                ece=0.10,
+                dataset_version="v1",
+                feature_version="v1",
+                label_version="v1",
+                random_seed=42,
+                model_hash="deadbeef01",
+                checkpoint_hash="cafebabe02",
+                security_checks={
+                    "AUTHENTICATION": True,
+                    "AUTHORIZATION": True,
+                    "SECRETS_MANAGEMENT": True,
+                    "API_SECURITY": True,
+                    "ENCRYPTION": True,
+                },
+                operational_checks={
+                    "MONITORING_ENABLED": True,
+                    "ALERTS_CONFIGURED": True,
+                    "HEALTH_CHECKS_PASSING": True,
+                    "ROLLBACK_AVAILABLE": True,
+                    "LOGGING_FUNCTIONAL": True,
+                },
+            )
         )
         return self.engine.build(inp)
 
@@ -1043,11 +1265,13 @@ class TestChecklistEngine(unittest.TestCase):
         self.assertTrue(report.can_proceed)
 
     def test_mandatory_failed_blocked(self):
-        report = self.engine.build(_models().CertificationInput(
-            model_id="",      # missing → RQ-002 FAIL
-            git_commit="",    # missing → RQ-003 FAIL
-            oos_sharpe=-1.0,  # negative → VL-001 FAIL
-        ))
+        report = self.engine.build(
+            _models().CertificationInput(
+                model_id="",  # missing → RQ-002 FAIL
+                git_commit="",  # missing → RQ-003 FAIL
+                oos_sharpe=-1.0,  # negative → VL-001 FAIL
+            )
+        )
         self.assertFalse(report.can_proceed)
         self.assertGreater(report.mandatory_failed, 0)
 
@@ -1085,6 +1309,7 @@ class TestChecklistEngine(unittest.TestCase):
 
 # ── scorecard_engine ──────────────────────────────────────────────────────────
 
+
 class TestScorecardEngine(unittest.TestCase):
 
     def setUp(self):
@@ -1092,30 +1317,54 @@ class TestScorecardEngine(unittest.TestCase):
         self.engine = SCE.ScorecardEngine()
 
     def _compute(self, inp=None):
-        M  = _models()
-        T  = _types()
+        M = _models()
+        T = _types()
         VS = _vs()
         SE = _se()
-        MCE= _mc()
+        MCE = _mc()
         BE = _be()
         RE = _re()
-        SEC= _sec()
+        SEC = _sec()
         OE = _oe()
         if inp is None:
             inp = M.CertificationInput(
-                model_id="m1", git_commit="abc1234",
+                model_id="m1",
+                git_commit="abc1234",
                 research_quality_score=80.0,
-                oos_sharpe=1.5, oos_win_rate=0.60, oos_max_drawdown=0.15,
+                oos_sharpe=1.5,
+                oos_win_rate=0.60,
+                oos_max_drawdown=0.15,
                 walk_forward_results=[{"sharpe": 1.2, "win_rate": 0.56}] * 4,
-                calibration_score=0.75, brier_score=0.18, ece=0.08,
-                generalization_score=70.0, stability_score=72.0,
-                notes="good", tags=["prod"], training_config={"lr": 1e-3},
-                package_versions={"np": "1.24"}, environment="py3.11",
-                security_checks={k: True for k in ["AUTHENTICATION","AUTHORIZATION",
-                                                    "SECRETS_MANAGEMENT","API_SECURITY","ENCRYPTION"]},
-                operational_checks={k: True for k in ["MONITORING_ENABLED","ALERTS_CONFIGURED",
-                                                       "HEALTH_CHECKS_PASSING","ROLLBACK_AVAILABLE",
-                                                       "LOGGING_FUNCTIONAL"]},
+                calibration_score=0.75,
+                brier_score=0.18,
+                ece=0.08,
+                generalization_score=70.0,
+                stability_score=72.0,
+                notes="good",
+                tags=["prod"],
+                training_config={"lr": 1e-3},
+                package_versions={"np": "1.24"},
+                environment="py3.11",
+                security_checks={
+                    k: True
+                    for k in [
+                        "AUTHENTICATION",
+                        "AUTHORIZATION",
+                        "SECRETS_MANAGEMENT",
+                        "API_SECURITY",
+                        "ENCRYPTION",
+                    ]
+                },
+                operational_checks={
+                    k: True
+                    for k in [
+                        "MONITORING_ENABLED",
+                        "ALERTS_CONFIGURED",
+                        "HEALTH_CHECKS_PASSING",
+                        "ROLLBACK_AVAILABLE",
+                        "LOGGING_FUNCTIONAL",
+                    ]
+                },
             )
         return self.engine.compute(
             inp,
@@ -1148,8 +1397,17 @@ class TestScorecardEngine(unittest.TestCase):
 
     def test_all_categories_set(self):
         sc = self._compute()
-        for attr in ["research_quality", "validation", "performance", "calibration",
-                     "robustness", "security", "operational", "documentation", "reproducibility"]:
+        for attr in [
+            "research_quality",
+            "validation",
+            "performance",
+            "calibration",
+            "robustness",
+            "security",
+            "operational",
+            "documentation",
+            "reproducibility",
+        ]:
             val = getattr(sc, attr)
             self.assertGreaterEqual(val, 0.0)
             self.assertLessEqual(val, 100.0)
@@ -1172,6 +1430,7 @@ class TestScorecardEngine(unittest.TestCase):
 
 # ── cert_dashboard ────────────────────────────────────────────────────────────
 
+
 class TestCertDashboard(unittest.TestCase):
 
     def setUp(self):
@@ -1183,16 +1442,18 @@ class TestCertDashboard(unittest.TestCase):
         T = _types()
         run = M.CertificationRun(model_id="m1", model_name="Test", model_version="1.0.0")
         run.scorecard = M.ScorecardResult(overall=82.0, grade="A")
-        run.decision  = M.CertificationDecision(
+        run.decision = M.CertificationDecision(
             status=T.CertificationStatus.CERTIFIED, rationale="All passed."
         )
         run.validations = [M.ValidationResult(score=80.0)]
         run.stress_tests = [M.StressTestResult(degradation_pct=10.0)]
         run.monte_carlos = [M.MonteCarloResult(prob_profitable=0.65)]
-        run.benchmarks   = [M.BenchmarkResult(value=25.0, unit="ms")]
-        run.security     = [M.SecurityResult(check_name="AUTH", status=T.CheckStatus.PASS)]
-        run.operational  = [M.OperationalResult(check_name="MONITORING", status=T.CheckStatus.PASS)]
-        run.reproducibility = [M.ReproducibilityResult(check_name="MODEL_HASH", status=T.CheckStatus.PASS)]
+        run.benchmarks = [M.BenchmarkResult(value=25.0, unit="ms")]
+        run.security = [M.SecurityResult(check_name="AUTH", status=T.CheckStatus.PASS)]
+        run.operational = [M.OperationalResult(check_name="MONITORING", status=T.CheckStatus.PASS)]
+        run.reproducibility = [
+            M.ReproducibilityResult(check_name="MODEL_HASH", status=T.CheckStatus.PASS)
+        ]
         run.audit = M.AuditPackage(executive_summary="All clear.")
         run.checklist = M.ChecklistReport(pass_count=10, can_proceed=True)
         return run
@@ -1237,6 +1498,7 @@ class TestCertDashboard(unittest.TestCase):
 
 # ── cert_api ──────────────────────────────────────────────────────────────────
 
+
 class TestCertAPI(unittest.TestCase):
 
     def _api(self):
@@ -1247,67 +1509,104 @@ class TestCertAPI(unittest.TestCase):
     def _good_inp(self):
         M = _models()
         return M.CertificationInput(
-            model_id="mdl-good", model_name="GoodModel", model_version="1.0.0",
+            model_id="mdl-good",
+            model_name="GoodModel",
+            model_version="1.0.0",
             git_commit="abc1234def567",
             research_quality_score=85.0,
-            oos_sharpe=2.0, oos_win_rate=0.62, oos_max_drawdown=0.10,
+            oos_sharpe=2.0,
+            oos_win_rate=0.62,
+            oos_max_drawdown=0.10,
             walk_forward_results=[{"sharpe": 1.8, "win_rate": 0.60}] * 5,
             cross_regime_results=[{"score": 72.0}] * 4,
-            calibration_score=0.80, brier_score=0.15, ece=0.07,
-            generalization_score=75.0, stability_score=78.0,
-            dataset_version="v3.0", feature_version="v2.0", label_version="v1.5",
+            calibration_score=0.80,
+            brier_score=0.15,
+            ece=0.07,
+            generalization_score=75.0,
+            stability_score=78.0,
+            dataset_version="v3.0",
+            feature_version="v2.0",
+            label_version="v1.5",
             training_config={"lr": 1e-3, "epochs": 200},
             random_seed=42,
             environment="python3.11-cuda",
             package_versions={"torch": "2.1", "numpy": "1.25", "sklearn": "1.3"},
             checkpoint_hash="deadbeef0102",
             model_hash="cafebabe0304",
-            security_checks={k: True for k in [
-                "AUTHENTICATION","AUTHORIZATION","AUDIT_LOGGING","API_SECURITY",
-                "SECRETS_MANAGEMENT","INPUT_VALIDATION","DEPENDENCY_REVIEW","ENCRYPTION"
-            ]},
-            operational_checks={k: True for k in [
-                "MONITORING_ENABLED","ALERTS_CONFIGURED","HEALTH_CHECKS_PASSING",
-                "ROLLBACK_AVAILABLE","BACKUPS_VERIFIED","LOGGING_FUNCTIONAL",
-                "DOCUMENTATION_COMPLETE","RECOVERY_PROCEDURES_VERIFIED"
-            ]},
-            benchmark_values={
-                "INFERENCE_LATENCY": 15.0, "TRAINING_TIME": 900.0,
-                "GPU_USAGE": 65.0, "CPU_USAGE": 50.0, "MEMORY_USAGE": 2048.0,
-                "DISK_USAGE": 256.0, "MODEL_SIZE": 64.0,
-                "API_THROUGHPUT": 400.0, "RESPONSE_TIME": 40.0,
+            security_checks={
+                k: True
+                for k in [
+                    "AUTHENTICATION",
+                    "AUTHORIZATION",
+                    "AUDIT_LOGGING",
+                    "API_SECURITY",
+                    "SECRETS_MANAGEMENT",
+                    "INPUT_VALIDATION",
+                    "DEPENDENCY_REVIEW",
+                    "ENCRYPTION",
+                ]
             },
-            notes="Full production candidate.", tags=["production"],
+            operational_checks={
+                k: True
+                for k in [
+                    "MONITORING_ENABLED",
+                    "ALERTS_CONFIGURED",
+                    "HEALTH_CHECKS_PASSING",
+                    "ROLLBACK_AVAILABLE",
+                    "BACKUPS_VERIFIED",
+                    "LOGGING_FUNCTIONAL",
+                    "DOCUMENTATION_COMPLETE",
+                    "RECOVERY_PROCEDURES_VERIFIED",
+                ]
+            },
+            benchmark_values={
+                "INFERENCE_LATENCY": 15.0,
+                "TRAINING_TIME": 900.0,
+                "GPU_USAGE": 65.0,
+                "CPU_USAGE": 50.0,
+                "MEMORY_USAGE": 2048.0,
+                "DISK_USAGE": 256.0,
+                "MODEL_SIZE": 64.0,
+                "API_THROUGHPUT": 400.0,
+                "RESPONSE_TIME": 40.0,
+            },
+            notes="Full production candidate.",
+            tags=["production"],
         )
 
     def _poor_inp(self):
         M = _models()
         return M.CertificationInput(
-            model_id="",         # missing
-            git_commit="",       # missing
+            model_id="",  # missing
+            git_commit="",  # missing
             research_quality_score=20.0,
-            oos_sharpe=-0.5, oos_win_rate=0.40, oos_max_drawdown=0.60,
+            oos_sharpe=-0.5,
+            oos_win_rate=0.40,
+            oos_max_drawdown=0.60,
         )
 
     def test_certify_returns_run(self):
         api = self._api()
-        M   = _models()
+        M = _models()
         run = api.certify(self._good_inp())
         self.assertIsInstance(run, M.CertificationRun)
 
     def test_certify_good_model_certified(self):
         api = self._api()
-        T   = _types()
+        T = _types()
         run = api.certify(self._good_inp())
         self.assertIsNotNone(run.decision)
-        self.assertIn(run.decision.status, [
-            T.CertificationStatus.CERTIFIED,
-            T.CertificationStatus.CERTIFIED_WITH_CONDITIONS,
-        ])
+        self.assertIn(
+            run.decision.status,
+            [
+                T.CertificationStatus.CERTIFIED,
+                T.CertificationStatus.CERTIFIED_WITH_CONDITIONS,
+            ],
+        )
 
     def test_certify_poor_model_rejected(self):
         api = self._api()
-        T   = _types()
+        T = _types()
         run = api.certify(self._poor_inp())
         self.assertIsNotNone(run.decision)
         self.assertEqual(run.decision.status, T.CertificationStatus.REJECTED)
@@ -1447,22 +1746,46 @@ class TestCertAPI(unittest.TestCase):
     def test_non_certified_status_on_medium_score(self):
         T = _types()
         api = self._api()
-        M  = _models()
+        M = _models()
         inp = M.CertificationInput(
-            model_id="mdl-med", git_commit="abc1234",
+            model_id="mdl-med",
+            git_commit="abc1234",
             research_quality_score=55.0,
-            oos_sharpe=0.8, oos_win_rate=0.52, oos_max_drawdown=0.25,
-            calibration_score=0.55, brier_score=0.22, ece=0.12,
-            dataset_version="v1", feature_version="v1", label_version="v1",
-            random_seed=1, checkpoint_hash="aabbccdd", model_hash="11223344",
-            security_checks={k: True for k in [
-                "AUTHENTICATION","AUTHORIZATION","SECRETS_MANAGEMENT",
-                "API_SECURITY","ENCRYPTION","AUDIT_LOGGING","INPUT_VALIDATION","DEPENDENCY_REVIEW"
-            ]},
-            operational_checks={k: True for k in [
-                "MONITORING_ENABLED","ALERTS_CONFIGURED","HEALTH_CHECKS_PASSING",
-                "ROLLBACK_AVAILABLE","LOGGING_FUNCTIONAL"
-            ]},
+            oos_sharpe=0.8,
+            oos_win_rate=0.52,
+            oos_max_drawdown=0.25,
+            calibration_score=0.55,
+            brier_score=0.22,
+            ece=0.12,
+            dataset_version="v1",
+            feature_version="v1",
+            label_version="v1",
+            random_seed=1,
+            checkpoint_hash="aabbccdd",
+            model_hash="11223344",
+            security_checks={
+                k: True
+                for k in [
+                    "AUTHENTICATION",
+                    "AUTHORIZATION",
+                    "SECRETS_MANAGEMENT",
+                    "API_SECURITY",
+                    "ENCRYPTION",
+                    "AUDIT_LOGGING",
+                    "INPUT_VALIDATION",
+                    "DEPENDENCY_REVIEW",
+                ]
+            },
+            operational_checks={
+                k: True
+                for k in [
+                    "MONITORING_ENABLED",
+                    "ALERTS_CONFIGURED",
+                    "HEALTH_CHECKS_PASSING",
+                    "ROLLBACK_AVAILABLE",
+                    "LOGGING_FUNCTIONAL",
+                ]
+            },
         )
         run = api.certify(inp)
         # A medium-quality model should not receive full CERTIFIED status.

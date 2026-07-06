@@ -35,19 +35,22 @@ class ResearchVisualizationBuilder:
         """Line chart of volatility and trend strength over time per instrument."""
         series = []
         for instrument, snaps in snapshots_by_instrument.items():
-            vol_series = [{"ts": s.get("timestamp", ""), "value": s.get("volatility", 0)}
-                          for s in snaps]
-            trend_series = [{"ts": s.get("timestamp", ""), "value": s.get("trend_strength", 0)}
-                            for s in snaps]
-            series.append({
-                "instrument": instrument,
-                "volatility": vol_series,
-                "trend_strength": trend_series,
-                "n_snapshots": len(snaps),
-            })
+            vol_series = [
+                {"ts": s.get("timestamp", ""), "value": s.get("volatility", 0)} for s in snaps
+            ]
+            trend_series = [
+                {"ts": s.get("timestamp", ""), "value": s.get("trend_strength", 0)} for s in snaps
+            ]
+            series.append(
+                {
+                    "instrument": instrument,
+                    "volatility": vol_series,
+                    "trend_strength": trend_series,
+                    "n_snapshots": len(snaps),
+                }
+            )
         detections_count = sum(
-            1 for snaps in snapshots_by_instrument.values()
-            for s in snaps if s.get("regime_change")
+            1 for snaps in snapshots_by_instrument.values() for s in snaps if s.get("regime_change")
         )
         return {
             "chart_type": "multi_line",
@@ -73,12 +76,14 @@ class ResearchVisualizationBuilder:
             cls = e.get("classification", "unknown")
             if cls not in by_cls:
                 by_cls[cls] = []
-            by_cls[cls].append({
-                "name": e.get("name", ""),
-                "health_score": e.get("health_score", 0.0),
-                "recommendation": e.get("recommendation", ""),
-                "avg_importance": e.get("avg_importance", 0.0),
-            })
+            by_cls[cls].append(
+                {
+                    "name": e.get("name", ""),
+                    "health_score": e.get("health_score", 0.0),
+                    "recommendation": e.get("recommendation", ""),
+                    "avg_importance": e.get("avg_importance", 0.0),
+                }
+            )
         recommendation_counts: Dict[str, int] = {}
         for e in evaluations:
             rec = e.get("recommendation", "monitor")
@@ -155,11 +160,11 @@ class ResearchVisualizationBuilder:
         return {
             "chart_type": "bar",
             "title": "Retraining Recommendation Queue",
-            "by_trigger": [{"trigger": k, "count": v}
-                           for k, v in sorted(by_trigger.items(),
-                                               key=lambda x: -x[1])],
-            "by_priority": [{"priority": k, "count": v}
-                            for k, v in sorted(by_priority.items())],
+            "by_trigger": [
+                {"trigger": k, "count": v}
+                for k, v in sorted(by_trigger.items(), key=lambda x: -x[1])
+            ],
+            "by_priority": [{"priority": k, "count": v} for k, v in sorted(by_priority.items())],
             "by_model": by_model,
             "total_recommendations": len(recommendations),
             "note": "ADVISORY ONLY",
@@ -176,8 +181,9 @@ class ResearchVisualizationBuilder:
         """Summary chart of knowledge base entries by type and impact."""
         by_type = knowledge_report.get("by_type", {})
         by_impact = knowledge_report.get("by_impact", {})
-        type_data = [{"type": k, "count": v}
-                     for k, v in sorted(by_type.items(), key=lambda x: -x[1])]
+        type_data = [
+            {"type": k, "count": v} for k, v in sorted(by_type.items(), key=lambda x: -x[1])
+        ]
         impact_data = [{"impact": k, "count": v} for k, v in by_impact.items()]
         return {
             "chart_type": "bar_grouped",
@@ -199,22 +205,26 @@ class ResearchVisualizationBuilder:
         """Timeline of experiments and findings ordered by creation date."""
         events = []
         for e in experiments:
-            events.append({
-                "type": "experiment",
-                "title": e.get("title", ""),
-                "category": e.get("category", ""),
-                "status": e.get("status", ""),
-                "priority": e.get("priority", 3),
-                "created_at": e.get("created_at", ""),
-            })
+            events.append(
+                {
+                    "type": "experiment",
+                    "title": e.get("title", ""),
+                    "category": e.get("category", ""),
+                    "status": e.get("status", ""),
+                    "priority": e.get("priority", 3),
+                    "created_at": e.get("created_at", ""),
+                }
+            )
         for f in findings:
-            events.append({
-                "type": "finding",
-                "title": f.get("title", ""),
-                "impact": f.get("impact_level", ""),
-                "entry_type": f.get("entry_type", ""),
-                "created_at": f.get("created_at", ""),
-            })
+            events.append(
+                {
+                    "type": "finding",
+                    "title": f.get("title", ""),
+                    "impact": f.get("impact_level", ""),
+                    "entry_type": f.get("entry_type", ""),
+                    "created_at": f.get("created_at", ""),
+                }
+            )
         events.sort(key=lambda x: x.get("created_at", ""))
         by_month: Dict[str, int] = {}
         for ev in events:
@@ -255,8 +265,11 @@ class ResearchVisualizationBuilder:
             "y_label": "Quality Score (0–1)",
             "data": data,
             "grade_color_scheme": {
-                "A": "green", "B": "teal", "C": "yellow",
-                "D": "orange", "F": "red",
+                "A": "green",
+                "B": "teal",
+                "C": "yellow",
+                "D": "orange",
+                "F": "red",
             },
         }
 
@@ -293,9 +306,7 @@ class ResearchVisualizationBuilder:
             "y_label": "Accuracy",
             "data": data,
             "status_summary": status_counts,
-            "color_scheme": {
-                "improving": "green", "stable": "blue", "degrading": "red"
-            },
+            "color_scheme": {"improving": "green", "stable": "blue", "degrading": "red"},
         }
 
     # -----------------------------------------------------------------------
@@ -317,25 +328,15 @@ class ResearchVisualizationBuilder:
         """Build all research dashboard charts in one call."""
         charts: Dict[str, Any] = {}
         if snapshots_by_instrument:
-            charts["market_evolution"] = self.market_evolution_timeline(
-                snapshots_by_instrument
-            )
+            charts["market_evolution"] = self.market_evolution_timeline(snapshots_by_instrument)
         if feature_evaluations:
-            charts["feature_lifecycle"] = self.feature_lifecycle_chart(
-                feature_evaluations
-            )
+            charts["feature_lifecycle"] = self.feature_lifecycle_chart(feature_evaluations)
         if quality_timeline:
-            charts["dataset_evolution"] = self.dataset_evolution_chart(
-                quality_timeline
-            )
+            charts["dataset_evolution"] = self.dataset_evolution_chart(quality_timeline)
         if recommendations:
-            charts["recommendation_queue"] = self.recommendation_queue_chart(
-                recommendations
-            )
+            charts["recommendation_queue"] = self.recommendation_queue_chart(recommendations)
         if knowledge_report:
-            charts["knowledge_graph"] = self.knowledge_graph_summary(
-                knowledge_report
-            )
+            charts["knowledge_graph"] = self.knowledge_graph_summary(knowledge_report)
         if experiments or findings:
             charts["research_timeline"] = self.research_timeline_chart(
                 experiments or [], findings or []
@@ -343,7 +344,5 @@ class ResearchVisualizationBuilder:
         if label_reports:
             charts["label_quality"] = self.label_quality_chart(label_reports)
         if health_trends:
-            charts["model_health_evolution"] = self.model_health_evolution_chart(
-                health_trends
-            )
+            charts["model_health_evolution"] = self.model_health_evolution_chart(health_trends)
         return charts

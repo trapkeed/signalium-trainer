@@ -18,6 +18,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.lifecycle.lifecycle_states import (
@@ -31,8 +32,9 @@ from trainer.lifecycle.lifecycle_models import StateRecord
 @dataclass
 class StateAnalytics:
     """Analytics for one lifecycle state."""
-    state:          LifecycleState
-    visit_count:    int   = 0
+
+    state: LifecycleState
+    visit_count: int = 0
     avg_duration_h: float = 0.0
     min_duration_h: float = 0.0
     max_duration_h: float = 0.0
@@ -40,11 +42,11 @@ class StateAnalytics:
 
     def to_dict(self) -> Dict:
         return {
-            "state":            self.state.value,
-            "visit_count":      self.visit_count,
-            "avg_duration_h":   round(self.avg_duration_h, 3),
-            "min_duration_h":   round(self.min_duration_h, 3),
-            "max_duration_h":   round(self.max_duration_h, 3),
+            "state": self.state.value,
+            "visit_count": self.visit_count,
+            "avg_duration_h": round(self.avg_duration_h, 3),
+            "min_duration_h": round(self.min_duration_h, 3),
+            "max_duration_h": round(self.max_duration_h, 3),
             "total_duration_h": round(self.total_duration_h, 3),
         }
 
@@ -52,39 +54,40 @@ class StateAnalytics:
 @dataclass
 class LifecycleAnalyticsReport:
     """Complete analytics across all analysed trades."""
-    total_trades:        int   = 0
-    completed_trades:    int   = 0
-    failed_trades:       int   = 0
-    cancelled_trades:    int   = 0
-    expired_trades:      int   = 0
-    invalidated_trades:  int   = 0
-    avg_lifecycle_h:     float = 0.0
-    failure_rate:        float = 0.0
-    cancellation_rate:   float = 0.0
-    expiration_rate:     float = 0.0
-    invalidation_rate:   float = 0.0
-    state_analytics:     Dict[str, StateAnalytics] = field(default_factory=dict)
-    transition_matrix:   Dict[str, Dict[str, int]] = field(default_factory=dict)
-    path_performance:    List[Dict]                 = field(default_factory=list)
-    top_paths:           List[str]                  = field(default_factory=list)
+
+    total_trades: int = 0
+    completed_trades: int = 0
+    failed_trades: int = 0
+    cancelled_trades: int = 0
+    expired_trades: int = 0
+    invalidated_trades: int = 0
+    avg_lifecycle_h: float = 0.0
+    failure_rate: float = 0.0
+    cancellation_rate: float = 0.0
+    expiration_rate: float = 0.0
+    invalidation_rate: float = 0.0
+    state_analytics: Dict[str, StateAnalytics] = field(default_factory=dict)
+    transition_matrix: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    path_performance: List[Dict] = field(default_factory=list)
+    top_paths: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict:
         return {
-            "total_trades":       self.total_trades,
-            "completed_trades":   self.completed_trades,
-            "failed_trades":      self.failed_trades,
-            "cancelled_trades":   self.cancelled_trades,
-            "expired_trades":     self.expired_trades,
+            "total_trades": self.total_trades,
+            "completed_trades": self.completed_trades,
+            "failed_trades": self.failed_trades,
+            "cancelled_trades": self.cancelled_trades,
+            "expired_trades": self.expired_trades,
             "invalidated_trades": self.invalidated_trades,
-            "avg_lifecycle_h":    round(self.avg_lifecycle_h, 3),
-            "failure_rate":       round(self.failure_rate, 4),
-            "cancellation_rate":  round(self.cancellation_rate, 4),
-            "expiration_rate":    round(self.expiration_rate, 4),
-            "invalidation_rate":  round(self.invalidation_rate, 4),
-            "state_analytics":    {k: v.to_dict() for k, v in self.state_analytics.items()},
-            "transition_matrix":  self.transition_matrix,
-            "path_performance":   self.path_performance,
-            "top_paths":          self.top_paths,
+            "avg_lifecycle_h": round(self.avg_lifecycle_h, 3),
+            "failure_rate": round(self.failure_rate, 4),
+            "cancellation_rate": round(self.cancellation_rate, 4),
+            "expiration_rate": round(self.expiration_rate, 4),
+            "invalidation_rate": round(self.invalidation_rate, 4),
+            "state_analytics": {k: v.to_dict() for k, v in self.state_analytics.items()},
+            "transition_matrix": self.transition_matrix,
+            "path_performance": self.path_performance,
+            "top_paths": self.top_paths,
         }
 
 
@@ -135,7 +138,7 @@ class LifecycleAnalytics:
             # Transition matrix
             for i in range(len(history) - 1):
                 from_s = history[i].state.value
-                to_s   = history[i + 1].state.value
+                to_s = history[i + 1].state.value
                 trans_matrix[from_s][to_s] += 1
 
             # Final state
@@ -157,32 +160,29 @@ class LifecycleAnalytics:
         # ── State analytics ─────────────────────────────────────────────────
         for state, durations in dur_accum.items():
             report.state_analytics[state.value] = StateAnalytics(
-                state            = state,
-                visit_count      = len(durations),
-                avg_duration_h   = sum(durations) / len(durations) if durations else 0.0,
-                min_duration_h   = min(durations) if durations else 0.0,
-                max_duration_h   = max(durations) if durations else 0.0,
-                total_duration_h = sum(durations),
+                state=state,
+                visit_count=len(durations),
+                avg_duration_h=sum(durations) / len(durations) if durations else 0.0,
+                min_duration_h=min(durations) if durations else 0.0,
+                max_duration_h=max(durations) if durations else 0.0,
+                total_duration_h=sum(durations),
             )
 
         # ── Rates ────────────────────────────────────────────────────────────
         report.avg_lifecycle_h = (
-            sum(lifecycle_durations) / len(lifecycle_durations)
-            if lifecycle_durations else 0.0
+            sum(lifecycle_durations) / len(lifecycle_durations) if lifecycle_durations else 0.0
         )
         if n:
-            report.failure_rate      = report.failed_trades      / n
-            report.cancellation_rate = report.cancelled_trades   / n
-            report.expiration_rate   = report.expired_trades     / n
+            report.failure_rate = report.failed_trades / n
+            report.cancellation_rate = report.cancelled_trades / n
+            report.expiration_rate = report.expired_trades / n
             report.invalidation_rate = report.invalidated_trades / n
 
         # ── Transition matrix ────────────────────────────────────────────────
         report.transition_matrix = {k: dict(v) for k, v in trans_matrix.items()}
 
         # ── Top paths ─────────────────────────────────────────────────────────
-        report.top_paths = [
-            p for p, _ in sorted(path_counter.items(), key=lambda x: -x[1])[:5]
-        ]
+        report.top_paths = [p for p, _ in sorted(path_counter.items(), key=lambda x: -x[1])[:5]]
 
         logger.debug(
             f"LifecycleAnalytics: {n} trades analysed, "
@@ -200,10 +200,7 @@ class LifecycleAnalytics:
             for record in history:
                 if record.duration_h > 0:
                     accum[record.state.value].append(record.duration_h)
-        return {
-            state: round(sum(durs) / len(durs), 3)
-            for state, durs in accum.items() if durs
-        }
+        return {state: round(sum(durs) / len(durs), 3) for state, durs in accum.items() if durs}
 
     def transition_frequency(
         self,

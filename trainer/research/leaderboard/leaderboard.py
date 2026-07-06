@@ -122,9 +122,7 @@ class Leaderboard:
 
         for run in result.runs:
             if run.status != "completed":
-                entry = LeaderboardEntry(
-                    rank=0, model_name=run.model_name, status="failed"
-                )
+                entry = LeaderboardEntry(rank=0, model_name=run.model_name, status="failed")
                 raw.append(entry)
                 continue
 
@@ -142,26 +140,29 @@ class Leaderboard:
             )
 
             arch = self._lookup_architecture(run.model_name)
-            raw.append(LeaderboardEntry(
-                rank=0,
-                model_name=run.model_name,
-                architecture=arch,
-                accuracy=m.get("accuracy", 0.0),
-                f1_macro=m.get("f1_macro", 0.0),
-                f1_weighted=m.get("f1_weighted", 0.0),
-                calibration_error=ece,
-                inference_latency_ms=latency,
-                training_time_seconds=run.training_time_seconds,
-                model_size_mb=run.model_size_mb,
-                gpu_memory_mb=run.gpu_memory_mb,
-                overall_score=score,
-                status="completed",
-            ))
+            raw.append(
+                LeaderboardEntry(
+                    rank=0,
+                    model_name=run.model_name,
+                    architecture=arch,
+                    accuracy=m.get("accuracy", 0.0),
+                    f1_macro=m.get("f1_macro", 0.0),
+                    f1_weighted=m.get("f1_weighted", 0.0),
+                    calibration_error=ece,
+                    inference_latency_ms=latency,
+                    training_time_seconds=run.training_time_seconds,
+                    model_size_mb=run.model_size_mb,
+                    gpu_memory_mb=run.gpu_memory_mb,
+                    overall_score=score,
+                    status="completed",
+                )
+            )
 
         # Sort: completed by score desc, failed at the end
         completed_entries = sorted(
             [e for e in raw if e.status == "completed"],
-            key=lambda e: e.overall_score, reverse=True,
+            key=lambda e: e.overall_score,
+            reverse=True,
         )
         failed_entries = [e for e in raw if e.status != "completed"]
 
@@ -215,23 +216,33 @@ class Leaderboard:
             Multi-line string table.
         """
         headers = [
-            "Rank", "Model", "Arch", "Acc", "F1", "Cal Err",
-            "Lat(ms)", "Train(s)", "MB", "Score",
+            "Rank",
+            "Model",
+            "Arch",
+            "Acc",
+            "F1",
+            "Cal Err",
+            "Lat(ms)",
+            "Train(s)",
+            "MB",
+            "Score",
         ]
         rows = []
         for e in self._entries:
-            rows.append([
-                str(e.rank),
-                e.model_name[:max_col_width],
-                (e.architecture or "-")[:max_col_width],
-                f"{e.accuracy:.4f}",
-                f"{e.f1_macro:.4f}",
-                f"{e.calibration_error:.4f}",
-                f"{e.inference_latency_ms:.2f}",
-                f"{e.training_time_seconds:.1f}",
-                f"{e.model_size_mb:.2f}",
-                f"{e.overall_score:.4f}",
-            ])
+            rows.append(
+                [
+                    str(e.rank),
+                    e.model_name[:max_col_width],
+                    (e.architecture or "-")[:max_col_width],
+                    f"{e.accuracy:.4f}",
+                    f"{e.f1_macro:.4f}",
+                    f"{e.calibration_error:.4f}",
+                    f"{e.inference_latency_ms:.2f}",
+                    f"{e.training_time_seconds:.1f}",
+                    f"{e.model_size_mb:.2f}",
+                    f"{e.overall_score:.4f}",
+                ]
+            )
 
         col_widths = [len(h) for h in headers]
         for row in rows:
@@ -260,8 +271,9 @@ class Leaderboard:
         speed_score: float,
     ) -> float:
         w = self._weights
-        total_weight = (w.accuracy + w.f1_macro + w.f1_weighted
-                        + w.calibration_error + w.inference_speed)
+        total_weight = (
+            w.accuracy + w.f1_macro + w.f1_weighted + w.calibration_error + w.inference_speed
+        )
         if total_weight == 0:
             return 0.0
         calibration_score = max(0.0, 1.0 - calibration_error)
@@ -279,6 +291,7 @@ class Leaderboard:
         """Try to resolve architecture from the ModelRegistry spec."""
         try:
             from trainer.registry.registry import ModelRegistry
+
             spec = ModelRegistry.get_spec(model_name)
             return spec.architecture if spec else ""
         except Exception:

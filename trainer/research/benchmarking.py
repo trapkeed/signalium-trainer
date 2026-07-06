@@ -29,18 +29,17 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Model roles
 # ---------------------------------------------------------------------------
 
 
 class ModelRole:
-    CHAMPION    = "champion"
-    BASELINE    = "baseline"
-    CANDIDATE   = "candidate"
+    CHAMPION = "champion"
+    BASELINE = "baseline"
+    CANDIDATE = "candidate"
     EXPERIMENTAL = "experimental"
-    HISTORICAL  = "historical"
+    HISTORICAL = "historical"
     ALL = [CHAMPION, BASELINE, CANDIDATE, EXPERIMENTAL, HISTORICAL]
 
 
@@ -59,14 +58,10 @@ class BenchmarkRecord:
     grade_label: str
     promotion_eligible: bool
     category_scores: Dict[str, float]  # category → score
-    registered_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    registered_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @classmethod
-    def from_research_score(
-        cls, rs: Any, role: str = ModelRole.EXPERIMENTAL
-    ) -> "BenchmarkRecord":
+    def from_research_score(cls, rs: Any, role: str = ModelRole.EXPERIMENTAL) -> "BenchmarkRecord":
         return cls(
             experiment_id=rs.experiment_id,
             model_id=rs.model_id,
@@ -107,9 +102,7 @@ class BenchmarkComparison:
     reference_id: str = ""
     reference_name: str = ""
     reference_role: str = ""
-    compared_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    compared_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Composite deltas
     subject_composite: float = 0.0
@@ -127,11 +120,17 @@ class BenchmarkComparison:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "comparison_id": self.comparison_id,
-            "subject": {"id": self.subject_id, "name": self.subject_name,
-                        "score": self.subject_composite},
-            "reference": {"id": self.reference_id, "name": self.reference_name,
-                          "role": self.reference_role,
-                          "score": self.reference_composite},
+            "subject": {
+                "id": self.subject_id,
+                "name": self.subject_name,
+                "score": self.subject_composite,
+            },
+            "reference": {
+                "id": self.reference_id,
+                "name": self.reference_name,
+                "role": self.reference_role,
+                "score": self.reference_composite,
+            },
             "composite_delta": round(self.composite_delta, 3),
             "composite_improved": self.composite_improved,
             "category_deltas": {k: round(v, 3) for k, v in self.category_deltas.items()},
@@ -280,9 +279,7 @@ class IRSEBenchmarker:
         champion_comparison: Optional[Dict[str, Any]] = None
         if self._champion_id and self._champion_id != subject_id:
             try:
-                champion_comparison = self.compare(
-                    subject_id, against=self._champion_id
-                ).to_dict()
+                champion_comparison = self.compare(subject_id, against=self._champion_id).to_dict()
             except Exception:
                 pass
 

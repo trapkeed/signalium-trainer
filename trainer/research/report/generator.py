@@ -160,7 +160,10 @@ class ReportGenerator:
     def _write_all(self, data: dict[str, Any], stem: str) -> list[Path]:
         """Write the data dict in all configured formats."""
         from trainer.research.report.exporters import (
-            export_csv, export_html, export_json, export_markdown,
+            export_csv,
+            export_html,
+            export_json,
+            export_markdown,
         )
 
         out_dir = Path(self._cfg.output_dir)

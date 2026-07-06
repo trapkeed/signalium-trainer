@@ -79,9 +79,11 @@ class ModelForecast:
     metadata: Dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        assert self.direction in ("BUY", "SELL", "NEUTRAL"), (
-            f"direction must be BUY/SELL/NEUTRAL, got {self.direction!r}"
-        )
+        assert self.direction in (
+            "BUY",
+            "SELL",
+            "NEUTRAL",
+        ), f"direction must be BUY/SELL/NEUTRAL, got {self.direction!r}"
         self.confidence = max(0.0, min(1.0, self.confidence))
 
     def signed_return(self) -> float:
@@ -103,22 +105,150 @@ class ModelForecast:
 
 
 _DEFAULT_INSTRUMENTS: List[dict] = [
-    dict(symbol="EURUSD", asset_class=AssetClass.FOREX,   base="EUR", quote="USD", region=Region.EUROPE,        desc="Euro / US Dollar",          tags=["major", "eur", "usd"]),
-    dict(symbol="GBPUSD", asset_class=AssetClass.FOREX,   base="GBP", quote="USD", region=Region.EUROPE,        desc="British Pound / US Dollar",  tags=["major", "gbp", "usd"]),
-    dict(symbol="USDJPY", asset_class=AssetClass.FOREX,   base="USD", quote="JPY", region=Region.ASIA_PACIFIC,  desc="US Dollar / Japanese Yen",   tags=["major", "usd", "jpy"]),
-    dict(symbol="USDCHF", asset_class=AssetClass.FOREX,   base="USD", quote="CHF", region=Region.EUROPE,        desc="US Dollar / Swiss Franc",    tags=["major", "usd", "chf", "safe_haven"]),
-    dict(symbol="USDCAD", asset_class=AssetClass.FOREX,   base="USD", quote="CAD", region=Region.NORTH_AMERICA, desc="US Dollar / Canadian Dollar", tags=["major", "usd", "cad", "commodity_currency"]),
-    dict(symbol="AUDUSD", asset_class=AssetClass.FOREX,   base="AUD", quote="USD", region=Region.ASIA_PACIFIC,  desc="Australian Dollar / US Dollar", tags=["major", "aud", "usd", "commodity_currency"]),
-    dict(symbol="NZDUSD", asset_class=AssetClass.FOREX,   base="NZD", quote="USD", region=Region.ASIA_PACIFIC,  desc="New Zealand Dollar / US Dollar", tags=["major", "nzd", "usd", "commodity_currency"]),
-    dict(symbol="EURJPY", asset_class=AssetClass.FOREX,   base="EUR", quote="JPY", region=Region.EUROPE,        desc="Euro / Japanese Yen",        tags=["cross", "eur", "jpy"]),
-    dict(symbol="GBPJPY", asset_class=AssetClass.FOREX,   base="GBP", quote="JPY", region=Region.EUROPE,        desc="British Pound / Japanese Yen", tags=["cross", "gbp", "jpy"]),
-    dict(symbol="XAUUSD", asset_class=AssetClass.COMMODITY, base="XAU", quote="USD", region=Region.GLOBAL,       desc="Gold / US Dollar",           tags=["commodity", "gold", "safe_haven", "usd"]),
-    dict(symbol="XAGUSD", asset_class=AssetClass.COMMODITY, base="XAG", quote="USD", region=Region.GLOBAL,       desc="Silver / US Dollar",         tags=["commodity", "silver", "usd"]),
-    dict(symbol="NAS100", asset_class=AssetClass.INDEX,   base="NAS", quote="USD", region=Region.NORTH_AMERICA, desc="NASDAQ 100",                 tags=["index", "tech", "usd", "risk_on"]),
-    dict(symbol="US30",   asset_class=AssetClass.INDEX,   base="DOW", quote="USD", region=Region.NORTH_AMERICA, desc="Dow Jones 30",               tags=["index", "usd", "risk_on"]),
-    dict(symbol="SPX500", asset_class=AssetClass.INDEX,   base="SPX", quote="USD", region=Region.NORTH_AMERICA, desc="S&P 500",                    tags=["index", "usd", "risk_on"]),
-    dict(symbol="BTCUSD", asset_class=AssetClass.CRYPTO,  base="BTC", quote="USD", region=Region.GLOBAL,        desc="Bitcoin / US Dollar",        tags=["crypto", "usd", "risk_on"]),
-    dict(symbol="ETHUSD", asset_class=AssetClass.CRYPTO,  base="ETH", quote="USD", region=Region.GLOBAL,        desc="Ethereum / US Dollar",       tags=["crypto", "usd", "risk_on"]),
+    dict(
+        symbol="EURUSD",
+        asset_class=AssetClass.FOREX,
+        base="EUR",
+        quote="USD",
+        region=Region.EUROPE,
+        desc="Euro / US Dollar",
+        tags=["major", "eur", "usd"],
+    ),
+    dict(
+        symbol="GBPUSD",
+        asset_class=AssetClass.FOREX,
+        base="GBP",
+        quote="USD",
+        region=Region.EUROPE,
+        desc="British Pound / US Dollar",
+        tags=["major", "gbp", "usd"],
+    ),
+    dict(
+        symbol="USDJPY",
+        asset_class=AssetClass.FOREX,
+        base="USD",
+        quote="JPY",
+        region=Region.ASIA_PACIFIC,
+        desc="US Dollar / Japanese Yen",
+        tags=["major", "usd", "jpy"],
+    ),
+    dict(
+        symbol="USDCHF",
+        asset_class=AssetClass.FOREX,
+        base="USD",
+        quote="CHF",
+        region=Region.EUROPE,
+        desc="US Dollar / Swiss Franc",
+        tags=["major", "usd", "chf", "safe_haven"],
+    ),
+    dict(
+        symbol="USDCAD",
+        asset_class=AssetClass.FOREX,
+        base="USD",
+        quote="CAD",
+        region=Region.NORTH_AMERICA,
+        desc="US Dollar / Canadian Dollar",
+        tags=["major", "usd", "cad", "commodity_currency"],
+    ),
+    dict(
+        symbol="AUDUSD",
+        asset_class=AssetClass.FOREX,
+        base="AUD",
+        quote="USD",
+        region=Region.ASIA_PACIFIC,
+        desc="Australian Dollar / US Dollar",
+        tags=["major", "aud", "usd", "commodity_currency"],
+    ),
+    dict(
+        symbol="NZDUSD",
+        asset_class=AssetClass.FOREX,
+        base="NZD",
+        quote="USD",
+        region=Region.ASIA_PACIFIC,
+        desc="New Zealand Dollar / US Dollar",
+        tags=["major", "nzd", "usd", "commodity_currency"],
+    ),
+    dict(
+        symbol="EURJPY",
+        asset_class=AssetClass.FOREX,
+        base="EUR",
+        quote="JPY",
+        region=Region.EUROPE,
+        desc="Euro / Japanese Yen",
+        tags=["cross", "eur", "jpy"],
+    ),
+    dict(
+        symbol="GBPJPY",
+        asset_class=AssetClass.FOREX,
+        base="GBP",
+        quote="JPY",
+        region=Region.EUROPE,
+        desc="British Pound / Japanese Yen",
+        tags=["cross", "gbp", "jpy"],
+    ),
+    dict(
+        symbol="XAUUSD",
+        asset_class=AssetClass.COMMODITY,
+        base="XAU",
+        quote="USD",
+        region=Region.GLOBAL,
+        desc="Gold / US Dollar",
+        tags=["commodity", "gold", "safe_haven", "usd"],
+    ),
+    dict(
+        symbol="XAGUSD",
+        asset_class=AssetClass.COMMODITY,
+        base="XAG",
+        quote="USD",
+        region=Region.GLOBAL,
+        desc="Silver / US Dollar",
+        tags=["commodity", "silver", "usd"],
+    ),
+    dict(
+        symbol="NAS100",
+        asset_class=AssetClass.INDEX,
+        base="NAS",
+        quote="USD",
+        region=Region.NORTH_AMERICA,
+        desc="NASDAQ 100",
+        tags=["index", "tech", "usd", "risk_on"],
+    ),
+    dict(
+        symbol="US30",
+        asset_class=AssetClass.INDEX,
+        base="DOW",
+        quote="USD",
+        region=Region.NORTH_AMERICA,
+        desc="Dow Jones 30",
+        tags=["index", "usd", "risk_on"],
+    ),
+    dict(
+        symbol="SPX500",
+        asset_class=AssetClass.INDEX,
+        base="SPX",
+        quote="USD",
+        region=Region.NORTH_AMERICA,
+        desc="S&P 500",
+        tags=["index", "usd", "risk_on"],
+    ),
+    dict(
+        symbol="BTCUSD",
+        asset_class=AssetClass.CRYPTO,
+        base="BTC",
+        quote="USD",
+        region=Region.GLOBAL,
+        desc="Bitcoin / US Dollar",
+        tags=["crypto", "usd", "risk_on"],
+    ),
+    dict(
+        symbol="ETHUSD",
+        asset_class=AssetClass.CRYPTO,
+        base="ETH",
+        quote="USD",
+        region=Region.GLOBAL,
+        desc="Ethereum / US Dollar",
+        tags=["crypto", "usd", "risk_on"],
+    ),
 ]
 
 
@@ -132,15 +262,17 @@ class InstrumentRegistry:
     def default(cls) -> "InstrumentRegistry":
         reg = cls()
         for d in _DEFAULT_INSTRUMENTS:
-            reg.register(InstrumentInfo(
-                symbol=d["symbol"],
-                asset_class=d["asset_class"],
-                base_currency=d["base"],
-                quote_currency=d["quote"],
-                region=d["region"],
-                description=d["desc"],
-                tags=d["tags"],
-            ))
+            reg.register(
+                InstrumentInfo(
+                    symbol=d["symbol"],
+                    asset_class=d["asset_class"],
+                    base_currency=d["base"],
+                    quote_currency=d["quote"],
+                    region=d["region"],
+                    description=d["desc"],
+                    tags=d["tags"],
+                )
+            )
         return reg
 
     def register(self, info: InstrumentInfo) -> None:
@@ -169,7 +301,8 @@ class InstrumentRegistry:
 
     def by_currency(self, currency: str) -> List[InstrumentInfo]:
         return [
-            i for i in self._instruments.values()
+            i
+            for i in self._instruments.values()
             if i.base_currency == currency or i.quote_currency == currency
         ]
 

@@ -30,7 +30,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Trial status enum
 # ---------------------------------------------------------------------------
@@ -127,9 +126,13 @@ class Trial:
         self.status = TrialStatus.RUNNING
         self.start_time = datetime.now(timezone.utc).isoformat()
 
-    def complete(self, score: float, metrics: Optional[Dict[str, Any]] = None,
-                 training_duration: float = 0.0,
-                 validation_duration: float = 0.0) -> None:
+    def complete(
+        self,
+        score: float,
+        metrics: Optional[Dict[str, Any]] = None,
+        training_duration: float = 0.0,
+        validation_duration: float = 0.0,
+    ) -> None:
         """Mark trial as completed with its results."""
         self.status = TrialStatus.COMPLETED
         self.score = score
@@ -163,9 +166,7 @@ class Trial:
 
     @property
     def is_terminal(self) -> bool:
-        return self.status in (
-            TrialStatus.COMPLETED, TrialStatus.PRUNED, TrialStatus.FAILED
-        )
+        return self.status in (TrialStatus.COMPLETED, TrialStatus.PRUNED, TrialStatus.FAILED)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -202,10 +203,7 @@ class Trial:
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "Trial":
-        t = Trial(**{
-            k: v for k, v in d.items()
-            if k in Trial.__dataclass_fields__
-        })
+        t = Trial(**{k: v for k, v in d.items() if k in Trial.__dataclass_fields__})
         t.intermediate_scores = [tuple(x) for x in d.get("intermediate_scores", [])]
         return t
 
@@ -257,9 +255,7 @@ class SearchJob:
     parallel_workers: int = 1
     checkpoint_frequency: int = 5
     max_retries: int = 2
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     started_at: str = ""
     completed_at: str = ""
     trials: List[Trial] = field(default_factory=list)
@@ -270,8 +266,7 @@ class SearchJob:
     def add_trial(self, trial: Trial) -> None:
         trial.job_id = self.job_id
         self.trials.append(trial)
-        if (trial.score is not None and
-                (self.best_score is None or trial.score > self.best_score)):
+        if trial.score is not None and (self.best_score is None or trial.score > self.best_score):
             self.best_score = trial.score
             self.champion_trial_id = trial.trial_id
 
@@ -335,27 +330,28 @@ class SearchJob:
 
     def to_dict(self) -> Dict[str, Any]:
         d = self.summary()
-        d.update({
-            "objectives": self.objectives,
-            "search_space_name": self.search_space_name,
-            "budget_type": self.budget_type,
-            "budget_value": self.budget_value,
-            "pruner_type": self.pruner_type,
-            "parallel_workers": self.parallel_workers,
-            "checkpoint_frequency": self.checkpoint_frequency,
-            "max_retries": self.max_retries,
-            "trials": [t.to_dict() for t in self.trials],
-            "metadata": self.metadata,
-        })
+        d.update(
+            {
+                "objectives": self.objectives,
+                "search_space_name": self.search_space_name,
+                "budget_type": self.budget_type,
+                "budget_value": self.budget_value,
+                "pruner_type": self.pruner_type,
+                "parallel_workers": self.parallel_workers,
+                "checkpoint_frequency": self.checkpoint_frequency,
+                "max_retries": self.max_retries,
+                "trials": [t.to_dict() for t in self.trials],
+                "metadata": self.metadata,
+            }
+        )
         return d
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "SearchJob":
         trials_data = d.pop("trials", [])
-        job = SearchJob(**{
-            k: v for k, v in d.items()
-            if k in SearchJob.__dataclass_fields__ and k != "trials"
-        })
+        job = SearchJob(
+            **{k: v for k, v in d.items() if k in SearchJob.__dataclass_fields__ and k != "trials"}
+        )
         job.trials = [Trial.from_dict(td) for td in trials_data]
         return job
 
@@ -414,14 +410,13 @@ class ExperimentRecord:
     error_message: str = ""
     retry_count: int = 0
 
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     notes: str = ""
 
     @staticmethod
-    def from_trial(trial: Trial, job: SearchJob,
-                   validation_results: Optional[Dict[str, Any]] = None) -> "ExperimentRecord":
+    def from_trial(
+        trial: Trial, job: SearchJob, validation_results: Optional[Dict[str, Any]] = None
+    ) -> "ExperimentRecord":
         return ExperimentRecord(
             trial_id=trial.trial_id,
             job_id=trial.job_id,

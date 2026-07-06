@@ -17,10 +17,15 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import ChatSession, ResearchQuery, ResearchReport, Recommendation
-
+from trainer.analyst.analyst_models import (
+    ChatSession,
+    ResearchQuery,
+    ResearchReport,
+    Recommendation,
+)
 
 _CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -136,9 +141,15 @@ class AnalystDatabase:
                 """INSERT OR REPLACE INTO chat_sessions
                    (session_id, researcher, role, message_count, active, created_at, updated_at)
                    VALUES (?,?,?,?,?,?,?)""",
-                (session.session_id, session.researcher, session.role.value,
-                 session.message_count, int(session.active),
-                 session.created_at, session.updated_at),
+                (
+                    session.session_id,
+                    session.researcher,
+                    session.role.value,
+                    session.message_count,
+                    int(session.active),
+                    session.created_at,
+                    session.updated_at,
+                ),
             )
             self._commit(conn)
 
@@ -148,9 +159,7 @@ class AnalystDatabase:
 
     def active_session_ids(self) -> List[str]:
         with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT session_id FROM chat_sessions WHERE active=1"
-            ).fetchall()
+            rows = conn.execute("SELECT session_id FROM chat_sessions WHERE active=1").fetchall()
         return [r["session_id"] for r in rows]
 
     # ── Research queries ──────────────────────────────────────────────────────
@@ -161,9 +170,15 @@ class AnalystDatabase:
                 """INSERT OR REPLACE INTO research_queries
                    (query_id, session_id, text, query_type, role, timestamp, response_preview)
                    VALUES (?,?,?,?,?,?,?)""",
-                (query.query_id, query.session_id, query.text,
-                 query.query_type.value, query.role.value, query.timestamp,
-                 response_preview[:300]),
+                (
+                    query.query_id,
+                    query.session_id,
+                    query.text,
+                    query.query_type.value,
+                    query.role.value,
+                    query.timestamp,
+                    response_preview[:300],
+                ),
             )
             self._commit(conn)
 
@@ -187,9 +202,17 @@ class AnalystDatabase:
                    (report_id, report_type, title, period, word_count,
                     citation_count, grounded, generated_at, content)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (report.report_id, report.report_type.value, report.title,
-                 report.period, report.word_count, len(report.citations),
-                 int(report.grounded), report.generated_at, report.content[:2000]),
+                (
+                    report.report_id,
+                    report.report_type.value,
+                    report.title,
+                    report.period,
+                    report.word_count,
+                    len(report.citations),
+                    int(report.grounded),
+                    report.generated_at,
+                    report.content[:2000],
+                ),
             )
             self._commit(conn)
 
@@ -201,7 +224,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM generated_reports WHERE report_type=? ORDER BY generated_at DESC",
-                (report_type,)
+                (report_type,),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -214,8 +237,16 @@ class AnalystDatabase:
                    (rec_id, rec_type, title, description, priority,
                     implemented, citation_count, timestamp)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (rec.rec_id, rec.rec_type.value, rec.title, rec.description,
-                 rec.priority, int(rec.implemented), len(rec.citations), rec.timestamp),
+                (
+                    rec.rec_id,
+                    rec.rec_type.value,
+                    rec.title,
+                    rec.description,
+                    rec.priority,
+                    int(rec.implemented),
+                    len(rec.citations),
+                    rec.timestamp,
+                ),
             )
             self._commit(conn)
 
@@ -251,14 +282,14 @@ class AnalystDatabase:
 
     def record_usage(
         self,
-        provider:        str,
-        model_name:      str,
-        prompt_tokens:   int,
+        provider: str,
+        model_name: str,
+        prompt_tokens: int,
         response_tokens: int,
-        latency_ms:      float,
-        grounded:        bool,
-        safe:            bool,
-        query_type:      str = "",
+        latency_ms: float,
+        grounded: bool,
+        safe: bool,
+        query_type: str = "",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -266,8 +297,17 @@ class AnalystDatabase:
                    (provider, model_name, prompt_tokens, response_tokens,
                     latency_ms, grounded, safe, query_type, timestamp)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (provider, model_name, prompt_tokens, response_tokens,
-                 latency_ms, int(grounded), int(safe), query_type, time.time()),
+                (
+                    provider,
+                    model_name,
+                    prompt_tokens,
+                    response_tokens,
+                    latency_ms,
+                    int(grounded),
+                    int(safe),
+                    query_type,
+                    time.time(),
+                ),
             )
             self._commit(conn)
 
@@ -289,10 +329,10 @@ class AnalystDatabase:
 
     def stats(self) -> Dict:
         return {
-            "sessions":        self.count_sessions(),
-            "queries":         self.count_queries(),
-            "reports":         self.count_reports(),
+            "sessions": self.count_sessions(),
+            "queries": self.count_queries(),
+            "reports": self.count_reports(),
             "recommendations": self.count_recommendations(),
-            "templates":       self.count_templates(),
-            "total_tokens":    self.total_tokens(),
+            "templates": self.count_templates(),
+            "total_tokens": self.total_tokens(),
         }

@@ -49,7 +49,6 @@ from torch.utils.data import Dataset
 
 from trainer.datasets.base import BaseDataset
 
-
 # ---------------------------------------------------------------------------
 # Column → label key mappings
 # ---------------------------------------------------------------------------
@@ -194,7 +193,7 @@ class MultiTaskParquetDataset(Dataset):
 
 
 def collate_multi_task(
-    batch: list[tuple[torch.Tensor, dict[str, torch.Tensor]]]
+    batch: list[tuple[torch.Tensor, dict[str, torch.Tensor]]],
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Custom collate function for MultiTaskParquetDataset batches.
 

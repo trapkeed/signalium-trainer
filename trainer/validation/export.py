@@ -24,7 +24,6 @@ from typing import Any, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Export config
 # ---------------------------------------------------------------------------
@@ -43,9 +42,7 @@ class ExportConfig:
     """
 
     output_dir: Path = Path("reports")
-    formats: list[str] = field(
-        default_factory=lambda: ["json", "csv", "html"]
-    )
+    formats: list[str] = field(default_factory=lambda: ["json", "csv", "html"])
     title: str = "Signalium Institutional Validation Report"
     include_charts: bool = True
     include_raw_metrics: bool = True
@@ -233,10 +230,23 @@ h1{{color:#1a1a2e;}} h2{{color:#16213e;border-bottom:2px solid #0f3460;padding-b
         if leaderboard:
             top = leaderboard.top(10)
             html += "<h2>Leaderboard (Top 10)</h2><table border='1' cellspacing='0' style='border-collapse:collapse;font-size:13px'>"
-            html += "<tr>" + "".join(
-                f"<th style='padding:4px 8px;background:#f5f5f5'>{h}</th>"
-                for h in ["Name", "Version", "Accuracy", "F1", "Sharpe", "PF", "Score", "Status"]
-            ) + "</tr>"
+            html += (
+                "<tr>"
+                + "".join(
+                    f"<th style='padding:4px 8px;background:#f5f5f5'>{h}</th>"
+                    for h in [
+                        "Name",
+                        "Version",
+                        "Accuracy",
+                        "F1",
+                        "Sharpe",
+                        "PF",
+                        "Score",
+                        "Status",
+                    ]
+                )
+                + "</tr>"
+            )
             for e in top:
                 champion = "★ " if e.is_champion else ""
                 html += (
@@ -290,7 +300,8 @@ h1{{color:#1a1a2e;}} h2{{color:#16213e;border-bottom:2px solid #0f3460;padding-b
 
         promo = run_record.promotion_decision
         lines += [
-            "", "─" * 72,
+            "",
+            "─" * 72,
             "PROMOTION DECISION",
             "─" * 72,
             f"  Eligible  : {promo.get('is_eligible', 'N/A')}",

@@ -69,7 +69,7 @@ def _memory_used_mb(device: torch.device) -> float:
     if device.type == "cuda":
         try:
             idx = device.index or 0
-            return torch.cuda.memory_allocated(idx) / (1024 ** 2)
+            return torch.cuda.memory_allocated(idx) / (1024**2)
         except Exception:
             return 0.0
     return 0.0

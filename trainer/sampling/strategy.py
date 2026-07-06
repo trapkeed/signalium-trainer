@@ -214,9 +214,7 @@ class BalancingStrategyBuilder:
             return weights
         return None
 
-    def apply_index_strategy(
-        self, indices: list[int], labels: Sequence[int]
-    ) -> list[int]:
+    def apply_index_strategy(self, indices: list[int], labels: Sequence[int]) -> list[int]:
         """Apply oversample or undersample to dataset indices.
 
         Args:

@@ -14,7 +14,6 @@ from trainer.api.client import SignaliumClient
 from trainer.api.exceptions import APIAuthenticationError, APINotFoundError
 from trainer.config.schema import APIConfig
 
-
 BASE_URL = "https://api.signalium.test"
 
 
@@ -69,6 +68,7 @@ def test_upload_metrics_success() -> None:
         status=200,
     )
     from trainer.api.models import UploadMetricsRequest
+
     client = _make_client()
     req = UploadMetricsRequest(run_id="run_1", epoch=1, metrics={"loss": 0.5})
     client.upload_metrics(req)  # Should not raise

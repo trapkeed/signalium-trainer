@@ -31,25 +31,25 @@ from __future__ import annotations
 import math
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Method constants
 # ---------------------------------------------------------------------------
 
 
 class NormMethod:
-    MIN_MAX   = "min_max"
-    Z_SCORE   = "z_score"
+    MIN_MAX = "min_max"
+    Z_SCORE = "z_score"
     PERCENTILE = "percentile"
-    RANK      = "rank_scaling"
-    ROBUST    = "robust_scaling"
-    CUSTOM    = "custom"
+    RANK = "rank_scaling"
+    ROBUST = "robust_scaling"
+    CUSTOM = "custom"
     ALL = [MIN_MAX, Z_SCORE, PERCENTILE, RANK, ROBUST, CUSTOM]
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _clamp01(v: float) -> float:
     return max(0.0, min(1.0, v))
@@ -97,10 +97,10 @@ class NormResult:
         direction: str,
         method: str,
     ) -> None:
-        self.raw_value  = raw_value
-        self.normalised = normalised   # [0, 1]
-        self.direction  = direction
-        self.method     = method
+        self.raw_value = raw_value
+        self.normalised = normalised  # [0, 1]
+        self.direction = direction
+        self.method = method
 
     @property
     def score_100(self) -> float:
@@ -152,12 +152,14 @@ class Normaliser:
             distribution: Reference values (required for z_score, percentile, rank, robust).
             custom_fn:    For NormMethod.CUSTOM — callable (value) → float in [0, 1].
         """
-        norm = self._apply(value, lo=lo, hi=hi, method=method,
-                           distribution=distribution, custom_fn=custom_fn)
+        norm = self._apply(
+            value, lo=lo, hi=hi, method=method, distribution=distribution, custom_fn=custom_fn
+        )
         if direction == "lower_is_better":
             norm = 1.0 - norm
-        return NormResult(raw_value=value, normalised=_clamp01(norm),
-                          direction=direction, method=method)
+        return NormResult(
+            raw_value=value, normalised=_clamp01(norm), direction=direction, method=method
+        )
 
     def normalise_batch(
         self,
@@ -175,8 +177,13 @@ class Normaliser:
         results = []
         for v in values:
             r = self.normalise(
-                v, lo=lo, hi=hi, method=method, direction=direction,
-                distribution=values, custom_fn=custom_fn,
+                v,
+                lo=lo,
+                hi=hi,
+                method=method,
+                direction=direction,
+                distribution=values,
+                custom_fn=custom_fn,
             )
             results.append(r)
         return results
@@ -215,9 +222,7 @@ class Normaliser:
             return 0.0
         return _clamp01((v - lo) / (hi - lo))
 
-    def _z_score(
-        self, v: float, distribution: Optional[List[float]]
-    ) -> float:
+    def _z_score(self, v: float, distribution: Optional[List[float]]) -> float:
         """Z-score normalisation: (v - μ) / σ, clamped to [-3, 3] → [0, 1]."""
         if not distribution or len(distribution) < 2:
             return 0.5
@@ -229,9 +234,7 @@ class Normaliser:
         # Map [-3, 3] → [0, 1]
         return _clamp01((z + 3.0) / 6.0)
 
-    def _percentile(
-        self, v: float, distribution: Optional[List[float]]
-    ) -> float:
+    def _percentile(self, v: float, distribution: Optional[List[float]]) -> float:
         """Rank fraction: fraction of distribution values ≤ v."""
         if not distribution:
             return 0.5
@@ -239,9 +242,7 @@ class Normaliser:
         rank = sum(1 for x in distribution if x <= v)
         return _clamp01(rank / n)
 
-    def _rank(
-        self, v: float, distribution: Optional[List[float]]
-    ) -> float:
+    def _rank(self, v: float, distribution: Optional[List[float]]) -> float:
         """Smooth rank scaling: rank (1-indexed) / n, interpolated."""
         if not distribution:
             return 0.5
@@ -255,9 +256,7 @@ class Normaliser:
                 return _clamp01(i / (n - 1))
         return 1.0
 
-    def _robust(
-        self, v: float, distribution: Optional[List[float]]
-    ) -> float:
+    def _robust(self, v: float, distribution: Optional[List[float]]) -> float:
         """Robust scaling: (v - median) / IQR, mapped to [0, 1]."""
         if not distribution or len(distribution) < 4:
             return 0.5
@@ -297,9 +296,12 @@ class CategoryNormaliser:
         """
         results: Dict[str, NormResult] = {}
         weighted_scores: List[Tuple[float, float]] = []  # (score, weight)
-        distribution = list(metric_values.values()) if method in (
-            NormMethod.Z_SCORE, NormMethod.PERCENTILE, NormMethod.RANK, NormMethod.ROBUST
-        ) else None
+        distribution = (
+            list(metric_values.values())
+            if method
+            in (NormMethod.Z_SCORE, NormMethod.PERCENTILE, NormMethod.RANK, NormMethod.ROBUST)
+            else None
+        )
 
         for defn in metric_definitions:
             raw = metric_values.get(defn.name)

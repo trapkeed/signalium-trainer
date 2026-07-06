@@ -10,6 +10,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import MarketRegime, clamp
@@ -77,18 +78,18 @@ class MarketRegimeEngine:
 
     def __init__(
         self,
-        adx_strong:   float = 40.0,
+        adx_strong: float = 40.0,
         adx_trending: float = 25.0,
-        adx_weak:     float = 15.0,
-        vol_extreme:  float = 4.0,
-        vol_high:     float = 2.5,
+        adx_weak: float = 15.0,
+        vol_extreme: float = 4.0,
+        vol_high: float = 2.5,
         vol_compress: float = 0.5,
     ) -> None:
-        self._adx_strong   = adx_strong
+        self._adx_strong = adx_strong
         self._adx_trending = adx_trending
-        self._adx_weak     = adx_weak
-        self._vol_extreme  = vol_extreme
-        self._vol_high     = vol_high
+        self._adx_weak = adx_weak
+        self._vol_extreme = vol_extreme
+        self._vol_high = vol_high
         self._vol_compress = vol_compress
 
     # ── Public API ─────────────────────────────────────────────────────────
@@ -108,29 +109,29 @@ class MarketRegimeEngine:
 
     def _classify(
         self,
-        inp:     MarketInput,
+        inp: MarketInput,
         signals: Dict,
     ) -> tuple:
         returns = inp.returns or []
-        closes  = inp.closes  or []
-        highs   = inp.highs   or []
-        lows    = inp.lows    or []
+        closes = inp.closes or []
+        highs = inp.highs or []
+        lows = inp.lows or []
         volumes = inp.volumes or []
 
         # Derived metrics
         current_vol = _stdev(returns[-20:]) if len(returns) >= 2 else 0.0
-        base_vol    = _stdev(returns[-60:]) if len(returns) >= 10 else max(current_vol, 1e-9)
-        vol_ratio   = current_vol / max(base_vol, 1e-9)
-        adx         = inp.adx
-        rsi         = inp.rsi
-        atr         = inp.atr
-        spread      = inp.spread
-        news        = inp.news_events or []
+        base_vol = _stdev(returns[-60:]) if len(returns) >= 10 else max(current_vol, 1e-9)
+        vol_ratio = current_vol / max(base_vol, 1e-9)
+        adx = inp.adx
+        rsi = inp.rsi
+        atr = inp.atr
+        spread = inp.spread
+        news = inp.news_events or []
 
-        signals["adx"]       = round(adx, 2)
+        signals["adx"] = round(adx, 2)
         signals["vol_ratio"] = round(vol_ratio, 3)
-        signals["rsi"]       = round(rsi, 2)
-        signals["spread"]    = round(spread, 6)
+        signals["rsi"] = round(rsi, 2)
+        signals["spread"] = round(spread, 6)
 
         # 1. Black Swan
         if vol_ratio > self._vol_extreme * 1.5 or (atr > 0 and spread > atr * 0.8):
@@ -175,7 +176,11 @@ class MarketRegimeEngine:
             # Expansion: ATR expanding?
             if len(inp.highs) >= 5 and len(inp.lows) >= 5:
                 recent_range = _mean([h - l for h, l in zip(highs[-5:], lows[-5:])])
-                older_range  = _mean([h - l for h, l in zip(highs[-10:-5], lows[-10:-5])]) if len(highs) >= 10 else recent_range
+                older_range = (
+                    _mean([h - l for h, l in zip(highs[-10:-5], lows[-10:-5])])
+                    if len(highs) >= 10
+                    else recent_range
+                )
                 if recent_range > older_range * 1.3:
                     return MarketRegime.EXPANSION, 0.75, "atr_expanding"
             return MarketRegime.TRENDING, 0.80, "adx_trending"
@@ -193,7 +198,11 @@ class MarketRegimeEngine:
         # 9. Compression — vol ratio OR absolute vol extremely low vs ATR
         abs_vol_atr = current_vol / max(inp.atr, 1e-9)
         if vol_ratio < self._vol_compress or abs_vol_atr < 0.05:
-            return MarketRegime.COMPRESSION, 0.74, f"vol_ratio={vol_ratio:.3f} abs_atr={abs_vol_atr:.4f}"
+            return (
+                MarketRegime.COMPRESSION,
+                0.74,
+                f"vol_ratio={vol_ratio:.3f} abs_atr={abs_vol_atr:.4f}",
+            )
 
         # 10. Range
         if adx < self._adx_weak:

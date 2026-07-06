@@ -31,21 +31,40 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Allowed environment-variable prefixes (non-sensitive)
 # ---------------------------------------------------------------------------
 
 _ALLOWED_ENV_PREFIXES: List[str] = [
-    "LANG", "LC_", "TZ", "PATH", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE",
-    "CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
-    "SIGNALIUM_", "TRAINER_", "TORCH_", "NCCL_",
-    "HOSTNAME", "SHELL", "TERM",
+    "LANG",
+    "LC_",
+    "TZ",
+    "PATH",
+    "PYTHONPATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "CUDA_VISIBLE_DEVICES",
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "SIGNALIUM_",
+    "TRAINER_",
+    "TORCH_",
+    "NCCL_",
+    "HOSTNAME",
+    "SHELL",
+    "TERM",
 ]
 
 _SENSITIVE_SUBSTRINGS: List[str] = [
-    "SECRET", "TOKEN", "PASSWORD", "PASSWD", "KEY", "CREDENTIAL",
-    "API_KEY", "AUTH", "PRIVATE", "CERT",
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "KEY",
+    "CREDENTIAL",
+    "API_KEY",
+    "AUTH",
+    "PRIVATE",
+    "CERT",
 ]
 
 
@@ -65,27 +84,39 @@ def _git_info() -> Dict[str, str]:
     """Try to read git commit hash and branch; return empty strings on failure."""
     info: Dict[str, str] = {"commit_hash": "", "branch": "", "repo_version": ""}
     try:
-        info["commit_hash"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["commit_hash"] = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     try:
-        info["branch"] = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["branch"] = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     try:
-        info["repo_version"] = subprocess.check_output(
-            ["git", "describe", "--tags", "--always"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["repo_version"] = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--always"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     return info
@@ -96,6 +127,7 @@ def _pytorch_info() -> Dict[str, str]:
     info: Dict[str, str] = {"pytorch_version": "", "cuda_version": ""}
     try:
         import torch  # type: ignore
+
         info["pytorch_version"] = torch.__version__
         if torch.cuda.is_available():
             info["cuda_version"] = torch.version.cuda or ""  # type: ignore[attr-defined]
@@ -107,11 +139,15 @@ def _pytorch_info() -> Dict[str, str]:
 def _gpu_info() -> str:
     """Try to read GPU model via nvidia-smi; return empty string on failure."""
     try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        out = (
+            subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
         return out.split("\n")[0].strip()
     except Exception:
         return ""
@@ -161,9 +197,7 @@ class EnvironmentSnapshot:
     """Complete environment snapshot for full experiment reproducibility."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Repository
     git_commit_hash: str = ""
@@ -222,6 +256,7 @@ class EnvironmentSnapshot:
     ) -> "EnvironmentSnapshot":
         """Return a copy with training duration and cost filled in."""
         from dataclasses import replace
+
         return replace(
             self,
             training_duration_seconds=duration_seconds,

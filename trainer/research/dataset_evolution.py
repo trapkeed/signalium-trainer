@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Dataset record
 # ---------------------------------------------------------------------------
@@ -83,12 +82,10 @@ class DatasetRecord:
     label_schema_version: str = ""
     data_quality_score: float = 0.0
     completeness: float = 1.0
-    status: str = "active"         # active / deprecated / retired
+    status: str = "active"  # active / deprecated / retired
     parent_version: Optional[str] = None
     changes_from_parent: str = ""
-    registered_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    registered_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -143,6 +140,7 @@ class DatasetRecord:
 @dataclass
 class DatasetQualityChange:
     """Recorded change in dataset quality between versions."""
+
     change_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     from_version: str = ""
     to_version: str = ""
@@ -152,9 +150,7 @@ class DatasetQualityChange:
     sample_delta: int = 0
     feature_delta: int = 0
     description: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -198,12 +194,8 @@ class DatasetEvolutionTracker:
             change = DatasetQualityChange(
                 from_version=record.parent_version,
                 to_version=record.version,
-                quality_delta=round(
-                    record.data_quality_score - parent.data_quality_score, 4
-                ),
-                completeness_delta=round(
-                    record.completeness - parent.completeness, 4
-                ),
+                quality_delta=round(record.data_quality_score - parent.data_quality_score, 4),
+                completeness_delta=round(record.completeness - parent.completeness, 4),
                 instrument_delta=record.n_instruments - parent.n_instruments,
                 sample_delta=record.n_samples - parent.n_samples,
                 feature_delta=record.n_features - parent.n_features,
@@ -259,10 +251,14 @@ class DatasetEvolutionTracker:
                 "completeness": self._datasets[v].completeness,
                 "registered_at": self._datasets[v].registered_at,
             }
-            for v in versions if v in self._datasets
+            for v in versions
+            if v in self._datasets
         ]
-        best = max(self._datasets.values(),
-                   key=lambda d: d.data_quality_score) if self._datasets else None
+        best = (
+            max(self._datasets.values(), key=lambda d: d.data_quality_score)
+            if self._datasets
+            else None
+        )
         return {
             "report_type": "dataset_evolution_report",
             "total_versions": len(self._datasets),

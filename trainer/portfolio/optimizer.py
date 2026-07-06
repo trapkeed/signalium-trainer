@@ -172,14 +172,16 @@ class PortfolioOptimizer:
             total = sum(weights.values())
             norm_w = {k: v / max(total, 1e-9) for k, v in weights.items()}
             metrics = self._scorer.score(active, norm_w, correlation_matrix)
-            frontier.append({
-                "point": i,
-                "risk_weight": round(risk_weight, 3),
-                "return_weight": round(return_weight, 3),
-                "expected_return": round(metrics.expected_return, 4),
-                "expected_volatility": round(metrics.expected_volatility, 4),
-                "expected_sharpe": round(metrics.expected_sharpe, 4),
-            })
+            frontier.append(
+                {
+                    "point": i,
+                    "risk_weight": round(risk_weight, 3),
+                    "return_weight": round(return_weight, 3),
+                    "expected_return": round(metrics.expected_return, 4),
+                    "expected_volatility": round(metrics.expected_volatility, 4),
+                    "expected_sharpe": round(metrics.expected_sharpe, 4),
+                }
+            )
         return frontier
 
     # ── Objective functions ────────────────────────────────────────────────
@@ -211,16 +213,16 @@ class PortfolioOptimizer:
         return metrics.expected_sharpe
 
     @staticmethod
-    def _renorm(weights: Dict[str, float], changed: str,
-                min_w: float, max_w: float) -> Dict[str, float]:
+    def _renorm(
+        weights: Dict[str, float], changed: str, min_w: float, max_w: float
+    ) -> Dict[str, float]:
         total = sum(weights.values())
         if total < 1e-9:
             n = len(weights)
             return {k: 1.0 / n for k in weights}
         return {k: max(min_w, min(max_w, v / total)) for k, v in weights.items()}
 
-    def _budget_feasible(self, weights: Dict[str, float],
-                          forecasts: List[ModelForecast]) -> bool:
+    def _budget_feasible(self, weights: Dict[str, float], forecasts: List[ModelForecast]) -> bool:
         result = self._budget_engine.check(weights, forecasts)
         return result.is_feasible()
 

@@ -26,7 +26,6 @@ import torch.nn.functional as F
 from trainer.losses.advanced import DistributionLoss, MultiStepBCELoss
 from trainer.models.quant_v1.config import MultiTaskLossConfig, RegressionLossType
 
-
 # ---------------------------------------------------------------------------
 # Regression loss helper
 # ---------------------------------------------------------------------------
@@ -131,13 +130,27 @@ class MultiTaskLossOutput:
         result: dict[str, float] = {"loss_total": self.total.item()}
         result["loss_direction"] = self.direction.item()
         _fields = [
-            "confidence", "expected_move", "stop_loss", "take_profit",
-            "holding_time", "tp_probability", "mfe", "mae_excursion",
-            "trade_efficiency", "reward_risk", "trade_survival",
-            "sl_resilience", "tp_achievability", "entry_quality",
-            "exit_quality", "market_stability", "trade_decay",
-            "profit_distribution", "loss_distribution",
-            "position_size_quality", "uncertainty",
+            "confidence",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+            "mfe",
+            "mae_excursion",
+            "trade_efficiency",
+            "reward_risk",
+            "trade_survival",
+            "sl_resilience",
+            "tp_achievability",
+            "entry_quality",
+            "exit_quality",
+            "market_stability",
+            "trade_decay",
+            "profit_distribution",
+            "loss_distribution",
+            "position_size_quality",
+            "uncertainty",
         ]
         for f in _fields:
             val: Optional[torch.Tensor] = getattr(self, f)

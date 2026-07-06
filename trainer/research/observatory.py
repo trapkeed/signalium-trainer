@@ -32,7 +32,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Deque, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Production snapshot
 # ---------------------------------------------------------------------------
@@ -41,6 +40,7 @@ from typing import Any, Deque, Dict, List, Optional
 @dataclass
 class ProductionSnapshot:
     """One production monitoring snapshot for a model."""
+
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     metrics: Dict[str, float] = field(default_factory=dict)
@@ -56,9 +56,7 @@ class ProductionSnapshot:
     calibration_error: float = 0.0
     regime: str = "unknown"
     n_predictions: int = 0
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -89,10 +87,11 @@ class ProductionSnapshot:
 @dataclass
 class SignalOutcome:
     """One recorded signal outcome for research analysis."""
+
     outcome_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
-    signal: str = "no_trade"       # buy / sell / no_trade
-    outcome: str = "neutral"       # profit / loss / neutral
+    signal: str = "no_trade"  # buy / sell / no_trade
+    outcome: str = "neutral"  # profit / loss / neutral
     pnl: float = 0.0
     confidence: float = 0.5
     regime: str = "unknown"
@@ -101,15 +100,15 @@ class SignalOutcome:
     entry_price: float = 0.0
     exit_price: float = 0.0
     holding_bars: int = 0
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @property
     def is_correct(self) -> bool:
-        return (self.signal == "buy" and self.outcome == "profit") or \
-               (self.signal == "sell" and self.outcome == "profit") or \
-               (self.signal == "no_trade" and self.outcome == "neutral")
+        return (
+            (self.signal == "buy" and self.outcome == "profit")
+            or (self.signal == "sell" and self.outcome == "profit")
+            or (self.signal == "no_trade" and self.outcome == "neutral")
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -138,6 +137,7 @@ class SignalOutcome:
 @dataclass
 class ValidationRecord:
     """One recorded validation result for research tracking."""
+
     record_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     model_version: str = ""
@@ -152,9 +152,7 @@ class ValidationRecord:
     label_version: str = ""
     n_samples: int = 0
     notes: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -200,30 +198,39 @@ class ResearchObservatory:
         self._validation_records: List[ValidationRecord] = []
         self._trade_stats: Dict[str, Dict[str, Any]] = {}
 
-    def record_production_snapshot(self, model_id: str,
-                                    metrics: Optional[Dict[str, float]] = None,
-                                    latency_ms: float = 0.0,
-                                    throughput_rps: float = 0.0,
-                                    cpu_pct: float = 0.0,
-                                    gpu_pct: float = 0.0,
-                                    memory_mb: float = 0.0,
-                                    avg_confidence: float = 0.5,
-                                    avg_uncertainty: float = 0.5,
-                                    signal_rate: float = 0.0,
-                                    accuracy: float = 0.0,
-                                    calibration_error: float = 0.0,
-                                    regime: str = "unknown",
-                                    n_predictions: int = 0) -> ProductionSnapshot:
+    def record_production_snapshot(
+        self,
+        model_id: str,
+        metrics: Optional[Dict[str, float]] = None,
+        latency_ms: float = 0.0,
+        throughput_rps: float = 0.0,
+        cpu_pct: float = 0.0,
+        gpu_pct: float = 0.0,
+        memory_mb: float = 0.0,
+        avg_confidence: float = 0.5,
+        avg_uncertainty: float = 0.5,
+        signal_rate: float = 0.0,
+        accuracy: float = 0.0,
+        calibration_error: float = 0.0,
+        regime: str = "unknown",
+        n_predictions: int = 0,
+    ) -> ProductionSnapshot:
         """Record one production monitoring snapshot."""
         snap = ProductionSnapshot(
             model_id=model_id,
             metrics=metrics or {},
-            latency_ms=latency_ms, throughput_rps=throughput_rps,
-            cpu_pct=cpu_pct, gpu_pct=gpu_pct, memory_mb=memory_mb,
-            avg_confidence=avg_confidence, avg_uncertainty=avg_uncertainty,
-            signal_rate=signal_rate, accuracy=accuracy,
+            latency_ms=latency_ms,
+            throughput_rps=throughput_rps,
+            cpu_pct=cpu_pct,
+            gpu_pct=gpu_pct,
+            memory_mb=memory_mb,
+            avg_confidence=avg_confidence,
+            avg_uncertainty=avg_uncertainty,
+            signal_rate=signal_rate,
+            accuracy=accuracy,
             calibration_error=calibration_error,
-            regime=regime, n_predictions=n_predictions,
+            regime=regime,
+            n_predictions=n_predictions,
         )
         if model_id not in self._snapshots:
             self._snapshots[model_id] = deque(maxlen=self.window)
@@ -232,19 +239,27 @@ class ResearchObservatory:
         self._all_snapshots[model_id].append(snap)
         return snap
 
-    def record_signal_outcome(self, model_id: str,
-                               signal: str = "no_trade",
-                               outcome: str = "neutral",
-                               pnl: float = 0.0,
-                               confidence: float = 0.5,
-                               regime: str = "unknown",
-                               instrument: str = "",
-                               timeframe: str = "") -> SignalOutcome:
+    def record_signal_outcome(
+        self,
+        model_id: str,
+        signal: str = "no_trade",
+        outcome: str = "neutral",
+        pnl: float = 0.0,
+        confidence: float = 0.5,
+        regime: str = "unknown",
+        instrument: str = "",
+        timeframe: str = "",
+    ) -> SignalOutcome:
         """Record one signal outcome for research analysis."""
         so = SignalOutcome(
-            model_id=model_id, signal=signal, outcome=outcome,
-            pnl=pnl, confidence=confidence, regime=regime,
-            instrument=instrument, timeframe=timeframe,
+            model_id=model_id,
+            signal=signal,
+            outcome=outcome,
+            pnl=pnl,
+            confidence=confidence,
+            regime=regime,
+            instrument=instrument,
+            timeframe=timeframe,
         )
         if model_id not in self._outcomes:
             self._outcomes[model_id] = deque(maxlen=self.window)
@@ -283,7 +298,8 @@ class ResearchObservatory:
             "n_profit": n_profit,
             "n_loss": n_loss,
             "signal_distribution": {
-                "buy": n_buy / n, "sell": n_sell / n,
+                "buy": n_buy / n,
+                "sell": n_sell / n,
                 "no_trade": n_no_trade / n,
             },
             "avg_pnl_per_trade": round(total_pnl / n, 6),
@@ -303,8 +319,10 @@ class ResearchObservatory:
             half = n // 2
             first_conf = sum(s.avg_confidence for s in snaps[:half]) / half
             second_conf = sum(s.avg_confidence for s in snaps[half:]) / (n - half)
-            conf_trend = "improving" if second_conf > first_conf + 0.02 else (
-                "declining" if second_conf < first_conf - 0.02 else "stable"
+            conf_trend = (
+                "improving"
+                if second_conf > first_conf + 0.02
+                else ("declining" if second_conf < first_conf - 0.02 else "stable")
             )
         else:
             conf_trend = "insufficient"
@@ -320,28 +338,18 @@ class ResearchObservatory:
 
     def get_observatory_report(self) -> Dict[str, Any]:
         """Generate full observatory report across all models."""
-        model_ids = list(set(list(self._snapshots.keys()) +
-                              list(self._outcomes.keys())))
+        model_ids = list(set(list(self._snapshots.keys()) + list(self._outcomes.keys())))
         return {
             "report_type": "observatory_report",
             "n_models_observed": len(model_ids),
             "n_validation_records": len(self._validation_records),
-            "production_trends": {
-                mid: self.get_production_trend(mid) for mid in self._snapshots
-            },
-            "signal_stats": {
-                mid: self.get_signal_stats(mid) for mid in self._outcomes
-            },
-            "total_snapshots": sum(
-                len(v) for v in self._all_snapshots.values()
-            ),
-            "total_outcomes": sum(
-                len(v) for v in self._all_outcomes.values()
-            ),
+            "production_trends": {mid: self.get_production_trend(mid) for mid in self._snapshots},
+            "signal_stats": {mid: self.get_signal_stats(mid) for mid in self._outcomes},
+            "total_snapshots": sum(len(v) for v in self._all_snapshots.values()),
+            "total_outcomes": sum(len(v) for v in self._all_outcomes.values()),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     @property
     def n_models(self) -> int:
-        return len(set(list(self._snapshots.keys()) +
-                        list(self._outcomes.keys())))
+        return len(set(list(self._snapshots.keys()) + list(self._outcomes.keys())))

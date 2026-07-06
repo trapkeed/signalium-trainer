@@ -130,9 +130,7 @@ class MultiTaskTrainingEngine:
             self._log_epoch(epoch, combined)
             self._step_scheduler(val_metrics.get("val_loss_total", float("inf")))
 
-            monitor_value = val_metrics.get(
-                self._config.checkpoint.monitor_metric, float("inf")
-            )
+            monitor_value = val_metrics.get(self._config.checkpoint.monitor_metric, float("inf"))
             self._checkpoint_manager.save(
                 epoch=epoch,
                 model=self._model,
@@ -157,9 +155,7 @@ class MultiTaskTrainingEngine:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _move_labels(
-        self, labels: dict[str, torch.Tensor]
-    ) -> dict[str, torch.Tensor]:
+    def _move_labels(self, labels: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Move all label tensors to the training device."""
         return {k: v.to(self._device, non_blocking=True) for k, v in labels.items()}
 
@@ -219,9 +215,7 @@ class MultiTaskTrainingEngine:
         return {f"train_{k}": v / n for k, v in accum.items()}
 
     @torch.no_grad()
-    def _validate_one_epoch(
-        self, epoch: int, loader: DataLoader
-    ) -> dict[str, float]:
+    def _validate_one_epoch(self, epoch: int, loader: DataLoader) -> dict[str, float]:
         self._model.eval()
 
         accum: dict[str, float] = {}
@@ -302,12 +296,11 @@ class MultiTaskTrainingEngine:
         if tp_prob_preds:
             try:
                 from sklearn.metrics import roc_auc_score
+
                 p_arr = torch.cat(tp_prob_preds).squeeze(-1).numpy()
                 t_arr = torch.cat(tp_prob_targets).numpy()
                 if t_arr.dim() > 0 and len(set(t_arr.tolist())) > 1:
-                    metrics["val_tp_prob_roc_auc"] = float(
-                        roc_auc_score(t_arr, p_arr)
-                    )
+                    metrics["val_tp_prob_roc_auc"] = float(roc_auc_score(t_arr, p_arr))
             except Exception:
                 pass
 
@@ -348,33 +341,48 @@ class MultiTaskTrainingEngine:
 
         if cfg.type == OptimizerType.ADAM:
             return torch.optim.Adam(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         if cfg.type == OptimizerType.ADAMW:
             return torch.optim.AdamW(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         if cfg.type == OptimizerType.SGD:
             return torch.optim.SGD(
-                params, lr=cfg.learning_rate, momentum=cfg.momentum,
+                params,
+                lr=cfg.learning_rate,
+                momentum=cfg.momentum,
                 weight_decay=cfg.weight_decay,
             )
         if cfg.type == OptimizerType.RMSPROP:
             return torch.optim.RMSprop(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
                 momentum=cfg.momentum,
             )
         if cfg.type == OptimizerType.ADAGRAD:
             return torch.optim.Adagrad(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
                 eps=cfg.eps,
             )
         if cfg.type == OptimizerType.ADAMAX:
             return torch.optim.Adamax(
-                params, lr=cfg.learning_rate, weight_decay=cfg.weight_decay,
-                betas=cfg.betas, eps=cfg.eps,
+                params,
+                lr=cfg.learning_rate,
+                weight_decay=cfg.weight_decay,
+                betas=cfg.betas,
+                eps=cfg.eps,
             )
         raise ValueError(f"Unknown optimizer type: {cfg.type}")
 
@@ -405,12 +413,13 @@ class MultiTaskTrainingEngine:
                 opt, T_max=cfg.T_max, eta_min=cfg.eta_min
             )
         if cfg.type == SchedulerType.STEP:
-            return torch.optim.lr_scheduler.StepLR(
-                opt, step_size=cfg.step_size, gamma=cfg.gamma
-            )
+            return torch.optim.lr_scheduler.StepLR(opt, step_size=cfg.step_size, gamma=cfg.gamma)
         if cfg.type == SchedulerType.REDUCE_ON_PLATEAU:
             return torch.optim.lr_scheduler.ReduceLROnPlateau(
-                opt, mode="min", patience=cfg.patience, factor=cfg.factor,
+                opt,
+                mode="min",
+                patience=cfg.patience,
+                factor=cfg.factor,
             )
         if cfg.type == SchedulerType.EXPONENTIAL:
             return torch.optim.lr_scheduler.ExponentialLR(opt, gamma=cfg.gamma)
@@ -420,7 +429,10 @@ class MultiTaskTrainingEngine:
             )
         if cfg.type == SchedulerType.LINEAR:
             return torch.optim.lr_scheduler.LinearLR(
-                opt, start_factor=0.01, end_factor=1.0, total_iters=cfg.T_max,
+                opt,
+                start_factor=0.01,
+                end_factor=1.0,
+                total_iters=cfg.T_max,
             )
         if cfg.type == SchedulerType.ONE_CYCLE:
             total_steps = cfg.total_steps if cfg.total_steps else cfg.T_max

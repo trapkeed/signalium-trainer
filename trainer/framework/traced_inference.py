@@ -167,13 +167,9 @@ class TracedInferenceAdapter:
         enabled_heads: list[str] = []
 
         if hasattr(self._adapter, "_model") or hasattr(self._adapter, "model"):
-            model = getattr(self._adapter, "_model", None) or getattr(
-                self._adapter, "model", None
-            )
+            model = getattr(self._adapter, "_model", None) or getattr(self._adapter, "model", None)
             if model is not None:
-                num_params = sum(
-                    p.numel() for p in model.parameters() if p.requires_grad
-                )
+                num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 if hasattr(model, "enabled_heads"):
                     enabled_heads = list(model.enabled_heads)
 

@@ -14,6 +14,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_types import DrawdownMode
@@ -25,21 +26,21 @@ class DrawdownManager:
 
     def __init__(
         self,
-        capital:           float = 100_000.0,
-        soft_limit:        float = 0.05,    # 5% drawdown → reduce risk
-        hard_limit:        float = 0.10,    # 10% → preservation mode
-        emergency_limit:   float = 0.20,    # 20% → lockdown
-        recovery_target:   float = 0.02,    # return to within 2% of peak
+        capital: float = 100_000.0,
+        soft_limit: float = 0.05,  # 5% drawdown → reduce risk
+        hard_limit: float = 0.10,  # 10% → preservation mode
+        emergency_limit: float = 0.20,  # 20% → lockdown
+        recovery_target: float = 0.02,  # return to within 2% of peak
     ):
-        self._capital       = capital
-        self._soft          = soft_limit
-        self._hard          = hard_limit
-        self._emergency     = emergency_limit
-        self._recovery_tgt  = recovery_target
+        self._capital = capital
+        self._soft = soft_limit
+        self._hard = hard_limit
+        self._emergency = emergency_limit
+        self._recovery_tgt = recovery_target
 
-        self._peak          = capital
-        self._current       = capital
-        self._mode          = DrawdownMode.NORMAL
+        self._peak = capital
+        self._current = capital
+        self._mode = DrawdownMode.NORMAL
         self._events: List[DrawdownEvent] = []
         self._active_event: Optional[DrawdownEvent] = None
 
@@ -62,14 +63,16 @@ class DrawdownManager:
             self._close_event(equity)
 
         if self._mode != prev_mode:
-            logger.warning(f"DrawdownManager: mode changed {prev_mode.value} → {self._mode.value} "
-                           f"drawdown={drawdown:.2%}")
+            logger.warning(
+                f"DrawdownManager: mode changed {prev_mode.value} → {self._mode.value} "
+                f"drawdown={drawdown:.2%}"
+            )
 
         return {
-            "equity":   round(equity, 2),
-            "peak":     round(self._peak, 2),
+            "equity": round(equity, 2),
+            "peak": round(self._peak, 2),
             "drawdown": round(drawdown, 4),
-            "mode":     self._mode.value,
+            "mode": self._mode.value,
             "risk_multiplier": round(self._risk_multiplier(), 4),
         }
 
@@ -86,7 +89,11 @@ class DrawdownManager:
         if drawdown >= self._soft:
             return DrawdownMode.SOFT_LIMIT
         # Recovery mode: was in hard/emergency, now improving
-        if self._mode in (DrawdownMode.HARD_LIMIT, DrawdownMode.EMERGENCY_LOCKDOWN, DrawdownMode.PRESERVATION):
+        if self._mode in (
+            DrawdownMode.HARD_LIMIT,
+            DrawdownMode.EMERGENCY_LOCKDOWN,
+            DrawdownMode.PRESERVATION,
+        ):
             if drawdown > self._recovery_tgt:
                 return DrawdownMode.RECOVERY
             return DrawdownMode.NORMAL
@@ -95,11 +102,11 @@ class DrawdownManager:
     def _risk_multiplier(self) -> float:
         """Return a multiplier for position sizing based on current mode."""
         mult = {
-            DrawdownMode.NORMAL:             1.00,
-            DrawdownMode.SOFT_LIMIT:         0.75,
-            DrawdownMode.HARD_LIMIT:         0.50,
-            DrawdownMode.PRESERVATION:       0.25,
-            DrawdownMode.RECOVERY:           0.60,
+            DrawdownMode.NORMAL: 1.00,
+            DrawdownMode.SOFT_LIMIT: 0.75,
+            DrawdownMode.HARD_LIMIT: 0.50,
+            DrawdownMode.PRESERVATION: 0.25,
+            DrawdownMode.RECOVERY: 0.60,
             DrawdownMode.EMERGENCY_LOCKDOWN: 0.00,
         }
         return mult.get(self._mode, 1.0)
@@ -108,10 +115,10 @@ class DrawdownManager:
 
     def _open_event(self, equity: float, drawdown: float) -> None:
         event = DrawdownEvent(
-            peak     = self._peak,
-            trough   = equity,
-            drawdown = drawdown,
-            mode     = self._mode,
+            peak=self._peak,
+            trough=equity,
+            drawdown=drawdown,
+            mode=self._mode,
         )
         self._active_event = event
         self._events.append(event)
@@ -119,7 +126,7 @@ class DrawdownManager:
 
     def _close_event(self, equity: float) -> None:
         if self._active_event:
-            self._active_event.end_ts   = time.time()
+            self._active_event.end_ts = time.time()
             self._active_event.recovered = True
             logger.info(f"DrawdownManager: closed event recovered at equity={equity:.2f}")
             self._active_event = None
@@ -166,12 +173,12 @@ class DrawdownManager:
 
     def stats(self) -> Dict:
         return {
-            "peak":            round(self._peak, 2),
-            "current":         round(self._current, 2),
-            "drawdown":        round(self._drawdown_frac(), 4),
-            "mode":            self._mode.value,
+            "peak": round(self._peak, 2),
+            "current": round(self._current, 2),
+            "drawdown": round(self._drawdown_frac(), 4),
+            "mode": self._mode.value,
             "risk_multiplier": round(self._risk_multiplier(), 4),
-            "total_events":    len(self._events),
-            "max_dd_ever":     round(self.max_drawdown(), 4),
-            "can_trade":       self.can_trade(),
+            "total_events": len(self._events),
+            "max_dd_ever": round(self.max_drawdown(), 4),
+            "can_trade": self.can_trade(),
         }

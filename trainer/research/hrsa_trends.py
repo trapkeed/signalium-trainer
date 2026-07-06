@@ -31,7 +31,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # TrendPoint — one data point in a trend series
 # ---------------------------------------------------------------------------
@@ -62,9 +61,9 @@ class TrendPoint:
 class TrendResult:
     series_name: str
     n: int
-    slope: float           # pts per period (positive = improving)
+    slope: float  # pts per period (positive = improving)
     intercept: float
-    trend_label: str       # "improving" | "stable" | "declining"
+    trend_label: str  # "improving" | "stable" | "declining"
     r_squared: float
     mean: float
     std: float
@@ -101,9 +100,7 @@ class HRSARegressionAlert:
     peak_value: float
     drop: float
     severity: str
-    detected_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    detected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -119,6 +116,7 @@ class HRSARegressionAlert:
 # ---------------------------------------------------------------------------
 # Linear regression helper
 # ---------------------------------------------------------------------------
+
 
 def _linreg(xs: List[float], ys: List[float]) -> Tuple[float, float, float]:
     """Return (slope, intercept, r_squared)."""
@@ -142,7 +140,7 @@ def _std(values: List[float]) -> float:
         return 0.0
     mean = sum(values) / len(values)
     var = sum((v - mean) ** 2 for v in values) / len(values)
-    return var ** 0.5
+    return var**0.5
 
 
 def _trend_label(slope: float, threshold: float = 0.5) -> str:
@@ -226,9 +224,7 @@ class HRSATrendEngine:
     # Trend analysis
     # ------------------------------------------------------------------
 
-    def _analyse_series(
-        self, name: str, points: List[TrendPoint], window: int = 0
-    ) -> TrendResult:
+    def _analyse_series(self, name: str, points: List[TrendPoint], window: int = 0) -> TrendResult:
         pts = points[-window:] if window > 0 else points
         values = [p.value for p in pts]
         if not values:
@@ -302,9 +298,7 @@ class HRSATrendEngine:
             latest = comp_vals[-1]
             drop = peak - latest
             if drop >= threshold:
-                alerts.append(HRSARegressionAlert(
-                    "composite", latest, peak, drop, _severity(drop)
-                ))
+                alerts.append(HRSARegressionAlert("composite", latest, peak, drop, _severity(drop)))
 
         # Category regressions
         for cat, pts in self._category_series.items():
@@ -316,9 +310,7 @@ class HRSATrendEngine:
             latest = vals[-1]
             drop = peak - latest
             if drop >= threshold:
-                alerts.append(HRSARegressionAlert(
-                    cat, latest, peak, drop, _severity(drop)
-                ))
+                alerts.append(HRSARegressionAlert(cat, latest, peak, drop, _severity(drop)))
 
         return alerts
 

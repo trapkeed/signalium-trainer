@@ -35,29 +35,36 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Entry type
 # ---------------------------------------------------------------------------
 
 
 class KnowledgeEntryType:
-    FINDING              = "finding"
-    SUCCESSFUL_EXPERIMENT= "successful_experiment"
-    FAILED_EXPERIMENT    = "failed_experiment"
-    LESSON_LEARNED       = "lesson_learned"
-    FEATURE_HISTORY      = "feature_history"
-    MODEL_HISTORY        = "model_history"
-    DEPLOYMENT_HISTORY   = "deployment_history"
-    VALIDATION_HISTORY   = "validation_history"
-    MARKET_OBSERVATION   = "market_observation"
-    DATASET_NOTE         = "dataset_note"
-    RESEARCH_NOTE        = "research_note"
+    FINDING = "finding"
+    SUCCESSFUL_EXPERIMENT = "successful_experiment"
+    FAILED_EXPERIMENT = "failed_experiment"
+    LESSON_LEARNED = "lesson_learned"
+    FEATURE_HISTORY = "feature_history"
+    MODEL_HISTORY = "model_history"
+    DEPLOYMENT_HISTORY = "deployment_history"
+    VALIDATION_HISTORY = "validation_history"
+    MARKET_OBSERVATION = "market_observation"
+    DATASET_NOTE = "dataset_note"
+    RESEARCH_NOTE = "research_note"
 
     ALL = [
-        FINDING, SUCCESSFUL_EXPERIMENT, FAILED_EXPERIMENT, LESSON_LEARNED,
-        FEATURE_HISTORY, MODEL_HISTORY, DEPLOYMENT_HISTORY, VALIDATION_HISTORY,
-        MARKET_OBSERVATION, DATASET_NOTE, RESEARCH_NOTE,
+        FINDING,
+        SUCCESSFUL_EXPERIMENT,
+        FAILED_EXPERIMENT,
+        LESSON_LEARNED,
+        FEATURE_HISTORY,
+        MODEL_HISTORY,
+        DEPLOYMENT_HISTORY,
+        VALIDATION_HISTORY,
+        MARKET_OBSERVATION,
+        DATASET_NOTE,
+        RESEARCH_NOTE,
     ]
 
 
@@ -94,11 +101,9 @@ class KnowledgeEntry:
     model_id: Optional[str] = None
     feature_name: Optional[str] = None
     dataset_version: Optional[str] = None
-    impact_level: str = "medium"   # low / medium / high
+    impact_level: str = "medium"  # low / medium / high
     author: str = "system"
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     references: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -149,20 +154,30 @@ class KnowledgeBase:
             self._entries.pop(oldest_id, None)
         return entry.entry_id
 
-    def log(self, entry_type: str, title: str, body: str = "",
-            tags: Optional[List[str]] = None,
-            model_id: Optional[str] = None,
-            feature_name: Optional[str] = None,
-            dataset_version: Optional[str] = None,
-            impact_level: str = "medium",
-            author: str = "system",
-            metadata: Optional[Dict[str, Any]] = None) -> KnowledgeEntry:
+    def log(
+        self,
+        entry_type: str,
+        title: str,
+        body: str = "",
+        tags: Optional[List[str]] = None,
+        model_id: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        dataset_version: Optional[str] = None,
+        impact_level: str = "medium",
+        author: str = "system",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> KnowledgeEntry:
         """Convenience method to create and add an entry."""
         entry = KnowledgeEntry(
-            entry_type=entry_type, title=title, body=body,
-            tags=tags or [], model_id=model_id,
-            feature_name=feature_name, dataset_version=dataset_version,
-            impact_level=impact_level, author=author,
+            entry_type=entry_type,
+            title=title,
+            body=body,
+            tags=tags or [],
+            model_id=model_id,
+            feature_name=feature_name,
+            dataset_version=dataset_version,
+            impact_level=impact_level,
+            author=author,
             metadata=metadata or {},
         )
         self.add(entry)
@@ -171,17 +186,19 @@ class KnowledgeBase:
     def get(self, entry_id: str) -> Optional[KnowledgeEntry]:
         return self._entries.get(entry_id)
 
-    def query(self, entry_type: Optional[str] = None,
-              model_id: Optional[str] = None,
-              feature_name: Optional[str] = None,
-              dataset_version: Optional[str] = None,
-              tag: Optional[str] = None,
-              impact_level: Optional[str] = None,
-              limit: int = 50,
-              most_recent_first: bool = True) -> List[Dict[str, Any]]:
+    def query(
+        self,
+        entry_type: Optional[str] = None,
+        model_id: Optional[str] = None,
+        feature_name: Optional[str] = None,
+        dataset_version: Optional[str] = None,
+        tag: Optional[str] = None,
+        impact_level: Optional[str] = None,
+        limit: int = 50,
+        most_recent_first: bool = True,
+    ) -> List[Dict[str, Any]]:
         """Query entries with optional filters."""
-        entries = [self._entries[eid] for eid in self._order
-                   if eid in self._entries]
+        entries = [self._entries[eid] for eid in self._order if eid in self._entries]
         if entry_type:
             entries = [e for e in entries if e.entry_type == entry_type]
         if model_id:
@@ -225,12 +242,10 @@ class KnowledgeBase:
         return self.query(entry_type=KnowledgeEntryType.LESSON_LEARNED, limit=limit)
 
     def successful_experiments(self, limit: int = 50) -> List[Dict[str, Any]]:
-        return self.query(entry_type=KnowledgeEntryType.SUCCESSFUL_EXPERIMENT,
-                          limit=limit)
+        return self.query(entry_type=KnowledgeEntryType.SUCCESSFUL_EXPERIMENT, limit=limit)
 
     def failed_experiments(self, limit: int = 50) -> List[Dict[str, Any]]:
-        return self.query(entry_type=KnowledgeEntryType.FAILED_EXPERIMENT,
-                          limit=limit)
+        return self.query(entry_type=KnowledgeEntryType.FAILED_EXPERIMENT, limit=limit)
 
     def high_impact_entries(self, limit: int = 20) -> List[Dict[str, Any]]:
         return self.query(impact_level="high", limit=limit)
@@ -247,9 +262,7 @@ class KnowledgeBase:
         by_impact: Dict[str, int] = {}
         for entry in self._entries.values():
             by_type[entry.entry_type] = by_type.get(entry.entry_type, 0) + 1
-            by_impact[entry.impact_level] = (
-                by_impact.get(entry.impact_level, 0) + 1
-            )
+            by_impact[entry.impact_level] = by_impact.get(entry.impact_level, 0) + 1
         return {
             "report_type": "knowledge_report",
             "total_entries": len(self._entries),
@@ -262,8 +275,7 @@ class KnowledgeBase:
         }
 
     def export_all(self) -> List[Dict[str, Any]]:
-        return [self._entries[eid].to_dict() for eid in self._order
-                if eid in self._entries]
+        return [self._entries[eid].to_dict() for eid in self._order if eid in self._entries]
 
     @property
     def n_entries(self) -> int:

@@ -142,73 +142,91 @@ class RiskBudgetEngine:
         items: List[BudgetItem] = []
         fc_map = {f.instrument: f for f in forecasts}
 
-        gross = gross_exposure if gross_exposure is not None else sum(abs(w) for w in weights.values())
+        gross = (
+            gross_exposure if gross_exposure is not None else sum(abs(w) for w in weights.values())
+        )
 
         # Total gross
-        items.append(BudgetItem(
-            name="max_total_gross",
-            limit=self.config.max_total_gross,
-            current=gross,
-            unit="gross_exposure",
-        ))
+        items.append(
+            BudgetItem(
+                name="max_total_gross",
+                limit=self.config.max_total_gross,
+                current=gross,
+                unit="gross_exposure",
+            )
+        )
 
         # Per-instrument
         for sym, w in weights.items():
             if abs(w) > 0:
-                items.append(BudgetItem(
-                    name=f"instrument:{sym}",
-                    limit=self.config.max_single_instrument,
-                    current=abs(w) / max(gross, 1e-9),
-                    unit="fraction_of_gross",
-                ))
+                items.append(
+                    BudgetItem(
+                        name=f"instrument:{sym}",
+                        limit=self.config.max_single_instrument,
+                        current=abs(w) / max(gross, 1e-9),
+                        unit="fraction_of_gross",
+                    )
+                )
 
         # Currency exposures
         if by_currency:
             usd_exp = abs(by_currency.get("USD", 0.0))
-            items.append(BudgetItem(
-                name="max_usd_exposure",
-                limit=self.config.max_usd_exposure,
-                current=usd_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_usd_exposure",
+                    limit=self.config.max_usd_exposure,
+                    current=usd_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
             gold_exp = abs(by_currency.get("XAU", 0.0))
-            items.append(BudgetItem(
-                name="max_gold_exposure",
-                limit=self.config.max_gold_exposure,
-                current=gold_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_gold_exposure",
+                    limit=self.config.max_gold_exposure,
+                    current=gold_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
 
         # Asset class exposures
         if by_asset_class:
             crypto_exp = abs(by_asset_class.get(AssetClass.CRYPTO.value, 0.0))
-            items.append(BudgetItem(
-                name="max_crypto_exposure",
-                limit=self.config.max_crypto_exposure,
-                current=crypto_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_crypto_exposure",
+                    limit=self.config.max_crypto_exposure,
+                    current=crypto_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
             index_exp = abs(by_asset_class.get(AssetClass.INDEX.value, 0.0))
-            items.append(BudgetItem(
-                name="max_index_exposure",
-                limit=self.config.max_index_exposure,
-                current=index_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_index_exposure",
+                    limit=self.config.max_index_exposure,
+                    current=index_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
             forex_exp = abs(by_asset_class.get(AssetClass.FOREX.value, 0.0))
-            items.append(BudgetItem(
-                name="max_forex_exposure",
-                limit=self.config.max_forex_exposure,
-                current=forex_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_forex_exposure",
+                    limit=self.config.max_forex_exposure,
+                    current=forex_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
             commodity_exp = abs(by_asset_class.get(AssetClass.COMMODITY.value, 0.0))
-            items.append(BudgetItem(
-                name="max_commodity_exposure",
-                limit=self.config.max_commodity_exposure,
-                current=commodity_exp / max(gross, 1e-9),
-                unit="fraction_of_gross",
-            ))
+            items.append(
+                BudgetItem(
+                    name="max_commodity_exposure",
+                    limit=self.config.max_commodity_exposure,
+                    current=commodity_exp / max(gross, 1e-9),
+                    unit="fraction_of_gross",
+                )
+            )
 
         breaches = [i for i in items if i.status == BudgetStatus.BREACH]
         warnings = [i for i in items if i.status == BudgetStatus.WARNING]
@@ -218,8 +236,9 @@ class RiskBudgetEngine:
         elif warnings:
             overall = BudgetStatus.WARNING
 
-        return BudgetCheckResult(items=items, overall_status=overall,
-                                  breaches=breaches, warnings=warnings)
+        return BudgetCheckResult(
+            items=items, overall_status=overall, breaches=breaches, warnings=warnings
+        )
 
     def scale_to_budget(
         self,

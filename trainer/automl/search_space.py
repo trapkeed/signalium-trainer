@@ -28,7 +28,6 @@ import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-
 # ---------------------------------------------------------------------------
 # Base parameter
 # ---------------------------------------------------------------------------
@@ -104,16 +103,22 @@ class FloatParameter(BaseParameter):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "type": "float", "name": self.name,
-            "low": self.low, "high": self.high,
-            "log": self.log, "step": self.step,
+            "type": "float",
+            "name": self.name,
+            "low": self.low,
+            "high": self.high,
+            "log": self.log,
+            "step": self.step,
         }
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "FloatParameter":
         return FloatParameter(
-            name=d["name"], low=d["low"], high=d["high"],
-            log=d.get("log", False), step=d.get("step"),
+            name=d["name"],
+            low=d["low"],
+            high=d["high"],
+            log=d.get("log", False),
+            step=d.get("step"),
         )
 
 
@@ -159,16 +164,22 @@ class IntParameter(BaseParameter):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "type": "int", "name": self.name,
-            "low": self.low, "high": self.high,
-            "step": self.step, "log": self.log,
+            "type": "int",
+            "name": self.name,
+            "low": self.low,
+            "high": self.high,
+            "step": self.step,
+            "log": self.log,
         }
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "IntParameter":
         return IntParameter(
-            name=d["name"], low=d["low"], high=d["high"],
-            step=d.get("step", 1), log=d.get("log", False),
+            name=d["name"],
+            low=d["low"],
+            high=d["high"],
+            step=d.get("step", 1),
+            log=d.get("log", False),
         )
 
 
@@ -207,14 +218,17 @@ class CategoricalParameter(BaseParameter):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "type": "categorical", "name": self.name,
-            "choices": self.choices, "weights": self.weights,
+            "type": "categorical",
+            "name": self.name,
+            "choices": self.choices,
+            "weights": self.weights,
         }
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "CategoricalParameter":
         return CategoricalParameter(
-            name=d["name"], choices=d["choices"],
+            name=d["name"],
+            choices=d["choices"],
             weights=d.get("weights"),
         )
 
@@ -251,8 +265,10 @@ class ConditionalParameter(BaseParameter):
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "type": "conditional", "name": self.name,
-            "parent": self.parent, "parent_value": self.parent_value,
+            "type": "conditional",
+            "name": self.name,
+            "parent": self.parent,
+            "parent_value": self.parent_value,
             "parameter": self.parameter.to_dict() if self.parameter else None,
             "default": self.default,
         }
@@ -263,8 +279,10 @@ class ConditionalParameter(BaseParameter):
         if d.get("parameter"):
             param = BaseParameter.from_dict(d["parameter"])
         return ConditionalParameter(
-            name=d["name"], parent=d["parent"],
-            parent_value=d["parent_value"], parameter=param,
+            name=d["name"],
+            parent=d["parent"],
+            parent_value=d["parent_value"],
+            parameter=param,
             default=d.get("default"),
         )
 
@@ -318,6 +336,7 @@ class SearchSpace:
         ``product(min(choices, max_per_param))`` configurations.
         """
         import itertools
+
         param_values: List[List[Any]] = []
         param_names: List[str] = []
         for name, param in self._params.items():
@@ -384,27 +403,53 @@ def build_standard_space() -> SearchSpace:
     space.add(IntParameter("embedding_size", low=32, high=256, step=32))
     space.add(IntParameter("num_layers", low=1, high=6))
     space.add(IntParameter("sequence_length", low=20, high=200, step=20))
-    space.add(CategoricalParameter("backbone", choices=["lstm", "gru", "transformer", "temporal_cnn", "hybrid_lstm_cnn", "hybrid_transformer_cnn"]))
-    space.add(CategoricalParameter("fusion_strategy", choices=["concat", "attention", "mean", "max"]))
+    space.add(
+        CategoricalParameter(
+            "backbone",
+            choices=[
+                "lstm",
+                "gru",
+                "transformer",
+                "temporal_cnn",
+                "hybrid_lstm_cnn",
+                "hybrid_transformer_cnn",
+            ],
+        )
+    )
+    space.add(
+        CategoricalParameter("fusion_strategy", choices=["concat", "attention", "mean", "max"])
+    )
     space.add(FloatParameter("gradient_clipping", low=0.1, high=5.0))
     space.add(IntParameter("warmup_steps", low=0, high=1000, step=100))
-    space.add(CategoricalParameter("scheduler", choices=["cosine", "linear", "constant", "onecycle", "plateau"]))
+    space.add(
+        CategoricalParameter(
+            "scheduler", choices=["cosine", "linear", "constant", "onecycle", "plateau"]
+        )
+    )
     space.add(CategoricalParameter("activation", choices=["relu", "gelu", "silu", "tanh"]))
-    space.add(CategoricalParameter("normalization", choices=["layer_norm", "batch_norm", "group_norm", "none"]))
+    space.add(
+        CategoricalParameter(
+            "normalization", choices=["layer_norm", "batch_norm", "group_norm", "none"]
+        )
+    )
 
-    space.add(ConditionalParameter(
-        name="attention_heads",
-        parent="backbone",
-        parent_value="transformer",
-        parameter=IntParameter("attention_heads", low=2, high=16, step=2),
-        default=4,
-    ))
-    space.add(ConditionalParameter(
-        name="momentum",
-        parent="optimizer",
-        parent_value="sgd",
-        parameter=FloatParameter("momentum", low=0.8, high=0.99),
-        default=0.9,
-    ))
+    space.add(
+        ConditionalParameter(
+            name="attention_heads",
+            parent="backbone",
+            parent_value="transformer",
+            parameter=IntParameter("attention_heads", low=2, high=16, step=2),
+            default=4,
+        )
+    )
+    space.add(
+        ConditionalParameter(
+            name="momentum",
+            parent="optimizer",
+            parent_value="sgd",
+            parameter=FloatParameter("momentum", low=0.8, high=0.99),
+            default=0.9,
+        )
+    )
 
     return space

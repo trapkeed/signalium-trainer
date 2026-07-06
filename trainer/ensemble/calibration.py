@@ -29,7 +29,6 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Calibration report
 # ---------------------------------------------------------------------------
@@ -72,10 +71,7 @@ class CalibrationReport:
             "entity_id": self.entity_id,
             "ece": self.ece,
             "mce": self.mce,
-            "reliability": [
-                {"bin_mid": b, "accuracy": a, "n": n}
-                for b, a, n in self.reliability
-            ],
+            "reliability": [{"bin_mid": b, "accuracy": a, "n": n} for b, a, n in self.reliability],
             "avg_confidence": self.avg_confidence,
             "avg_accuracy": self.avg_accuracy,
             "overconfidence": self.overconfidence,
@@ -103,8 +99,7 @@ class ExpertCalibrator:
         self._data: Dict[str, List[Tuple[float, int]]] = {}
         self._temperatures: Dict[str, float] = {}
 
-    def update(self, entity_id: str, predicted_prob: float,
-               true_label: int) -> None:
+    def update(self, entity_id: str, predicted_prob: float, true_label: int) -> None:
         """Record one calibration sample.
 
         Args:
@@ -114,13 +109,11 @@ class ExpertCalibrator:
         """
         if entity_id not in self._data:
             self._data[entity_id] = []
-        self._data[entity_id].append((
-            max(0.0, min(1.0, float(predicted_prob))),
-            int(bool(true_label))
-        ))
+        self._data[entity_id].append(
+            (max(0.0, min(1.0, float(predicted_prob))), int(bool(true_label)))
+        )
 
-    def update_batch(self, entity_id: str,
-                     samples: List[Tuple[float, int]]) -> None:
+    def update_batch(self, entity_id: str, samples: List[Tuple[float, int]]) -> None:
         """Record multiple calibration samples at once."""
         for prob, label in samples:
             self.update(entity_id, prob, label)
@@ -176,9 +169,7 @@ class ExpertCalibrator:
             n_bins=self.n_bins,
         )
 
-    def fit_temperature(self, entity_id: str,
-                        n_steps: int = 50,
-                        lr: float = 0.1) -> float:
+    def fit_temperature(self, entity_id: str, n_steps: int = 50, lr: float = 0.1) -> float:
         """Fit temperature scaling via gradient descent on cross-entropy.
 
         Returns the optimal temperature T such that

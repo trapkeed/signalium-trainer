@@ -32,7 +32,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # ResearchExporter
 # ---------------------------------------------------------------------------
@@ -110,12 +109,12 @@ class ResearchExporter:
                     "top_features": node.feature_snapshot.top_features(5),
                     "feature_set_hash": node.feature_snapshot.feature_set_hash,
                 }
-                if node.feature_snapshot else None
+                if node.feature_snapshot
+                else None
             ),
             "model": node.model_snapshot.to_dict() if node.model_snapshot else None,
             "validation": (
-                node.validation_snapshot.summary()
-                if node.validation_snapshot else None
+                node.validation_snapshot.summary() if node.validation_snapshot else None
             ),
             "cost": cost.to_dict() if cost else None,
             "timeline_events": [e.to_dict() for e in events],
@@ -403,8 +402,13 @@ class ResearchExporter:
 
 
 def _repro_distribution(scores: List[float]) -> Dict[str, int]:
-    dist: Dict[str, int] = {"A (≥90%)": 0, "B (75-89%)": 0,
-                            "C (55-74%)": 0, "D (35-54%)": 0, "F (<35%)": 0}
+    dist: Dict[str, int] = {
+        "A (≥90%)": 0,
+        "B (75-89%)": 0,
+        "C (55-74%)": 0,
+        "D (35-54%)": 0,
+        "F (<35%)": 0,
+    }
     for s in scores:
         if s >= 0.90:
             dist["A (≥90%)"] += 1

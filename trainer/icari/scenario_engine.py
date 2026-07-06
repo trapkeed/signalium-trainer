@@ -16,18 +16,32 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_types import ScenarioType, SCENARIO_FACTORS
 from trainer.icari.icari_models import ScenarioResult
 
-
 # Currency sensitivity: how each scenario affects different currency pairs
 _CCY_SENSITIVITY = {
-    ScenarioType.STRONG_USD:  {"USD": -0.5, "EUR": +0.3, "GBP": +0.2, "JPY": +0.4, "AUD": +0.3, "NZD": +0.3},
-    ScenarioType.WEAK_USD:    {"USD": +0.5, "EUR": -0.3, "GBP": -0.2, "JPY": -0.4, "AUD": -0.3, "NZD": -0.3},
-    ScenarioType.RISK_OFF:    {"JPY": -0.5, "CHF": -0.4, "USD": -0.3, "AUD": +0.5, "NZD": +0.4},
-    ScenarioType.RISK_ON:     {"AUD": -0.4, "NZD": -0.3, "JPY": +0.4, "CHF": +0.3},
+    ScenarioType.STRONG_USD: {
+        "USD": -0.5,
+        "EUR": +0.3,
+        "GBP": +0.2,
+        "JPY": +0.4,
+        "AUD": +0.3,
+        "NZD": +0.3,
+    },
+    ScenarioType.WEAK_USD: {
+        "USD": +0.5,
+        "EUR": -0.3,
+        "GBP": -0.2,
+        "JPY": -0.4,
+        "AUD": -0.3,
+        "NZD": -0.3,
+    },
+    ScenarioType.RISK_OFF: {"JPY": -0.5, "CHF": -0.4, "USD": -0.3, "AUD": +0.5, "NZD": +0.4},
+    ScenarioType.RISK_ON: {"AUD": -0.4, "NZD": -0.3, "JPY": +0.4, "CHF": +0.3},
     ScenarioType.CRYPTO_CRASH: {"BTC": -0.8, "ETH": -0.7},
     ScenarioType.COMMODITY_SHOCK: {"OIL": -0.4, "GOLD": -0.2, "SILVER": -0.25},
 }
@@ -41,10 +55,10 @@ class ScenarioEngine:
 
     def run(
         self,
-        scenario:   ScenarioType,
-        weights:    Dict[str, float],        # instrument → portfolio weight
-        volatilities: Dict[str, float],      # instrument → daily vol
-        currencies: Optional[Dict[str, str]] = None,   # instrument → base CCY
+        scenario: ScenarioType,
+        weights: Dict[str, float],  # instrument → portfolio weight
+        volatilities: Dict[str, float],  # instrument → daily vol
+        currencies: Optional[Dict[str, str]] = None,  # instrument → base CCY
     ) -> ScenarioResult:
         """Run a single scenario simulation."""
         factors = SCENARIO_FACTORS.get(scenario, (0.0, 1.0, 1.0))
@@ -53,7 +67,7 @@ class ScenarioEngine:
         # Instrument-level impacts
         instrument_impacts: Dict[str, float] = {}
         for ins, w in weights.items():
-            base_vol  = volatilities.get(ins, 0.01)
+            base_vol = volatilities.get(ins, 0.01)
             stressed_vol = base_vol * vol_factor
 
             # Start with scenario return factor
@@ -67,7 +81,7 @@ class ScenarioEngine:
 
             # Liquidity adjustment: illiquid assets hit harder
             if liq_factor < 0.50:
-                impact *= (1.0 + (1.0 - liq_factor) * 0.5)
+                impact *= 1.0 + (1.0 - liq_factor) * 0.5
 
             instrument_impacts[ins] = round(impact, 4)
 
@@ -76,7 +90,7 @@ class ScenarioEngine:
 
         # Stressed VaR: scale base VaR by vol_factor
         avg_weight = 1.0 / max(len(weights), 1)
-        avg_vol    = sum(volatilities.get(ins, 0.01) for ins in weights) / max(len(weights), 1)
+        avg_vol = sum(volatilities.get(ins, 0.01) for ins in weights) / max(len(weights), 1)
         portfolio_var = avg_vol * vol_factor * 1.645 * sum(abs(w) for w in weights.values())
 
         # Max drawdown estimate under scenario
@@ -90,23 +104,25 @@ class ScenarioEngine:
         recs = self._recommendations(scenario, portfolio_return, resilience, liq_factor)
 
         result = ScenarioResult(
-            scenario          = scenario,
-            portfolio_return  = round(portfolio_return, 4),
-            portfolio_var     = round(portfolio_var, 4),
-            max_drawdown      = round(max_dd, 4),
-            resilience_score  = round(resilience, 4),
-            instrument_impacts = instrument_impacts,
-            recommendations   = recs,
+            scenario=scenario,
+            portfolio_return=round(portfolio_return, 4),
+            portfolio_var=round(portfolio_var, 4),
+            max_drawdown=round(max_dd, 4),
+            resilience_score=round(resilience, 4),
+            instrument_impacts=instrument_impacts,
+            recommendations=recs,
         )
 
-        logger.debug(f"ScenarioEngine: {scenario.value} return={portfolio_return:.4f} resilience={resilience:.4f}")
+        logger.debug(
+            f"ScenarioEngine: {scenario.value} return={portfolio_return:.4f} resilience={resilience:.4f}"
+        )
         return result
 
     def run_all(
         self,
-        weights:      Dict[str, float],
+        weights: Dict[str, float],
         volatilities: Dict[str, float],
-        currencies:   Optional[Dict[str, str]] = None,
+        currencies: Optional[Dict[str, str]] = None,
     ) -> List[ScenarioResult]:
         """Run all 11 scenarios and return results sorted by resilience (ascending)."""
         results = [self.run(s, weights, volatilities, currencies) for s in ScenarioType]
@@ -115,9 +131,9 @@ class ScenarioEngine:
 
     def worst_case(
         self,
-        weights:      Dict[str, float],
+        weights: Dict[str, float],
         volatilities: Dict[str, float],
-        currencies:   Optional[Dict[str, str]] = None,
+        currencies: Optional[Dict[str, str]] = None,
     ) -> ScenarioResult:
         """Return the scenario with the lowest resilience."""
         results = self.run_all(weights, volatilities, currencies)
@@ -128,22 +144,22 @@ class ScenarioEngine:
             return {}
         avg = sum(r.resilience_score for r in results) / len(results)
         worst = min(results, key=lambda r: r.resilience_score)
-        best  = max(results, key=lambda r: r.resilience_score)
+        best = max(results, key=lambda r: r.resilience_score)
         return {
             "average_resilience": round(avg, 4),
-            "worst_scenario":     worst.scenario.value,
-            "worst_resilience":   round(worst.resilience_score, 4),
-            "best_scenario":      best.scenario.value,
-            "best_resilience":    round(best.resilience_score, 4),
-            "total_scenarios":    len(results),
+            "worst_scenario": worst.scenario.value,
+            "worst_resilience": round(worst.resilience_score, 4),
+            "best_scenario": best.scenario.value,
+            "best_resilience": round(best.resilience_score, 4),
+            "total_scenarios": len(results),
         }
 
     @staticmethod
     def _recommendations(
-        scenario:        ScenarioType,
-        port_return:     float,
-        resilience:      float,
-        liq_factor:      float,
+        scenario: ScenarioType,
+        port_return: float,
+        resilience: float,
+        liq_factor: float,
     ) -> List[str]:
         recs = []
         if resilience < 0.70:

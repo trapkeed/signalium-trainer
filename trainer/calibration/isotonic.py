@@ -91,8 +91,7 @@ class IsotonicCalibration:
 
         probs_np = probs.detach().cpu().numpy()
         calibrated = np.stack(
-            [self._calibrators[c].predict(probs_np[:, c])
-             for c in range(self._num_classes)],
+            [self._calibrators[c].predict(probs_np[:, c]) for c in range(self._num_classes)],
             axis=1,
         ).astype(np.float32)
 

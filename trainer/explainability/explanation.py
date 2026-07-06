@@ -39,7 +39,6 @@ from trainer.explainability.attribution import (
 from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.stream_analysis import StreamContribution, StreamContributionAnalyzer
 
-
 # ---------------------------------------------------------------------------
 # PredictionExplanation — result container
 # ---------------------------------------------------------------------------
@@ -85,7 +84,11 @@ class PredictionExplanation:
 
         Uses plain ASCII so the output is safe for any terminal or log file.
         """
-        label = ["BUY", "SELL", "NO_TRADE"][self.target_class] if self.target_class < 3 else str(self.target_class)
+        label = (
+            ["BUY", "SELL", "NO_TRADE"][self.target_class]
+            if self.target_class < 3
+            else str(self.target_class)
+        )
         lines = [
             f"=== Prediction Explanation  class={self.target_class} ({label})"
             f"  method={self.method} ===",
@@ -351,9 +354,13 @@ class ExplainabilityEngine:
             level = "high" if (ep + al) > 0.5 else "low"
             parts = [f"Prediction uncertainty is {level} (epistemic={ep:.3f}, aleatoric={al:.3f})."]
             if ep > 0.3:
-                parts.append("Model has limited knowledge of this region — consider reducing position size.")
+                parts.append(
+                    "Model has limited knowledge of this region — consider reducing position size."
+                )
             if al > 0.3:
-                parts.append("High aleatoric noise — market conditions are inherently unpredictable here.")
+                parts.append(
+                    "High aleatoric noise — market conditions are inherently unpredictable here."
+                )
             return " ".join(parts)
         except Exception:
             return None

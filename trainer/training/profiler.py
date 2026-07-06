@@ -32,7 +32,6 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Result dataclasses
 # ---------------------------------------------------------------------------
@@ -257,9 +256,10 @@ class TrainingProfiler:
         epoch_minutes = (avg_ms_per_batch / 1000) * epoch_steps_estimate / 60
 
         logger.info(
-            "Training speed: {:.1f} batches/sec, {:.0f} samples/sec, "
-            "{:.1f} min/epoch estimate",
-            batches_per_sec, samples_per_sec, epoch_minutes,
+            "Training speed: {:.1f} batches/sec, {:.0f} samples/sec, " "{:.1f} min/epoch estimate",
+            batches_per_sec,
+            samples_per_sec,
+            epoch_minutes,
         )
         return TrainingSpeedResult(
             batches_per_sec=batches_per_sec,
@@ -292,9 +292,7 @@ class TrainingProfiler:
             ``InferenceSpeedResult``.
         """
         self._model.eval()
-        x = torch.zeros(
-            batch_size, *input_shape, device=self._device
-        )
+        x = torch.zeros(batch_size, *input_shape, device=self._device)
 
         latencies_ms: list[float] = []
         _warmup = min(20, n_runs // 5)
@@ -325,7 +323,11 @@ class TrainingProfiler:
         logger.info(
             "Inference: {:.3f} ms/sample | p50={:.3f} p95={:.3f} p99={:.3f} | "
             "{:.0f} samples/sec",
-            ms_per_sample, p50, p95, p99, samples_per_sec,
+            ms_per_sample,
+            p50,
+            p95,
+            p99,
+            samples_per_sec,
         )
         return InferenceSpeedResult(
             ms_per_sample=ms_per_sample,
@@ -379,9 +381,13 @@ class TrainingProfiler:
 
         logger.info(
             "GPU memory: peak={:.1f} MB, current={:.1f} MB, reserved={:.1f} MB",
-            peak, alloc, reserved,
+            peak,
+            alloc,
+            reserved,
         )
-        return GPUMemoryResult(peak_mb=peak, allocated_mb=alloc, reserved_mb=reserved, available=True)
+        return GPUMemoryResult(
+            peak_mb=peak, allocated_mb=alloc, reserved_mb=reserved, available=True
+        )
 
     # ------------------------------------------------------------------
     # Model size
@@ -402,7 +408,9 @@ class TrainingProfiler:
 
         logger.info(
             "Model size: {:,} total params ({:,} trainable) | ~{:.2f} MB",
-            total, trainable, estimated_mb,
+            total,
+            trainable,
+            estimated_mb,
         )
         return ModelSizeResult(
             total_params=total,
@@ -424,10 +432,12 @@ class TrainingProfiler:
         """
         try:
             import psutil, os
+
             proc = psutil.Process(os.getpid())
             rss_mb = proc.memory_info().rss / 1e6
         except ImportError:
             import resource
+
             rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e3
 
         return CPUMemoryResult(rss_mb=rss_mb)

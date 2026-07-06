@@ -30,7 +30,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Deque, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Regime snapshot
 # ---------------------------------------------------------------------------
@@ -39,6 +38,7 @@ from typing import Any, Deque, Dict, List, Optional
 @dataclass
 class RegimeSnapshot:
     """One market regime observation for an instrument/timeframe pair."""
+
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     instrument: str = ""
     timeframe: str = ""
@@ -52,9 +52,7 @@ class RegimeSnapshot:
     spread_normalized: float = 1.0
     macro_indicator: str = ""
     notes: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -83,11 +81,12 @@ class RegimeSnapshot:
 @dataclass
 class EvolutionDetection:
     """One detected market structural change."""
+
     detection_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     instrument: str = ""
     timeframe: str = ""
-    change_type: str = ""       # volatility_shift, trend_change, liquidity_change, etc.
-    severity: str = "low"       # low / medium / high
+    change_type: str = ""  # volatility_shift, trend_change, liquidity_change, etc.
+    severity: str = "low"  # low / medium / high
     description: str = ""
     baseline_value: float = 0.0
     current_value: float = 0.0
@@ -95,9 +94,7 @@ class EvolutionDetection:
     regime_before: str = ""
     regime_after: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -133,11 +130,14 @@ class MarketEvolutionMonitor:
         liquidity_shift_threshold: Magnitude for liquidity change detection.
     """
 
-    def __init__(self, baseline_window: int = 100,
-                 recent_window: int = 20,
-                 volatility_shift_threshold: float = 0.05,
-                 trend_shift_threshold: float = 0.15,
-                 liquidity_shift_threshold: float = 0.20) -> None:
+    def __init__(
+        self,
+        baseline_window: int = 100,
+        recent_window: int = 20,
+        volatility_shift_threshold: float = 0.05,
+        trend_shift_threshold: float = 0.15,
+        liquidity_shift_threshold: float = 0.20,
+    ) -> None:
         self.baseline_window = baseline_window
         self.recent_window = recent_window
         self.vol_threshold = volatility_shift_threshold
@@ -150,21 +150,29 @@ class MarketEvolutionMonitor:
     def _key(self, instrument: str, timeframe: str) -> str:
         return f"{instrument}:{timeframe}"
 
-    def record_regime_snapshot(self, instrument: str, timeframe: str,
-                                regime: str = "unknown",
-                                volatility: float = 0.0,
-                                trend_strength: float = 0.0,
-                                liquidity_score: float = 0.5,
-                                session: str = "",
-                                correlation_score: float = 0.0,
-                                volume_normalized: float = 1.0,
-                                spread_normalized: float = 1.0,
-                                macro_indicator: str = "") -> RegimeSnapshot:
+    def record_regime_snapshot(
+        self,
+        instrument: str,
+        timeframe: str,
+        regime: str = "unknown",
+        volatility: float = 0.0,
+        trend_strength: float = 0.0,
+        liquidity_score: float = 0.5,
+        session: str = "",
+        correlation_score: float = 0.0,
+        volume_normalized: float = 1.0,
+        spread_normalized: float = 1.0,
+        macro_indicator: str = "",
+    ) -> RegimeSnapshot:
         """Record one market regime observation."""
         snap = RegimeSnapshot(
-            instrument=instrument, timeframe=timeframe, regime=regime,
-            volatility=volatility, trend_strength=trend_strength,
-            liquidity_score=liquidity_score, session=session,
+            instrument=instrument,
+            timeframe=timeframe,
+            regime=regime,
+            volatility=volatility,
+            trend_strength=trend_strength,
+            liquidity_score=liquidity_score,
+            session=session,
             correlation_score=correlation_score,
             volume_normalized=volume_normalized,
             spread_normalized=spread_normalized,
@@ -179,8 +187,7 @@ class MarketEvolutionMonitor:
         self._all_snapshots[key].append(snap)
         return snap
 
-    def detect_evolution(self, instrument: str, timeframe: str
-                          ) -> List[EvolutionDetection]:
+    def detect_evolution(self, instrument: str, timeframe: str) -> List[EvolutionDetection]:
         """Detect structural changes for an instrument/timeframe pair.
 
         Returns a list of EvolutionDetection objects if changes are detected.
@@ -193,8 +200,8 @@ class MarketEvolutionMonitor:
         if n < min_required:
             return []
 
-        baseline = buf[:n - self.recent_window]
-        recent = buf[-self.recent_window:]
+        baseline = buf[: n - self.recent_window]
+        recent = buf[-self.recent_window :]
         detections = []
 
         def _mean(vals):
@@ -205,7 +212,8 @@ class MarketEvolutionMonitor:
         if abs(r_vol - b_vol) > self.vol_threshold:
             severity = "high" if abs(r_vol - b_vol) > self.vol_threshold * 2 else "medium"
             d = EvolutionDetection(
-                instrument=instrument, timeframe=timeframe,
+                instrument=instrument,
+                timeframe=timeframe,
                 change_type="volatility_shift",
                 severity=severity,
                 description=(
@@ -224,12 +232,11 @@ class MarketEvolutionMonitor:
         if abs(r_trend - b_trend) > self.trend_threshold:
             severity = "high" if abs(r_trend - b_trend) > self.trend_threshold * 2 else "medium"
             d = EvolutionDetection(
-                instrument=instrument, timeframe=timeframe,
+                instrument=instrument,
+                timeframe=timeframe,
                 change_type="trend_persistence_change",
                 severity=severity,
-                description=(
-                    f"Trend persistence shifted from {b_trend:.3f} to {r_trend:.3f}"
-                ),
+                description=(f"Trend persistence shifted from {b_trend:.3f} to {r_trend:.3f}"),
                 baseline_value=round(b_trend, 4),
                 current_value=round(r_trend, 4),
                 change_magnitude=round(abs(r_trend - b_trend), 4),
@@ -241,12 +248,11 @@ class MarketEvolutionMonitor:
         r_liq = _mean([s.liquidity_score for s in recent])
         if abs(r_liq - b_liq) > self.liquidity_threshold:
             d = EvolutionDetection(
-                instrument=instrument, timeframe=timeframe,
+                instrument=instrument,
+                timeframe=timeframe,
                 change_type="liquidity_change",
                 severity="medium",
-                description=(
-                    f"Liquidity shifted from {b_liq:.3f} to {r_liq:.3f}"
-                ),
+                description=(f"Liquidity shifted from {b_liq:.3f} to {r_liq:.3f}"),
                 baseline_value=round(b_liq, 4),
                 current_value=round(r_liq, 4),
                 change_magnitude=round(abs(r_liq - b_liq), 4),
@@ -261,15 +267,12 @@ class MarketEvolutionMonitor:
             lost_regimes = b_regimes - r_regimes
             if new_regimes or lost_regimes:
                 d = EvolutionDetection(
-                    instrument=instrument, timeframe=timeframe,
+                    instrument=instrument,
+                    timeframe=timeframe,
                     change_type="regime_transition",
                     severity="high",
-                    description=(
-                        f"Regime transition: new={new_regimes}, "
-                        f"lost={lost_regimes}"
-                    ),
-                    metadata={"new_regimes": list(new_regimes),
-                               "lost_regimes": list(lost_regimes)},
+                    description=(f"Regime transition: new={new_regimes}, " f"lost={lost_regimes}"),
+                    metadata={"new_regimes": list(new_regimes), "lost_regimes": list(lost_regimes)},
                 )
                 detections.append(d)
                 self._detections.append(d)
@@ -284,19 +287,14 @@ class MarketEvolutionMonitor:
             all_detections.extend(self.detect_evolution(instrument, timeframe))
         return all_detections
 
-    def evolution_report(self, instrument: str,
-                          timeframe: Optional[str] = None) -> Dict[str, Any]:
+    def evolution_report(self, instrument: str, timeframe: Optional[str] = None) -> Dict[str, Any]:
         """Generate evolution report for an instrument."""
-        keys = [k for k in self._buffers
-                if k.startswith(f"{instrument}:")]
+        keys = [k for k in self._buffers if k.startswith(f"{instrument}:")]
         if timeframe:
             keys = [self._key(instrument, timeframe)]
-        total_snaps = sum(
-            len(self._all_snapshots.get(k, [])) for k in keys
-        )
+        total_snaps = sum(len(self._all_snapshots.get(k, [])) for k in keys)
         instrument_detections = [
-            d.to_dict() for d in self._detections
-            if d.instrument == instrument
+            d.to_dict() for d in self._detections if d.instrument == instrument
         ]
         return {
             "instrument": instrument,
@@ -319,9 +317,7 @@ class MarketEvolutionMonitor:
             "total_detections": len(self._detections),
             "by_type": by_type,
             "by_severity": by_severity,
-            "recent_detections": [
-                d.to_dict() for d in self._detections[-10:]
-            ],
+            "recent_detections": [d.to_dict() for d in self._detections[-10:]],
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 

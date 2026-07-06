@@ -52,7 +52,6 @@ from typing import Any, Callable, Optional, Type
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # EncoderPlugin — metadata wrapper around a registered class
 # ---------------------------------------------------------------------------
@@ -78,9 +77,7 @@ class EncoderPlugin:
     encoder_class: type
     description: str = ""
     status: str = "future"
-    registered_at: str = field(
-        default_factory=lambda: datetime.now(tz=timezone.utc).isoformat()
-    )
+    registered_at: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
     tags: list[str] = field(default_factory=list)
 
     def instantiate(self, **kwargs: Any) -> Any:
@@ -162,6 +159,7 @@ class PluginRegistry:
             class MyEncoder(BaseExternalEncoder):
                 ...
         """
+
         def decorator(encoder_class: type) -> type:
             if name in cls._plugins:
                 raise ValueError(
@@ -183,6 +181,7 @@ class PluginRegistry:
                 f"({encoder_class.__name__}) [status={status}]"
             )
             return encoder_class
+
         return decorator
 
     @classmethod
@@ -257,8 +256,7 @@ class PluginRegistry:
         if name not in cls._plugins:
             available = sorted(cls._plugins.keys())
             raise KeyError(
-                f"PluginRegistry: no plugin named {name!r}. "
-                f"Registered plugins: {available}"
+                f"PluginRegistry: no plugin named {name!r}. " f"Registered plugins: {available}"
             )
         return cls._plugins[name]
 
@@ -277,9 +275,7 @@ class PluginRegistry:
         Returns:
             Sorted list of matching plugin names.
         """
-        return sorted(
-            name for name, p in cls._plugins.items() if p.status == status
-        )
+        return sorted(name for name, p in cls._plugins.items() if p.status == status)
 
     @classmethod
     def describe(cls, name: str) -> dict[str, Any]:

@@ -54,16 +54,18 @@ class VisualizationDataBuilder:
         """
         series = []
         for fold in folds:
-            series.append({
-                "fold": fold.fold_index,
-                "train_start": fold.train_start,
-                "train_end": fold.train_end,
-                "val_start": fold.val_start,
-                "val_end": fold.val_end,
-                "test_start": fold.test_start if fold.has_test else None,
-                "test_end": fold.test_end if fold.has_test else None,
-                "strategy": fold.strategy,
-            })
+            series.append(
+                {
+                    "fold": fold.fold_index,
+                    "train_start": fold.train_start,
+                    "train_end": fold.train_end,
+                    "val_start": fold.val_start,
+                    "val_end": fold.val_end,
+                    "test_start": fold.test_start if fold.has_test else None,
+                    "test_end": fold.test_end if fold.has_test else None,
+                    "strategy": fold.strategy,
+                }
+            )
         return {
             "chart_type": "walk_forward_timeline",
             "folds": series,
@@ -120,8 +122,16 @@ class VisualizationDataBuilder:
         instruments = sorted(multi_asset_result.results.keys())
         timeframes = sorted(
             set(tf for tf_map in multi_asset_result.results.values() for tf in tf_map),
-            key=lambda tf: {"1M": 1, "5M": 2, "15M": 3, "30M": 4,
-                            "1H": 5, "4H": 6, "1D": 7, "1W": 8}.get(tf, 99),
+            key=lambda tf: {
+                "1M": 1,
+                "5M": 2,
+                "15M": 3,
+                "30M": 4,
+                "1H": 5,
+                "4H": 6,
+                "1D": 7,
+                "1W": 8,
+            }.get(tf, 99),
         )
 
         matrix: list[list[Optional[float]]] = []
@@ -164,6 +174,7 @@ class VisualizationDataBuilder:
         """
         try:
             import torch
+
             if hasattr(probs, "cpu"):
                 p = probs.cpu().float().numpy()
                 y = labels.cpu().long().numpy()
@@ -262,8 +273,9 @@ class VisualizationDataBuilder:
         values = [float(f.get(metric, 0.0)) for f in fold_metrics]
         n = len(values)
         trend_direction = (
-            "improving" if n > 2 and values[-1] > values[0] else
-            "declining" if n > 2 and values[-1] < values[0] else "stable"
+            "improving"
+            if n > 2 and values[-1] > values[0]
+            else "declining" if n > 2 and values[-1] < values[0] else "stable"
         )
         return {
             "chart_type": "performance_trend",

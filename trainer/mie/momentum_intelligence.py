@@ -9,6 +9,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import MomentumState, clamp
@@ -39,10 +40,10 @@ class MomentumIntelligenceEngine:
 
     def __init__(
         self,
-        fast_period: int   = 5,
-        slow_period: int   = 20,
-        rsi_ob:      float = 70.0,
-        rsi_os:      float = 30.0,
+        fast_period: int = 5,
+        slow_period: int = 20,
+        rsi_ob: float = 70.0,
+        rsi_os: float = 30.0,
     ) -> None:
         self._fast = fast_period
         self._slow = slow_period
@@ -53,11 +54,11 @@ class MomentumIntelligenceEngine:
 
     def analyse(self, inp: MarketInput) -> MomentumResult:
         returns = inp.returns or []
-        strength     = self._momentum_strength(returns)
+        strength = self._momentum_strength(returns)
         acceleration = self._momentum_acceleration(returns)
-        rsi_signal   = (inp.rsi - 50.0) / 50.0   # -1 to +1
+        rsi_signal = (inp.rsi - 50.0) / 50.0  # -1 to +1
 
-        state   = self._classify_state(strength, acceleration, inp.rsi)
+        state = self._classify_state(strength, acceleration, inp.rsi)
         quality = self._compute_quality(state, strength, inp.rsi)
 
         logger.debug(
@@ -75,10 +76,10 @@ class MomentumIntelligenceEngine:
 
     def _momentum_strength(self, returns: List[float]) -> float:
         """Exponentially-weighted return over fast period."""
-        window = returns[-self._fast:] if len(returns) >= self._fast else returns
+        window = returns[-self._fast :] if len(returns) >= self._fast else returns
         if not window:
             return 0.0
-        weights = [2 ** i for i in range(len(window))]
+        weights = [2**i for i in range(len(window))]
         total_w = sum(weights)
         return sum(r * w for r, w in zip(window, weights)) / total_w
 
@@ -86,15 +87,15 @@ class MomentumIntelligenceEngine:
         """Difference of two fast-period momentum windows (second derivative)."""
         if len(returns) < self._fast * 2:
             return 0.0
-        recent = self._momentum_strength(returns[-self._fast:])
-        prior  = self._momentum_strength(returns[-self._fast * 2: -self._fast])
+        recent = self._momentum_strength(returns[-self._fast :])
+        prior = self._momentum_strength(returns[-self._fast * 2 : -self._fast])
         return recent - prior
 
     def _classify_state(
         self,
-        strength:     float,
+        strength: float,
         acceleration: float,
-        rsi:          float,
+        rsi: float,
     ) -> MomentumState:
         abs_str = abs(strength)
         if abs_str < 0.0001:
@@ -110,16 +111,16 @@ class MomentumIntelligenceEngine:
 
     def _compute_quality(
         self,
-        state:    MomentumState,
+        state: MomentumState,
         strength: float,
-        rsi:      float,
+        rsi: float,
     ) -> float:
         base: Dict[MomentumState, float] = {  # type: ignore[type-arg]
             MomentumState.ACCELERATING: 85.0,
-            MomentumState.STEADY:       70.0,
+            MomentumState.STEADY: 70.0,
             MomentumState.DECELERATING: 45.0,
-            MomentumState.REVERSING:    25.0,
-            MomentumState.FLAT:         20.0,
+            MomentumState.REVERSING: 25.0,
+            MomentumState.FLAT: 20.0,
         }
         score = base.get(state, 50.0)
         # Overbought/oversold RSI reduces quality (mean-reversion risk)

@@ -35,7 +35,6 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
@@ -249,29 +248,34 @@ class ResearchDatabase:
                 entry_dict.get("author", "system"),
                 json.dumps(entry_dict.get("references", [])),
                 json.dumps(entry_dict.get("metadata", {})),
-                entry_dict.get("created_at",
-                                datetime.now(timezone.utc).isoformat()),
+                entry_dict.get("created_at", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return eid
 
-    def list_knowledge_entries(self, entry_type: Optional[str] = None,
-                                model_id: Optional[str] = None,
-                                impact_level: Optional[str] = None,
-                                limit: int = 100) -> List[Dict[str, Any]]:
+    def list_knowledge_entries(
+        self,
+        entry_type: Optional[str] = None,
+        model_id: Optional[str] = None,
+        impact_level: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if entry_type:
-            wheres.append("entry_type = ?"); vals.append(entry_type)
+            wheres.append("entry_type = ?")
+            vals.append(entry_type)
         if model_id:
-            wheres.append("model_id = ?"); vals.append(model_id)
+            wheres.append("model_id = ?")
+            vals.append(model_id)
         if impact_level:
-            wheres.append("impact_level = ?"); vals.append(impact_level)
+            wheres.append("impact_level = ?")
+            vals.append(impact_level)
         where_str = f"WHERE {' AND '.join(wheres)}" if wheres else ""
         vals.append(limit)
         rows = self._conn.execute(
-            f"SELECT * FROM research_findings {where_str} "
-            f"ORDER BY created_at DESC LIMIT ?", vals
+            f"SELECT * FROM research_findings {where_str} " f"ORDER BY created_at DESC LIMIT ?",
+            vals,
         ).fetchall()
         return [self._unpack_finding(dict(r)) for r in rows]
 
@@ -305,18 +309,19 @@ class ResearchDatabase:
                 obs_dict.get("predictive_contribution", 0.0),
                 obs_dict.get("dataset_version", ""),
                 obs_dict.get("model_version", ""),
-                obs_dict.get("timestamp",
-                              datetime.now(timezone.utc).isoformat()),
+                obs_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return oid
 
-    def list_feature_observations(self, feature_name: str,
-                                   limit: int = 100) -> List[Dict[str, Any]]:
+    def list_feature_observations(
+        self, feature_name: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM feature_lifecycle WHERE feature_name = ? "
-            "ORDER BY timestamp DESC LIMIT ?", (feature_name, limit)
+            "ORDER BY timestamp DESC LIMIT ?",
+            (feature_name, limit),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -355,31 +360,33 @@ class ResearchDatabase:
                 rec_dict.get("status", "active"),
                 rec_dict.get("parent_version"),
                 rec_dict.get("changes_from_parent", ""),
-                rec_dict.get("registered_at",
-                              datetime.now(timezone.utc).isoformat()),
+                rec_dict.get("registered_at", datetime.now(timezone.utc).isoformat()),
                 json.dumps(rec_dict.get("metadata", {})),
             ),
         )
         self._conn.commit()
         return did
 
-    def list_datasets(self, status: Optional[str] = None,
-                       limit: int = 50) -> List[Dict[str, Any]]:
+    def list_datasets(self, status: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
         if status:
             rows = self._conn.execute(
                 "SELECT * FROM dataset_evolution WHERE status = ? "
-                "ORDER BY registered_at DESC LIMIT ?", (status, limit)
+                "ORDER BY registered_at DESC LIMIT ?",
+                (status, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM dataset_evolution ORDER BY registered_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM dataset_evolution ORDER BY registered_at DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
             d = dict(r)
-            for k in ("timeframes_json", "instruments_json",
-                       "regimes_covered_json", "metadata_json"):
+            for k in (
+                "timeframes_json",
+                "instruments_json",
+                "regimes_covered_json",
+                "metadata_json",
+            ):
                 val = d.pop(k, "[]")
                 key = k.replace("_json", "")
                 d[key] = json.loads(val or ("[]" if k != "metadata_json" else "{}"))
@@ -409,24 +416,24 @@ class ResearchDatabase:
                 json.dumps(batch_dict.get("class_distribution", {})),
                 batch_dict.get("dataset_version", ""),
                 batch_dict.get("notes", ""),
-                batch_dict.get("timestamp",
-                                datetime.now(timezone.utc).isoformat()),
+                batch_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return bid
 
-    def list_label_batches(self, label_version: Optional[str] = None,
-                            limit: int = 100) -> List[Dict[str, Any]]:
+    def list_label_batches(
+        self, label_version: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         if label_version:
             rows = self._conn.execute(
                 "SELECT * FROM label_quality WHERE label_version = ? "
-                "ORDER BY timestamp DESC LIMIT ?", (label_version, limit)
+                "ORDER BY timestamp DESC LIMIT ?",
+                (label_version, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM label_quality ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM label_quality ORDER BY timestamp DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
@@ -459,26 +466,26 @@ class ResearchDatabase:
                 snap_dict.get("correlation_score", 0.0),
                 snap_dict.get("macro_indicator", ""),
                 json.dumps(snap_dict.get("detection", {})),
-                snap_dict.get("timestamp",
-                               datetime.now(timezone.utc).isoformat()),
+                snap_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return sid
 
-    def list_market_snapshots(self, instrument: Optional[str] = None,
-                               timeframe: Optional[str] = None,
-                               limit: int = 100) -> List[Dict[str, Any]]:
+    def list_market_snapshots(
+        self, instrument: Optional[str] = None, timeframe: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if instrument:
-            wheres.append("instrument = ?"); vals.append(instrument)
+            wheres.append("instrument = ?")
+            vals.append(instrument)
         if timeframe:
-            wheres.append("timeframe = ?"); vals.append(timeframe)
+            wheres.append("timeframe = ?")
+            vals.append(timeframe)
         where_str = f"WHERE {' AND '.join(wheres)}" if wheres else ""
         vals.append(limit)
         rows = self._conn.execute(
-            f"SELECT * FROM market_evolution {where_str} "
-            f"ORDER BY timestamp DESC LIMIT ?", vals
+            f"SELECT * FROM market_evolution {where_str} " f"ORDER BY timestamp DESC LIMIT ?", vals
         ).fetchall()
         result = []
         for r in rows:
@@ -510,8 +517,7 @@ class ResearchDatabase:
                 rec_dict.get("confidence", 0.5),
                 rec_dict.get("status", "pending"),
                 json.dumps(rec_dict.get("context", {})),
-                rec_dict.get("created_at",
-                              datetime.now(timezone.utc).isoformat()),
+                rec_dict.get("created_at", datetime.now(timezone.utc).isoformat()),
                 rec_dict.get("acted_at"),
                 rec_dict.get("acted_by"),
             ),
@@ -519,19 +525,22 @@ class ResearchDatabase:
         self._conn.commit()
         return rid
 
-    def list_recommendations(self, model_id: Optional[str] = None,
-                               status: Optional[str] = None,
-                               limit: int = 50) -> List[Dict[str, Any]]:
+    def list_recommendations(
+        self, model_id: Optional[str] = None, status: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if model_id:
-            wheres.append("model_id = ?"); vals.append(model_id)
+            wheres.append("model_id = ?")
+            vals.append(model_id)
         if status:
-            wheres.append("status = ?"); vals.append(status)
+            wheres.append("status = ?")
+            vals.append(status)
         where_str = f"WHERE {' AND '.join(wheres)}" if wheres else ""
         vals.append(limit)
         rows = self._conn.execute(
             f"SELECT * FROM retraining_recommendations {where_str} "
-            f"ORDER BY created_at DESC LIMIT ?", vals
+            f"ORDER BY created_at DESC LIMIT ?",
+            vals,
         ).fetchall()
         result = []
         for r in rows:
@@ -567,26 +576,28 @@ class ResearchDatabase:
                 exp_dict.get("status", "pending"),
                 json.dumps(exp_dict.get("config_changes", {})),
                 json.dumps(exp_dict.get("trigger_context", {})),
-                exp_dict.get("created_at",
-                              datetime.now(timezone.utc).isoformat()),
+                exp_dict.get("created_at", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return sid
 
-    def list_experiments(self, status: Optional[str] = None,
-                          category: Optional[str] = None,
-                          limit: int = 50) -> List[Dict[str, Any]]:
+    def list_experiments(
+        self, status: Optional[str] = None, category: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
         wheres, vals = [], []
         if status:
-            wheres.append("status = ?"); vals.append(status)
+            wheres.append("status = ?")
+            vals.append(status)
         if category:
-            wheres.append("category = ?"); vals.append(category)
+            wheres.append("category = ?")
+            vals.append(category)
         where_str = f"WHERE {' AND '.join(wheres)}" if wheres else ""
         vals.append(limit)
         rows = self._conn.execute(
             f"SELECT * FROM experiment_suggestions {where_str} "
-            f"ORDER BY priority ASC, created_at DESC LIMIT ?", vals
+            f"ORDER BY priority ASC, created_at DESC LIMIT ?",
+            vals,
         ).fetchall()
         result = []
         for r in rows:
@@ -624,18 +635,17 @@ class ResearchDatabase:
                 pt_dict.get("n_predictions", 0),
                 pt_dict.get("regime", ""),
                 pt_dict.get("notes", ""),
-                pt_dict.get("timestamp",
-                             datetime.now(timezone.utc).isoformat()),
+                pt_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
             ),
         )
         self._conn.commit()
         return pid
 
-    def list_health_points(self, model_id: str,
-                            limit: int = 200) -> List[Dict[str, Any]]:
+    def list_health_points(self, model_id: str, limit: int = 200) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM model_health_points WHERE model_id = ? "
-            "ORDER BY timestamp ASC LIMIT ?", (model_id, limit)
+            "ORDER BY timestamp ASC LIMIT ?",
+            (model_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -658,11 +668,9 @@ class ResearchDatabase:
             "total_label_batches": _count("label_quality"),
             "total_market_snapshots": _count("market_evolution"),
             "total_recommendations": _count("retraining_recommendations"),
-            "pending_recommendations": _count("retraining_recommendations",
-                                               "status = 'pending'"),
+            "pending_recommendations": _count("retraining_recommendations", "status = 'pending'"),
             "total_experiments": _count("experiment_suggestions"),
-            "pending_experiments": _count("experiment_suggestions",
-                                           "status = 'pending'"),
+            "pending_experiments": _count("experiment_suggestions", "status = 'pending'"),
             "total_health_points": _count("model_health_points"),
         }
 

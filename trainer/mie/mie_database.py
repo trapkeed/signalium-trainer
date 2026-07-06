@@ -11,6 +11,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 _SCHEMA = """
@@ -215,18 +216,21 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("report_id", ""),
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("tradeability"),
-                rec.get("trade_grade"),
-                rec.get("market_quality"),
-                rec.get("execution_quality"),
-                rec.get("regime"),
-                rec.get("risk_regime"),
-                rec.get("summary"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("report_id", ""),
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("tradeability"),
+                    rec.get("trade_grade"),
+                    rec.get("market_quality"),
+                    rec.get("execution_quality"),
+                    rec.get("regime"),
+                    rec.get("risk_regime"),
+                    rec.get("summary"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_regime(self, rec: Dict[str, Any]) -> int:
@@ -236,15 +240,18 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("regime", "UNKNOWN"),
-                rec.get("confidence"),
-                rec.get("sub_regime"),
-                rec.get("adx"),
-                rec.get("vol_ratio"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("regime", "UNKNOWN"),
+                    rec.get("confidence"),
+                    rec.get("sub_regime"),
+                    rec.get("adx"),
+                    rec.get("vol_ratio"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_risk(self, rec: Dict[str, Any]) -> int:
@@ -255,16 +262,19 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("risk_regime", "NORMAL"),
-                rec.get("risk_score"),
-                rec.get("multiplier"),
-                rec.get("vol_factor"),
-                rec.get("spread_factor"),
-                rec.get("liquidity_factor"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("risk_regime", "NORMAL"),
+                    rec.get("risk_score"),
+                    rec.get("multiplier"),
+                    rec.get("vol_factor"),
+                    rec.get("spread_factor"),
+                    rec.get("liquidity_factor"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_tradeability(self, rec: Dict[str, Any]) -> int:
@@ -275,17 +285,20 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("score", 0.0),
-                rec.get("grade", "Avoid"),
-                rec.get("confidence_f"),
-                rec.get("rr_f"),
-                rec.get("liquidity_f"),
-                rec.get("risk_f"),
-                rec.get("regime_f"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("score", 0.0),
+                    rec.get("grade", "Avoid"),
+                    rec.get("confidence_f"),
+                    rec.get("rr_f"),
+                    rec.get("liquidity_f"),
+                    rec.get("risk_f"),
+                    rec.get("regime_f"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_quality(self, rec: Dict[str, Any]) -> int:
@@ -297,19 +310,22 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("market_quality"),
-                rec.get("execution_quality"),
-                rec.get("prediction_quality"),
-                rec.get("liquidity_quality"),
-                rec.get("volatility_quality"),
-                rec.get("momentum_quality"),
-                rec.get("trend_quality"),
-                rec.get("session_quality"),
-                rec.get("news_impact"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("market_quality"),
+                    rec.get("execution_quality"),
+                    rec.get("prediction_quality"),
+                    rec.get("liquidity_quality"),
+                    rec.get("volatility_quality"),
+                    rec.get("momentum_quality"),
+                    rec.get("trend_quality"),
+                    rec.get("session_quality"),
+                    rec.get("news_impact"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_execution(self, rec: Dict[str, Any]) -> int:
@@ -320,17 +336,20 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("mode"),
-                rec.get("entry_low"),
-                rec.get("entry_high"),
-                rec.get("optimal_stop"),
-                rec.get("optimal_target"),
-                rec.get("expected_dd"),
-                rec.get("max_hold_bars"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("mode"),
+                    rec.get("entry_low"),
+                    rec.get("entry_high"),
+                    rec.get("optimal_stop"),
+                    rec.get("optimal_target"),
+                    rec.get("expected_dd"),
+                    rec.get("max_hold_bars"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_reliability(self, rec: Dict[str, Any]) -> int:
@@ -341,15 +360,18 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("reliability"),
-                rec.get("confidence_score"),
-                rec.get("consistency"),
-                rec.get("model_health"),
-                rec.get("win_rate_adj"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("reliability"),
+                    rec.get("confidence_score"),
+                    rec.get("consistency"),
+                    rec.get("model_health"),
+                    rec.get("win_rate_adj"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_similarity(self, rec: Dict[str, Any]) -> int:
@@ -359,14 +381,17 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("similarity"),
-                rec.get("historical_win"),
-                rec.get("match_count"),
-                rec.get("best_match"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("similarity"),
+                    rec.get("historical_win"),
+                    rec.get("match_count"),
+                    rec.get("best_match"),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_commentary(self, rec: Dict[str, Any]) -> int:
@@ -377,17 +402,20 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("summary"),
-                rec.get("regime_note"),
-                rec.get("risk_note"),
-                rec.get("trade_note"),
-                rec.get("recommendation"),
-                rec.get("confidence"),
-                ",".join(rec.get("tags", [])),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("summary"),
+                    rec.get("regime_note"),
+                    rec.get("risk_note"),
+                    rec.get("trade_note"),
+                    rec.get("recommendation"),
+                    rec.get("confidence"),
+                    ",".join(rec.get("tags", [])),
+                ),
+            )
             return cur.lastrowid or 0
 
     def save_scores(self, rec: Dict[str, Any]) -> int:
@@ -399,27 +427,28 @@ class MIEDatabase:
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("symbol", ""),
-                rec.get("timestamp", time.time()),
-                rec.get("tradeability"),
-                rec.get("market_quality"),
-                rec.get("risk_score"),
-                rec.get("regime"),
-                rec.get("risk_regime"),
-                rec.get("session"),
-                rec.get("news_impact"),
-                rec.get("volatility_state"),
-                rec.get("momentum_state"),
-                rec.get("trend_state"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("symbol", ""),
+                    rec.get("timestamp", time.time()),
+                    rec.get("tradeability"),
+                    rec.get("market_quality"),
+                    rec.get("risk_score"),
+                    rec.get("regime"),
+                    rec.get("risk_regime"),
+                    rec.get("session"),
+                    rec.get("news_impact"),
+                    rec.get("volatility_state"),
+                    rec.get("momentum_state"),
+                    rec.get("trend_state"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Read methods ───────────────────────────────────────────────────────
 
-    def get_latest_intelligence(
-        self, symbol: str, limit: int = 1
-    ) -> List[Dict[str, Any]]:
+    def get_latest_intelligence(self, symbol: str, limit: int = 1) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM market_intelligence WHERE symbol=? "

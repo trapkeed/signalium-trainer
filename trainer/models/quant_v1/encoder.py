@@ -60,9 +60,7 @@ class InputEncoder(BaseFeatureEncoder):
         self._output_dim = config.hidden_dim if config.use_projection else config.input_dim
 
         self.normalizer: nn.Module = (
-            FeatureNormalizer(config.input_dim)
-            if config.use_layer_norm
-            else nn.Identity()
+            FeatureNormalizer(config.input_dim) if config.use_layer_norm else nn.Identity()
         )
 
         if config.use_projection:

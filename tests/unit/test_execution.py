@@ -16,17 +16,38 @@ import unittest
 
 _loguru = types.ModuleType("loguru")
 
+
 class _Logger:
-    def info(self, *a, **k): pass
-    def debug(self, *a, **k): pass
-    def error(self, *a, **k): pass
-    def warning(self, *a, **k): pass
-    def warn(self, *a, **k): pass
-    def success(self, *a, **k): pass
-    def trace(self, *a, **k): pass
-    def critical(self, *a, **k): pass
-    def exception(self, *a, **k): pass
-    def bind(self, **k): return self
+    def info(self, *a, **k):
+        pass
+
+    def debug(self, *a, **k):
+        pass
+
+    def error(self, *a, **k):
+        pass
+
+    def warning(self, *a, **k):
+        pass
+
+    def warn(self, *a, **k):
+        pass
+
+    def success(self, *a, **k):
+        pass
+
+    def trace(self, *a, **k):
+        pass
+
+    def critical(self, *a, **k):
+        pass
+
+    def exception(self, *a, **k):
+        pass
+
+    def bind(self, **k):
+        return self
+
 
 _loguru.logger = _Logger()
 sys.modules.setdefault("loguru", _loguru)
@@ -37,32 +58,33 @@ _BASE = Path(__file__).resolve().parents[2] / "trainer" / "execution"
 def _load(mod_key: str, filename: str):
     path = _BASE / filename
     spec = importlib.util.spec_from_file_location(mod_key, str(path))
-    mod  = importlib.util.module_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     sys.modules[mod_key] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 # Load in dependency order
-_et  = _load("trainer.execution.execution_types",   "execution_types.py")
-_ez  = _load("trainer.execution.entry_zones",        "entry_zones.py")
-_eq  = _load("trainer.execution.entry_quality",      "entry_quality.py")
-_sl  = _load("trainer.execution.stop_loss_engine",   "stop_loss_engine.py")
-_tp  = _load("trainer.execution.take_profit_engine", "take_profit_engine.py")
-_re  = _load("trainer.execution.risk_engine",        "risk_engine.py")
-_ps  = _load("trainer.execution.position_sizer",     "position_sizer.py")
-_tm  = _load("trainer.execution.trade_manager",      "trade_manager.py")
-_eti = _load("trainer.execution.execution_timing",   "execution_timing.py")
-_os  = _load("trainer.execution.order_strategy",     "order_strategy.py")
-_ts  = _load("trainer.execution.trade_scorer",       "trade_scorer.py")
-_es  = _load("trainer.execution.execution_simulator","execution_simulator.py")
-_ep  = _load("trainer.execution.execution_planner",  "execution_planner.py")
+_et = _load("trainer.execution.execution_types", "execution_types.py")
+_ez = _load("trainer.execution.entry_zones", "entry_zones.py")
+_eq = _load("trainer.execution.entry_quality", "entry_quality.py")
+_sl = _load("trainer.execution.stop_loss_engine", "stop_loss_engine.py")
+_tp = _load("trainer.execution.take_profit_engine", "take_profit_engine.py")
+_re = _load("trainer.execution.risk_engine", "risk_engine.py")
+_ps = _load("trainer.execution.position_sizer", "position_sizer.py")
+_tm = _load("trainer.execution.trade_manager", "trade_manager.py")
+_eti = _load("trainer.execution.execution_timing", "execution_timing.py")
+_os = _load("trainer.execution.order_strategy", "order_strategy.py")
+_ts = _load("trainer.execution.trade_scorer", "trade_scorer.py")
+_es = _load("trainer.execution.execution_simulator", "execution_simulator.py")
+_ep = _load("trainer.execution.execution_planner", "execution_planner.py")
 _edb = _load("trainer.execution.execution_database", "execution_database.py")
-_ed  = _load("trainer.execution.execution_dashboard","execution_dashboard.py")
-_api = _load("trainer.execution.execution_api",      "execution_api.py")
+_ed = _load("trainer.execution.execution_dashboard", "execution_dashboard.py")
+_api = _load("trainer.execution.execution_api", "execution_api.py")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _fc(
     instrument="EURUSD",
@@ -136,8 +158,8 @@ class TestExecutionTypes(unittest.TestCase):
         self.assertEqual(fc.risk_reward_raw, 0.0)
 
     def test_to_dict_keys(self):
-        fc  = _fc()
-        d   = fc.to_dict()
+        fc = _fc()
+        d = fc.to_dict()
         for key in ("instrument", "direction", "confidence", "current_price", "atr", "spread"):
             self.assertIn(key, d)
 
@@ -184,7 +206,7 @@ class TestEntryZones(unittest.TestCase):
 
     def setUp(self):
         self.engine = _ez.EntryZoneEngine()
-        self.fc_buy  = _fc(direction="BUY",  current_price=1.0850, atr=0.0012)
+        self.fc_buy = _fc(direction="BUY", current_price=1.0850, atr=0.0012)
         self.fc_sell = _fc(direction="SELL", current_price=1.0850, atr=0.0012)
 
     def test_buy_primary_below_price(self):
@@ -230,8 +252,14 @@ class TestEntryZones(unittest.TestCase):
     def test_to_dict_keys(self):
         z = self.engine.calculate(self.fc_buy)
         d = z.to_dict()
-        for key in ("primary_entry", "secondary_entry", "aggressive_entry",
-                    "conservative_entry", "late_entry", "invalidation"):
+        for key in (
+            "primary_entry",
+            "secondary_entry",
+            "aggressive_entry",
+            "conservative_entry",
+            "late_entry",
+            "invalidation",
+        ):
             self.assertIn(key, d)
 
     def test_instrument_and_direction_preserved(self):
@@ -246,12 +274,12 @@ class TestEntryZones(unittest.TestCase):
 class TestEntryQuality(unittest.TestCase):
 
     def setUp(self):
-        self.engine   = _eq.EntryQualityEngine()
-        self.ze       = _ez.EntryZoneEngine()
+        self.engine = _eq.EntryQualityEngine()
+        self.ze = _ez.EntryZoneEngine()
 
     def test_score_in_range(self):
         fc = _fc()
-        r  = self.engine.evaluate(fc)
+        r = self.engine.evaluate(fc)
         self.assertGreaterEqual(r.score, 0.0)
         self.assertLessEqual(r.score, 1.0)
 
@@ -260,7 +288,7 @@ class TestEntryQuality(unittest.TestCase):
         self.assertIsNotNone(r.grade)
 
     def test_high_news_risk_reduces_score(self):
-        r_low  = self.engine.evaluate(_fc(news_risk=0.0))
+        r_low = self.engine.evaluate(_fc(news_risk=0.0))
         r_high = self.engine.evaluate(_fc(news_risk=0.9))
         self.assertGreater(r_low.score, r_high.score)
 
@@ -276,8 +304,8 @@ class TestEntryQuality(unittest.TestCase):
 
     def test_with_zones_no_error(self):
         fc = _fc()
-        z  = self.ze.calculate(fc)
-        r  = self.engine.evaluate(fc, z)
+        z = self.ze.calculate(fc)
+        r = self.engine.evaluate(fc, z)
         self.assertIsNotNone(r.score)
 
     def test_tradeable_when_good(self):
@@ -291,7 +319,7 @@ class TestEntryQuality(unittest.TestCase):
 
     def test_wide_spread_lowers_score(self):
         r_tight = self.engine.evaluate(_fc(spread=0.00005))
-        r_wide  = self.engine.evaluate(_fc(spread=0.0008))
+        r_wide = self.engine.evaluate(_fc(spread=0.0008))
         self.assertGreater(r_tight.score, r_wide.score)
 
 
@@ -302,23 +330,23 @@ class TestStopLossEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = _sl.StopLossEngine()
-        self.ze     = _ez.EntryZoneEngine()
+        self.ze = _ez.EntryZoneEngine()
 
     def test_buy_initial_stop_below_entry(self):
         fc = _fc(direction="BUY")
-        z  = self.ze.calculate(fc)
+        z = self.ze.calculate(fc)
         sl = self.engine.recommend(fc, z)
         self.assertLess(sl.initial_stop, z.primary_entry)
 
     def test_sell_initial_stop_above_entry(self):
         fc = _fc(direction="SELL")
-        z  = self.ze.calculate(fc)
+        z = self.ze.calculate(fc)
         sl = self.engine.recommend(fc, z)
         self.assertGreater(sl.initial_stop, z.primary_entry)
 
     def test_emergency_wider_than_initial_buy(self):
         fc = _fc(direction="BUY")
-        z  = self.ze.calculate(fc)
+        z = self.ze.calculate(fc)
         sl = self.engine.recommend(fc, z)
         self.assertLess(sl.emergency_stop, sl.initial_stop)
 
@@ -336,15 +364,21 @@ class TestStopLossEngine(unittest.TestCase):
 
     def test_pips_initial_positive(self):
         fc = _fc()
-        z  = self.ze.calculate(fc)
+        z = self.ze.calculate(fc)
         sl = self.engine.recommend(fc, z)
         self.assertGreater(sl.pips_initial, 0)
 
     def test_to_dict_keys(self):
         sl = self.engine.recommend(_fc())
-        d  = sl.to_dict()
-        for key in ("initial_stop", "adaptive_stop", "atr_stop",
-                    "structure_stop", "volatility_stop", "emergency_stop"):
+        d = sl.to_dict()
+        for key in (
+            "initial_stop",
+            "adaptive_stop",
+            "atr_stop",
+            "structure_stop",
+            "volatility_stop",
+            "emergency_stop",
+        ):
             self.assertIn(key, d)
 
     def test_no_zones_fallback(self):
@@ -359,42 +393,42 @@ class TestTakeProfitEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = _tp.TakeProfitEngine()
-        self.ze     = _ez.EntryZoneEngine()
+        self.ze = _ez.EntryZoneEngine()
         self.sl_eng = _sl.StopLossEngine()
 
     def test_buy_tp1_above_entry(self):
-        fc  = _fc(direction="BUY")
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(direction="BUY")
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.engine.recommend(fc, z, sl)
         self.assertGreater(tpr.tp1, z.primary_entry)
 
     def test_sell_tp1_below_entry(self):
-        fc  = _fc(direction="SELL")
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(direction="SELL")
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.engine.recommend(fc, z, sl)
         self.assertLess(tpr.tp1, z.primary_entry)
 
     def test_tp_levels_ascending_for_buy(self):
-        fc  = _fc(direction="BUY")
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(direction="BUY")
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.engine.recommend(fc, z, sl)
         self.assertLess(tpr.tp1, tpr.tp2)
         self.assertLess(tpr.tp2, tpr.tp3)
         self.assertLess(tpr.tp3, tpr.runner_target)
 
     def test_tp_levels_descending_for_sell(self):
-        fc  = _fc(direction="SELL")
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(direction="SELL")
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.engine.recommend(fc, z, sl)
         self.assertGreater(tpr.tp1, tpr.tp2)
         self.assertGreater(tpr.tp2, tpr.tp3)
 
     def test_probabilities_decreasing(self):
-        fc  = _fc()
+        fc = _fc()
         tpr = self.engine.recommend(fc)
         self.assertGreater(tpr.tp1_hit_prob, tpr.tp2_hit_prob)
         self.assertGreater(tpr.tp2_hit_prob, tpr.tp3_hit_prob)
@@ -422,13 +456,13 @@ class TestRiskEngine(unittest.TestCase):
 
     def setUp(self):
         self.engine = _re.RiskEngine()
-        self.ze     = _ez.EntryZoneEngine()
+        self.ze = _ez.EntryZoneEngine()
         self.sl_eng = _sl.StopLossEngine()
         self.tp_eng = _tp.TakeProfitEngine()
 
     def _full(self, **kwargs):
         fc = _fc(**kwargs)
-        z  = self.ze.calculate(fc)
+        z = self.ze.calculate(fc)
         sl = self.sl_eng.recommend(fc, z)
         tpr = self.tp_eng.recommend(fc, z, sl)
         return self.engine.analyze(fc, sl, tpr), fc
@@ -467,8 +501,15 @@ class TestRiskEngine(unittest.TestCase):
     def test_to_dict_keys(self):
         rp, _ = self._full()
         d = rp.to_dict()
-        for key in ("prob_success", "prob_failure", "risk_reward_ratio",
-                    "expected_value", "tail_risk", "worst_case", "best_case"):
+        for key in (
+            "prob_success",
+            "prob_failure",
+            "risk_reward_ratio",
+            "expected_value",
+            "tail_risk",
+            "worst_case",
+            "best_case",
+        ):
             self.assertIn(key, d)
 
 
@@ -478,8 +519,8 @@ class TestRiskEngine(unittest.TestCase):
 class TestPositionSizer(unittest.TestCase):
 
     def setUp(self):
-        self.sizer  = _ps.PositionSizer()
-        self.ze     = _ez.EntryZoneEngine()
+        self.sizer = _ps.PositionSizer()
+        self.ze = _ez.EntryZoneEngine()
         self.sl_eng = _sl.StopLossEngine()
 
     def _sl(self, fc):
@@ -502,7 +543,7 @@ class TestPositionSizer(unittest.TestCase):
         fc = _fc(account_size=10_000.0)
         sz = self.sizer.calculate(fc, self._sl(fc))
         self.assertGreater(sz.risk_pct, 0.0)
-        self.assertLessEqual(sz.risk_pct, 0.05)   # should not exceed 5%
+        self.assertLessEqual(sz.risk_pct, 0.05)  # should not exceed 5%
 
     def test_volatility_adjusted_method(self):
         fc = _fc()
@@ -526,14 +567,14 @@ class TestPositionSizer(unittest.TestCase):
 
     def test_risk_limits_enforced(self):
         limits = _ps.RiskLimits(max_risk_per_trade_pct=0.001)
-        sizer  = _ps.PositionSizer(risk_limits=limits)
-        fc     = _fc(account_size=10_000)
-        sz     = sizer.calculate(fc, self._sl(fc))
+        sizer = _ps.PositionSizer(risk_limits=limits)
+        fc = _fc(account_size=10_000)
+        sz = sizer.calculate(fc, self._sl(fc))
         self.assertLessEqual(sz.risk_pct, 0.001 + 1e-6)
 
     def test_to_dict_keys(self):
         fc = _fc()
-        d  = self.sizer.calculate(fc).to_dict()
+        d = self.sizer.calculate(fc).to_dict()
         for key in ("lots", "units", "risk_amount", "risk_pct", "method"):
             self.assertIn(key, d)
 
@@ -545,17 +586,17 @@ class TestTradeManager(unittest.TestCase):
 
     def setUp(self):
         self.manager = _tm.TradeManager()
-        self.ze      = _ez.EntryZoneEngine()
-        self.sl_eng  = _sl.StopLossEngine()
-        self.tp_eng  = _tp.TakeProfitEngine()
-        self.sizer   = _ps.PositionSizer()
+        self.ze = _ez.EntryZoneEngine()
+        self.sl_eng = _sl.StopLossEngine()
+        self.tp_eng = _tp.TakeProfitEngine()
+        self.sizer = _ps.PositionSizer()
 
     def _plan(self, **kwargs):
-        fc  = _fc(**kwargs)
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(**kwargs)
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.tp_eng.recommend(fc, z, sl)
-        sz  = self.sizer.calculate(fc, sl)
+        sz = self.sizer.calculate(fc, sl)
         return self.manager.plan(fc, sz, sl, tpr)
 
     def test_plan_has_rules(self):
@@ -602,14 +643,13 @@ class TestExecutionTiming(unittest.TestCase):
         self.engine = _eti.ExecutionTiming()
 
     def test_overlap_session_execute_now(self):
-        fc = _fc(session=_et.Session.OVERLAP, news_risk=0.0,
-                 volatility=0.010, spread=0.0001)
-        t  = self.engine.evaluate(fc)
+        fc = _fc(session=_et.Session.OVERLAP, news_risk=0.0, volatility=0.010, spread=0.0001)
+        t = self.engine.evaluate(fc)
         self.assertEqual(t.recommendation, _et.TimingRecommendation.EXECUTE_NOW)
 
     def test_closed_session_avoid_or_wait(self):
         fc = _fc(session=_et.Session.CLOSED, spread=0.001)
-        t  = self.engine.evaluate(fc)
+        t = self.engine.evaluate(fc)
         self.assertIn(
             t.recommendation,
             (_et.TimingRecommendation.AVOID, _et.TimingRecommendation.WAIT),
@@ -617,12 +657,12 @@ class TestExecutionTiming(unittest.TestCase):
 
     def test_high_news_risk_avoid(self):
         fc = _fc(news_risk=0.9)
-        t  = self.engine.evaluate(fc)
+        t = self.engine.evaluate(fc)
         self.assertEqual(t.recommendation, _et.TimingRecommendation.AVOID)
 
     def test_wide_spread_avoid(self):
         fc = _fc(spread=0.010)
-        t  = self.engine.evaluate(fc)
+        t = self.engine.evaluate(fc)
         self.assertEqual(t.recommendation, _et.TimingRecommendation.AVOID)
 
     def test_score_in_range(self):
@@ -651,46 +691,56 @@ class TestOrderStrategy(unittest.TestCase):
 
     def setUp(self):
         self.engine = _os.OrderStrategyEngine()
-        self.ze     = _ez.EntryZoneEngine()
-        self.timer  = _eti.ExecutionTiming()
+        self.ze = _ez.EntryZoneEngine()
+        self.timer = _eti.ExecutionTiming()
 
     def test_avoid_timing_gives_conditional(self):
-        fc     = _fc(news_risk=0.9)
-        t      = self.timer.evaluate(fc)
-        z      = self.ze.calculate(fc)
-        o      = self.engine.recommend(fc, z, t)
+        fc = _fc(news_risk=0.9)
+        t = self.timer.evaluate(fc)
+        z = self.ze.calculate(fc)
+        o = self.engine.recommend(fc, z, t)
         self.assertEqual(o.primary_type, _et.OrderType.CONDITIONAL)
 
     def test_execute_now_high_conf_gives_market_or_limit(self):
-        fc = _fc(session=_et.Session.OVERLAP, news_risk=0.0,
-                 confidence=0.80, spread=0.0001, volatility=0.010)
-        t  = self.timer.evaluate(fc)
-        z  = self.ze.calculate(fc)
-        o  = self.engine.recommend(fc, z, t)
+        fc = _fc(
+            session=_et.Session.OVERLAP,
+            news_risk=0.0,
+            confidence=0.80,
+            spread=0.0001,
+            volatility=0.010,
+        )
+        t = self.timer.evaluate(fc)
+        z = self.ze.calculate(fc)
+        o = self.engine.recommend(fc, z, t)
         self.assertIn(o.primary_type, (_et.OrderType.MARKET, _et.OrderType.LIMIT))
 
     def test_fill_confidence_in_range(self):
         fc = _fc()
-        t  = self.timer.evaluate(fc)
-        z  = self.ze.calculate(fc)
-        o  = self.engine.recommend(fc, z, t)
+        t = self.timer.evaluate(fc)
+        z = self.ze.calculate(fc)
+        o = self.engine.recommend(fc, z, t)
         self.assertGreaterEqual(o.fill_confidence, 0.0)
         self.assertLessEqual(o.fill_confidence, 1.0)
 
     def test_reasoning_not_empty(self):
         fc = _fc()
-        o  = self.engine.recommend(fc)
+        o = self.engine.recommend(fc)
         self.assertGreater(len(o.reasoning), 0)
 
     def test_entry_price_set(self):
         fc = _fc()
-        o  = self.engine.recommend(fc)
+        o = self.engine.recommend(fc)
         self.assertNotEqual(o.entry_price, 0.0)
 
     def test_to_dict_keys(self):
         d = self.engine.recommend(_fc()).to_dict()
-        for key in ("primary_type", "alternative_type", "fill_confidence",
-                    "expiry_hours", "reasoning"):
+        for key in (
+            "primary_type",
+            "alternative_type",
+            "fill_confidence",
+            "expiry_hours",
+            "reasoning",
+        ):
             self.assertIn(key, d)
 
 
@@ -700,22 +750,22 @@ class TestOrderStrategy(unittest.TestCase):
 class TestTradeScorer(unittest.TestCase):
 
     def setUp(self):
-        self.scorer  = _ts.TradeScorer()
-        self.ze      = _ez.EntryZoneEngine()
-        self.sl_eng  = _sl.StopLossEngine()
-        self.tp_eng  = _tp.TakeProfitEngine()
-        self.re      = _re.RiskEngine()
-        self.timer   = _eti.ExecutionTiming()
-        self.eq_eng  = _eq.EntryQualityEngine()
+        self.scorer = _ts.TradeScorer()
+        self.ze = _ez.EntryZoneEngine()
+        self.sl_eng = _sl.StopLossEngine()
+        self.tp_eng = _tp.TakeProfitEngine()
+        self.re = _re.RiskEngine()
+        self.timer = _eti.ExecutionTiming()
+        self.eq_eng = _eq.EntryQualityEngine()
 
     def _score(self, **kwargs):
-        fc  = _fc(**kwargs)
-        z   = self.ze.calculate(fc)
-        q   = self.eq_eng.evaluate(fc, z)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(**kwargs)
+        z = self.ze.calculate(fc)
+        q = self.eq_eng.evaluate(fc, z)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.tp_eng.recommend(fc, z, sl)
-        rp  = self.re.analyze(fc, sl, tpr)
-        t   = self.timer.evaluate(fc)
+        rp = self.re.analyze(fc, sl, tpr)
+        t = self.timer.evaluate(fc)
         return self.scorer.score(fc, q, rp, t)
 
     def test_score_in_range(self):
@@ -729,7 +779,7 @@ class TestTradeScorer(unittest.TestCase):
 
     def test_high_conf_scores_higher(self):
         s_high = self._score(confidence=0.90, expected_return=0.20, momentum=0.5)
-        s_low  = self._score(confidence=0.40, expected_return=0.03, momentum=-0.5)
+        s_low = self._score(confidence=0.40, expected_return=0.03, momentum=-0.5)
         self.assertGreater(s_high.overall_score, s_low.overall_score)
 
     def test_to_dict_keys(self):
@@ -744,8 +794,14 @@ class TestTradeScorer(unittest.TestCase):
     def test_weights_implied_by_sub_score_keys(self):
         d = self._score().to_dict()
         expected = {
-            "forecast_quality", "entry_quality", "risk", "liquidity",
-            "spread", "volatility", "reward", "portfolio_impact",
+            "forecast_quality",
+            "entry_quality",
+            "risk",
+            "liquidity",
+            "spread",
+            "volatility",
+            "reward",
+            "portfolio_impact",
         }
         self.assertEqual(set(d["sub_scores"].keys()), expected)
 
@@ -760,15 +816,15 @@ class TestTradeScorer(unittest.TestCase):
 class TestExecutionSimulator(unittest.TestCase):
 
     def setUp(self):
-        self.sim    = _es.ExecutionSimulator()
-        self.ze     = _ez.EntryZoneEngine()
+        self.sim = _es.ExecutionSimulator()
+        self.ze = _ez.EntryZoneEngine()
         self.sl_eng = _sl.StopLossEngine()
         self.tp_eng = _tp.TakeProfitEngine()
 
     def _sim(self, **kwargs):
-        fc  = _fc(**kwargs)
-        z   = self.ze.calculate(fc)
-        sl  = self.sl_eng.recommend(fc, z)
+        fc = _fc(**kwargs)
+        z = self.ze.calculate(fc)
+        sl = self.sl_eng.recommend(fc, z)
         tpr = self.tp_eng.recommend(fc, z, sl)
         return self.sim.simulate(fc, z, sl, tpr)
 
@@ -802,13 +858,18 @@ class TestExecutionSimulator(unittest.TestCase):
 
     def test_overlap_gives_better_fill_than_closed(self):
         r_overlap = self._sim(session=_et.Session.OVERLAP)
-        r_closed  = self._sim(session=_et.Session.CLOSED)
+        r_closed = self._sim(session=_et.Session.CLOSED)
         self.assertLessEqual(r_overlap.expected_slippage, r_closed.expected_slippage)
 
     def test_to_dict_keys(self):
         d = self._sim().to_dict()
-        for key in ("expected_fill", "expected_slippage", "fill_quality",
-                    "expected_outcomes", "summary"):
+        for key in (
+            "expected_fill",
+            "expected_slippage",
+            "fill_quality",
+            "expected_outcomes",
+            "summary",
+        ):
             self.assertIn(key, d)
 
 
@@ -844,9 +905,20 @@ class TestExecutionPlanner(unittest.TestCase):
 
     def test_executive_summary_keys(self):
         s = self.planner.plan(_fc()).executive_summary()
-        for key in ("instrument", "direction", "executable", "timing",
-                    "trade_grade", "primary_entry", "initial_stop",
-                    "tp1", "tp2", "runner", "lots", "risk_pct"):
+        for key in (
+            "instrument",
+            "direction",
+            "executable",
+            "timing",
+            "trade_grade",
+            "primary_entry",
+            "initial_stop",
+            "tp1",
+            "tp2",
+            "runner",
+            "lots",
+            "risk_pct",
+        ):
             self.assertIn(key, s)
 
     def test_is_executable_returns_bool(self):
@@ -878,7 +950,7 @@ class TestExecutionPlanner(unittest.TestCase):
 class TestExecutionDatabase(unittest.TestCase):
 
     def setUp(self):
-        self.db      = _edb.ExecutionDatabase(":memory:")
+        self.db = _edb.ExecutionDatabase(":memory:")
         self.planner = _make_planner()
 
     def _store(self, **kwargs):
@@ -921,8 +993,14 @@ class TestExecutionDatabase(unittest.TestCase):
     def test_stats_keys(self):
         self._store()
         s = self.db.stats()
-        for key in ("execution_plans", "trade_scores", "sizing_decisions",
-                    "management_plans", "optimization_events", "average_score"):
+        for key in (
+            "execution_plans",
+            "trade_scores",
+            "sizing_decisions",
+            "management_plans",
+            "optimization_events",
+            "average_score",
+        ):
             self.assertIn(key, s)
 
     def test_stats_counts_increase(self):
@@ -952,8 +1030,8 @@ class TestExecutionDashboard(unittest.TestCase):
         planner = _make_planner()
         fcs = [
             _fc(instrument="EURUSD", direction="BUY"),
-            _fc(instrument="XAUUSD", direction="BUY",  current_price=1950.0, atr=3.5, spread=0.5),
-            _fc(instrument="NAS100", direction="SELL", current_price=14500., atr=45., spread=2.0),
+            _fc(instrument="XAUUSD", direction="BUY", current_price=1950.0, atr=3.5, spread=0.5),
+            _fc(instrument="NAS100", direction="SELL", current_price=14500.0, atr=45.0, spread=2.0),
         ]
         plans = planner.plan_batch(fcs)
         self.dash = _ed.ExecutionDashboard(plans)
@@ -994,7 +1072,7 @@ class TestExecutionDashboard(unittest.TestCase):
             self.assertIn(key, row)
 
     def test_scorecards_sorted_desc(self):
-        d      = self.dash.execution_scorecards()
+        d = self.dash.execution_scorecards()
         scores = [c["overall"] for c in d["scorecards"]]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
@@ -1008,7 +1086,7 @@ class TestExecutionDashboard(unittest.TestCase):
 
     def test_add_plan_increases_count(self):
         planner = _make_planner()
-        p = planner.plan(_fc(instrument="BTCUSD", current_price=65000., atr=500., spread=5.))
+        p = planner.plan(_fc(instrument="BTCUSD", current_price=65000.0, atr=500.0, spread=5.0))
         self.dash.add_plan(p)
         d = self.dash.execution_dashboard()
         self.assertEqual(d["total_plans"], 4)
@@ -1021,12 +1099,20 @@ class TestExecutionApi(unittest.TestCase):
 
     def setUp(self):
         self.api = _make_api()
-        self.fd  = {
-            "instrument": "EURUSD", "direction": "BUY",
-            "confidence": 0.72, "expected_return": 0.08, "expected_risk": 0.10,
-            "current_price": 1.0850, "atr": 0.0012, "spread": 0.0001,
-            "session": "LONDON", "volatility": 0.009, "momentum": 0.3,
-            "news_risk": 0.1, "account_size": 10000.0,
+        self.fd = {
+            "instrument": "EURUSD",
+            "direction": "BUY",
+            "confidence": 0.72,
+            "expected_return": 0.08,
+            "expected_risk": 0.10,
+            "current_price": 1.0850,
+            "atr": 0.0012,
+            "spread": 0.0001,
+            "session": "LONDON",
+            "volatility": 0.009,
+            "momentum": 0.3,
+            "news_risk": 0.1,
+            "account_size": 10000.0,
         }
 
     def test_plan_status_ok(self):
@@ -1038,8 +1124,18 @@ class TestExecutionApi(unittest.TestCase):
         self.assertIn("executive_summary", r["data"])
 
     def test_plan_batch_returns_list(self):
-        r = self.api.plan_batch([self.fd, {**self.fd, "instrument": "XAUUSD",
-            "current_price": 1950.0, "atr": 3.5, "spread": 0.5}])
+        r = self.api.plan_batch(
+            [
+                self.fd,
+                {
+                    **self.fd,
+                    "instrument": "XAUUSD",
+                    "current_price": 1950.0,
+                    "atr": 3.5,
+                    "spread": 0.5,
+                },
+            ]
+        )
         self.assertEqual(r["status"], "ok")
         self.assertIsInstance(r["data"], list)
         self.assertEqual(len(r["data"]), 2)
@@ -1105,9 +1201,14 @@ class TestExecutionApi(unittest.TestCase):
         self.assertIn("expected_fill", r["data"])
 
     def test_dashboard_ok(self):
-        fd2 = {**self.fd, "instrument": "XAUUSD", "current_price": 1950.0,
-               "atr": 3.5, "spread": 0.5}
-        r   = self.api.dashboard([self.fd, fd2])
+        fd2 = {
+            **self.fd,
+            "instrument": "XAUUSD",
+            "current_price": 1950.0,
+            "atr": 3.5,
+            "spread": 0.5,
+        }
+        r = self.api.dashboard([self.fd, fd2])
         self.assertEqual(r["status"], "ok")
         self.assertEqual(len(r["data"]), 8)
 
@@ -1129,7 +1230,7 @@ class TestExecutionApi(unittest.TestCase):
         self.assertEqual(r["status"], "ok")
 
     def test_bad_forecast_returns_error(self):
-        r = self.api.plan({"instrument": "EURUSD"})   # missing required fields
+        r = self.api.plan({"instrument": "EURUSD"})  # missing required fields
         self.assertEqual(r["status"], "error")
 
     def test_timestamp_present(self):

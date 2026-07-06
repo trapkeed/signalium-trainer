@@ -36,7 +36,6 @@ from typing import Any, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Leaderboard entry
 # ---------------------------------------------------------------------------
@@ -79,7 +78,9 @@ class LeaderboardEntry:
     inference_latency_ms: float = 0.0
     model_size_mb: float = 0.0
     # Lifecycle
-    promotion_status: str = "experimental"    # experimental | candidate | challenger | champion | retired
+    promotion_status: str = (
+        "experimental"  # experimental | candidate | challenger | champion | retired
+    )
     is_champion: bool = False
     deployment_history: list[dict[str, str]] = field(default_factory=list)
     is_retired: bool = False
@@ -90,9 +91,7 @@ class LeaderboardEntry:
     git_commit: str = ""
     n_validation_folds: int = 0
     notes: str = ""
-    added_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    added_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -275,12 +274,15 @@ class InstitutionalLeaderboard:
         """Full-text search across model_name, model_id, notes, and architecture."""
         q = query.lower()
         return [
-            e for e in self._entries
-            if (q in e.model_name.lower()
+            e
+            for e in self._entries
+            if (
+                q in e.model_name.lower()
                 or q in e.model_id.lower()
                 or q in e.notes.lower()
                 or q in e.architecture.lower()
-                or q in e.backbone.lower())
+                or q in e.backbone.lower()
+            )
         ]
 
     def get(self, model_id: str) -> Optional[LeaderboardEntry]:
@@ -304,8 +306,14 @@ class InstitutionalLeaderboard:
         if not a or not b:
             return {"error": "One or both model IDs not found."}
         metrics = [
-            "validation_accuracy", "validation_f1", "sharpe_ratio",
-            "profit_factor", "max_drawdown", "ece", "win_rate", "expectancy",
+            "validation_accuracy",
+            "validation_f1",
+            "sharpe_ratio",
+            "profit_factor",
+            "max_drawdown",
+            "ece",
+            "win_rate",
+            "expectancy",
             "overall_score",
         ]
         return {
@@ -391,10 +399,7 @@ class InstitutionalLeaderboard:
     def _load(self) -> None:
         try:
             data = json.loads(self._path.read_text())
-            self._entries = [
-                LeaderboardEntry.from_dict(e)
-                for e in data.get("entries", [])
-            ]
+            self._entries = [LeaderboardEntry.from_dict(e) for e in data.get("entries", [])]
             logger.info(f"Leaderboard loaded {len(self._entries)} entries from {self._path}")
         except Exception as exc:
             logger.warning(f"Leaderboard load failed: {exc}")

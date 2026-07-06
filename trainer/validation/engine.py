@@ -55,7 +55,9 @@ import numpy as np
 from loguru import logger
 
 from trainer.validation.windows import (
-    ExpandingWindowValidator, SlidingWindowValidator, WindowFold,
+    ExpandingWindowValidator,
+    SlidingWindowValidator,
+    WindowFold,
 )
 from trainer.validation.leakage import LeakageDetector, LeakageReport
 from trainer.validation.statistical import StatisticalMetricsEngine, StatisticalMetrics
@@ -72,7 +74,6 @@ from trainer.validation.head_validator import PredictionHeadValidator
 from trainer.validation.visualization import VisualizationDataBuilder
 from trainer.validation.export import ReportExporter, ExportConfig
 from trainer.validation.api import ValidationAPI
-
 
 # ---------------------------------------------------------------------------
 # Engine result
@@ -168,7 +169,7 @@ class EngineConfig:
     """
 
     # Walk-forward settings
-    strategy: str = "expanding"          # "expanding" | "sliding"
+    strategy: str = "expanding"  # "expanding" | "sliding"
     min_train_size: int = 500
     val_size: int = 100
     test_size: int = 0
@@ -202,9 +203,7 @@ class EngineConfig:
     psi_threshold: float = 0.20
 
     # Export
-    export_formats: list[str] = field(
-        default_factory=lambda: ["json", "csv", "html"]
-    )
+    export_formats: list[str] = field(default_factory=lambda: ["json", "csv", "html"])
 
     # Model metadata
     architecture: str = ""
@@ -252,9 +251,7 @@ class InstitutionalValidationEngine:
         self._lb = InstitutionalLeaderboard(
             store_path=Path(leaderboard_path) if leaderboard_path else None
         )
-        self._policy = policy or PromotionPolicy(
-            min_accuracy=0.50, require_manual_approval=True
-        )
+        self._policy = policy or PromotionPolicy(min_accuracy=0.50, require_manual_approval=True)
         self._export_dir = Path(export_dir) if export_dir else Path("reports")
         self._api = ValidationAPI(self._db, self._lb, self._policy)
 
@@ -276,9 +273,7 @@ class InstitutionalValidationEngine:
             seed=self._cfg.robustness_seed,
             tolerance=self._cfg.robustness_tolerance,
         )
-        self._leakage_detector = LeakageDetector(
-            abort_on_detect=self._cfg.abort_on_leakage
-        )
+        self._leakage_detector = LeakageDetector(abort_on_detect=self._cfg.abort_on_leakage)
         self._drift_analyzer = DriftAnalyzer(psi_threshold=self._cfg.psi_threshold)
         self._failure_analyzer = FailureAnalyzer()
         self._head_validator = PredictionHeadValidator(
@@ -364,8 +359,11 @@ class InstitutionalValidationEngine:
         if n_folds == 0:
             logger.warning("  No folds generated — dataset too small.")
             return ValidationResult(
-                run_id=run_id, model_id=model_id, model_version=model_version,
-                n_folds=0, status="failed",
+                run_id=run_id,
+                model_id=model_id,
+                model_version=model_version,
+                n_folds=0,
+                status="failed",
                 error="Dataset too small for even one validation fold.",
                 run_duration_seconds=time.perf_counter() - t0,
             )
@@ -378,7 +376,10 @@ class InstitutionalValidationEngine:
         # ── Step 1: Leakage detection ─────────────────────────────────────
         try:
             leakage_report = self._leakage_detector.check(
-                x_train, y_train, x_val, y_val,
+                x_train,
+                y_train,
+                x_val,
+                y_val,
                 timestamps=timestamps,
                 feature_names=feature_names,
             )
@@ -387,8 +388,11 @@ class InstitutionalValidationEngine:
             if "leakage" in str(exc).lower():
                 logger.error(f"  Leakage detected — aborting: {exc}")
                 return ValidationResult(
-                    run_id=run_id, model_id=model_id, model_version=model_version,
-                    n_folds=n_folds, status="aborted_leakage",
+                    run_id=run_id,
+                    model_id=model_id,
+                    model_version=model_version,
+                    n_folds=n_folds,
+                    status="aborted_leakage",
                     leakage_report=leakage_report,
                     error=str(exc),
                     run_duration_seconds=time.perf_counter() - t0,
@@ -403,25 +407,32 @@ class InstitutionalValidationEngine:
             except Exception as exc:
                 logger.error(f"  Model inference failed: {exc}")
                 return ValidationResult(
-                    run_id=run_id, model_id=model_id, model_version=model_version,
-                    n_folds=n_folds, status="failed",
+                    run_id=run_id,
+                    model_id=model_id,
+                    model_version=model_version,
+                    n_folds=n_folds,
+                    status="failed",
                     error=f"Model inference failed: {exc}",
                     run_duration_seconds=time.perf_counter() - t0,
                 )
 
         # ── Step 3: Statistical metrics ───────────────────────────────────
         stat_metrics = self._stat_engine.compute(probs, y_val)
-        logger.info(f"  Statistical: acc={stat_metrics.accuracy:.4f} "
-                    f"f1={stat_metrics.f1_macro:.4f} ece={stat_metrics.ece:.4f}")
+        logger.info(
+            f"  Statistical: acc={stat_metrics.accuracy:.4f} "
+            f"f1={stat_metrics.f1_macro:.4f} ece={stat_metrics.ece:.4f}"
+        )
 
         # ── Step 4: Trading metrics ───────────────────────────────────────
         ohlcv_np = ohlcv.cpu().numpy() if ohlcv is not None else np.zeros((len(x_val), 5))
         probs_np = probs.cpu().numpy()
         trades = self._simulator.simulate(probs_np, ohlcv_np)
         trade_metrics = self._trade_engine.compute(trades)
-        logger.info(f"  Trading: n_trades={trade_metrics.n_trades} "
-                    f"sharpe={trade_metrics.sharpe_ratio:.3f} "
-                    f"pf={trade_metrics.profit_factor:.3f}")
+        logger.info(
+            f"  Trading: n_trades={trade_metrics.n_trades} "
+            f"sharpe={trade_metrics.sharpe_ratio:.3f} "
+            f"pf={trade_metrics.profit_factor:.3f}"
+        )
 
         # ── Step 5: Calibration ───────────────────────────────────────────
         calib_report = self._calib_validator.evaluate(probs, y_val)
@@ -438,16 +449,17 @@ class InstitutionalValidationEngine:
 
         # ── Step 9: Drift analysis ────────────────────────────────────────
         drift_report = self._drift_analyzer.detect(
-            x_ref=x_train, x_current=x_val,
-            y_ref=y_train, y_current=y_val,
-            probs_ref=None, probs_current=probs,
+            x_ref=x_train,
+            x_current=x_val,
+            y_ref=y_train,
+            y_current=y_val,
+            probs_ref=None,
+            probs_current=probs,
             feature_names=feature_names,
         )
 
         # ── Step 10: Failure analysis ─────────────────────────────────────
-        head_perf = {
-            name: r.to_dict() for name, r in head_results.items() if r.is_active
-        }
+        head_perf = {name: r.to_dict() for name, r in head_results.items() if r.is_active}
         failure_report = self._failure_analyzer.analyze(
             head_results=head_perf,
         )
@@ -513,8 +525,9 @@ class InstitutionalValidationEngine:
             win_rate=trade_metrics.win_rate,
             expectancy=trade_metrics.expectancy,
             promotion_status=(
-                "champion" if promotion_decision.is_promoted else
-                "candidate" if promotion_decision.is_eligible else "experimental"
+                "champion"
+                if promotion_decision.is_promoted
+                else "candidate" if promotion_decision.is_eligible else "experimental"
             ),
             is_champion=promotion_decision.is_promoted,
             experiment_id=self._cfg.experiment_id,
@@ -559,9 +572,7 @@ class InstitutionalValidationEngine:
         # ── Step 15: Export reports ───────────────────────────────────────
         exported_paths = self._exporter.export_all(run_record, self._lb)
         duration = time.perf_counter() - t0
-        logger.info(
-            f"InstitutionalValidationEngine: run {run_id} completed in {duration:.1f}s"
-        )
+        logger.info(f"InstitutionalValidationEngine: run {run_id} completed in {duration:.1f}s")
 
         return ValidationResult(
             run_id=run_id,

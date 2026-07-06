@@ -23,7 +23,6 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # IRSEScoreExporter
 # ---------------------------------------------------------------------------
@@ -39,10 +38,10 @@ class IRSEScoreExporter:
         benchmarker: Any,
         database: Any,
     ) -> None:
-        self._lb      = leaderboard
-        self._trends  = trend_tracker
-        self._bm      = benchmarker
-        self._db      = database
+        self._lb = leaderboard
+        self._trends = trend_tracker
+        self._bm = benchmarker
+        self._db = database
 
     # ------------------------------------------------------------------
     # JSON export
@@ -100,9 +99,7 @@ class IRSEScoreExporter:
             "model_family",
             "scored_at",
         ]
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for e in entries:
             writer.writerow(e)
@@ -161,12 +158,12 @@ class IRSEScoreExporter:
         stat_rows = ""
         for k, v in {
             "Total Scored": dist.get("n", 0),
-            "Mean Score":   f"{dist.get('mean', 0):.1f}",
-            "Max Score":    f"{dist.get('max', 0):.1f}",
-            "Min Score":    f"{dist.get('min', 0):.1f}",
-            "P75":          f"{dist.get('p75', 0):.1f}",
-            "Trend Slope":  f"{trend.get('slope', 0):.4f}",
-            "Trend":        trend.get("trend", "—"),
+            "Mean Score": f"{dist.get('mean', 0):.1f}",
+            "Max Score": f"{dist.get('max', 0):.1f}",
+            "Min Score": f"{dist.get('min', 0):.1f}",
+            "P75": f"{dist.get('p75', 0):.1f}",
+            "Trend Slope": f"{trend.get('slope', 0):.4f}",
+            "Trend": trend.get("trend", "—"),
         }.items():
             stat_rows += f"<tr><td>{k}</td><td><strong>{v}</strong></td></tr>"
 
@@ -249,13 +246,17 @@ class IRSEScoreExporter:
         top_10 = self._lb.rank_by("research_score")[:10]
 
         if not as_markdown:
-            return json.dumps({
-                "generated_at": generated,
-                "score_distribution": dist,
-                "improvement_trend": trend,
-                "benchmark_summary": bm_report,
-                "top_10": top_10,
-            }, indent=2, default=str)
+            return json.dumps(
+                {
+                    "generated_at": generated,
+                    "score_distribution": dist,
+                    "improvement_trend": trend,
+                    "benchmark_summary": bm_report,
+                    "top_10": top_10,
+                },
+                indent=2,
+                default=str,
+            )
 
         lines = [
             "# Institutional Research Scoring Engine — Research Report",

@@ -9,6 +9,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_types import TrendState, clamp
@@ -42,30 +43,30 @@ class TrendIntelligenceEngine:
 
     def __init__(
         self,
-        adx_strong:   float = 40.0,
+        adx_strong: float = 40.0,
         adx_moderate: float = 25.0,
-        adx_weak:     float = 15.0,
-        ema_fast:     int   = 9,
-        ema_slow:     int   = 21,
+        adx_weak: float = 15.0,
+        ema_fast: int = 9,
+        ema_slow: int = 21,
     ) -> None:
-        self._adx_strong   = adx_strong
+        self._adx_strong = adx_strong
         self._adx_moderate = adx_moderate
-        self._adx_weak     = adx_weak
-        self._ema_fast     = ema_fast
-        self._ema_slow     = ema_slow
+        self._adx_weak = adx_weak
+        self._ema_fast = ema_fast
+        self._ema_slow = ema_slow
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def analyse(self, inp: MarketInput) -> TrendResult:
         closes = inp.closes or []
-        highs  = inp.highs  or []
-        lows   = inp.lows   or []
-        adx    = inp.adx
+        highs = inp.highs or []
+        lows = inp.lows or []
+        adx = inp.adx
 
         direction = self._detect_direction(closes, highs, lows, inp.rsi)
-        state     = self._classify_state(adx, direction)
-        quality   = self._compute_quality(adx, direction, closes, highs, lows)
-        strength  = clamp(adx, 0.0, 100.0)
+        state = self._classify_state(adx, direction)
+        quality = self._compute_quality(adx, direction, closes, highs, lows)
+        strength = clamp(adx, 0.0, 100.0)
 
         logger.debug(
             f"[TI] {inp.symbol} adx={adx:.1f} dir={direction} → {state.value} q={quality:.1f}"
@@ -83,9 +84,9 @@ class TrendIntelligenceEngine:
     def _detect_direction(
         self,
         closes: List[float],
-        highs:  List[float],
-        lows:   List[float],
-        rsi:    float,
+        highs: List[float],
+        lows: List[float],
+        rsi: float,
     ) -> str:
         if not closes:
             return "NEUTRAL"
@@ -96,8 +97,8 @@ class TrendIntelligenceEngine:
             return "UP"
         # EMA crossover signal
         if len(closes) >= self._ema_slow:
-            ema_f = _ema(closes[-self._ema_fast:], self._ema_fast)
-            ema_s = _ema(closes[-self._ema_slow:], self._ema_slow)
+            ema_f = _ema(closes[-self._ema_fast :], self._ema_fast)
+            ema_s = _ema(closes[-self._ema_slow :], self._ema_slow)
             if ema_f > ema_s * 1.001:
                 return "UP"
             if ema_f < ema_s * 0.999:
@@ -140,17 +141,17 @@ class TrendIntelligenceEngine:
 
     def _compute_quality(
         self,
-        adx:       float,
+        adx: float,
         direction: str,
-        closes:    List[float],
-        highs:     List[float],
-        lows:      List[float],
+        closes: List[float],
+        highs: List[float],
+        lows: List[float],
     ) -> float:
         score = 0.0
         # ADX contribution (0-60)
         score += clamp(adx / self._adx_strong * 60.0, 0.0, 60.0)
         # Structure confirmation (0-30)
-        if direction == "UP"   and self._has_hh_hl(highs, lows):
+        if direction == "UP" and self._has_hh_hl(highs, lows):
             score += 30.0
         elif direction == "DOWN" and self._has_ll_lh(highs, lows):
             score += 30.0
@@ -158,8 +159,8 @@ class TrendIntelligenceEngine:
             score += 10.0
         # EMA gap bonus (0-10)
         if len(closes) >= self._ema_slow:
-            ema_f = _ema(closes[-self._ema_fast:], self._ema_fast)
-            ema_s = _ema(closes[-self._ema_slow:], self._ema_slow)
-            gap   = abs(ema_f - ema_s) / max(ema_s, 1e-9)
+            ema_f = _ema(closes[-self._ema_fast :], self._ema_fast)
+            ema_s = _ema(closes[-self._ema_slow :], self._ema_slow)
+            gap = abs(ema_f - ema_s) / max(ema_s, 1e-9)
             score += clamp(gap * 1000.0, 0.0, 10.0)
         return clamp(score, 0.0, 100.0)

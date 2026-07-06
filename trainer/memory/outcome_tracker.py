@@ -13,6 +13,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_types import (
@@ -27,37 +28,38 @@ from trainer.memory.decision_models import DecisionRecord
 @dataclass
 class OutcomeSummary:
     """Aggregate outcome statistics across a set of decisions."""
-    total:              int   = 0
-    with_outcome:       int   = 0
-    positive_count:     int   = 0
-    negative_count:     int   = 0
-    neutral_count:      int   = 0
-    win_rate:           float = 0.0
-    avg_pnl:            float = 0.0
-    avg_holding_h:      float = 0.0
-    hit_tp_count:       int   = 0
-    hit_sl_count:       int   = 0
+
+    total: int = 0
+    with_outcome: int = 0
+    positive_count: int = 0
+    negative_count: int = 0
+    neutral_count: int = 0
+    win_rate: float = 0.0
+    avg_pnl: float = 0.0
+    avg_holding_h: float = 0.0
+    hit_tp_count: int = 0
+    hit_sl_count: int = 0
     outcome_distribution: Dict[str, int] = field(default_factory=dict)
-    by_instrument:      Dict[str, Dict]  = field(default_factory=dict)
-    by_session:         Dict[str, Dict]  = field(default_factory=dict)
-    by_regime:          Dict[str, Dict]  = field(default_factory=dict)
+    by_instrument: Dict[str, Dict] = field(default_factory=dict)
+    by_session: Dict[str, Dict] = field(default_factory=dict)
+    by_regime: Dict[str, Dict] = field(default_factory=dict)
 
     def to_dict(self) -> Dict:
         return {
-            "total":               self.total,
-            "with_outcome":        self.with_outcome,
-            "positive_count":      self.positive_count,
-            "negative_count":      self.negative_count,
-            "neutral_count":       self.neutral_count,
-            "win_rate":            round(self.win_rate, 4),
-            "avg_pnl":             round(self.avg_pnl, 5),
-            "avg_holding_h":       round(self.avg_holding_h, 2),
-            "hit_tp_count":        self.hit_tp_count,
-            "hit_sl_count":        self.hit_sl_count,
+            "total": self.total,
+            "with_outcome": self.with_outcome,
+            "positive_count": self.positive_count,
+            "negative_count": self.negative_count,
+            "neutral_count": self.neutral_count,
+            "win_rate": round(self.win_rate, 4),
+            "avg_pnl": round(self.avg_pnl, 5),
+            "avg_holding_h": round(self.avg_holding_h, 2),
+            "hit_tp_count": self.hit_tp_count,
+            "hit_sl_count": self.hit_sl_count,
             "outcome_distribution": self.outcome_distribution,
-            "by_instrument":       self.by_instrument,
-            "by_session":          self.by_session,
-            "by_regime":           self.by_regime,
+            "by_instrument": self.by_instrument,
+            "by_session": self.by_session,
+            "by_regime": self.by_regime,
         }
 
 
@@ -66,7 +68,7 @@ class OutcomeTracker:
 
     def summarise(
         self,
-        records:      List[DecisionRecord],
+        records: List[DecisionRecord],
         decision_type: Optional[DecisionType] = None,
     ) -> OutcomeSummary:
         if decision_type:
@@ -97,11 +99,9 @@ class OutcomeTracker:
                 summary.neutral_count += 1
 
         n = len(with_outcome)
-        summary.win_rate    = round(summary.positive_count / n, 4) if n else 0.0
-        summary.avg_pnl     = round(sum(r.outcome.actual_pnl for r in with_outcome) / n, 5)
-        summary.avg_holding_h = round(
-            sum(r.outcome.holding_time_h for r in with_outcome) / n, 2
-        )
+        summary.win_rate = round(summary.positive_count / n, 4) if n else 0.0
+        summary.avg_pnl = round(sum(r.outcome.actual_pnl for r in with_outcome) / n, 5)
+        summary.avg_holding_h = round(sum(r.outcome.holding_time_h for r in with_outcome) / n, 2)
         summary.hit_tp_count = sum(1 for r in with_outcome if r.outcome.hit_tp)
         summary.hit_sl_count = sum(1 for r in with_outcome if r.outcome.hit_sl)
 
@@ -142,16 +142,16 @@ class OutcomeTracker:
             for reg, pnls in by_regime.items()
         }
 
-        logger.debug(
-            f"OutcomeTracker: {n} outcomes analysed, win_rate={summary.win_rate:.2%}"
-        )
+        logger.debug(f"OutcomeTracker: {n} outcomes analysed, win_rate={summary.win_rate:.2%}")
         return summary
 
     def direction_accuracy(self, records: List[DecisionRecord]) -> float:
         """Fraction of entry decisions with correct direction."""
         entry = [
-            r for r in records
-            if r.has_outcome and r.is_entry_decision
+            r
+            for r in records
+            if r.has_outcome
+            and r.is_entry_decision
             and r.outcome.actual_direction_correct is not None
         ]
         if not entry:

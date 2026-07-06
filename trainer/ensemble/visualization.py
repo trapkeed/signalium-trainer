@@ -50,8 +50,7 @@ class EnsembleVisualizationBuilder:
                 "weight": round(w, 4),
                 "weight_pct": round(w * 100, 2),
             }
-            for eid, w in sorted(current_weights.items(),
-                                  key=lambda kv: kv[1], reverse=True)
+            for eid, w in sorted(current_weights.items(), key=lambda kv: kv[1], reverse=True)
         ]
         return {
             "chart_type": "bar",
@@ -90,13 +89,15 @@ class EnsembleVisualizationBuilder:
 
         series = []
         for cls in classes:
-            series.append({
-                "name": cls,
-                "data": [
-                    {"expert_id": eid, "count": expert_votes[eid].get(cls, 0)}
-                    for eid in expert_votes
-                ],
-            })
+            series.append(
+                {
+                    "name": cls,
+                    "data": [
+                        {"expert_id": eid, "count": expert_votes[eid].get(cls, 0)}
+                        for eid in expert_votes
+                    ],
+                }
+            )
         return {
             "chart_type": "bar_stacked",
             "title": "Expert Voting Distribution",
@@ -155,12 +156,14 @@ class EnsembleVisualizationBuilder:
             low = i / n_bins
             high = (i + 1) / n_bins
             count = sum(1 for c in confidences if low <= c < high)
-            bins.append({
-                "bin_low": round(low, 3),
-                "bin_high": round(high, 3),
-                "bin_mid": round((low + high) / 2, 3),
-                "count": count,
-            })
+            bins.append(
+                {
+                    "bin_low": round(low, 3),
+                    "bin_high": round(high, 3),
+                    "bin_mid": round((low + high) / 2, 3),
+                    "count": count,
+                }
+            )
         return {
             "chart_type": "histogram",
             "title": "Ensemble Confidence Distribution",
@@ -184,14 +187,13 @@ class EnsembleVisualizationBuilder:
         names = expert_names or {}
         series = []
         for expert_id, weights in weight_history.items():
-            series.append({
-                "name": names.get(expert_id, expert_id[:8]),
-                "expert_id": expert_id,
-                "data": [
-                    {"step": i, "weight": round(w, 4)}
-                    for i, w in enumerate(weights)
-                ],
-            })
+            series.append(
+                {
+                    "name": names.get(expert_id, expert_id[:8]),
+                    "expert_id": expert_id,
+                    "data": [{"step": i, "weight": round(w, 4)} for i, w in enumerate(weights)],
+                }
+            )
         return {
             "chart_type": "line",
             "title": "Expert Weight Evolution",
@@ -262,19 +264,23 @@ class EnsembleVisualizationBuilder:
         """Bar chart comparing ensemble accuracy vs each expert."""
         data = []
         for eid, met in sorted(expert_metrics.items()):
-            data.append({
-                "entity": eid[:8],
-                "entity_id": eid,
-                "accuracy": round(met.get("accuracy", 0.0), 4),
-                "type": "expert",
-            })
+            data.append(
+                {
+                    "entity": eid[:8],
+                    "entity_id": eid,
+                    "accuracy": round(met.get("accuracy", 0.0), 4),
+                    "type": "expert",
+                }
+            )
         if ensemble_metrics:
-            data.append({
-                "entity": "Ensemble",
-                "entity_id": "ensemble",
-                "accuracy": round(ensemble_metrics.get("accuracy", 0.0), 4),
-                "type": "ensemble",
-            })
+            data.append(
+                {
+                    "entity": "Ensemble",
+                    "entity_id": "ensemble",
+                    "accuracy": round(ensemble_metrics.get("accuracy", 0.0), 4),
+                    "type": "ensemble",
+                }
+            )
         data.sort(key=lambda d: d["accuracy"], reverse=True)
         return {
             "chart_type": "bar",
@@ -295,10 +301,7 @@ class EnsembleVisualizationBuilder:
         """Heatmap of expert accuracy per regime."""
         expert_ids = list(regime_accuracy.keys())
         regimes = sorted({r for m in regime_accuracy.values() for r in m})
-        matrix = {
-            eid: {r: regime_accuracy[eid].get(r) for r in regimes}
-            for eid in expert_ids
-        }
+        matrix = {eid: {r: regime_accuracy[eid].get(r) for r in regimes} for eid in expert_ids}
         return {
             "chart_type": "heatmap",
             "title": "Expert Accuracy by Market Regime",
@@ -326,25 +329,13 @@ class EnsembleVisualizationBuilder:
     ) -> Dict[str, Any]:
         """Build all dashboard charts in one call."""
         return {
-            "expert_weight_chart": self.expert_weight_chart(
-                current_weights, expert_names
-            ),
+            "expert_weight_chart": self.expert_weight_chart(current_weights, expert_names),
             "voting_distribution": self.voting_distribution(vote_records),
-            "agreement_matrix": self.agreement_matrix(
-                dict(agreement_matrix_data)
-            ),
-            "disagreement_matrix": self.disagreement_matrix(
-                dict(agreement_matrix_data)
-            ),
-            "confidence_distribution": self.confidence_distribution(
-                ensemble_results
-            ),
-            "weight_evolution": self.weight_evolution(
-                weight_history, expert_names
-            ),
-            "expert_performance_timeline": self.expert_performance_timeline(
-                performance_records
-            ),
+            "agreement_matrix": self.agreement_matrix(dict(agreement_matrix_data)),
+            "disagreement_matrix": self.disagreement_matrix(dict(agreement_matrix_data)),
+            "confidence_distribution": self.confidence_distribution(ensemble_results),
+            "weight_evolution": self.weight_evolution(weight_history, expert_names),
+            "expert_performance_timeline": self.expert_performance_timeline(performance_records),
             "ensemble_vs_expert_accuracy": self.ensemble_vs_expert_accuracy(
                 expert_metrics or {}, ensemble_metrics
             ),

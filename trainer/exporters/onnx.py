@@ -84,6 +84,7 @@ class ONNXExporter(BaseExporter):
     def _validate_onnx(path: Path) -> None:
         """Run onnx.checker.check_model on the exported file."""
         import onnx
+
         model = onnx.load(str(path))
         onnx.checker.check_model(model)
         logger.info("ONNX model validation passed")

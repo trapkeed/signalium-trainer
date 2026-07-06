@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Health record
 # ---------------------------------------------------------------------------
@@ -42,6 +41,7 @@ from typing import Any, Dict, List, Optional, Tuple
 @dataclass
 class HealthRecord:
     """One health observation for a model."""
+
     model_id: str
     buy_prob: float = 0.33
     sell_prob: float = 0.33
@@ -50,18 +50,16 @@ class HealthRecord:
     uncertainty: float = 0.5
     predicted_class: str = "no_trade"
     true_class: Optional[str] = None
-    features_hash: Optional[str] = None   # hash of feature vector (for drift)
+    features_hash: Optional[str] = None  # hash of feature vector (for drift)
     latency_ms: float = 0.0
     calibration_error: float = 0.0
     regime: str = "unknown"
     is_correct: Optional[bool] = None
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def __post_init__(self) -> None:
         if self.true_class is not None:
-            self.is_correct = (self.predicted_class == self.true_class)
+            self.is_correct = self.predicted_class == self.true_class
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +143,7 @@ class HealthReport:
 @dataclass
 class DriftThresholds:
     """Configurable thresholds for drift detection."""
+
     confidence_drift: float = 0.10
     prediction_drift: float = 0.15
     calibration_drift: float = 0.05
@@ -177,33 +176,44 @@ class ModelHealthMonitor:
         thresholds: DriftThresholds for alert generation.
     """
 
-    def __init__(self, baseline_window: int = 200,
-                 recent_window: int = 50,
-                 thresholds: Optional[DriftThresholds] = None) -> None:
+    def __init__(
+        self,
+        baseline_window: int = 200,
+        recent_window: int = 50,
+        thresholds: Optional[DriftThresholds] = None,
+    ) -> None:
         self.baseline_window = baseline_window
         self.recent_window = recent_window
         self.thresholds = thresholds or DriftThresholds()
         self._buffers: Dict[str, deque] = {}
         self._all_records: Dict[str, List[HealthRecord]] = {}
 
-    def record_prediction(self, model_id: str,
-                           buy_prob: float = 0.33,
-                           sell_prob: float = 0.33,
-                           no_trade_prob: float = 0.34,
-                           confidence: float = 0.5,
-                           uncertainty: float = 0.5,
-                           predicted_class: str = "no_trade",
-                           true_class: Optional[str] = None,
-                           latency_ms: float = 0.0,
-                           calibration_error: float = 0.0,
-                           regime: str = "unknown") -> HealthRecord:
+    def record_prediction(
+        self,
+        model_id: str,
+        buy_prob: float = 0.33,
+        sell_prob: float = 0.33,
+        no_trade_prob: float = 0.34,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+        predicted_class: str = "no_trade",
+        true_class: Optional[str] = None,
+        latency_ms: float = 0.0,
+        calibration_error: float = 0.0,
+        regime: str = "unknown",
+    ) -> HealthRecord:
         """Record one prediction for health tracking."""
         rec = HealthRecord(
             model_id=model_id,
-            buy_prob=buy_prob, sell_prob=sell_prob, no_trade_prob=no_trade_prob,
-            confidence=confidence, uncertainty=uncertainty,
-            predicted_class=predicted_class, true_class=true_class,
-            latency_ms=latency_ms, calibration_error=calibration_error,
+            buy_prob=buy_prob,
+            sell_prob=sell_prob,
+            no_trade_prob=no_trade_prob,
+            confidence=confidence,
+            uncertainty=uncertainty,
+            predicted_class=predicted_class,
+            true_class=true_class,
+            latency_ms=latency_ms,
+            calibration_error=calibration_error,
             regime=regime,
         )
         total_window = self.baseline_window + self.recent_window
@@ -219,15 +229,16 @@ class ModelHealthMonitor:
         buf = list(self._buffers.get(model_id, []))
         n = len(buf)
         report = HealthReport(
-            model_id=model_id, n_records=n,
+            model_id=model_id,
+            n_records=n,
             baseline_window=self.baseline_window,
             recent_window=self.recent_window,
         )
         if n < self.recent_window:
             return report
 
-        baseline = buf[:self.baseline_window]
-        recent = buf[-self.recent_window:]
+        baseline = buf[: self.baseline_window]
+        recent = buf[-self.recent_window :]
 
         b_conf = _mean([r.confidence for r in baseline])
         r_conf = _mean([r.confidence for r in recent])
@@ -287,8 +298,7 @@ class ModelHealthMonitor:
         return {mid: self.get_health_report(mid) for mid in self._buffers}
 
     def unhealthy_models(self) -> List[str]:
-        return [mid for mid, r in self.all_health_reports().items()
-                if not r.is_healthy]
+        return [mid for mid, r in self.all_health_reports().items() if not r.is_healthy]
 
 
 # ---------------------------------------------------------------------------

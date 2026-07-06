@@ -17,7 +17,8 @@ from typing import Dict, List, Optional
 @dataclass
 class OrderBookLevel:
     """One level of the order book."""
-    price:    float
+
+    price: float
     bid_size: float = 0.0
     ask_size: float = 0.0
 
@@ -33,11 +34,12 @@ class OrderBookLevel:
 @dataclass
 class OrderFlowBar:
     """Aggregated order flow data for one bar (future use)."""
-    timestamp:    float
-    volume_delta: float = 0.0    # buy volume - sell volume
-    buy_volume:   float = 0.0
-    sell_volume:  float = 0.0
-    bid_imbalance: float = 0.0   # -1 to +1
+
+    timestamp: float
+    volume_delta: float = 0.0  # buy volume - sell volume
+    buy_volume: float = 0.0
+    sell_volume: float = 0.0
+    bid_imbalance: float = 0.0  # -1 to +1
     ask_imbalance: float = 0.0
     depth_levels: List[OrderBookLevel] = field(default_factory=list)
 
@@ -47,12 +49,12 @@ class OrderFlowBar:
 
     def to_dict(self) -> Dict:
         return {
-            "timestamp":     self.timestamp,
-            "volume_delta":  round(self.volume_delta, 2),
-            "buy_volume":    round(self.buy_volume, 2),
-            "sell_volume":   round(self.sell_volume, 2),
+            "timestamp": self.timestamp,
+            "volume_delta": round(self.volume_delta, 2),
+            "buy_volume": round(self.buy_volume, 2),
+            "sell_volume": round(self.sell_volume, 2),
             "bid_imbalance": round(self.bid_imbalance, 4),
-            "depth_levels":  len(self.depth_levels),
+            "depth_levels": len(self.depth_levels),
         }
 
 
@@ -75,7 +77,7 @@ class OrderFlowInterface:
         if not bars:
             return None
         total_delta = sum(b.volume_delta for b in bars)
-        total_vol   = sum(b.buy_volume + b.sell_volume for b in bars)
+        total_vol = sum(b.buy_volume + b.sell_volume for b in bars)
         if total_vol < 1e-10:
             return None
         return round(total_delta / total_vol, 4)
@@ -104,7 +106,9 @@ class OrderFlowInterface:
         imbalances = [level.imbalance for level in bar.depth_levels]
         return round(sum(imbalances) / len(imbalances), 4) if imbalances else None
 
-    def order_book_imbalance(self, levels: Optional[List[OrderBookLevel]], top_n: int = 5) -> Optional[float]:
+    def order_book_imbalance(
+        self, levels: Optional[List[OrderBookLevel]], top_n: int = 5
+    ) -> Optional[float]:
         """Top-of-book imbalance (most relevant to price)."""
         if not levels:
             return None
@@ -118,7 +122,7 @@ class OrderFlowInterface:
         return {
             "bid_depth": round(sum(l.bid_size for l in levels), 2),
             "ask_depth": round(sum(l.ask_size for l in levels), 2),
-            "levels":    len(levels),
+            "levels": len(levels),
         }
 
     def absorption_score(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
@@ -133,7 +137,7 @@ class OrderFlowInterface:
         if total_vol < 1e-10:
             return None
         # Will be computed from price + volume data when available
-        return None   # Implementation pending tick + DOM data
+        return None  # Implementation pending tick + DOM data
 
     def iceberg_probability(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
         """Estimate probability of iceberg orders at current price.
@@ -143,19 +147,19 @@ class OrderFlowInterface:
         """
         if not bars:
             return None
-        return None   # Implementation pending tick data
+        return None  # Implementation pending tick data
 
     def data_quality_report(self) -> Dict:
         """Report on what order flow data is available."""
         return {
-            "available":          False,
-            "volume_delta":       "pending — requires tick data",
-            "bid_ask_imbalance":  "pending — requires Level II data",
-            "cumulative_delta":   "pending — requires tick data",
-            "footprint":          "pending — requires tick data",
-            "order_book":         "pending — requires Level II / DOM data",
-            "absorption":         "pending — requires tick + DOM data",
-            "iceberg_detection":  "pending — requires tick data",
-            "current_source":     "OHLC",
-            "degradation":        "graceful — all OHLC features fully functional",
+            "available": False,
+            "volume_delta": "pending — requires tick data",
+            "bid_ask_imbalance": "pending — requires Level II data",
+            "cumulative_delta": "pending — requires tick data",
+            "footprint": "pending — requires tick data",
+            "order_book": "pending — requires Level II / DOM data",
+            "absorption": "pending — requires tick + DOM data",
+            "iceberg_detection": "pending — requires tick data",
+            "current_source": "OHLC",
+            "degradation": "graceful — all OHLC features fully functional",
         }

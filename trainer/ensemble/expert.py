@@ -34,7 +34,6 @@ from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Specialization types
 # ---------------------------------------------------------------------------
@@ -42,23 +41,33 @@ from loguru import logger
 
 class SpecializationType:
     """Expert specialization categories."""
-    TRENDING          = "trending"
-    RANGING           = "ranging"
-    HIGH_VOLATILITY   = "high_volatility"
-    LOW_VOLATILITY    = "low_volatility"
-    BREAKOUT          = "breakout"
-    PULLBACK          = "pullback"
-    SCALPING          = "scalping"
-    INTRADAY          = "intraday"
-    SWING             = "swing"
-    INSTRUMENT        = "instrument"
-    TIMEFRAME         = "timeframe"
-    GENERAL           = "general"
+
+    TRENDING = "trending"
+    RANGING = "ranging"
+    HIGH_VOLATILITY = "high_volatility"
+    LOW_VOLATILITY = "low_volatility"
+    BREAKOUT = "breakout"
+    PULLBACK = "pullback"
+    SCALPING = "scalping"
+    INTRADAY = "intraday"
+    SWING = "swing"
+    INSTRUMENT = "instrument"
+    TIMEFRAME = "timeframe"
+    GENERAL = "general"
 
     ALL = [
-        TRENDING, RANGING, HIGH_VOLATILITY, LOW_VOLATILITY,
-        BREAKOUT, PULLBACK, SCALPING, INTRADAY, SWING,
-        INSTRUMENT, TIMEFRAME, GENERAL,
+        TRENDING,
+        RANGING,
+        HIGH_VOLATILITY,
+        LOW_VOLATILITY,
+        BREAKOUT,
+        PULLBACK,
+        SCALPING,
+        INTRADAY,
+        SWING,
+        INSTRUMENT,
+        TIMEFRAME,
+        GENERAL,
     ]
 
 
@@ -69,17 +78,23 @@ class SpecializationType:
 
 class ModelFamily:
     """Supported backbone model families."""
-    LSTM                    = "lstm"
-    GRU                     = "gru"
-    TRANSFORMER_ENCODER     = "transformer_encoder"
-    TEMPORAL_CNN            = "temporal_cnn"
+
+    LSTM = "lstm"
+    GRU = "gru"
+    TRANSFORMER_ENCODER = "transformer_encoder"
+    TEMPORAL_CNN = "temporal_cnn"
     HYBRID_LSTM_TRANSFORMER = "hybrid_lstm_transformer"
-    HYBRID_GRU_TRANSFORMER  = "hybrid_gru_transformer"
-    CUSTOM                  = "custom"
+    HYBRID_GRU_TRANSFORMER = "hybrid_gru_transformer"
+    CUSTOM = "custom"
 
     ALL = [
-        LSTM, GRU, TRANSFORMER_ENCODER, TEMPORAL_CNN,
-        HYBRID_LSTM_TRANSFORMER, HYBRID_GRU_TRANSFORMER, CUSTOM,
+        LSTM,
+        GRU,
+        TRANSFORMER_ENCODER,
+        TEMPORAL_CNN,
+        HYBRID_LSTM_TRANSFORMER,
+        HYBRID_GRU_TRANSFORMER,
+        CUSTOM,
     ]
 
 
@@ -118,9 +133,7 @@ class ExpertPrediction:
     timeframe: str = ""
     latency_ms: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def __post_init__(self) -> None:
         total = self.buy_prob + self.sell_prob + self.no_trade_prob
@@ -233,12 +246,8 @@ class ExpertModel:
     calibration_error: float = 0.0
     n_predictions: int = 0
     n_correct: int = 0
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    updated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: Dict[str, Any] = field(default_factory=dict)
     predict_fn: Optional[Callable] = field(default=None, repr=False)
 
@@ -262,8 +271,11 @@ class ExpertModel:
             return self.predict_fn(features)
         return ExpertPrediction(
             expert_id=self.expert_id,
-            buy_prob=0.33, sell_prob=0.33, no_trade_prob=0.34,
-            confidence=0.5, uncertainty=0.5,
+            buy_prob=0.33,
+            sell_prob=0.33,
+            no_trade_prob=0.34,
+            confidence=0.5,
+            uncertainty=0.5,
             regime=features.get("regime", "unknown"),
             instrument=features.get("instrument", ""),
             timeframe=features.get("timeframe", ""),
@@ -381,28 +393,28 @@ class ExpertRegistry:
 
     def all_experts(self) -> List[ExpertModel]:
         """Return all experts in registration order."""
-        return [self._experts[eid] for eid in self._order
-                if eid in self._experts]
+        return [self._experts[eid] for eid in self._order if eid in self._experts]
 
     def active_experts(self) -> List[ExpertModel]:
         return [e for e in self.all_experts() if e.is_active]
 
     def by_specialization(self, spec: str) -> List[ExpertModel]:
-        return [e for e in self.active_experts()
-                if spec in e.specializations or
-                SpecializationType.GENERAL in e.specializations]
+        return [
+            e
+            for e in self.active_experts()
+            if spec in e.specializations or SpecializationType.GENERAL in e.specializations
+        ]
 
     def by_instrument(self, instrument: str) -> List[ExpertModel]:
-        return [e for e in self.active_experts()
-                if not e.instruments or instrument in e.instruments]
+        return [
+            e for e in self.active_experts() if not e.instruments or instrument in e.instruments
+        ]
 
     def by_timeframe(self, timeframe: str) -> List[ExpertModel]:
-        return [e for e in self.active_experts()
-                if not e.timeframes or timeframe in e.timeframes]
+        return [e for e in self.active_experts() if not e.timeframes or timeframe in e.timeframes]
 
     def by_family(self, family: str) -> List[ExpertModel]:
-        return [e for e in self.active_experts()
-                if e.model_family == family]
+        return [e for e in self.active_experts() if e.model_family == family]
 
     def champion(self) -> Optional[ExpertModel]:
         if self._champion_id:
@@ -459,14 +471,16 @@ class ExpertRegistry:
 def build_default_registry() -> ExpertRegistry:
     """Build the default expert registry with Expert 1 (Signalium Quant v1)."""
     registry = ExpertRegistry()
-    registry.register(ExpertModel(
-        expert_id="expert_01",
-        name="Signalium Quant v1",
-        model_family=ModelFamily.LSTM,
-        specializations=[SpecializationType.GENERAL],
-        version="1.0.0",
-        phase="phase_1_14",
-        status="champion",
-        metadata={"description": "The original Signalium Quant model — Expert 1."},
-    ))
+    registry.register(
+        ExpertModel(
+            expert_id="expert_01",
+            name="Signalium Quant v1",
+            model_family=ModelFamily.LSTM,
+            specializations=[SpecializationType.GENERAL],
+            version="1.0.0",
+            phase="phase_1_14",
+            status="champion",
+            metadata={"description": "The original Signalium Quant model — Expert 1."},
+        )
+    )
     return registry

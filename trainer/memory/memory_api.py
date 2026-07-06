@@ -27,6 +27,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_types import DecisionType, OutcomeType
@@ -53,40 +54,40 @@ class MemoryAPI:
     """Unified API for the Decision Memory and Self-Evaluation Engine."""
 
     def __init__(self, db_path: str = ":memory:"):
-        self.memory       = DecisionMemory()
-        self.tracker      = OutcomeTracker()
-        self.quality      = QualityEngine()
-        self.counterfact  = CounterfactualEngine()
-        self.patterns     = PatternDiscovery()
-        self.evaluator    = SelfEvaluationEngine()
-        self.knowledge    = KnowledgeBase()
-        self.lineage      = DecisionLineage()
+        self.memory = DecisionMemory()
+        self.tracker = OutcomeTracker()
+        self.quality = QualityEngine()
+        self.counterfact = CounterfactualEngine()
+        self.patterns = PatternDiscovery()
+        self.evaluator = SelfEvaluationEngine()
+        self.knowledge = KnowledgeBase()
+        self.lineage = DecisionLineage()
         self.benchmarking = DecisionBenchmarking()
-        self.search       = MemorySearch()
-        self.dashboard    = MemoryDashboard()
-        self.db           = MemoryDatabase(db_path)
+        self.search = MemorySearch()
+        self.dashboard = MemoryDashboard()
+        self.db = MemoryDatabase(db_path)
 
     # ── 1. Record decision ────────────────────────────────────────────────────
 
     def record_decision(
         self,
         decision_type: DecisionType,
-        instrument:    str,
-        snapshot:      DecisionSnapshot,
-        reasoning:     DecisionReasoning,
-        tags:          Optional[List[str]] = None,
-        trade_id:      str = "",
-        lineage_id:    str = "",
-        persist:       bool = True,
+        instrument: str,
+        snapshot: DecisionSnapshot,
+        reasoning: DecisionReasoning,
+        tags: Optional[List[str]] = None,
+        trade_id: str = "",
+        lineage_id: str = "",
+        persist: bool = True,
     ) -> DecisionRecord:
         record = self.memory.record_decision(
-            decision_type = decision_type,
-            instrument    = instrument,
-            snapshot      = snapshot,
-            reasoning     = reasoning,
-            tags          = tags,
-            trade_id      = trade_id,
-            lineage_id    = lineage_id,
+            decision_type=decision_type,
+            instrument=instrument,
+            snapshot=snapshot,
+            reasoning=reasoning,
+            tags=tags,
+            trade_id=trade_id,
+            lineage_id=lineage_id,
         )
         if persist:
             self.db.save_decision(record)
@@ -102,29 +103,29 @@ class MemoryAPI:
 
     def record_outcome(
         self,
-        decision_id:  str,
+        decision_id: str,
         outcome_type: OutcomeType,
-        actual_pnl:   float = 0.0,
+        actual_pnl: float = 0.0,
         actual_pnl_pct: float = 0.0,
-        hit_tp:       bool  = False,
-        hit_sl:       bool  = False,
+        hit_tp: bool = False,
+        hit_sl: bool = False,
         holding_time_h: float = 0.0,
         direction_correct: Optional[bool] = None,
-        market_event: str   = "",
-        notes:        str   = "",
-        persist:      bool  = True,
+        market_event: str = "",
+        notes: str = "",
+        persist: bool = True,
     ) -> bool:
         ok = self.memory.record_outcome(
-            decision_id       = decision_id,
-            outcome_type      = outcome_type,
-            actual_pnl        = actual_pnl,
-            actual_pnl_pct    = actual_pnl_pct,
-            hit_tp            = hit_tp,
-            hit_sl            = hit_sl,
-            holding_time_h    = holding_time_h,
-            direction_correct = direction_correct,
-            market_event      = market_event,
-            notes             = notes,
+            decision_id=decision_id,
+            outcome_type=outcome_type,
+            actual_pnl=actual_pnl,
+            actual_pnl_pct=actual_pnl_pct,
+            hit_tp=hit_tp,
+            hit_sl=hit_sl,
+            holding_time_h=holding_time_h,
+            direction_correct=direction_correct,
+            market_event=market_event,
+            notes=notes,
         )
         if ok and persist:
             record = self.memory.get(decision_id)
@@ -146,10 +147,12 @@ class MemoryAPI:
 
     def score_all(self) -> Dict:
         records = self.memory.all_records()
-        scores  = self.quality.batch_score(records)
+        scores = self.quality.batch_score(records)
         return {
-            "scored":  len(scores),
-            "avg_quality": round(sum(s.overall for s in scores) / len(scores), 4) if scores else 0.0,
+            "scored": len(scores),
+            "avg_quality": (
+                round(sum(s.overall for s in scores) / len(scores), 4) if scores else 0.0
+            ),
         }
 
     # ── 6. Analyse counterfactuals ────────────────────────────────────────────
@@ -166,7 +169,7 @@ class MemoryAPI:
 
     def summarise_outcomes(
         self,
-        instrument:    Optional[str]          = None,
+        instrument: Optional[str] = None,
         decision_type: Optional[DecisionType] = None,
     ) -> Dict:
         records = self.memory.filter(instrument=instrument, decision_type=decision_type)
@@ -177,13 +180,13 @@ class MemoryAPI:
 
     def discover_patterns(self) -> Dict:
         records = self.memory.all_records()
-        report  = self.patterns.discover(records)
+        report = self.patterns.discover(records)
         return report.to_dict()
 
     # ── 9. Self-evaluate ──────────────────────────────────────────────────────
 
     def self_evaluate(self, period: str = "CURRENT") -> Dict:
-        records    = self.memory.all_records()
+        records = self.memory.all_records()
         assessment = self.evaluator.evaluate(records, period=period)
         return assessment.to_dict()
 
@@ -191,21 +194,19 @@ class MemoryAPI:
 
     def search_decisions(self, query: SearchQuery) -> Dict:
         records = self.memory.all_records()
-        result  = self.search.search(records, query)
+        result = self.search.search(records, query)
         return result.to_dict()
 
     # ── 11. Knowledge search ──────────────────────────────────────────────────
 
     def knowledge_search(
         self,
-        query:      str = "",
+        query: str = "",
         entry_type: Optional[str] = None,
-        tags:       Optional[List[str]] = None,
-        limit:      int = 50,
+        tags: Optional[List[str]] = None,
+        limit: int = 50,
     ) -> List[Dict]:
-        entries = self.knowledge.search(
-            query=query, entry_type=entry_type, tags=tags, limit=limit
-        )
+        entries = self.knowledge.search(query=query, entry_type=entry_type, tags=tags, limit=limit)
         return [e.to_dict() for e in entries]
 
     # ── 12. Index in knowledge base ───────────────────────────────────────────
@@ -221,25 +222,25 @@ class MemoryAPI:
 
     def build_lineage(
         self,
-        decision_id:   str,
+        decision_id: str,
         model_version: str = "",
-        dataset_name:  str = "",
-        feature_set:   str = "",
-        training_run:  str = "",
-        experiment:    str = "",
-        git_commit:    str = "",
+        dataset_name: str = "",
+        feature_set: str = "",
+        training_run: str = "",
+        experiment: str = "",
+        git_commit: str = "",
     ) -> Optional[Dict]:
         record = self.memory.get(decision_id)
         if not record:
             return None
         lin = self.lineage.create_lineage(
-            decision_id   = decision_id,
-            model_version = model_version,
-            dataset_name  = dataset_name,
-            feature_set   = feature_set,
-            training_run  = training_run,
-            experiment    = experiment,
-            git_commit    = git_commit,
+            decision_id=decision_id,
+            model_version=model_version,
+            dataset_name=dataset_name,
+            feature_set=feature_set,
+            training_run=training_run,
+            experiment=experiment,
+            git_commit=git_commit,
         )
         record.lineage_id = lin.lineage_id
         return lin.to_dict()
@@ -248,7 +249,7 @@ class MemoryAPI:
 
     def benchmark(self, baselines: Optional[List[str]] = None) -> Dict:
         records = self.memory.all_records()
-        report  = self.benchmarking.benchmark(records, baselines=baselines)
+        report = self.benchmarking.benchmark(records, baselines=baselines)
         return report.to_dict()
 
     # ── 15. Get dashboard ─────────────────────────────────────────────────────
@@ -256,14 +257,14 @@ class MemoryAPI:
     def get_dashboard(self, name: str = "all") -> Dict:
         records = self.memory.all_records()
         fns = {
-            "decision_timeline":       self.dashboard.decision_timeline,
-            "decision_tree":           self.dashboard.decision_tree,
-            "quality_distribution":    self.dashboard.quality_distribution,
-            "failure_analysis":        self.dashboard.failure_analysis,
+            "decision_timeline": self.dashboard.decision_timeline,
+            "decision_tree": self.dashboard.decision_tree,
+            "quality_distribution": self.dashboard.quality_distribution,
+            "failure_analysis": self.dashboard.failure_analysis,
             "counterfactual_explorer": self.dashboard.counterfactual_explorer,
-            "knowledge_graph":         self.dashboard.knowledge_graph,
-            "learning_timeline":       self.dashboard.learning_timeline,
-            "decision_heatmaps":       self.dashboard.decision_heatmaps,
+            "knowledge_graph": self.dashboard.knowledge_graph,
+            "learning_timeline": self.dashboard.learning_timeline,
+            "decision_heatmaps": self.dashboard.decision_heatmaps,
         }
         if name == "all":
             return self.dashboard.all_dashboards(records)
@@ -276,13 +277,13 @@ class MemoryAPI:
 
     def system_stats(self) -> Dict:
         mem_stats = self.memory.stats()
-        db_stats  = self.db.stats()
-        kb_stats  = self.knowledge.stats()
+        db_stats = self.db.stats()
+        kb_stats = self.knowledge.stats()
         lin_stats = self.lineage.stats()
         return {
-            "memory":     mem_stats,
-            "database":   db_stats,
-            "knowledge":  kb_stats,
-            "lineage":    lin_stats,
-            "baselines":  len(self.benchmarking.list_baselines()),
+            "memory": mem_stats,
+            "database": db_stats,
+            "knowledge": kb_stats,
+            "lineage": lin_stats,
+            "baselines": len(self.benchmarking.list_baselines()),
         }

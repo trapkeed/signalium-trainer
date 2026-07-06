@@ -12,6 +12,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 _SCHEMA = """
@@ -155,17 +156,20 @@ class CertDatabase:
             overall_score   = excluded.overall_score
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("run_id", ""),
-                rec.get("model_id", ""),
-                rec.get("model_name"),
-                rec.get("model_version"),
-                rec.get("requester"),
-                rec.get("started_at", time.time()),
-                rec.get("completed_at"),
-                rec.get("decision_status"),
-                rec.get("overall_score"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("run_id", ""),
+                    rec.get("model_id", ""),
+                    rec.get("model_name"),
+                    rec.get("model_version"),
+                    rec.get("requester"),
+                    rec.get("started_at", time.time()),
+                    rec.get("completed_at"),
+                    rec.get("decision_status"),
+                    rec.get("overall_score"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Write: Stage Results ───────────────────────────────────────────────
@@ -178,16 +182,19 @@ class CertDatabase:
         VALUES (?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("run_id", ""),
-                rec.get("stage", ""),
-                rec.get("status", "PASS"),
-                rec.get("score"),
-                json.dumps(rec.get("findings", [])),
-                json.dumps(rec.get("warnings", [])),
-                json.dumps(rec.get("failures", [])),
-                rec.get("duration_ms"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("run_id", ""),
+                    rec.get("stage", ""),
+                    rec.get("status", "PASS"),
+                    rec.get("score"),
+                    json.dumps(rec.get("findings", [])),
+                    json.dumps(rec.get("warnings", [])),
+                    json.dumps(rec.get("failures", [])),
+                    rec.get("duration_ms"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Write: Checklist Items ─────────────────────────────────────────────
@@ -200,18 +207,21 @@ class CertDatabase:
         VALUES (?,?,?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                run_id,
-                rec.get("check_id", ""),
-                rec.get("category"),
-                rec.get("description"),
-                1 if rec.get("mandatory", True) else 0,
-                rec.get("status", "PASS"),
-                json.dumps(rec.get("value")),
-                rec.get("threshold"),
-                rec.get("rationale"),
-                rec.get("risk_level"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    run_id,
+                    rec.get("check_id", ""),
+                    rec.get("category"),
+                    rec.get("description"),
+                    1 if rec.get("mandatory", True) else 0,
+                    rec.get("status", "PASS"),
+                    json.dumps(rec.get("value")),
+                    rec.get("threshold"),
+                    rec.get("rationale"),
+                    rec.get("risk_level"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Write: Benchmark Results ───────────────────────────────────────────
@@ -223,14 +233,17 @@ class CertDatabase:
         VALUES (?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("run_id", ""),
-                rec.get("metric", ""),
-                rec.get("value"),
-                rec.get("unit"),
-                rec.get("threshold"),
-                rec.get("status", "PASS"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("run_id", ""),
+                    rec.get("metric", ""),
+                    rec.get("value"),
+                    rec.get("unit"),
+                    rec.get("threshold"),
+                    rec.get("status", "PASS"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Write: Audit Package ───────────────────────────────────────────────
@@ -253,17 +266,20 @@ class CertDatabase:
             generated_at          = excluded.generated_at
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("run_id", ""),
-                rec.get("certification_report"),
-                rec.get("validation_report"),
-                rec.get("benchmark_report"),
-                rec.get("stress_test_report"),
-                rec.get("security_report"),
-                rec.get("operational_checklist"),
-                rec.get("executive_summary"),
-                rec.get("generated_at", time.time()),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("run_id", ""),
+                    rec.get("certification_report"),
+                    rec.get("validation_report"),
+                    rec.get("benchmark_report"),
+                    rec.get("stress_test_report"),
+                    rec.get("security_report"),
+                    rec.get("operational_checklist"),
+                    rec.get("executive_summary"),
+                    rec.get("generated_at", time.time()),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Write: Production Approvals ────────────────────────────────────────
@@ -276,16 +292,19 @@ class CertDatabase:
         VALUES (?,?,?,?,?,?,?,?)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, (
-                rec.get("run_id", ""),
-                rec.get("model_id", ""),
-                rec.get("approved_by", "SYSTEM"),
-                rec.get("approval_status", "PENDING"),
-                json.dumps(rec.get("conditions", [])),
-                rec.get("approved_at", time.time()),
-                rec.get("expires_at"),
-                rec.get("notes"),
-            ))
+            cur = conn.execute(
+                sql,
+                (
+                    rec.get("run_id", ""),
+                    rec.get("model_id", ""),
+                    rec.get("approved_by", "SYSTEM"),
+                    rec.get("approval_status", "PENDING"),
+                    json.dumps(rec.get("conditions", [])),
+                    rec.get("approved_at", time.time()),
+                    rec.get("expires_at"),
+                    rec.get("notes"),
+                ),
+            )
             return cur.lastrowid or 0
 
     # ── Read ───────────────────────────────────────────────────────────────
@@ -309,8 +328,7 @@ class CertDatabase:
     def get_stage_results(self, run_id: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM certification_results WHERE run_id=? "
-                "ORDER BY created_at ASC",
+                "SELECT * FROM certification_results WHERE run_id=? " "ORDER BY created_at ASC",
                 (run_id,),
             ).fetchall()
         return [dict(r) for r in rows]
@@ -318,8 +336,7 @@ class CertDatabase:
     def get_checklist(self, run_id: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM certification_criteria WHERE run_id=? "
-                "ORDER BY created_at ASC",
+                "SELECT * FROM certification_criteria WHERE run_id=? " "ORDER BY created_at ASC",
                 (run_id,),
             ).fetchall()
         return [dict(r) for r in rows]
@@ -334,16 +351,13 @@ class CertDatabase:
 
     def get_audit_package(self, run_id: str) -> Optional[Dict[str, Any]]:
         with self._conn() as conn:
-            row = conn.execute(
-                "SELECT * FROM audit_packages WHERE run_id=?", (run_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM audit_packages WHERE run_id=?", (run_id,)).fetchone()
         return dict(row) if row else None
 
     def get_approvals(self, model_id: str) -> List[Dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT * FROM production_approvals WHERE model_id=? "
-                "ORDER BY approved_at DESC",
+                "SELECT * FROM production_approvals WHERE model_id=? " "ORDER BY approved_at DESC",
                 (model_id,),
             ).fetchall()
         return [dict(r) for r in rows]

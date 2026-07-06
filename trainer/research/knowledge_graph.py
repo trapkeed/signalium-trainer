@@ -30,44 +30,56 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
-
 # ---------------------------------------------------------------------------
 # Node and Edge constants
 # ---------------------------------------------------------------------------
 
 
 class NodeType:
-    EXPERIMENT      = "experiment"
-    DATASET         = "dataset"
-    MODEL           = "model"
-    FEATURE         = "feature"
-    VALIDATION_RUN  = "validation_run"
-    DEPLOYMENT      = "deployment"
-    CHAMPION_MODEL  = "champion_model"
-    RETIRED_MODEL   = "retired_model"
+    EXPERIMENT = "experiment"
+    DATASET = "dataset"
+    MODEL = "model"
+    FEATURE = "feature"
+    VALIDATION_RUN = "validation_run"
+    DEPLOYMENT = "deployment"
+    CHAMPION_MODEL = "champion_model"
+    RETIRED_MODEL = "retired_model"
 
     ALL = [
-        EXPERIMENT, DATASET, MODEL, FEATURE, VALIDATION_RUN,
-        DEPLOYMENT, CHAMPION_MODEL, RETIRED_MODEL,
+        EXPERIMENT,
+        DATASET,
+        MODEL,
+        FEATURE,
+        VALIDATION_RUN,
+        DEPLOYMENT,
+        CHAMPION_MODEL,
+        RETIRED_MODEL,
     ]
 
 
 class EdgeType:
-    USES_DATASET    = "USES_DATASET"
-    HAS_MODEL       = "HAS_MODEL"
-    USES_FEATURE    = "USES_FEATURE"
-    VALIDATED_BY    = "VALIDATED_BY"
-    DEPLOYED_AS     = "DEPLOYED_AS"
-    PROMOTED_TO     = "PROMOTED_TO"
-    RETIRED         = "RETIRED"
-    PARENT_OF       = "PARENT_OF"
-    DERIVED_FROM    = "DERIVED_FROM"
-    COMPARED_WITH   = "COMPARED_WITH"
+    USES_DATASET = "USES_DATASET"
+    HAS_MODEL = "HAS_MODEL"
+    USES_FEATURE = "USES_FEATURE"
+    VALIDATED_BY = "VALIDATED_BY"
+    DEPLOYED_AS = "DEPLOYED_AS"
+    PROMOTED_TO = "PROMOTED_TO"
+    RETIRED = "RETIRED"
+    PARENT_OF = "PARENT_OF"
+    DERIVED_FROM = "DERIVED_FROM"
+    COMPARED_WITH = "COMPARED_WITH"
 
     ALL = [
-        USES_DATASET, HAS_MODEL, USES_FEATURE, VALIDATED_BY,
-        DEPLOYED_AS, PROMOTED_TO, RETIRED, PARENT_OF,
-        DERIVED_FROM, COMPARED_WITH,
+        USES_DATASET,
+        HAS_MODEL,
+        USES_FEATURE,
+        VALIDATED_BY,
+        DEPLOYED_AS,
+        PROMOTED_TO,
+        RETIRED,
+        PARENT_OF,
+        DERIVED_FROM,
+        COMPARED_WITH,
     ]
 
 
@@ -82,9 +94,7 @@ class GraphNode:
     node_type: str
     label: str
     attributes: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -108,9 +118,7 @@ class GraphEdge:
     target_id: str = ""
     edge_type: str = ""
     attributes: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -166,9 +174,7 @@ class KnowledgeGraph:
     def get_node(self, node_id: str) -> Optional[GraphNode]:
         return self._nodes.get(node_id)
 
-    def update_node_attributes(
-        self, node_id: str, attributes: Dict[str, Any]
-    ) -> None:
+    def update_node_attributes(self, node_id: str, attributes: Dict[str, Any]) -> None:
         node = self._nodes.get(node_id)
         if node:
             node.attributes.update(attributes)
@@ -227,9 +233,7 @@ class KnowledgeGraph:
                 continue
             if edge_type and edge.edge_type != edge_type:
                 continue
-            other_id = (
-                edge.target_id if edge.source_id == node_id else edge.source_id
-            )
+            other_id = edge.target_id if edge.source_id == node_id else edge.source_id
             if other_id not in seen:
                 seen.add(other_id)
                 node = self._nodes.get(other_id)
@@ -237,9 +241,7 @@ class KnowledgeGraph:
                     results.append(node)
         return results
 
-    def reachable(
-        self, start_id: str, direction: str = "out"
-    ) -> List[GraphNode]:
+    def reachable(self, start_id: str, direction: str = "out") -> List[GraphNode]:
         """Return all reachable nodes from start_id via BFS."""
         visited: Set[str] = {start_id}
         queue: deque = deque([start_id])
@@ -253,9 +255,7 @@ class KnowledgeGraph:
                     queue.append(neighbour.node_id)
         return result
 
-    def shortest_path(
-        self, source_id: str, target_id: str
-    ) -> List[str]:
+    def shortest_path(self, source_id: str, target_id: str) -> List[str]:
         """Return the shortest path (node IDs) between two nodes; [] if none."""
         if source_id not in self._nodes or target_id not in self._nodes:
             return []
@@ -282,25 +282,27 @@ class KnowledgeGraph:
 
     def experiments_using_dataset(self, dataset_node_id: str) -> List[GraphNode]:
         return [
-            n for n in self.neighbours(dataset_node_id, direction="in",
-                                        edge_type=EdgeType.USES_DATASET)
+            n
+            for n in self.neighbours(
+                dataset_node_id, direction="in", edge_type=EdgeType.USES_DATASET
+            )
             if n.node_type == NodeType.EXPERIMENT
         ]
 
     def experiments_using_feature(self, feature_node_id: str) -> List[GraphNode]:
         return [
-            n for n in self.neighbours(feature_node_id, direction="in",
-                                        edge_type=EdgeType.USES_FEATURE)
+            n
+            for n in self.neighbours(
+                feature_node_id, direction="in", edge_type=EdgeType.USES_FEATURE
+            )
             if n.node_type == NodeType.EXPERIMENT
         ]
 
     def model_lineage(self, model_node_id: str) -> Dict[str, Any]:
         """Return full lineage for a model: parents, experiments, validation."""
-        parents = self.neighbours(model_node_id, direction="in",
-                                   edge_type=EdgeType.PARENT_OF)
+        parents = self.neighbours(model_node_id, direction="in", edge_type=EdgeType.PARENT_OF)
         experiments = [
-            n for n in self.neighbours(model_node_id, direction="in",
-                                        edge_type=EdgeType.HAS_MODEL)
+            n for n in self.neighbours(model_node_id, direction="in", edge_type=EdgeType.HAS_MODEL)
         ]
         validation_runs = self.neighbours(
             model_node_id, direction="out", edge_type=EdgeType.VALIDATED_BY
@@ -320,12 +322,8 @@ class KnowledgeGraph:
     # From LineageTree / snapshots helpers
     # ------------------------------------------------------------------
 
-    def register_experiment_node(
-        self, node_id: str, name: str, attributes: Dict[str, Any]
-    ) -> str:
-        return self.add_node(
-            NodeType.EXPERIMENT, name, attributes, node_id=node_id
-        )
+    def register_experiment_node(self, node_id: str, name: str, attributes: Dict[str, Any]) -> str:
+        return self.add_node(NodeType.EXPERIMENT, name, attributes, node_id=node_id)
 
     def register_dataset_node(
         self, dataset_version: str, dataset_hash: str, attributes: Dict[str, Any]

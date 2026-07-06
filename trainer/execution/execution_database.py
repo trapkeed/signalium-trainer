@@ -20,10 +20,10 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_planner import ExecutionPlan
-
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS execution_plans (
@@ -99,7 +99,7 @@ class ExecutionDatabase:
     """
 
     def __init__(self, db_path: str = ":memory:"):
-        self._db_path       = db_path
+        self._db_path = db_path
         self._persistent_conn: Optional[sqlite3.Connection] = None
         self._init_db()
 
@@ -256,22 +256,22 @@ class ExecutionDatabase:
 
     def stats(self) -> Dict:
         with self._conn() as conn:
-            n_plans  = conn.execute("SELECT COUNT(*) FROM execution_plans").fetchone()[0]
-            n_exec   = conn.execute("SELECT COUNT(*) FROM execution_plans WHERE executable=1").fetchone()[0]
+            n_plans = conn.execute("SELECT COUNT(*) FROM execution_plans").fetchone()[0]
+            n_exec = conn.execute(
+                "SELECT COUNT(*) FROM execution_plans WHERE executable=1"
+            ).fetchone()[0]
             n_scores = conn.execute("SELECT COUNT(*) FROM trade_scores").fetchone()[0]
             n_sizing = conn.execute("SELECT COUNT(*) FROM sizing_decisions").fetchone()[0]
-            n_mgmt   = conn.execute("SELECT COUNT(*) FROM management_plans").fetchone()[0]
-            n_opt    = conn.execute("SELECT COUNT(*) FROM optimization_history").fetchone()[0]
-            avg_score_row = conn.execute(
-                "SELECT AVG(score) FROM execution_plans"
-            ).fetchone()
+            n_mgmt = conn.execute("SELECT COUNT(*) FROM management_plans").fetchone()[0]
+            n_opt = conn.execute("SELECT COUNT(*) FROM optimization_history").fetchone()[0]
+            avg_score_row = conn.execute("SELECT AVG(score) FROM execution_plans").fetchone()
             avg_score = round(avg_score_row[0] or 0.0, 4)
         return {
-            "execution_plans":    n_plans,
-            "executable_plans":   n_exec,
-            "trade_scores":       n_scores,
-            "sizing_decisions":   n_sizing,
-            "management_plans":   n_mgmt,
+            "execution_plans": n_plans,
+            "executable_plans": n_exec,
+            "trade_scores": n_scores,
+            "sizing_decisions": n_sizing,
+            "management_plans": n_mgmt,
             "optimization_events": n_opt,
-            "average_score":      avg_score,
+            "average_score": avg_score,
         }

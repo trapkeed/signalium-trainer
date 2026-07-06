@@ -23,14 +23,15 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_types import LLMProviderType, is_safe_response
 from trainer.analyst.analyst_models import KnowledgeChunk, Citation, LLMResponse
 from trainer.analyst.analyst_types import CitationType
 
-
 # ── Abstract base ──────────────────────────────────────────────────────────────
+
 
 class LLMProvider(abc.ABC):
     """Abstract LLM provider interface."""
@@ -38,10 +39,10 @@ class LLMProvider(abc.ABC):
     @abc.abstractmethod
     def generate(
         self,
-        prompt:       str,
-        context:      str = "",
-        temperature:  float = 0.3,
-        max_tokens:   int   = 1024,
+        prompt: str,
+        context: str = "",
+        temperature: float = 0.3,
+        max_tokens: int = 1024,
     ) -> LLMResponse:
         """Generate a response given a prompt and optional context."""
 
@@ -61,6 +62,7 @@ class LLMProvider(abc.ABC):
 
 
 # ── Mock Provider ─────────────────────────────────────────────────────────────
+
 
 class MockLLMProvider(LLMProvider):
     """Fully functional mock LLM for testing and offline research.
@@ -86,10 +88,10 @@ class MockLLMProvider(LLMProvider):
 
     def generate(
         self,
-        prompt:      str,
-        context:     str  = "",
+        prompt: str,
+        context: str = "",
         temperature: float = 0.3,
-        max_tokens:  int   = 1024,
+        max_tokens: int = 1024,
     ) -> LLMResponse:
         start = time.time()
         self._call_count += 1
@@ -111,15 +113,15 @@ class MockLLMProvider(LLMProvider):
         latency = (time.time() - start) * 1000.0
 
         return LLMResponse(
-            content         = response_text,
-            citations       = citations,
-            provider        = LLMProviderType.MOCK,
-            model_name      = self._model_name,
-            prompt_tokens   = len(prompt.split()),
-            response_tokens = len(response_text.split()),
-            latency_ms      = round(latency, 2),
-            grounded        = bool(context),
-            safe            = safe,
+            content=response_text,
+            citations=citations,
+            provider=LLMProviderType.MOCK,
+            model_name=self._model_name,
+            prompt_tokens=len(prompt.split()),
+            response_tokens=len(response_text.split()),
+            latency_ms=round(latency, 2),
+            grounded=bool(context),
+            safe=safe,
         )
 
     def _synthesise(self, prompt: str, context: str) -> str:
@@ -128,36 +130,49 @@ class MockLLMProvider(LLMProvider):
         lines = []
 
         # Detect query intent
-        is_comparison  = any(w in prompt_lower for w in ("compare", "vs", "versus", "outperform", "differ"))
+        is_comparison = any(
+            w in prompt_lower for w in ("compare", "vs", "versus", "outperform", "differ")
+        )
         is_explanation = any(w in prompt_lower for w in ("why", "explain", "reason", "cause"))
-        is_search      = any(w in prompt_lower for w in ("show", "find", "list", "which", "all"))
-        is_summary     = any(w in prompt_lower for w in ("summarize", "summary", "overview", "report"))
-        is_recommend   = any(w in prompt_lower for w in ("suggest", "recommend", "improve", "next"))
+        is_search = any(w in prompt_lower for w in ("show", "find", "list", "which", "all"))
+        is_summary = any(w in prompt_lower for w in ("summarize", "summary", "overview", "report"))
+        is_recommend = any(w in prompt_lower for w in ("suggest", "recommend", "improve", "next"))
 
         if is_comparison:
             lines.append("## Comparative Analysis")
             lines.append("")
-            lines.append("Based on the retrieved research artifacts, the following comparison has been constructed:")
+            lines.append(
+                "Based on the retrieved research artifacts, the following comparison has been constructed:"
+            )
             lines.append("")
             if context:
                 # Pull out key metrics from context
                 for line in context.split("\n"):
-                    if any(kw in line.lower() for kw in ("sharpe", "drawdown", "score", "performance", "accuracy")):
+                    if any(
+                        kw in line.lower()
+                        for kw in ("sharpe", "drawdown", "score", "performance", "accuracy")
+                    ):
                         lines.append(f"- {line.strip()}")
             lines.append("")
-            lines.append("The evidence suggests performance differences stem from model architecture, "
-                         "training data diversity, and regime-specific calibration.")
+            lines.append(
+                "The evidence suggests performance differences stem from model architecture, "
+                "training data diversity, and regime-specific calibration."
+            )
 
         elif is_explanation:
             lines.append("## Research Analysis")
             lines.append("")
-            lines.append("The following explanation is grounded in the retrieved research evidence:")
+            lines.append(
+                "The following explanation is grounded in the retrieved research evidence:"
+            )
             lines.append("")
             if context:
                 context_excerpt = context[:600].strip()
                 lines.append(context_excerpt)
             lines.append("")
-            lines.append("This pattern is consistent with the referenced experiments and validation reports.")
+            lines.append(
+                "This pattern is consistent with the referenced experiments and validation reports."
+            )
 
         elif is_search:
             lines.append("## Search Results")
@@ -188,11 +203,17 @@ class MockLLMProvider(LLMProvider):
             lines.append("")
             lines.append("Based on the evidence retrieved from the knowledge base:")
             lines.append("")
-            lines.append("1. **Data Collection**: Increase training data diversity across market regimes")
+            lines.append(
+                "1. **Data Collection**: Increase training data diversity across market regimes"
+            )
             lines.append("2. **Calibration**: Review calibration on recent validation windows")
-            lines.append("3. **Feature Stability**: Monitor unstable features identified in drift reports")
+            lines.append(
+                "3. **Feature Stability**: Monitor unstable features identified in drift reports"
+            )
             lines.append("")
-            lines.append("These recommendations are evidence-based and do not constitute trading signals.")
+            lines.append(
+                "These recommendations are evidence-based and do not constitute trading signals."
+            )
 
         else:
             lines.append("## Research Response")
@@ -202,8 +223,10 @@ class MockLLMProvider(LLMProvider):
                 lines.append("")
                 lines.append(context[:500].strip())
             else:
-                lines.append("No relevant research artifacts were retrieved for this query. "
-                             "Please refine your question or index additional research documents.")
+                lines.append(
+                    "No relevant research artifacts were retrieved for this query. "
+                    "Please refine your question or index additional research documents."
+                )
 
         lines.append("")
         lines.append(f"---")
@@ -219,12 +242,12 @@ class MockLLMProvider(LLMProvider):
 
         # Patterns: EXP-001, MODEL-42, DATASET-v18, FEATURE-xxx
         patterns = [
-            (r"\bEXP[-_](\w+)\b",     CitationType.EXPERIMENT),
-            (r"\bMODEL[-_](\w+)\b",   CitationType.MODEL),
-            (r"\bDATASET[-_](\w+)\b",  CitationType.DATASET),
-            (r"\bFEATURE[-_](\w+)\b",  CitationType.FEATURE),
-            (r"\bVAL[-_](\w+)\b",      CitationType.VALIDATION),
-            (r"\bREPORT[-_](\w+)\b",   CitationType.REPORT),
+            (r"\bEXP[-_](\w+)\b", CitationType.EXPERIMENT),
+            (r"\bMODEL[-_](\w+)\b", CitationType.MODEL),
+            (r"\bDATASET[-_](\w+)\b", CitationType.DATASET),
+            (r"\bFEATURE[-_](\w+)\b", CitationType.FEATURE),
+            (r"\bVAL[-_](\w+)\b", CitationType.VALIDATION),
+            (r"\bREPORT[-_](\w+)\b", CitationType.REPORT),
         ]
 
         for pattern, ctype in patterns:
@@ -232,39 +255,49 @@ class MockLLMProvider(LLMProvider):
                 artifact_id = m.group(0).upper()
                 if artifact_id not in seen:
                     seen.add(artifact_id)
-                    citations.append(Citation(
-                        citation_type = ctype,
-                        artifact_id   = artifact_id,
-                        description   = f"Referenced in retrieved context",
-                        relevance     = 0.80,
-                    ))
+                    citations.append(
+                        Citation(
+                            citation_type=ctype,
+                            artifact_id=artifact_id,
+                            description=f"Referenced in retrieved context",
+                            relevance=0.80,
+                        )
+                    )
 
-        return citations[:10]   # cap at 10 citations per response
+        return citations[:10]  # cap at 10 citations per response
 
 
 # ── Provider Stubs ────────────────────────────────────────────────────────────
+
 
 class OpenAIProvider(LLMProvider):
     """OpenAI provider stub. Requires: pip install openai + OPENAI_API_KEY env var."""
 
     def __init__(self, model_name: str = "gpt-4o", api_key: str = ""):
         self._model_name = model_name
-        self._api_key    = api_key
+        self._api_key = api_key
 
     def provider_type(self) -> LLMProviderType:
         return LLMProviderType.OPENAI
 
     def is_available(self) -> bool:
         try:
-            import openai   # type: ignore
+            import openai  # type: ignore
+
             return bool(self._api_key)
         except ImportError:
             return False
 
-    def generate(self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024) -> LLMResponse:
+    def generate(
+        self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024
+    ) -> LLMResponse:
         if not self.is_available():
-            raise RuntimeError("OpenAI provider not available. Install openai and set OPENAI_API_KEY.")
-        raise NotImplementedError("OpenAI provider: implement by calling openai.ChatCompletion.create()")
+            raise RuntimeError(
+                "OpenAI provider not available. Install openai and set OPENAI_API_KEY."
+            )
+        raise NotImplementedError(
+            "OpenAI provider: implement by calling openai.ChatCompletion.create()"
+        )
 
 
 class AnthropicProvider(LLMProvider):
@@ -272,22 +305,29 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(self, model_name: str = "claude-3-5-sonnet-20241022", api_key: str = ""):
         self._model_name = model_name
-        self._api_key    = api_key
+        self._api_key = api_key
 
     def provider_type(self) -> LLMProviderType:
         return LLMProviderType.ANTHROPIC
 
     def is_available(self) -> bool:
         try:
-            import anthropic   # type: ignore
+            import anthropic  # type: ignore
+
             return bool(self._api_key)
         except ImportError:
             return False
 
-    def generate(self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024) -> LLMResponse:
+    def generate(
+        self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024
+    ) -> LLMResponse:
         if not self.is_available():
-            raise RuntimeError("Anthropic provider not available. Install anthropic and set ANTHROPIC_API_KEY.")
-        raise NotImplementedError("Anthropic provider: implement by calling anthropic.Anthropic().messages.create()")
+            raise RuntimeError(
+                "Anthropic provider not available. Install anthropic and set ANTHROPIC_API_KEY."
+            )
+        raise NotImplementedError(
+            "Anthropic provider: implement by calling anthropic.Anthropic().messages.create()"
+        )
 
 
 class GeminiProvider(LLMProvider):
@@ -295,20 +335,25 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, model_name: str = "gemini-1.5-pro", api_key: str = ""):
         self._model_name = model_name
-        self._api_key    = api_key
+        self._api_key = api_key
 
     def provider_type(self) -> LLMProviderType:
         return LLMProviderType.GEMINI
 
     def is_available(self) -> bool:
         try:
-            import google.generativeai   # type: ignore
+            import google.generativeai  # type: ignore
+
             return bool(self._api_key)
         except ImportError:
             return False
 
-    def generate(self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024) -> LLMResponse:
-        raise NotImplementedError("Gemini provider: implement by calling google.generativeai.GenerativeModel().generate_content()")
+    def generate(
+        self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024
+    ) -> LLMResponse:
+        raise NotImplementedError(
+            "Gemini provider: implement by calling google.generativeai.GenerativeModel().generate_content()"
+        )
 
 
 class OllamaProvider(LLMProvider):
@@ -316,7 +361,7 @@ class OllamaProvider(LLMProvider):
 
     def __init__(self, model_name: str = "llama3", host: str = "http://localhost:11434"):
         self._model_name = model_name
-        self._host       = host
+        self._host = host
 
     def provider_type(self) -> LLMProviderType:
         return LLMProviderType.OLLAMA
@@ -324,12 +369,15 @@ class OllamaProvider(LLMProvider):
     def is_available(self) -> bool:
         try:
             import urllib.request
+
             urllib.request.urlopen(f"{self._host}/api/version", timeout=2)
             return True
         except Exception:
             return False
 
-    def generate(self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024) -> LLMResponse:
+    def generate(
+        self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024
+    ) -> LLMResponse:
         raise NotImplementedError("Ollama provider: implement by POST to /api/generate")
 
 
@@ -338,34 +386,38 @@ class AzureOpenAIProvider(LLMProvider):
 
     def __init__(self, model_name: str = "gpt-4o", endpoint: str = "", api_key: str = ""):
         self._model_name = model_name
-        self._endpoint   = endpoint
-        self._api_key    = api_key
+        self._endpoint = endpoint
+        self._api_key = api_key
 
     def provider_type(self) -> LLMProviderType:
         return LLMProviderType.AZURE
 
     def is_available(self) -> bool:
         try:
-            import openai   # type: ignore
+            import openai  # type: ignore
+
             return bool(self._endpoint and self._api_key)
         except ImportError:
             return False
 
-    def generate(self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024) -> LLMResponse:
+    def generate(
+        self, prompt: str, context: str = "", temperature: float = 0.3, max_tokens: int = 1024
+    ) -> LLMResponse:
         raise NotImplementedError("Azure provider: implement via openai.AzureOpenAI client")
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
+
 def create_provider(provider_type: LLMProviderType, **kwargs) -> LLMProvider:
     """Factory: create an LLM provider by type."""
     registry = {
-        LLMProviderType.MOCK:      MockLLMProvider,
-        LLMProviderType.OPENAI:    OpenAIProvider,
+        LLMProviderType.MOCK: MockLLMProvider,
+        LLMProviderType.OPENAI: OpenAIProvider,
         LLMProviderType.ANTHROPIC: AnthropicProvider,
-        LLMProviderType.GEMINI:    GeminiProvider,
-        LLMProviderType.OLLAMA:    OllamaProvider,
-        LLMProviderType.AZURE:     AzureOpenAIProvider,
+        LLMProviderType.GEMINI: GeminiProvider,
+        LLMProviderType.OLLAMA: OllamaProvider,
+        LLMProviderType.AZURE: AzureOpenAIProvider,
     }
     cls = registry.get(provider_type)
     if cls is None:

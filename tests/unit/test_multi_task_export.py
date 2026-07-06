@@ -32,30 +32,46 @@ from trainer.models.quant_v1.config import (
 )
 from trainer.models.quant_v1.model import QuantModelV1
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _all_heads_config() -> QuantV1Config:
     cfg = QuantV1Config(
         encoder=InputEncoderConfig(input_dim=16, hidden_dim=32, projection_dropout=0.0),
         backbone=BackboneConfig(
-            type=BackboneType.LSTM, hidden_size=32, num_layers=1,
-            dropout=0.0, bidirectional=False, window_length=20,
+            type=BackboneType.LSTM,
+            hidden_size=32,
+            num_layers=1,
+            dropout=0.0,
+            bidirectional=False,
+            window_length=20,
         ),
         classification_head=ClassificationHeadConfig(num_classes=3, hidden_dim=16, dropout=0.0),
         confidence_head=ConfidenceHeadConfig(hidden_dim=16, dropout=0.0),
     )
-    cfg.expected_move_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS)
-    cfg.stop_loss_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.ATR)
-    cfg.take_profit_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.ATR)
-    cfg.holding_time_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.MINUTES)
+    cfg.expected_move_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS
+    )
+    cfg.stop_loss_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.ATR
+    )
+    cfg.take_profit_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.ATR
+    )
+    cfg.holding_time_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.MINUTES
+    )
     cfg.tp_probability_head = TPProbabilityHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     cfg.multi_task_loss = MultiTaskLossConfig(
-        direction_weight=1.0, move_weight=0.4, sl_weight=0.6,
-        tp_weight=0.6, holding_time_weight=0.3,
-        confidence_weight=0.15, tp_probability_weight=0.5,
+        direction_weight=1.0,
+        move_weight=0.4,
+        sl_weight=0.6,
+        tp_weight=0.6,
+        holding_time_weight=0.3,
+        confidence_weight=0.15,
+        tp_probability_weight=0.5,
     )
     return cfg
 
@@ -74,6 +90,7 @@ def base_model() -> QuantModelV1:
 # Export metadata structure
 # ---------------------------------------------------------------------------
 
+
 class TestExportMetadataStructure:
     def test_export_metadata_returns_dict(self, model: QuantModelV1) -> None:
         meta = model.get_export_metadata()
@@ -81,9 +98,16 @@ class TestExportMetadataStructure:
 
     def test_required_top_level_keys(self, model: QuantModelV1) -> None:
         meta = model.get_export_metadata()
-        required = {"model_id", "model_version", "architecture", "phase",
-                    "supported_outputs", "prediction_schema", "output_version",
-                    "loss_config"}
+        required = {
+            "model_id",
+            "model_version",
+            "architecture",
+            "phase",
+            "supported_outputs",
+            "prediction_schema",
+            "output_version",
+            "loss_config",
+        }
         assert required.issubset(meta.keys())
 
     def test_output_version_is_string(self, model: QuantModelV1) -> None:
@@ -101,14 +125,22 @@ class TestExportMetadataStructure:
 
     def test_supported_outputs_contains_all_heads(self, model: QuantModelV1) -> None:
         meta = model.get_export_metadata()
-        for head in ("direction", "confidence", "expected_move", "stop_loss",
-                     "take_profit", "holding_time", "tp_probability"):
+        for head in (
+            "direction",
+            "confidence",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+        ):
             assert head in meta["supported_outputs"]
 
 
 # ---------------------------------------------------------------------------
 # Prediction schema
 # ---------------------------------------------------------------------------
+
 
 class TestPredictionSchema:
     def test_schema_contains_direction_fields(self, model: QuantModelV1) -> None:
@@ -120,15 +152,25 @@ class TestPredictionSchema:
 
     def test_schema_contains_enabled_head_fields(self, model: QuantModelV1) -> None:
         schema = model.get_export_metadata()["prediction_schema"]
-        for field in ("expected_move", "stop_loss", "take_profit",
-                      "holding_time", "tp_probability"):
+        for field in (
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+        ):
             assert field in schema
             assert schema[field] is not None, f"{field} schema should not be None when enabled"
 
     def test_schema_disabled_heads_are_none(self, base_model: QuantModelV1) -> None:
         schema = base_model.get_export_metadata()["prediction_schema"]
-        for field in ("expected_move", "stop_loss", "take_profit",
-                      "holding_time", "tp_probability"):
+        for field in (
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+        ):
             assert schema.get(field) is None, f"{field} should be None when disabled"
 
     def test_schema_includes_unit_information(self, model: QuantModelV1) -> None:
@@ -142,11 +184,19 @@ class TestPredictionSchema:
 # Loss config
 # ---------------------------------------------------------------------------
 
+
 class TestLossConfigExport:
     def test_loss_config_has_all_weights(self, model: QuantModelV1) -> None:
         loss_cfg = model.get_export_metadata()["loss_config"]
-        required = {"direction_weight", "move_weight", "sl_weight", "tp_weight",
-                    "holding_time_weight", "confidence_weight", "tp_probability_weight"}
+        required = {
+            "direction_weight",
+            "move_weight",
+            "sl_weight",
+            "tp_weight",
+            "holding_time_weight",
+            "confidence_weight",
+            "tp_probability_weight",
+        }
         assert required.issubset(loss_cfg.keys())
 
     def test_loss_weights_match_config(self, model: QuantModelV1) -> None:
@@ -160,6 +210,7 @@ class TestLossConfigExport:
 # ---------------------------------------------------------------------------
 # ManifestBuilder integration
 # ---------------------------------------------------------------------------
+
 
 class TestManifestBuilderIntegration:
     def test_manifest_can_embed_export_metadata(self, model: QuantModelV1) -> None:

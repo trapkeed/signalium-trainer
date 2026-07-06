@@ -18,6 +18,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_types import (
@@ -32,37 +33,38 @@ from trainer.memory.decision_models import DecisionRecord
 @dataclass
 class SelfAssessment:
     """Periodic AI self-assessment of decision quality."""
-    period:                str
-    total_decisions:       int   = 0
-    decisions_with_outcome: int  = 0
-    overall_win_rate:      float = 0.0
+
+    period: str
+    total_decisions: int = 0
+    decisions_with_outcome: int = 0
+    overall_win_rate: float = 0.0
     overall_quality_score: float = 0.0
-    strengths:             List[str] = field(default_factory=list)
-    weaknesses:            List[str] = field(default_factory=list)
-    common_mistakes:       List[str] = field(default_factory=list)
-    failure_modes:         List[str] = field(default_factory=list)
-    best_conditions:       List[str] = field(default_factory=list)
-    worst_conditions:      List[str] = field(default_factory=list)
-    opportunities:         List[str] = field(default_factory=list)
-    grade:                 str   = "ACCEPTABLE"
-    summary:               str   = ""
+    strengths: List[str] = field(default_factory=list)
+    weaknesses: List[str] = field(default_factory=list)
+    common_mistakes: List[str] = field(default_factory=list)
+    failure_modes: List[str] = field(default_factory=list)
+    best_conditions: List[str] = field(default_factory=list)
+    worst_conditions: List[str] = field(default_factory=list)
+    opportunities: List[str] = field(default_factory=list)
+    grade: str = "ACCEPTABLE"
+    summary: str = ""
 
     def to_dict(self) -> Dict:
         return {
-            "period":                  self.period,
-            "total_decisions":         self.total_decisions,
-            "decisions_with_outcome":  self.decisions_with_outcome,
-            "overall_win_rate":        round(self.overall_win_rate, 4),
-            "overall_quality_score":   round(self.overall_quality_score, 4),
-            "strengths":               self.strengths,
-            "weaknesses":              self.weaknesses,
-            "common_mistakes":         self.common_mistakes,
-            "failure_modes":           self.failure_modes,
-            "best_conditions":         self.best_conditions,
-            "worst_conditions":        self.worst_conditions,
-            "opportunities":           self.opportunities,
-            "grade":                   self.grade,
-            "summary":                 self.summary,
+            "period": self.period,
+            "total_decisions": self.total_decisions,
+            "decisions_with_outcome": self.decisions_with_outcome,
+            "overall_win_rate": round(self.overall_win_rate, 4),
+            "overall_quality_score": round(self.overall_quality_score, 4),
+            "strengths": self.strengths,
+            "weaknesses": self.weaknesses,
+            "common_mistakes": self.common_mistakes,
+            "failure_modes": self.failure_modes,
+            "best_conditions": self.best_conditions,
+            "worst_conditions": self.worst_conditions,
+            "opportunities": self.opportunities,
+            "grade": self.grade,
+            "summary": self.summary,
         }
 
 
@@ -72,7 +74,7 @@ class SelfEvaluationEngine:
     def evaluate(
         self,
         records: List[DecisionRecord],
-        period:  str = "CURRENT",
+        period: str = "CURRENT",
     ) -> SelfAssessment:
 
         n = len(records)
@@ -98,9 +100,7 @@ class SelfEvaluationEngine:
         # ── Strengths ─────────────────────────────────────────────────────────
         strengths = []
         if assessment.overall_win_rate > 0.60:
-            strengths.append(
-                f"Win rate of {assessment.overall_win_rate:.0%} exceeds 60% threshold"
-            )
+            strengths.append(f"Win rate of {assessment.overall_win_rate:.0%} exceeds 60% threshold")
         tp_rate = sum(1 for r in completed if r.outcome.hit_tp) / len(completed)
         if tp_rate > 0.50:
             strengths.append(f"TP hit rate of {tp_rate:.0%} — good target selection")
@@ -146,24 +146,26 @@ class SelfEvaluationEngine:
 
         # Overconfidence check
         overconf = [
-            r for r in completed
-            if r.snapshot.forecast_confidence > 0.80
-            and r.outcome.outcome_type in NEGATIVE_OUTCOMES
+            r
+            for r in completed
+            if r.snapshot.forecast_confidence > 0.80 and r.outcome.outcome_type in NEGATIVE_OUTCOMES
         ]
         if len(overconf) / len(completed) > 0.20:
             weaknesses.append(
                 f"{len(overconf)/len(completed):.0%} of high-confidence decisions are losers — overconfidence risk"
             )
 
-        assessment.weaknesses = weaknesses if weaknesses else ["No significant weaknesses identified"]
+        assessment.weaknesses = (
+            weaknesses if weaknesses else ["No significant weaknesses identified"]
+        )
 
         # ── Common Mistakes ───────────────────────────────────────────────────
         mistakes = []
         # Check: low-confidence entries
         lo_conf_losses = [
-            r for r in completed
-            if r.snapshot.forecast_confidence < 0.55
-            and r.outcome.outcome_type in NEGATIVE_OUTCOMES
+            r
+            for r in completed
+            if r.snapshot.forecast_confidence < 0.55 and r.outcome.outcome_type in NEGATIVE_OUTCOMES
         ]
         if len(lo_conf_losses) >= 2:
             mistakes.append(
@@ -171,27 +173,32 @@ class SelfEvaluationEngine:
             )
 
         # Check: incorrect direction
-        wrong_dir = [
-            r for r in completed
-            if r.outcome.actual_direction_correct is False
-        ]
+        wrong_dir = [r for r in completed if r.outcome.actual_direction_correct is False]
         if wrong_dir:
-            mistakes.append(
-                f"{len(wrong_dir)} decisions with incorrect directional forecast"
-            )
+            mistakes.append(f"{len(wrong_dir)} decisions with incorrect directional forecast")
 
         assessment.common_mistakes = mistakes if mistakes else ["No systematic mistakes detected"]
 
         # ── Failure Modes ─────────────────────────────────────────────────────
         failure_modes = []
-        missed = sum(1 for r in completed if r.outcome.outcome_type == OutcomeType.MISSED_OPPORTUNITY)
+        missed = sum(
+            1 for r in completed if r.outcome.outcome_type == OutcomeType.MISSED_OPPORTUNITY
+        )
         if missed >= 2:
-            failure_modes.append(f"{missed} missed opportunities — review entry criteria stringency")
-        unexpected = sum(1 for r in completed if r.outcome.outcome_type == OutcomeType.UNEXPECTED_MARKET_EVENT)
+            failure_modes.append(
+                f"{missed} missed opportunities — review entry criteria stringency"
+            )
+        unexpected = sum(
+            1 for r in completed if r.outcome.outcome_type == OutcomeType.UNEXPECTED_MARKET_EVENT
+        )
         if unexpected >= 2:
-            failure_modes.append(f"{unexpected} decisions disrupted by unexpected market events — news risk management needed")
+            failure_modes.append(
+                f"{unexpected} decisions disrupted by unexpected market events — news risk management needed"
+            )
 
-        assessment.failure_modes = failure_modes if failure_modes else ["No recurring failure modes identified"]
+        assessment.failure_modes = (
+            failure_modes if failure_modes else ["No recurring failure modes identified"]
+        )
 
         # ── Best Conditions ───────────────────────────────────────────────────
         reg_wins = self._group_metric(completed, lambda r: r.snapshot.market_regime)
@@ -268,7 +275,7 @@ class SelfEvaluationEngine:
         for k, group in groups.items():
             wins = sum(1 for r in group if r.outcome.outcome_type in POSITIVE_OUTCOMES)
             result[k] = {
-                "count":    len(group),
+                "count": len(group),
                 "win_rate": round(wins / len(group), 4) if group else 0.0,
             }
         return result

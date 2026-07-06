@@ -43,7 +43,6 @@ from trainer.traceability.metadata import (
 from trainer.framework.traced_inference import TracedInferenceAdapter
 from trainer.exporters.metadata_manifest import MetadataManifestBuilder
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -114,6 +113,7 @@ class TestPredictionMetadata:
         assert meta.prediction_timestamp
         # Must be parseable as ISO-8601
         from datetime import datetime
+
         dt = datetime.fromisoformat(meta.prediction_timestamp)
         assert dt is not None
 
@@ -182,19 +182,29 @@ class TestPredictionIdUniqueness:
 
 class TestMetadataCompleteness:
     REQUIRED_MODEL_FIELDS = [
-        "model_name", "model_version", "architecture",
-        "framework", "precision",
+        "model_name",
+        "model_version",
+        "architecture",
+        "framework",
+        "precision",
     ]
     REQUIRED_INFERENCE_FIELDS = [
-        "inference_timestamp", "inference_duration_ms",
-        "batch_size", "device", "pytorch_version",
+        "inference_timestamp",
+        "inference_duration_ms",
+        "batch_size",
+        "device",
+        "pytorch_version",
     ]
     REQUIRED_REPRO_FIELDS = [
-        "git_commit_hash", "trainer_version", "framework_version",
+        "git_commit_hash",
+        "trainer_version",
+        "framework_version",
     ]
     REQUIRED_SCHEMA_FIELDS = [
-        "output_schema_version", "prediction_schema_version",
-        "feature_schema_version", "label_schema_version",
+        "output_schema_version",
+        "prediction_schema_version",
+        "feature_schema_version",
+        "label_schema_version",
     ]
 
     def test_model_fields_present(self, traced_adapter, x_batch) -> None:
@@ -284,6 +294,7 @@ class TestVersionInformation:
 
     def test_trainer_version_matches(self, traced_adapter, x_batch) -> None:
         import trainer
+
         meta = traced_adapter.predict(x_batch).metadata
         assert meta.reproducibility.trainer_version == trainer.__version__
 
@@ -301,6 +312,7 @@ class TestVersionInformation:
 
     def test_framework_version_matches_pytorch(self, traced_adapter, x_batch) -> None:
         import torch
+
         meta = traced_adapter.predict(x_batch).metadata
         assert meta.reproducibility.framework_version == torch.__version__
 
@@ -339,6 +351,7 @@ class TestInferenceTiming:
 
     def test_inference_timestamp_is_recent(self, traced_adapter, x_batch) -> None:
         from datetime import datetime, timezone, timedelta
+
         result = traced_adapter.predict(x_batch)
         ts_str = result.metadata.inference.inference_timestamp
         ts = datetime.fromisoformat(ts_str)

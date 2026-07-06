@@ -25,7 +25,6 @@ import torch.nn as nn
 import numpy as np
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
@@ -124,9 +123,7 @@ class PermutationImportance:
         seed: Optional[int] = None,
     ) -> None:
         if metric not in self._VALID_METRICS:
-            raise ValueError(
-                f"metric must be one of {sorted(self._VALID_METRICS)}, got {metric!r}"
-            )
+            raise ValueError(f"metric must be one of {sorted(self._VALID_METRICS)}, got {metric!r}")
         self._metric = metric
         self._n_repeats = n_repeats
         self._seed = seed
@@ -153,9 +150,7 @@ class PermutationImportance:
         n_features = inputs.shape[-1]
         names = feature_names or [f"feature_{i}" for i in range(n_features)]
         if len(names) != n_features:
-            raise ValueError(
-                f"feature_names length ({len(names)}) != n_features ({n_features})"
-            )
+            raise ValueError(f"feature_names length ({len(names)}) != n_features ({n_features})")
 
         rng = np.random.default_rng(self._seed)
         was_training = model.training

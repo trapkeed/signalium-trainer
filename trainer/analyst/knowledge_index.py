@@ -14,6 +14,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_types import KnowledgeSourceType
@@ -27,9 +28,9 @@ class KnowledgeIndex:
     """
 
     def __init__(self):
-        self._chunks:  Dict[str, KnowledgeChunk] = {}   # chunk_id → chunk
-        self._by_source: Dict[str, List[str]] = {}       # source_type → [chunk_ids]
-        self._by_artifact: Dict[str, List[str]] = {}     # artifact_id → [chunk_ids]
+        self._chunks: Dict[str, KnowledgeChunk] = {}  # chunk_id → chunk
+        self._by_source: Dict[str, List[str]] = {}  # source_type → [chunk_ids]
+        self._by_artifact: Dict[str, List[str]] = {}  # artifact_id → [chunk_ids]
 
     # ── Indexing ─────────────────────────────────────────────────────────────
 
@@ -51,23 +52,23 @@ class KnowledgeIndex:
 
     def index_document(
         self,
-        source_type:  KnowledgeSourceType,
-        artifact_id:  str,
-        title:        str,
-        content:      str,
-        tags:         Optional[List[str]] = None,
-        metadata:     Optional[dict] = None,
+        source_type: KnowledgeSourceType,
+        artifact_id: str,
+        title: str,
+        content: str,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[dict] = None,
     ) -> KnowledgeChunk:
         """Create and index a KnowledgeChunk from raw document fields."""
         chunk = KnowledgeChunk(
-            chunk_id    = str(uuid.uuid4())[:12],
-            source_type = source_type,
-            artifact_id = artifact_id,
-            title       = title,
-            content     = content,
-            tags        = tags or [],
-            timestamp   = time.time(),
-            metadata    = metadata or {},
+            chunk_id=str(uuid.uuid4())[:12],
+            source_type=source_type,
+            artifact_id=artifact_id,
+            title=title,
+            content=content,
+            tags=tags or [],
+            timestamp=time.time(),
+            metadata=metadata or {},
         )
         self.index(chunk)
         return chunk
@@ -96,10 +97,10 @@ class KnowledgeIndex:
 
     def search(
         self,
-        query:       str,
-        top_k:       int            = 5,
+        query: str,
+        top_k: int = 5,
         source_type: Optional[KnowledgeSourceType] = None,
-        tags:        Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
     ) -> List[KnowledgeChunk]:
         """Keyword-based search across the knowledge index.
 
@@ -107,10 +108,7 @@ class KnowledgeIndex:
         Returns top_k chunks sorted by relevance descending.
         """
         query_terms = set(query.lower().split())
-        candidates = (
-            self.get_by_source(source_type)
-            if source_type else self.all_chunks()
-        )
+        candidates = self.get_by_source(source_type) if source_type else self.all_chunks()
 
         scored = []
         for chunk in candidates:
@@ -165,7 +163,7 @@ class KnowledgeIndex:
     def stats(self) -> dict:
         source_counts = {st: len(ids) for st, ids in self._by_source.items()}
         return {
-            "total_chunks":   len(self._chunks),
+            "total_chunks": len(self._chunks),
             "artifact_count": len(self._by_artifact),
-            "source_types":   source_counts,
+            "source_types": source_counts,
         }

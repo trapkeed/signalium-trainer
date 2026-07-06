@@ -39,7 +39,6 @@ from typing import Any, Optional
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Validation run record
 # ---------------------------------------------------------------------------
@@ -77,9 +76,7 @@ class ValidationRunRecord:
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     model_version: str = ""
-    run_timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    run_timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     configuration: dict[str, Any] = field(default_factory=dict)
     statistical_metrics: dict[str, Any] = field(default_factory=dict)
     trading_metrics: dict[str, Any] = field(default_factory=dict)
@@ -219,9 +216,7 @@ class ValidationDatabase:
     def delete_run(self, run_id: str) -> bool:
         """Delete a run record."""
         with self._lock:
-            cursor = self._conn.execute(
-                "DELETE FROM validation_runs WHERE run_id=?", (run_id,)
-            )
+            cursor = self._conn.execute("DELETE FROM validation_runs WHERE run_id=?", (run_id,))
             self._conn.commit()
         return cursor.rowcount > 0
 
@@ -229,9 +224,7 @@ class ValidationDatabase:
 
     def get_run(self, run_id: str) -> Optional[ValidationRunRecord]:
         """Retrieve a single run by ID."""
-        cursor = self._conn.execute(
-            "SELECT * FROM validation_runs WHERE run_id=?", (run_id,)
-        )
+        cursor = self._conn.execute("SELECT * FROM validation_runs WHERE run_id=?", (run_id,))
         row = cursor.fetchone()
         return self._row_to_record(dict(row)) if row else None
 
@@ -275,12 +268,14 @@ class ValidationDatabase:
         direction = "ASC" if ascending else "DESC"
         # Whitelist order_by to prevent injection
         safe_columns = {
-            "run_timestamp", "model_id", "leaderboard_score", "status",
+            "run_timestamp",
+            "model_id",
+            "leaderboard_score",
+            "status",
         }
         col = order_by if order_by in safe_columns else "run_timestamp"
         sql = (
-            f"SELECT * FROM validation_runs{where} "
-            f"ORDER BY {col} {direction} LIMIT ? OFFSET ?"
+            f"SELECT * FROM validation_runs{where} " f"ORDER BY {col} {direction} LIMIT ? OFFSET ?"
         )
         params += [limit, offset]
         rows = self._conn.execute(sql, params).fetchall()
@@ -309,8 +304,7 @@ class ValidationDatabase:
     def get_latest_run(self, model_id: str) -> Optional[ValidationRunRecord]:
         """Return the most recent run for a model."""
         cursor = self._conn.execute(
-            "SELECT * FROM validation_runs WHERE model_id=? "
-            "ORDER BY run_timestamp DESC LIMIT 1",
+            "SELECT * FROM validation_runs WHERE model_id=? " "ORDER BY run_timestamp DESC LIMIT 1",
             (model_id,),
         )
         row = cursor.fetchone()
@@ -326,6 +320,7 @@ class ValidationDatabase:
     @staticmethod
     def _row_to_record(row: dict[str, Any]) -> ValidationRunRecord:
         """Convert a SQLite row dict to a ValidationRunRecord."""
+
         def _parse(key: str, default: Any = None) -> Any:
             val = row.get(key)
             if val is None:

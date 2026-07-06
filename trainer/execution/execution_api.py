@@ -32,6 +32,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_types import (
@@ -75,19 +76,19 @@ def _fc(d: Dict) -> ExecutionForecast:
     except ValueError:
         sess = Session.LONDON
     return ExecutionForecast(
-        instrument      = d["instrument"],
-        direction       = d["direction"],
-        confidence      = float(d.get("confidence", 0.65)),
-        expected_return = float(d.get("expected_return", 0.08)),
-        expected_risk   = float(d.get("expected_risk", 0.10)),
-        current_price   = float(d.get("current_price", 1.0)),
-        atr             = float(d.get("atr", 0.001)),
-        spread          = float(d.get("spread", 0.0001)),
-        session         = sess,
-        volatility      = float(d.get("volatility", 0.01)),
-        momentum        = float(d.get("momentum", 0.0)),
-        news_risk       = float(d.get("news_risk", 0.0)),
-        account_size    = float(d.get("account_size", 10_000.0)),
+        instrument=d["instrument"],
+        direction=d["direction"],
+        confidence=float(d.get("confidence", 0.65)),
+        expected_return=float(d.get("expected_return", 0.08)),
+        expected_risk=float(d.get("expected_risk", 0.10)),
+        current_price=float(d.get("current_price", 1.0)),
+        atr=float(d.get("atr", 0.001)),
+        spread=float(d.get("spread", 0.0001)),
+        session=sess,
+        volatility=float(d.get("volatility", 0.01)),
+        momentum=float(d.get("momentum", 0.0)),
+        news_risk=float(d.get("news_risk", 0.0)),
+        account_size=float(d.get("account_size", 10_000.0)),
     )
 
 
@@ -100,9 +101,9 @@ class ExecutionApi:
 
     def __init__(
         self,
-        db_path:      str  = ":memory:",
-        broker:       Optional[BrokerConstraints] = None,
-        risk_limits:  Optional[RiskLimits]        = None,
+        db_path: str = ":memory:",
+        broker: Optional[BrokerConstraints] = None,
+        risk_limits: Optional[RiskLimits] = None,
         sizing_method: str = "FIXED_RISK",
     ):
         self._broker = broker or default_broker()
@@ -113,28 +114,28 @@ class ExecutionApi:
             self._sizing_method = SizingMethod.FIXED_RISK
 
         self._planner = ExecutionPlanner(self._broker, self._limits, self._sizing_method)
-        self._db      = ExecutionDatabase(db_path)
+        self._db = ExecutionDatabase(db_path)
 
         # Standalone engines for partial requests
-        self._zones   = EntryZoneEngine()
+        self._zones = EntryZoneEngine()
         self._quality = EntryQualityEngine()
-        self._stops   = StopLossEngine()
-        self._tp      = TakeProfitEngine()
-        self._sizer   = PositionSizer(self._broker, self._limits)
+        self._stops = StopLossEngine()
+        self._tp = TakeProfitEngine()
+        self._sizer = PositionSizer(self._broker, self._limits)
         self._manager = TradeManager()
-        self._timer   = ExecutionTiming(self._broker)
-        self._risk    = RiskEngine()
-        self._order   = OrderStrategyEngine()
-        self._scorer  = TradeScorer()
-        self._sim     = ExecutionSimulator(self._broker)
+        self._timer = ExecutionTiming(self._broker)
+        self._risk = RiskEngine()
+        self._order = OrderStrategyEngine()
+        self._scorer = TradeScorer()
+        self._sim = ExecutionSimulator(self._broker)
 
     # ── 1. plan ───────────────────────────────────────────────────────────────
 
     def plan(self, forecast_dict: Dict) -> Dict:
         """Generate a full execution plan for one forecast."""
         try:
-            fc   = _fc(forecast_dict)
-            ep   = self._planner.plan(fc)
+            fc = _fc(forecast_dict)
+            ep = self._planner.plan(fc)
             self._db.store_plan(ep)
             return _ok(ep.to_dict(), {"instrument": fc.instrument})
         except Exception as e:
@@ -146,7 +147,7 @@ class ExecutionApi:
     def plan_batch(self, forecast_dicts: List[Dict]) -> Dict:
         """Generate plans for multiple forecasts."""
         try:
-            fcs   = [_fc(d) for d in forecast_dicts]
+            fcs = [_fc(d) for d in forecast_dicts]
             plans = self._planner.plan_batch(fcs)
             for p in plans:
                 self._db.store_plan(p)
@@ -163,7 +164,7 @@ class ExecutionApi:
     def entry_zones(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             return _ok(z.to_dict())
         except Exception as e:
             return _err(str(e))
@@ -173,8 +174,8 @@ class ExecutionApi:
     def entry_quality(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
-            q  = self._quality.evaluate(fc, z)
+            z = self._zones.calculate(fc)
+            q = self._quality.evaluate(fc, z)
             return _ok(q.to_dict())
         except Exception as e:
             return _err(str(e))
@@ -184,7 +185,7 @@ class ExecutionApi:
     def stop_loss(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             return _ok(sl.to_dict())
         except Exception as e:
@@ -195,7 +196,7 @@ class ExecutionApi:
     def take_profit(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             tp = self._tp.recommend(fc, z, sl)
             return _ok(tp.to_dict())
@@ -207,7 +208,7 @@ class ExecutionApi:
     def sizing(self, forecast_dict: Dict, method: str = "FIXED_RISK") -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             try:
                 m = SizingMethod(method)
@@ -223,7 +224,7 @@ class ExecutionApi:
     def management(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             tp = self._tp.recommend(fc, z, sl)
             sz = self._sizer.calculate(fc, sl)
@@ -237,7 +238,7 @@ class ExecutionApi:
     def timing(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            t  = self._timer.evaluate(fc)
+            t = self._timer.evaluate(fc)
             return _ok(t.to_dict())
         except Exception as e:
             return _err(str(e))
@@ -247,7 +248,7 @@ class ExecutionApi:
     def risk(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             tp = self._tp.recommend(fc, z, sl)
             rp = self._risk.analyze(fc, sl, tp)
@@ -260,9 +261,9 @@ class ExecutionApi:
     def order(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
-            t  = self._timer.evaluate(fc)
-            o  = self._order.recommend(fc, z, t, self._broker)
+            z = self._zones.calculate(fc)
+            t = self._timer.evaluate(fc)
+            o = self._order.recommend(fc, z, t, self._broker)
             return _ok(o.to_dict())
         except Exception as e:
             return _err(str(e))
@@ -272,13 +273,13 @@ class ExecutionApi:
     def score(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
-            q  = self._quality.evaluate(fc, z)
+            z = self._zones.calculate(fc)
+            q = self._quality.evaluate(fc, z)
             sl = self._stops.recommend(fc, z)
             tp = self._tp.recommend(fc, z, sl)
             rp = self._risk.analyze(fc, sl, tp)
-            t  = self._timer.evaluate(fc)
-            s  = self._scorer.score(fc, q, rp, t)
+            t = self._timer.evaluate(fc)
+            s = self._scorer.score(fc, q, rp, t)
             return _ok(s.to_dict())
         except Exception as e:
             return _err(str(e))
@@ -288,7 +289,7 @@ class ExecutionApi:
     def simulation(self, forecast_dict: Dict) -> Dict:
         try:
             fc = _fc(forecast_dict)
-            z  = self._zones.calculate(fc)
+            z = self._zones.calculate(fc)
             sl = self._stops.recommend(fc, z)
             tp = self._tp.recommend(fc, z, sl)
             sr = self._sim.simulate(fc, z, sl, tp)
@@ -301,9 +302,9 @@ class ExecutionApi:
     def dashboard(self, forecast_dicts: List[Dict]) -> Dict:
         """Generate a full 8-view dashboard for multiple forecasts."""
         try:
-            fcs   = [_fc(d) for d in forecast_dicts]
+            fcs = [_fc(d) for d in forecast_dicts]
             plans = self._planner.plan_batch(fcs)
-            dash  = ExecutionDashboard(plans)
+            dash = ExecutionDashboard(plans)
             return _ok(dash.full_dashboard(), {"plan_count": len(plans)})
         except Exception as e:
             logger.error(f"dashboard: {e}")

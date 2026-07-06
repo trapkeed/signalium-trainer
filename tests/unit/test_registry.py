@@ -49,6 +49,7 @@ def test_duplicate_registration_raises() -> None:
     class _M(BaseQuantModel):
         feature_dim = 4
         num_classes = 2
+
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return x
 
@@ -68,6 +69,7 @@ def test_clear() -> None:
     class _M2(BaseQuantModel):
         feature_dim = 4
         num_classes = 2
+
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return x
 

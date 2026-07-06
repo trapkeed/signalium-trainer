@@ -104,9 +104,7 @@ class SignaliumClient:
     def _get(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a GET request with error handling."""
         try:
-            response = self._session.get(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.get(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"GET {path} timed out") from exc
         _raise_for_status(response)
@@ -115,9 +113,7 @@ class SignaliumClient:
     def _post(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a POST request with error handling."""
         try:
-            response = self._session.post(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.post(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"POST {path} timed out") from exc
         _raise_for_status(response)
@@ -126,9 +122,7 @@ class SignaliumClient:
     def _put(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a PUT request with error handling."""
         try:
-            response = self._session.put(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.put(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"PUT {path} timed out") from exc
         _raise_for_status(response)

@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # DatasetSnapshot
 # ---------------------------------------------------------------------------
@@ -44,9 +43,7 @@ class DatasetSnapshot:
     """Immutable record of a dataset's state at a point in time."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Identity
     dataset_version: str = ""
@@ -77,10 +74,18 @@ class DatasetSnapshot:
         """Return field-level differences between this and another snapshot."""
         changes: Dict[str, Any] = {}
         for attr in (
-            "dataset_version", "dataset_hash", "feature_version", "feature_hash",
-            "label_version", "label_hash", "normalization_version",
-            "scaling_version", "sample_count", "data_quality_score",
-            "coverage_start", "coverage_end",
+            "dataset_version",
+            "dataset_hash",
+            "feature_version",
+            "feature_hash",
+            "label_version",
+            "label_hash",
+            "normalization_version",
+            "scaling_version",
+            "sample_count",
+            "data_quality_score",
+            "coverage_start",
+            "coverage_end",
         ):
             a, b = getattr(self, attr), getattr(other, attr)
             if a != b:
@@ -155,9 +160,7 @@ class FeatureSnapshot:
     """Immutable record of the feature engineering state."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     feature_count: int = 0
     feature_names: List[str] = field(default_factory=list)
@@ -258,9 +261,7 @@ class ModelSnapshot:
     """Immutable record of a model's architecture and training configuration."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Architecture
     architecture: str = ""
@@ -292,9 +293,18 @@ class ModelSnapshot:
         """Return differences in model configuration."""
         changes: Dict[str, Any] = {}
         for attr in (
-            "architecture", "backbone", "parameter_count", "hidden_layers",
-            "attention_heads", "fusion_strategy", "optimizer", "learning_rate",
-            "scheduler", "dropout", "regularization", "checkpoint_hash",
+            "architecture",
+            "backbone",
+            "parameter_count",
+            "hidden_layers",
+            "attention_heads",
+            "fusion_strategy",
+            "optimizer",
+            "learning_rate",
+            "scheduler",
+            "dropout",
+            "regularization",
+            "checkpoint_hash",
         ):
             a, b = getattr(self, attr), getattr(other, attr)
             if a != b:
@@ -371,9 +381,7 @@ class ValidationSnapshot:
     """Immutable record of a validation run's results."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # Walk-forward results
     walk_forward_accuracy: float = 0.0
@@ -412,10 +420,17 @@ class ValidationSnapshot:
         """Return differences in validation results."""
         changes: Dict[str, Any] = {}
         for attr in (
-            "walk_forward_accuracy", "walk_forward_f1_macro",
-            "calibration_ece", "calibration_brier",
-            "sharpe_ratio", "sortino_ratio", "max_drawdown", "win_rate",
-            "profit_factor", "monte_carlo_var_95", "monte_carlo_var_99",
+            "walk_forward_accuracy",
+            "walk_forward_f1_macro",
+            "calibration_ece",
+            "calibration_brier",
+            "sharpe_ratio",
+            "sortino_ratio",
+            "max_drawdown",
+            "win_rate",
+            "profit_factor",
+            "monte_carlo_var_95",
+            "monte_carlo_var_99",
         ):
             a, b = getattr(self, attr), getattr(other, attr)
             if abs(a - b) > 1e-6:

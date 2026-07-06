@@ -30,7 +30,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Grade
 # ---------------------------------------------------------------------------
@@ -172,10 +171,7 @@ _DEFAULT_GRADES: List[Dict[str, Any]] = [
         "label": "Research Only",
         "min_score": 0.0,
         "max_score": 69.999,
-        "description": (
-            "Below production threshold. "
-            "Research and development only."
-        ),
+        "description": ("Below production threshold. " "Research and development only."),
         "promotion_eligible": False,
         "deployment_eligible": False,
         "color": "red",

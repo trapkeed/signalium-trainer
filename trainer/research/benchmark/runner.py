@@ -22,6 +22,7 @@ def _set_global_seed(seed: int) -> None:
     torch.manual_seed(seed)
     try:
         import numpy as np
+
         np.random.seed(seed)
     except ImportError:
         pass
@@ -168,11 +169,13 @@ class BenchmarkRunner:
         Returns:
             Self, for method chaining.
         """
-        self._model_entries.append({
-            "name": name,
-            "factory": model_factory,
-            "hyperparameters": hyperparameters or {},
-        })
+        self._model_entries.append(
+            {
+                "name": name,
+                "factory": model_factory,
+                "hyperparameters": hyperparameters or {},
+            }
+        )
         return self
 
     def run(
@@ -278,7 +281,7 @@ class BenchmarkRunner:
                 n_batches = 0
 
                 for start in range(0, dataset_size, bs):
-                    batch_idx = idx[start: start + bs]
+                    batch_idx = idx[start : start + bs]
                     xb = x_train[batch_idx]
                     yb = y_train[batch_idx]
                     optimizer.zero_grad()
@@ -303,7 +306,8 @@ class BenchmarkRunner:
 
         except Exception as exc:
             return ModelRunResult(
-                model_name=name, status="failed",
+                model_name=name,
+                status="failed",
                 error=f"Training failed at epoch: {exc}",
                 history=history,
             )
@@ -334,19 +338,28 @@ class BenchmarkRunner:
             name=f"benchmark-{name}",
             model_name=name,
             hyperparameters=entry.get("hyperparameters", {}),
-            metrics={**final_metrics, "inference_latency_ms": latency_ms,
-                     "model_size_mb": size_mb, "gpu_memory_mb": gpu_mem_mb},
+            metrics={
+                **final_metrics,
+                "inference_latency_ms": latency_ms,
+                "model_size_mb": size_mb,
+                "gpu_memory_mb": gpu_mem_mb,
+            },
         )
-        record.complete({**final_metrics, "inference_latency_ms": latency_ms,
-                         "model_size_mb": size_mb})
+        record.complete(
+            {**final_metrics, "inference_latency_ms": latency_ms, "model_size_mb": size_mb}
+        )
         if self._tracker is not None:
             self._tracker.save(record)
 
         return ModelRunResult(
             model_name=name,
             experiment_id=record.experiment_id,
-            metrics={**final_metrics, "inference_latency_ms": latency_ms,
-                     "model_size_mb": size_mb, "gpu_memory_mb": gpu_mem_mb},
+            metrics={
+                **final_metrics,
+                "inference_latency_ms": latency_ms,
+                "model_size_mb": size_mb,
+                "gpu_memory_mb": gpu_mem_mb,
+            },
             training_time_seconds=round(training_time, 3),
             inference_latency_ms=latency_ms,
             model_size_mb=size_mb,

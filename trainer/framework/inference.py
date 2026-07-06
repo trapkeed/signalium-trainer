@@ -84,6 +84,7 @@ class PyTorchInferenceAdapter(BaseInferenceAdapter):
                     CLASS_NO_TRADE,
                     ModelOutput,
                 )
+
                 base = ModelOutput(
                     logits=out.logits,
                     probabilities=out.probabilities,

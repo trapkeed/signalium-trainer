@@ -29,7 +29,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Failure event
 # ---------------------------------------------------------------------------
@@ -145,10 +144,13 @@ class ExpertFailureAnalyzer:
     and automatic pattern detection.
     """
 
-    def __init__(self, uncertainty_threshold: float = 0.6,
-                 disagree_threshold: float = 0.40,
-                 outperform_margin: float = 0.10,
-                 regime_failure_threshold: float = 0.40) -> None:
+    def __init__(
+        self,
+        uncertainty_threshold: float = 0.6,
+        disagree_threshold: float = 0.40,
+        outperform_margin: float = 0.10,
+        regime_failure_threshold: float = 0.40,
+    ) -> None:
         self.uncertainty_threshold = uncertainty_threshold
         self.disagree_threshold = disagree_threshold
         self.outperform_margin = outperform_margin
@@ -156,18 +158,23 @@ class ExpertFailureAnalyzer:
         self._events: Dict[str, List[FailureEvent]] = {}
         self._pair_agree: Dict[Tuple[str, str], List[bool]] = {}
 
-    def record(self, expert_id: str, regime: str = "unknown",
-               instrument: str = "", timeframe: str = "",
-               predicted_class: str = "no_trade",
-               ensemble_class: str = "no_trade",
-               true_class: Optional[str] = None,
-               confidence: float = 0.5,
-               uncertainty: float = 0.5) -> FailureEvent:
+    def record(
+        self,
+        expert_id: str,
+        regime: str = "unknown",
+        instrument: str = "",
+        timeframe: str = "",
+        predicted_class: str = "no_trade",
+        ensemble_class: str = "no_trade",
+        true_class: Optional[str] = None,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+    ) -> FailureEvent:
         """Record one prediction event for an expert."""
-        agrees = (predicted_class == ensemble_class)
+        agrees = predicted_class == ensemble_class
         is_correct = None
         if true_class is not None:
-            is_correct = (predicted_class == true_class)
+            is_correct = predicted_class == true_class
 
         event = FailureEvent(
             expert_id=expert_id,
@@ -187,16 +194,16 @@ class ExpertFailureAnalyzer:
         self._events[expert_id].append(event)
         return event
 
-    def record_pair_agreement(self, expert_a: str, expert_b: str,
-                               class_a: str, class_b: str) -> None:
+    def record_pair_agreement(
+        self, expert_a: str, expert_b: str, class_a: str, class_b: str
+    ) -> None:
         """Record pairwise agreement between two experts."""
         key = (min(expert_a, expert_b), max(expert_a, expert_b))
         if key not in self._pair_agree:
             self._pair_agree[key] = []
         self._pair_agree[key].append(class_a == class_b)
 
-    def get_report(self, expert_id: str,
-                   ensemble_accuracy: float = 0.0) -> ExpertFailureReport:
+    def get_report(self, expert_id: str, ensemble_accuracy: float = 0.0) -> ExpertFailureReport:
         """Compute failure analysis report for one expert."""
         events = self._events.get(expert_id, [])
         if not events:
@@ -211,8 +218,7 @@ class ExpertFailureAnalyzer:
         n_disagree = sum(1 for e in events if not e.agrees_with_ensemble)
         agreement_rate = 1.0 - (n_disagree / n)
 
-        high_unc = sum(1 for e in events
-                       if e.uncertainty > self.uncertainty_threshold)
+        high_unc = sum(1 for e in events if e.uncertainty > self.uncertainty_threshold)
         high_unc_rate = high_unc / n
 
         failure_by_regime: Dict[str, int] = {}
@@ -233,33 +239,26 @@ class ExpertFailureAnalyzer:
             regime_accuracy[r] = s / tot if tot > 0 else 0.0
 
         is_disagree = agreement_rate < (1.0 - self.disagree_threshold)
-        is_outperformer = (ensemble_accuracy > 0 and
-                           accuracy > ensemble_accuracy + self.outperform_margin)
+        is_outperformer = (
+            ensemble_accuracy > 0 and accuracy > ensemble_accuracy + self.outperform_margin
+        )
         is_regime_fail = any(
-            acc < self.regime_failure_threshold
-            for acc in regime_accuracy.values()
+            acc < self.regime_failure_threshold for acc in regime_accuracy.values()
         )
         is_high_unc = high_unc_rate > 0.5
 
         notes = []
         if is_disagree:
-            notes.append(
-                f"Expert disagrees with ensemble {(1 - agreement_rate):.1%} of the time."
-            )
+            notes.append(f"Expert disagrees with ensemble {(1 - agreement_rate):.1%} of the time.")
         if is_outperformer:
-            notes.append(
-                f"Expert outperforms ensemble by {accuracy - ensemble_accuracy:.1%}."
-            )
+            notes.append(f"Expert outperforms ensemble by {accuracy - ensemble_accuracy:.1%}.")
         if is_regime_fail:
-            bad_regimes = [r for r, acc in regime_accuracy.items()
-                           if acc < self.regime_failure_threshold]
-            notes.append(
-                f"Poor regime accuracy in: {', '.join(bad_regimes)}."
-            )
+            bad_regimes = [
+                r for r, acc in regime_accuracy.items() if acc < self.regime_failure_threshold
+            ]
+            notes.append(f"Poor regime accuracy in: {', '.join(bad_regimes)}.")
         if is_high_unc:
-            notes.append(
-                f"High uncertainty rate: {high_unc_rate:.1%}."
-            )
+            notes.append(f"High uncertainty rate: {high_unc_rate:.1%}.")
 
         return ExpertFailureReport(
             expert_id=expert_id,
@@ -280,12 +279,8 @@ class ExpertFailureAnalyzer:
             notes=notes,
         )
 
-    def all_reports(self, ensemble_accuracy: float = 0.0
-                    ) -> Dict[str, ExpertFailureReport]:
-        return {
-            eid: self.get_report(eid, ensemble_accuracy)
-            for eid in self._events
-        }
+    def all_reports(self, ensemble_accuracy: float = 0.0) -> Dict[str, ExpertFailureReport]:
+        return {eid: self.get_report(eid, ensemble_accuracy) for eid in self._events}
 
     def agreement_matrix(self, expert_ids: List[str]) -> Dict[str, Any]:
         """Return pairwise agreement matrix as a chart-ready dict."""
@@ -331,7 +326,4 @@ class ExpertFailureAnalyzer:
 
     def consistent_disagreers(self) -> List[str]:
         """Return expert IDs that consistently disagree with the ensemble."""
-        return [
-            eid for eid, r in self.all_reports().items()
-            if r.is_consistent_disagree
-        ]
+        return [eid for eid, r in self.all_reports().items() if r.is_consistent_disagree]
