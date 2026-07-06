@@ -61,6 +61,7 @@ dev = [
     "mypy>=1.10.0",
     "pre-commit>=3.7.0",
     "respx>=0.21.0",
+    "responses>=0.25.0",
     "faker>=25.0.0",
 ]
 cuda = [
