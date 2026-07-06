@@ -22,20 +22,20 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.analyst.analyst_models import Citation, Recommendation, ResearchQuery
 from trainer.analyst.analyst_types import (
-    RecommendationType,
+    CitationType,
     Permission,
+    QueryType,
+    RecommendationType,
     Role,
     has_permission,
-    QueryType,
 )
-from trainer.analyst.analyst_models import Recommendation, ResearchQuery, Citation
-from trainer.analyst.analyst_types import CitationType
-from trainer.analyst.knowledge_index import KnowledgeIndex
-from trainer.analyst.retrieval_engine import RetrievalEngine
-from trainer.analyst.prompt_engine import PromptEngine
 from trainer.analyst.citation_engine import CitationEngine
+from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
+from trainer.analyst.prompt_engine import PromptEngine
+from trainer.analyst.retrieval_engine import RetrievalEngine
 
 # Keywords that trigger each recommendation type
 _TRIGGER_MAP = {

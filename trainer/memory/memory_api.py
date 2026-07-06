@@ -30,24 +30,24 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.memory.decision_types import DecisionType, OutcomeType
+from trainer.memory.counterfactual_engine import CounterfactualEngine
+from trainer.memory.decision_benchmarking import BenchmarkReport, DecisionBenchmarking
+from trainer.memory.decision_lineage import DecisionLineage, LineageRecord
+from trainer.memory.decision_memory import DecisionMemory
 from trainer.memory.decision_models import (
+    DecisionReasoning,
     DecisionRecord,
     DecisionSnapshot,
-    DecisionReasoning,
 )
-from trainer.memory.decision_memory import DecisionMemory
-from trainer.memory.outcome_tracker import OutcomeTracker
-from trainer.memory.quality_engine import QualityEngine
-from trainer.memory.counterfactual_engine import CounterfactualEngine
-from trainer.memory.pattern_discovery import PatternDiscovery, PatternReport
-from trainer.memory.self_evaluation import SelfEvaluationEngine, SelfAssessment
+from trainer.memory.decision_types import DecisionType, OutcomeType
 from trainer.memory.knowledge_base import KnowledgeBase, KnowledgeEntry
-from trainer.memory.decision_lineage import DecisionLineage, LineageRecord
-from trainer.memory.decision_benchmarking import DecisionBenchmarking, BenchmarkReport
-from trainer.memory.memory_search import MemorySearch, SearchQuery, SearchResult
 from trainer.memory.memory_dashboard import MemoryDashboard
 from trainer.memory.memory_database import MemoryDatabase
+from trainer.memory.memory_search import MemorySearch, SearchQuery, SearchResult
+from trainer.memory.outcome_tracker import OutcomeTracker
+from trainer.memory.pattern_discovery import PatternDiscovery, PatternReport
+from trainer.memory.quality_engine import QualityEngine
+from trainer.memory.self_evaluation import SelfAssessment, SelfEvaluationEngine
 
 
 class MemoryAPI:

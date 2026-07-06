@@ -45,6 +45,7 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
+from trainer.research.database import ResearchDatabase
 from trainer.research.dataset_evolution import DatasetEvolutionTracker, DatasetRecord
 from trainer.research.experiment_engine import ExperimentRecommendationEngine
 from trainer.research.feature_lifecycle import (
@@ -58,7 +59,6 @@ from trainer.research.model_health_evolution import ModelHealthEvolutionTracker
 from trainer.research.observatory import ResearchObservatory, ValidationRecord
 from trainer.research.research_assistant import ResearchAssistant
 from trainer.research.retraining_advisor import RetrainingAdvisor
-from trainer.research.database import ResearchDatabase
 
 
 def _ts() -> str:

@@ -13,8 +13,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import CalibrationResult, MarketInput
 from trainer.mie.mie_types import clamp
-from trainer.mie.mie_models import MarketInput, CalibrationResult
 
 
 def _brier_score(predictions: List[float], outcomes: List[float]) -> float:

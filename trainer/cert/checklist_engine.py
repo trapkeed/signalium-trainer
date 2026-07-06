@@ -11,12 +11,12 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 from trainer.cert.cert_models import (
     CertificationInput,
     ChecklistItem,
     ChecklistReport,
 )
+from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 
 
 def _item(

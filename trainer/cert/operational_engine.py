@@ -11,8 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, clamp
 from trainer.cert.cert_models import CertificationInput, OperationalResult
+from trainer.cert.cert_types import CheckStatus, clamp
 
 _OPERATIONAL_CHECKS = [
     "MONITORING_ENABLED",

@@ -15,9 +15,9 @@ Tests for:
   - IRSEScoreExporter (JSON, CSV, HTML, Markdown)
 """
 
+import importlib.util
 import sys
 import types
-import importlib.util
 from pathlib import Path
 
 # ---------------------------------------------------------------------------

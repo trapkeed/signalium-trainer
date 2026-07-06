@@ -73,7 +73,7 @@ def _make_registry(n: int = 2) -> "ModelRegistry":
 
 
 def _make_engine(tmpdir: str) -> "MLOpsEngine":
-    from trainer.mlops.engine import MLOpsEngine, MLOpsConfig
+    from trainer.mlops.engine import MLOpsConfig, MLOpsEngine
 
     return MLOpsEngine(
         MLOpsConfig(
@@ -91,7 +91,7 @@ def _make_engine(tmpdir: str) -> "MLOpsEngine":
 
 class TestModelRecord:
     def test_default_state_is_draft(self):
-        from trainer.mlops.registry import ModelRecord, LifecycleState
+        from trainer.mlops.registry import LifecycleState, ModelRecord
 
         r = ModelRecord(name="m1")
         assert r.lifecycle_state == LifecycleState.DRAFT
@@ -324,15 +324,15 @@ class TestLifecycleManager:
         assert summary["models_tracked"] >= 1
 
     def test_can_transition_true(self):
-        from trainer.mlops.registry import LifecycleState
         from trainer.mlops.lifecycle import LifecycleManager
+        from trainer.mlops.registry import LifecycleState
 
         lm = LifecycleManager()
         assert lm.can_transition(LifecycleState.DRAFT, LifecycleState.TRAINING)
 
     def test_can_transition_false(self):
-        from trainer.mlops.registry import LifecycleState
         from trainer.mlops.lifecycle import LifecycleManager
+        from trainer.mlops.registry import LifecycleState
 
         lm = LifecycleManager()
         assert not lm.can_transition(LifecycleState.DRAFT, LifecycleState.RETIRED)
@@ -345,8 +345,8 @@ class TestLifecycleManager:
 
 class TestDeploymentGovernance:
     def setup_method(self):
-        from trainer.mlops.lifecycle import LifecycleManager
         from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
+        from trainer.mlops.lifecycle import LifecycleManager
 
         self.registry = _make_registry(2)
         self.lm = LifecycleManager(strict=False)
@@ -548,7 +548,7 @@ class TestProductionMonitor:
 
 class TestModelHealthMonitor:
     def setup_method(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         self.monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -569,7 +569,7 @@ class TestModelHealthMonitor:
         assert report.is_healthy  # not enough data to detect drift
 
     def test_confidence_drift_detected(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -584,7 +584,7 @@ class TestModelHealthMonitor:
         assert report.confidence_drift > 0.05
 
     def test_performance_degradation(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -599,7 +599,7 @@ class TestModelHealthMonitor:
         assert report.performance_degradation > 0.0
 
     def test_distribution_drift(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -614,7 +614,7 @@ class TestModelHealthMonitor:
         assert report.distribution_drift > 0.0
 
     def test_latency_degradation(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -629,7 +629,7 @@ class TestModelHealthMonitor:
         assert report.latency_degradation > 5.0
 
     def test_unhealthy_models_list(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 
         monitor = ModelHealthMonitor(
             baseline_window=20,
@@ -673,7 +673,7 @@ class TestAlertingSystem:
         assert alert.is_active
 
     def test_emit_critical(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
 
         alert = self.alerting.emit(
             AlertLevel.CRITICAL, "m1", AlertCategory.LATENCY_SPIKE, "p99 latency 250ms"
@@ -736,7 +736,7 @@ class TestAlertingSystem:
         assert all(a["level"] == "CRITICAL" for a in critical)
 
     def test_critical_count(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
 
         for _ in range(3):
             self.alerting.emit(
@@ -780,9 +780,9 @@ class TestAlertingSystem:
 
 class TestChampionChallengerManager:
     def setup_method(self):
-        from trainer.mlops.lifecycle import LifecycleManager
-        from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
         from trainer.mlops.champion import ChampionChallengerManager
+        from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
+        from trainer.mlops.lifecycle import LifecycleManager
 
         self.registry = _make_registry(3)
         self.lm = LifecycleManager(strict=False)
@@ -936,7 +936,7 @@ class TestAuditSystem:
         assert all("event_id" in e for e in exported)
 
     def test_session_tracking(self):
-        from trainer.mlops.audit import AuditEventType, AuditEvent
+        from trainer.mlops.audit import AuditEvent, AuditEventType
 
         session_id = self.audit.start_session()
         self.audit.log(AuditEventType.TRAINING, model_id="m1")
@@ -962,8 +962,8 @@ class TestAuditSystem:
 class TestRetrainingPolicyManager:
     def setup_method(self):
         from trainer.mlops.retraining import (
-            RetrainingPolicyManager,
             RetrainingPolicy,
+            RetrainingPolicyManager,
             RetrainingTrigger,
         )
 
@@ -999,8 +999,8 @@ class TestRetrainingPolicyManager:
 
     def test_cooldown_prevents_duplicate(self):
         from trainer.mlops.retraining import (
-            RetrainingPolicyManager,
             RetrainingPolicy,
+            RetrainingPolicyManager,
             RetrainingTrigger,
         )
 
@@ -1075,7 +1075,7 @@ class TestMLOpsDatabase:
         db.close()
 
     def test_list_models_by_state(self):
-        from trainer.mlops.registry import ModelRecord, LifecycleState
+        from trainer.mlops.registry import LifecycleState, ModelRecord
 
         db = self._db()
         r1 = ModelRecord.from_dict(_model_dict(model_id="m1"))
@@ -1301,7 +1301,7 @@ class TestMLOpsAPI:
         engine.close()
 
     def test_emit_and_acknowledge_alert(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
 
         api, engine = self._api()
         resp = api.emit_alert(
@@ -1659,7 +1659,7 @@ class TestMLOpsEngine:
         engine.close()
 
     def test_emit_alert(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
 
         engine = self._engine()
         resp = engine.emit_alert(
@@ -1750,43 +1750,43 @@ class TestMLOpsEngine:
 class TestPublicAPI:
     def test_all_exports_importable(self):
         from trainer.mlops import (
-            LifecycleState,
+            Alert,
+            AlertCategory,
+            AlertingSystem,
+            AlertLevel,
             ApprovalRecord,
-            ModelRecord,
-            ModelRegistry,
-            LifecycleTransition,
-            LifecycleError,
-            LifecycleManager,
-            DeploymentRecord,
-            GovernanceConfig,
+            AuditEvent,
+            AuditEventType,
+            AuditSystem,
+            ChampionChallengerManager,
+            ChampionEvent,
             DeploymentGovernance,
-            InferenceRecord,
-            MonitoringSnapshot,
-            ProductionMonitor,
+            DeploymentRecord,
+            DriftThresholds,
+            GovernanceConfig,
             HealthRecord,
             HealthReport,
-            DriftThresholds,
-            ModelHealthMonitor,
-            AlertLevel,
-            AlertCategory,
-            Alert,
-            AlertingSystem,
-            ChampionEvent,
-            ChampionChallengerManager,
-            AuditEventType,
-            AuditEvent,
-            AuditSystem,
-            RetrainingTrigger,
-            RetrainingPolicy,
-            RetrainingRecommendation,
-            RetrainingPolicyManager,
-            build_default_policies,
-            MLOpsDatabase,
+            InferenceRecord,
+            LifecycleError,
+            LifecycleManager,
+            LifecycleState,
+            LifecycleTransition,
             MLOpsAPI,
-            MLOpsVisualizationBuilder,
-            MLOpsExporter,
             MLOpsConfig,
+            MLOpsDatabase,
             MLOpsEngine,
+            MLOpsExporter,
+            MLOpsVisualizationBuilder,
+            ModelHealthMonitor,
+            ModelRecord,
+            ModelRegistry,
+            MonitoringSnapshot,
+            ProductionMonitor,
+            RetrainingPolicy,
+            RetrainingPolicyManager,
+            RetrainingRecommendation,
+            RetrainingTrigger,
+            build_default_policies,
         )
 
     def test_all_names_in_module(self):

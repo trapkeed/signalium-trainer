@@ -11,8 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import clamp
 from trainer.mie.mie_models import MarketInput, PredictionReliabilityResult
+from trainer.mie.mie_types import clamp
 
 
 class PredictionReliabilityEngine:

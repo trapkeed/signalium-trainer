@@ -1,6 +1,7 @@
 """Phase 22 — Market Microstructure types and enums."""
 
 from __future__ import annotations
+
 from enum import Enum
 
 

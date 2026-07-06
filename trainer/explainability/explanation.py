@@ -31,12 +31,12 @@ import torch
 import torch.nn as nn
 from loguru import logger
 
+from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.attribution import (
     AttributionResult,
     GradientAttribution,
     IntegratedGradients,
 )
-from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.stream_analysis import StreamContribution, StreamContributionAnalyzer
 
 # ---------------------------------------------------------------------------

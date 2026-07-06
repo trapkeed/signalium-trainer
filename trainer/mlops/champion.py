@@ -30,9 +30,9 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from trainer.mlops.registry import LifecycleState, ModelRegistry
-from trainer.mlops.lifecycle import LifecycleManager
 from trainer.mlops.governance import DeploymentGovernance
+from trainer.mlops.lifecycle import LifecycleManager
+from trainer.mlops.registry import LifecycleState, ModelRegistry
 
 # ---------------------------------------------------------------------------
 # Champion event

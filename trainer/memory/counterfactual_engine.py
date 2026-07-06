@@ -20,8 +20,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.memory.decision_types import DecisionType, POSITIVE_OUTCOMES
-from trainer.memory.decision_models import DecisionRecord, CounterfactualResult
+from trainer.memory.decision_models import CounterfactualResult, DecisionRecord
+from trainer.memory.decision_types import POSITIVE_OUTCOMES, DecisionType
 
 
 class CounterfactualEngine:

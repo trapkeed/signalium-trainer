@@ -14,7 +14,7 @@ Prediction values are NEVER modified — metadata rides alongside them.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 

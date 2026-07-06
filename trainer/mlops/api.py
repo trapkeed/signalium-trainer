@@ -33,8 +33,8 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from trainer.mlops.alerting import AlertingSystem, AlertLevel, AlertCategory
-from trainer.mlops.audit import AuditSystem, AuditEventType
+from trainer.mlops.alerting import AlertCategory, AlertingSystem, AlertLevel
+from trainer.mlops.audit import AuditEventType, AuditSystem
 from trainer.mlops.champion import ChampionChallengerManager
 from trainer.mlops.database import MLOpsDatabase
 from trainer.mlops.governance import DeploymentGovernance

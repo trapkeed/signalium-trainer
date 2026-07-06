@@ -12,8 +12,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import LiquidityResult, MarketInput
 from trainer.mie.mie_types import LiquidityState, clamp
-from trainer.mie.mie_models import MarketInput, LiquidityResult
 
 
 def _mean(vals: List[float]) -> float:

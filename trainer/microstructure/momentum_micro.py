@@ -17,7 +17,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
+from trainer.microstructure.micro_models import MicrostructureFeatures, OHLCBar
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:

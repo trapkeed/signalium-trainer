@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from trainer.analyst.analyst_types import (
-    QueryType,
-    ReportType,
     CitationType,
-    RecommendationType,
     KnowledgeSourceType,
-    Permission,
-    Role,
     LLMProviderType,
+    Permission,
+    QueryType,
+    RecommendationType,
+    ReportType,
+    Role,
 )
 
 # ── KnowledgeChunk ─────────────────────────────────────────────────────────────

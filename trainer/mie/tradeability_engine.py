@@ -11,30 +11,30 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import (
+    BehaviorSimilarityResult,
+    CalibrationResult,
+    LiquidityResult,
+    MarketInput,
+    MarketRegimeResult,
+    MomentumResult,
+    NewsIntelligenceResult,
+    PredictionReliabilityResult,
+    RiskIntelligenceResult,
+    SessionResult,
+    TradeabilityResult,
+    TrendResult,
+    VolatilityResult,
+)
 from trainer.mie.mie_types import (
+    NEWS_IMPACT_PENALTY,
+    REGIME_TRADEABILITY_BASE,
+    RISK_REGIME_MULTIPLIERS,
     MarketRegime,
     RiskRegime,
     TradeabilityGrade,
-    REGIME_TRADEABILITY_BASE,
-    RISK_REGIME_MULTIPLIERS,
-    NEWS_IMPACT_PENALTY,
-    tradeability_grade,
     clamp,
-)
-from trainer.mie.mie_models import (
-    MarketInput,
-    MarketRegimeResult,
-    RiskIntelligenceResult,
-    LiquidityResult,
-    VolatilityResult,
-    MomentumResult,
-    TrendResult,
-    BehaviorSimilarityResult,
-    PredictionReliabilityResult,
-    CalibrationResult,
-    SessionResult,
-    NewsIntelligenceResult,
-    TradeabilityResult,
+    tradeability_grade,
 )
 
 # ── Factor weights (must sum to 1.0) ──────────────────────────────────────────

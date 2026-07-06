@@ -22,9 +22,9 @@ except ImportError:
 
 from trainer.analyst.analyst_models import (
     ChatSession,
+    Recommendation,
     ResearchQuery,
     ResearchReport,
-    Recommendation,
 )
 
 _CREATE_TABLES = """

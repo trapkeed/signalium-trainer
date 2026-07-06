@@ -18,8 +18,8 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_types import (
-    ExecutionForecast,
     BrokerConstraints,
+    ExecutionForecast,
     SizingMethod,
     _clamp,
     default_broker,

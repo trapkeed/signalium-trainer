@@ -17,6 +17,13 @@ import pytest
 import torch
 import torch.nn as nn
 
+from trainer.losses.advanced import (
+    DistributionLoss,
+    DynamicLossWeighting,
+    GaussianNLLLoss,
+    QuantileLoss,
+)
+from trainer.losses.multi_task import MultiTaskLoss, MultiTaskLossOutput
 from trainer.models.quant_v1.config import (
     DistributionHeadConfig,
     ExcursionHeadConfig,
@@ -34,8 +41,8 @@ from trainer.models.quant_v1.head import (
     ExitQualityHead,
     LossDistributionHead,
     MAEExcursionHead,
-    MFEHead,
     MarketStabilityHead,
+    MFEHead,
     PositionSizeQualityHead,
     ProfitDistributionHead,
     RewardRiskHead,
@@ -45,13 +52,6 @@ from trainer.models.quant_v1.head import (
     TradeEfficiencyHead,
     TradeSurvivalHead,
     UncertaintyHead,
-)
-from trainer.losses.multi_task import MultiTaskLoss, MultiTaskLossOutput
-from trainer.losses.advanced import (
-    DistributionLoss,
-    DynamicLossWeighting,
-    GaussianNLLLoss,
-    QuantileLoss,
 )
 
 BATCH = 8
@@ -471,6 +471,7 @@ def _make_full_config() -> QuantV1Config:
 def full_model():
     """QuantModelV1 with all heads enabled and minimal size."""
     from unittest.mock import MagicMock
+
     from trainer.models.quant_v1.model import QuantModelV1
 
     trainer_config = MagicMock()
@@ -585,6 +586,7 @@ class TestFullModelPhase146:
 
     def test_backward_compat_no_heads(self) -> None:
         from unittest.mock import MagicMock
+
         from trainer.models.quant_v1.model import QuantModelV1
 
         trainer_config = MagicMock()

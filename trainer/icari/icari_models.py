@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from trainer.icari.icari_types import (
-    SizingMethod,
-    RiskBudgetType,
-    DrawdownMode,
-    ScenarioType,
-    OptimizationObjective,
     AllocationRecommendation,
     AllocationStatus,
     CapitalHealthGrade,
+    DrawdownMode,
+    OptimizationObjective,
+    RiskBudgetType,
+    ScenarioType,
+    SizingMethod,
 )
 
 # ── AllocationRequest ─────────────────────────────────────────────────────────

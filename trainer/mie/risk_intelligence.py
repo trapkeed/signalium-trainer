@@ -12,13 +12,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import MarketInput, RiskIntelligenceResult
 from trainer.mie.mie_types import (
+    RISK_REGIME_MULTIPLIERS,
     MarketRegime,
     RiskRegime,
-    RISK_REGIME_MULTIPLIERS,
     clamp,
 )
-from trainer.mie.mie_models import MarketInput, RiskIntelligenceResult
 
 
 def _mean(vals: List[float]) -> float:

@@ -17,18 +17,18 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import (
-    LifecycleState,
-    VALID_TRANSITIONS,
-    TERMINAL_STATES,
-    STATE_EXPECTED_DURATION_HOURS,
-    can_transition,
-    is_terminal,
-)
 from trainer.lifecycle.lifecycle_models import (
     MarketContext,
     PositionMetrics,
     TransitionResult,
+)
+from trainer.lifecycle.lifecycle_states import (
+    STATE_EXPECTED_DURATION_HOURS,
+    TERMINAL_STATES,
+    VALID_TRANSITIONS,
+    LifecycleState,
+    can_transition,
+    is_terminal,
 )
 
 # ── Transition Rule ───────────────────────────────────────────────────────────

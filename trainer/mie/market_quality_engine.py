@@ -12,18 +12,18 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import clamp
 from trainer.mie.mie_models import (
-    MarketInput,
-    VolatilityResult,
-    MomentumResult,
-    TrendResult,
     LiquidityResult,
-    SessionResult,
+    MarketInput,
+    MarketQualityResult,
+    MomentumResult,
     NewsIntelligenceResult,
     PredictionReliabilityResult,
-    MarketQualityResult,
+    SessionResult,
+    TrendResult,
+    VolatilityResult,
 )
+from trainer.mie.mie_types import clamp
 
 
 class MarketQualityEngine:

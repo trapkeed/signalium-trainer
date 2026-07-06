@@ -9,8 +9,8 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 # ── Stub loguru before any imports ──────────────────────────────────────────
 

@@ -26,14 +26,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --upgrade --no-cache-dir pip setuptools wheel
 
 # ---------------------------------------------------------------------------
-# PyTorch — CPU wheel must be installed before the project so that
-# `pip install -e "."` sees torch already satisfied and does not pull
-# the default CUDA wheel from PyPI.
+# PyTorch (CPU wheel) — installed first so that `pip install -e "."` finds
+# torch already satisfied and does not pull the default CUDA wheel from PyPI.
+#
+# IMPORTANT: --index-url scopes ALL packages in the same RUN to the PyTorch
+# wheel server, which does not host torchmetrics.  Install torch alone here,
+# then fetch torchmetrics from PyPI in the next step.
 # ---------------------------------------------------------------------------
-RUN pip install --no-cache-dir \
-        "torch>=2.3.0" \
-        "torchmetrics>=1.4.0" \
+RUN pip install --no-cache-dir "torch>=2.3.0" \
         --index-url https://download.pytorch.org/whl/cpu
+
+# torchmetrics lives on PyPI, not the PyTorch wheel server
+RUN pip install --no-cache-dir "torchmetrics>=1.4.0"
 
 # ---------------------------------------------------------------------------
 # Project dependencies (no [cuda] extra)

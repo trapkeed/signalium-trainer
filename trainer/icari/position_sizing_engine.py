@@ -18,8 +18,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import SizingMethod
 from trainer.icari.icari_models import AllocationRequest, PositionSize
+from trainer.icari.icari_types import SizingMethod
 
 _MIN_UNITS = 0.001
 _MAX_RISK_FRAC = 0.05  # never risk more than 5% per trade

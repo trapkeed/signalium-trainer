@@ -15,14 +15,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import QueryType, Permission, Role, has_permission
-from trainer.analyst.analyst_models import ResearchQuery, LLMResponse, Citation
-from trainer.analyst.analyst_types import CitationType
-from trainer.analyst.knowledge_index import KnowledgeIndex
-from trainer.analyst.retrieval_engine import RetrievalEngine
-from trainer.analyst.prompt_engine import PromptEngine
+from trainer.analyst.analyst_models import Citation, LLMResponse, ResearchQuery
+from trainer.analyst.analyst_types import CitationType, Permission, QueryType, Role, has_permission
 from trainer.analyst.citation_engine import CitationEngine
+from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
+from trainer.analyst.prompt_engine import PromptEngine
+from trainer.analyst.retrieval_engine import RetrievalEngine
 
 
 class ModelComparator:

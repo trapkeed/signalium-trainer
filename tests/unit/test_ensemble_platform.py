@@ -1229,8 +1229,8 @@ class TestEnsembleVisualizationBuilder:
 class TestEnsembleAPI:
     def setup_method(self):
         self.tmpdir = tempfile.mkdtemp()
-        from trainer.ensemble.database import EnsembleDatabase
         from trainer.ensemble.api import EnsembleAPI
+        from trainer.ensemble.database import EnsembleDatabase
 
         self.db = EnsembleDatabase(os.path.join(self.tmpdir, "api_test.db"))
         self.api = EnsembleAPI(self.db)
@@ -1382,7 +1382,7 @@ class TestEnsembleEngine:
         self.tmpdir = tempfile.mkdtemp()
 
     def _make_engine(self, strategy: str = "soft_voting") -> "EnsembleEngine":
-        from trainer.ensemble.engine import EnsembleEngine, EnsembleConfig
+        from trainer.ensemble.engine import EnsembleConfig, EnsembleEngine
 
         cfg = EnsembleConfig(
             db_path=os.path.join(self.tmpdir, "engine_test.db"),
@@ -1574,50 +1574,50 @@ class TestEnsembleConfig:
 class TestPublicAPI:
     def test_all_exports_importable(self):
         from trainer.ensemble import (
-            SpecializationType,
-            ModelFamily,
-            ExpertPrediction,
-            ExpertModel,
-            ExpertRegistry,
-            build_default_registry,
-            EnsembleResult,
-            BaseEnsembleStrategy,
-            SimpleAveragingStrategy,
-            WeightedAveragingStrategy,
-            PerformanceWeightedStrategy,
-            HardVotingStrategy,
-            SoftVotingStrategy,
-            MixtureOfExpertsStrategy,
-            StackingStrategy,
-            BlendingStrategy,
-            build_strategy,
             AVAILABLE_STRATEGIES,
-            WeightFactorConfig,
-            DynamicWeightEngine,
             REGIME_FAMILY_AFFINITY,
-            RoutingDecision,
-            RouterConfig,
-            ExpertRouter,
-            MetaPrediction,
-            MetaFeatureBuilder,
-            EnsembleMetaModel,
+            BaseEnsembleStrategy,
+            BlendingStrategy,
             CalibrationReport,
+            DynamicWeightEngine,
+            EnsembleAPI,
+            EnsembleConfig,
+            EnsembleDatabase,
+            EnsembleEngine,
+            EnsembleExporter,
+            EnsembleLeaderboard,
+            EnsembleMetaModel,
+            EnsembleResult,
+            EnsembleVisualizationBuilder,
             ExpertCalibrator,
-            FailureEvent,
-            ExpertFailureReport,
             ExpertFailureAnalyzer,
+            ExpertFailureReport,
+            ExpertModel,
+            ExpertPrediction,
+            ExpertRegistry,
+            ExpertRouter,
+            FailureEvent,
+            HardVotingStrategy,
+            LeaderboardEntry,
+            MetaFeatureBuilder,
+            MetaPrediction,
+            MixtureOfExpertsStrategy,
+            ModelFamily,
+            OnlineScorer,
+            PerformanceWeightedStrategy,
+            PredictionBundle,
             PredictionRecord,
             RollingMetrics,
-            OnlineScorer,
-            EnsembleDatabase,
-            LeaderboardEntry,
-            EnsembleLeaderboard,
-            EnsembleVisualizationBuilder,
-            EnsembleAPI,
-            EnsembleExporter,
-            EnsembleConfig,
-            PredictionBundle,
-            EnsembleEngine,
+            RouterConfig,
+            RoutingDecision,
+            SimpleAveragingStrategy,
+            SoftVotingStrategy,
+            SpecializationType,
+            StackingStrategy,
+            WeightedAveragingStrategy,
+            WeightFactorConfig,
+            build_default_registry,
+            build_strategy,
         )
 
     def test_all_names_in_all(self):

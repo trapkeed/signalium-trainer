@@ -25,6 +25,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
+from trainer.exporters.metadata_manifest import MetadataManifestBuilder
+from trainer.framework.traced_inference import TracedInferenceAdapter
 from trainer.traceability import (
     InferenceContext,
     PredictionMetadata,
@@ -40,8 +42,6 @@ from trainer.traceability.metadata import (
     ReproducibilityInfo,
     SchemaVersions,
 )
-from trainer.framework.traced_inference import TracedInferenceAdapter
-from trainer.exporters.metadata_manifest import MetadataManifestBuilder
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -350,7 +350,7 @@ class TestInferenceTiming:
         assert result.metadata.inference.inference_duration_ms >= 40.0  # allow some slack
 
     def test_inference_timestamp_is_recent(self, traced_adapter, x_batch) -> None:
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         result = traced_adapter.predict(x_batch)
         ts_str = result.metadata.inference.inference_timestamp

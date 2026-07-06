@@ -20,10 +20,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from trainer.portfolio.portfolio_instruments import ModelForecast
 from trainer.portfolio.correlation_engine import CorrelationMatrix
+from trainer.portfolio.portfolio_instruments import ModelForecast
+from trainer.portfolio.regime_detector import MarketRegime, RegimeAssessment
 from trainer.portfolio.risk_budget import RiskBudgetConfig, RiskBudgetEngine
-from trainer.portfolio.regime_detector import RegimeAssessment, MarketRegime
 
 
 class AllocationMethod(str, Enum):

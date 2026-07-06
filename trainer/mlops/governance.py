@@ -27,8 +27,8 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from trainer.mlops.registry import LifecycleState, ModelRecord, ModelRegistry
 from trainer.mlops.lifecycle import LifecycleManager, LifecycleTransition
+from trainer.mlops.registry import LifecycleState, ModelRecord, ModelRegistry
 
 # ---------------------------------------------------------------------------
 # Deployment record

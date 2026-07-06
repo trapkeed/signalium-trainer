@@ -253,8 +253,8 @@ class AttentionMapVisualizer:
             return "[No attention map available — " "model uses a non-Transformer backbone]"
 
         try:
-            import torch.nn.functional as F
             import torch
+            import torch.nn.functional as F
 
             mean = attn_map.mean_attention()[sample_idx]  # (seq, seq)
             seq_len = int(mean.shape[0])

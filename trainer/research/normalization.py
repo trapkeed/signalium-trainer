@@ -117,6 +117,10 @@ class NormResult:
         }
 
 
+# Backward-compatible alias — earlier code imported NormalisationResult;
+# the class was renamed to NormResult for brevity.
+NormalisationResult = NormResult
+
 # ---------------------------------------------------------------------------
 # Normaliser — stateless normalisation engine
 # ---------------------------------------------------------------------------

@@ -12,8 +12,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, ValidationCheck, clamp
 from trainer.cert.cert_models import CertificationInput, ValidationResult
+from trainer.cert.cert_types import CheckStatus, ValidationCheck, clamp
 
 
 def _status(score: float, pass_thresh: float, warn_thresh: float) -> CheckStatus:

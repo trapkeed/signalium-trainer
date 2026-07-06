@@ -17,16 +17,16 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import (
+    MarketStateRecord,
     MicrostructureFeatures,
     MicrostructureScore,
-    MarketStateRecord,
 )
 from trainer.microstructure.micro_types import (
+    LiquidityState,
     MarketState,
     MomentumState,
-    VolatilityState,
-    LiquidityState,
     TrendStrength,
+    VolatilityState,
     trend_strength_from_score,
 )
 

@@ -45,34 +45,32 @@ from trainer.models.base import BaseQuantModel
 from trainer.models.quant_v1.backbone import SequenceEncoder, build_backbone
 from trainer.models.quant_v1.config import QuantV1Config
 from trainer.models.quant_v1.encoder import InputEncoder
-from trainer.models.quant_v1.hybrid.encoder import HybridEncoder
-from trainer.models.quant_v1.hybrid.input import HybridInput
-from trainer.models.quant_v1.head import (
-    # Phase 14.5
+from trainer.models.quant_v1.head import (  # Phase 14.5; Phase 14.6
     ClassificationHead,
     ConfidenceHead,
-    ExpectedMoveHead,
-    HoldingTimeHead,
-    StopLossHead,
-    TakeProfitHead,
-    TPProbabilityHead,
-    # Phase 14.6
     EntryQualityHead,
     ExitQualityHead,
+    ExpectedMoveHead,
+    HoldingTimeHead,
     LossDistributionHead,
     MAEExcursionHead,
-    MFEHead,
     MarketStabilityHead,
+    MFEHead,
     PositionSizeQualityHead,
     ProfitDistributionHead,
     RewardRiskHead,
     SLResilienceHead,
+    StopLossHead,
+    TakeProfitHead,
     TPAchievabilityHead,
+    TPProbabilityHead,
     TradeDecayHead,
     TradeEfficiencyHead,
     TradeSurvivalHead,
     UncertaintyHead,
 )
+from trainer.models.quant_v1.hybrid.encoder import HybridEncoder
+from trainer.models.quant_v1.hybrid.input import HybridInput
 from trainer.models.quant_v1.output import (
     MultiTaskQuantModelOutput,
     OutputLayer,

@@ -19,8 +19,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import ScenarioType, SCENARIO_FACTORS
 from trainer.icari.icari_models import ScenarioResult
+from trainer.icari.icari_types import SCENARIO_FACTORS, ScenarioType
 
 # Currency sensitivity: how each scenario affects different currency pairs
 _CCY_SENSITIVITY = {

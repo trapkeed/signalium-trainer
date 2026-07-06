@@ -13,8 +13,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import BehaviorSimilarityResult, MarketInput
 from trainer.mie.mie_types import clamp
-from trainer.mie.mie_models import MarketInput, BehaviorSimilarityResult
 
 # Feature keys used when comparing current market to historical records.
 # Each historical record in `inp.historical_similar` should carry these keys.

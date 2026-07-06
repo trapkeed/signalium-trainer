@@ -69,7 +69,7 @@ class TestFloatParameter:
         assert vals[-1] == pytest.approx(1.0)
 
     def test_to_from_dict(self):
-        from trainer.automl.search_space import FloatParameter, BaseParameter
+        from trainer.automl.search_space import BaseParameter, FloatParameter
 
         p = FloatParameter("lr", low=1e-5, high=1e-2, log=True, step=None)
         d = p.to_dict()
@@ -105,7 +105,7 @@ class TestIntParameter:
         assert 1 in vals and 5 in vals
 
     def test_to_from_dict(self):
-        from trainer.automl.search_space import IntParameter, BaseParameter
+        from trainer.automl.search_space import BaseParameter, IntParameter
 
         p = IntParameter("n", low=2, high=8, step=2)
         p2 = BaseParameter.from_dict(p.to_dict())
@@ -121,8 +121,9 @@ class TestCategoricalParameter:
             assert p.sample() in ["adam", "sgd", "adamw"]
 
     def test_weighted_sampling(self):
-        from trainer.automl.search_space import CategoricalParameter
         import random
+
+        from trainer.automl.search_space import CategoricalParameter
 
         p = CategoricalParameter("opt", choices=["a", "b"], weights=[0.99, 0.01])
         rng = random.Random(0)
@@ -132,7 +133,7 @@ class TestCategoricalParameter:
         assert counts["a"] > counts["b"] * 5
 
     def test_to_from_dict(self):
-        from trainer.automl.search_space import CategoricalParameter, BaseParameter
+        from trainer.automl.search_space import BaseParameter, CategoricalParameter
 
         p = CategoricalParameter("bb", choices=["lstm", "gru"])
         p2 = BaseParameter.from_dict(p.to_dict())
@@ -155,7 +156,7 @@ class TestConditionalParameter:
         assert not cond.is_active({"optimizer": "adam"})
 
     def test_to_from_dict(self):
-        from trainer.automl.search_space import ConditionalParameter, FloatParameter, BaseParameter
+        from trainer.automl.search_space import BaseParameter, ConditionalParameter, FloatParameter
 
         inner = FloatParameter("m", low=0.8, high=0.99)
         cond = ConditionalParameter(
@@ -173,7 +174,7 @@ class TestConditionalParameter:
 
 class TestSearchSpace:
     def test_sample_returns_all_params(self):
-        from trainer.automl.search_space import SearchSpace, FloatParameter, IntParameter
+        from trainer.automl.search_space import FloatParameter, IntParameter, SearchSpace
 
         space = SearchSpace("test")
         space.add(FloatParameter("lr", 1e-4, 1e-2))
@@ -183,7 +184,7 @@ class TestSearchSpace:
         assert "n" in sample
 
     def test_grid_returns_list(self):
-        from trainer.automl.search_space import SearchSpace, CategoricalParameter
+        from trainer.automl.search_space import CategoricalParameter, SearchSpace
 
         space = SearchSpace("g")
         space.add(CategoricalParameter("bb", choices=["lstm", "gru"]))
@@ -192,7 +193,7 @@ class TestSearchSpace:
         assert all("bb" in c for c in grid)
 
     def test_to_from_dict(self):
-        from trainer.automl.search_space import SearchSpace, FloatParameter
+        from trainer.automl.search_space import FloatParameter, SearchSpace
 
         space = SearchSpace("s1")
         space.add(FloatParameter("lr", 1e-5, 1e-2, log=True))
@@ -211,7 +212,7 @@ class TestSearchSpace:
         assert "backbone" in sample
 
     def test_len(self):
-        from trainer.automl.search_space import SearchSpace, FloatParameter, IntParameter
+        from trainer.automl.search_space import FloatParameter, IntParameter, SearchSpace
 
         space = SearchSpace()
         space.add(FloatParameter("a", 0, 1))
@@ -508,20 +509,20 @@ class TestSuccessiveHalvingPruner:
 
 class TestBuildPruner:
     def test_none_pruner(self):
-        from trainer.automl.pruning import build_pruner, NoPruner
+        from trainer.automl.pruning import NoPruner, build_pruner
 
         p = build_pruner({"type": "none"})
         assert isinstance(p, NoPruner)
 
     def test_median_pruner(self):
-        from trainer.automl.pruning import build_pruner, MedianPruner
+        from trainer.automl.pruning import MedianPruner, build_pruner
 
         p = build_pruner({"type": "median", "n_startup_trials": 3})
         assert isinstance(p, MedianPruner)
         assert p.n_startup_trials == 3
 
     def test_successive_halving_pruner(self):
-        from trainer.automl.pruning import build_pruner, SuccessiveHalvingPruner
+        from trainer.automl.pruning import SuccessiveHalvingPruner, build_pruner
 
         p = build_pruner({"type": "successive_halving", "reduction_factor": 4})
         assert isinstance(p, SuccessiveHalvingPruner)
@@ -541,10 +542,10 @@ class TestBuildPruner:
 
 def _make_space():
     from trainer.automl.search_space import (
-        SearchSpace,
+        CategoricalParameter,
         FloatParameter,
         IntParameter,
-        CategoricalParameter,
+        SearchSpace,
     )
 
     space = SearchSpace("test")
@@ -685,13 +686,13 @@ class TestBayesianStrategy:
 
 class TestBuildStrategy:
     def test_random(self):
-        from trainer.automl.strategies import build_strategy, RandomStrategy
+        from trainer.automl.strategies import RandomStrategy, build_strategy
 
         s = build_strategy({"type": "random", "n_trials": 5}, _make_space())
         assert isinstance(s, RandomStrategy)
 
     def test_bayesian(self):
-        from trainer.automl.strategies import build_strategy, BayesianStrategy
+        from trainer.automl.strategies import BayesianStrategy, build_strategy
 
         s = build_strategy({"type": "bayesian", "n_trials": 10}, _make_space())
         assert isinstance(s, BayesianStrategy)
@@ -827,7 +828,7 @@ class TestSearchJob:
 
 class TestExperimentRecord:
     def test_from_trial(self):
-        from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord
+        from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
         trial = Trial(backbone="gru", config={"lr": 0.001})
         trial.complete(0.75, {"sharpe_ratio": 1.8})
@@ -838,7 +839,7 @@ class TestExperimentRecord:
         assert record.primary_score == pytest.approx(0.75)
 
     def test_to_dict(self):
-        from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord
+        from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
         trial = Trial()
         trial.complete(0.6)
@@ -1003,7 +1004,7 @@ class TestBackboneSpec:
 
 class TestBackboneSearcher:
     def test_rank_results(self):
-        from trainer.automl.backbone_search import BackboneSearcher, BackboneEvalResult
+        from trainer.automl.backbone_search import BackboneEvalResult, BackboneSearcher
 
         searcher = BackboneSearcher()
         results = [
@@ -1016,7 +1017,7 @@ class TestBackboneSearcher:
         assert ranked[0].rank == 1
 
     def test_best(self):
-        from trainer.automl.backbone_search import BackboneSearcher, BackboneEvalResult
+        from trainer.automl.backbone_search import BackboneEvalResult, BackboneSearcher
 
         searcher = BackboneSearcher()
         results = [
@@ -1027,7 +1028,7 @@ class TestBackboneSearcher:
         assert best.backbone_name == "gru"
 
     def test_summary(self):
-        from trainer.automl.backbone_search import BackboneSearcher, BackboneEvalResult
+        from trainer.automl.backbone_search import BackboneEvalResult, BackboneSearcher
 
         searcher = BackboneSearcher()
         results = [BackboneEvalResult("lstm", {}, score=0.6)]
@@ -1169,7 +1170,7 @@ class TestAutoMLDatabase:
         return SearchJob(name="test_job", strategy="random", n_trials=10)
 
     def _make_record(self, job_id: str = ""):
-        from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord
+        from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
         trial = Trial(backbone="lstm", config={"lr": 0.001})
         trial.complete(0.75, {"sharpe_ratio": 1.5})
@@ -1278,7 +1279,7 @@ class TestAutoMLDatabase:
         job = self._make_job()
         db.save_job(job)
         for i in range(3):
-            from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord
+            from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
             trial = Trial(backbone="lstm", config={})
             trial.complete(float(i) * 0.3)
@@ -1295,7 +1296,7 @@ class TestAutoMLDatabase:
         job = self._make_job()
         db.save_job(job)
         for bb in ["lstm", "lstm", "gru"]:
-            from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord
+            from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
             trial = Trial(backbone=bb, config={})
             trial.complete(0.5)
@@ -1438,8 +1439,8 @@ class TestAutoMLAPI:
     def setup_method(self):
         self.tmpdir = tempfile.mkdtemp()
         db_path = os.path.join(self.tmpdir, "api_test.db")
-        from trainer.automl.database import AutoMLDatabase
         from trainer.automl.api import AutoMLAPI
+        from trainer.automl.database import AutoMLDatabase
 
         self.db = AutoMLDatabase(db_path)
         self.api = AutoMLAPI(self.db)
@@ -1587,7 +1588,7 @@ class TestAutoMLEngine:
         self.tmpdir = tempfile.mkdtemp()
 
     def _make_engine(self, n_trials: int = 5, strategy: str = "random") -> "AutoMLEngine":
-        from trainer.automl.engine import AutoMLEngine, AutoMLConfig
+        from trainer.automl.engine import AutoMLConfig, AutoMLEngine
 
         cfg = AutoMLConfig(
             name="unit_test_search",
@@ -1732,51 +1733,51 @@ class TestAutoMLEngine:
 class TestPublicAPI:
     def test_all_exports_importable(self):
         from trainer.automl import (
-            FloatParameter,
-            IntParameter,
-            CategoricalParameter,
-            ConditionalParameter,
-            SearchSpace,
-            build_standard_space,
-            Objective,
-            ObjectiveScorer,
             STANDARD_OBJECTIVES,
-            get_objective,
-            compute_composite_research_score,
-            build_research_scorer,
-            BasePruner,
-            NoPruner,
-            MedianPruner,
-            SuccessiveHalvingPruner,
-            PruningDecision,
-            build_pruner,
-            BaseStrategy,
-            Suggestion,
-            ManualStrategy,
-            GridStrategy,
-            RandomStrategy,
-            BayesianStrategy,
-            build_strategy,
-            TrialStatus,
-            Trial,
-            SearchJob,
-            ExperimentRecord,
-            ResourceSnapshot,
-            WorkerSlot,
-            ResourceManager,
-            BackboneSpec,
-            BackboneCatalog,
-            BackboneSearcher,
-            BackboneEvalResult,
-            RankingEntry,
-            RankingResult,
-            ExperimentRanker,
-            AutoMLDatabase,
-            AutoMLVisualizationBuilder,
             AutoMLAPI,
             AutoMLConfig,
-            AutoMLResult,
+            AutoMLDatabase,
             AutoMLEngine,
+            AutoMLResult,
+            AutoMLVisualizationBuilder,
+            BackboneCatalog,
+            BackboneEvalResult,
+            BackboneSearcher,
+            BackboneSpec,
+            BasePruner,
+            BaseStrategy,
+            BayesianStrategy,
+            CategoricalParameter,
+            ConditionalParameter,
+            ExperimentRanker,
+            ExperimentRecord,
+            FloatParameter,
+            GridStrategy,
+            IntParameter,
+            ManualStrategy,
+            MedianPruner,
+            NoPruner,
+            Objective,
+            ObjectiveScorer,
+            PruningDecision,
+            RandomStrategy,
+            RankingEntry,
+            RankingResult,
+            ResourceManager,
+            ResourceSnapshot,
+            SearchJob,
+            SearchSpace,
+            SuccessiveHalvingPruner,
+            Suggestion,
+            Trial,
+            TrialStatus,
+            WorkerSlot,
+            build_pruner,
+            build_research_scorer,
+            build_standard_space,
+            build_strategy,
+            compute_composite_research_score,
+            get_objective,
         )
 
     def test_all_names_in_all(self):

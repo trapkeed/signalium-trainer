@@ -12,19 +12,19 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.cert.cert_models import (
+    BenchmarkResult,
+    CertificationRun,
+    ChecklistReport,
+    ScorecardResult,
+    StressTestResult,
+    ValidationResult,
+)
 from trainer.cert.cert_types import (
+    CertificationStatus,
     CheckStatus,
     DashboardType,
-    CertificationStatus,
     clamp,
-)
-from trainer.cert.cert_models import (
-    CertificationRun,
-    ScorecardResult,
-    ChecklistReport,
-    StressTestResult,
-    BenchmarkResult,
-    ValidationResult,
 )
 
 

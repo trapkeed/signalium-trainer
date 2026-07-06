@@ -23,14 +23,14 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.memory.decision_models import DecisionRecord
 from trainer.memory.decision_types import (
-    DecisionType,
-    DecisionGrade,
-    POSITIVE_OUTCOMES,
     NEGATIVE_OUTCOMES,
+    POSITIVE_OUTCOMES,
+    DecisionGrade,
+    DecisionType,
     OutcomeType,
 )
-from trainer.memory.decision_models import DecisionRecord
 
 
 def _bucket(ts: float, granularity: str = "day") -> str:

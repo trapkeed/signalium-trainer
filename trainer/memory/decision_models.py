@@ -8,12 +8,12 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from trainer.memory.decision_types import (
+    DecisionGrade,
     DecisionType,
+    MarketRegime,
     OutcomeType,
     QualityFactor,
-    MarketRegime,
     VolatilityRegime,
-    DecisionGrade,
 )
 
 # ── DecisionSnapshot ─────────────────────────────────────────────────────────

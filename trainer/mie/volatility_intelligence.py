@@ -12,8 +12,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import VolatilityState, clamp
 from trainer.mie.mie_models import MarketInput, VolatilityResult
+from trainer.mie.mie_types import VolatilityState, clamp
 
 
 def _stdev(vals: List[float]) -> float:

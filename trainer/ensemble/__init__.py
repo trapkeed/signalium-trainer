@@ -23,52 +23,8 @@ Quickstart::
 
 from __future__ import annotations
 
-# Expert
-from trainer.ensemble.expert import (
-    SpecializationType,
-    ModelFamily,
-    ExpertPrediction,
-    ExpertModel,
-    ExpertRegistry,
-    build_default_registry,
-)
-
-# Strategies
-from trainer.ensemble.strategies import (
-    EnsembleResult,
-    BaseEnsembleStrategy,
-    SimpleAveragingStrategy,
-    WeightedAveragingStrategy,
-    PerformanceWeightedStrategy,
-    HardVotingStrategy,
-    SoftVotingStrategy,
-    MixtureOfExpertsStrategy,
-    StackingStrategy,
-    BlendingStrategy,
-    build_strategy,
-    AVAILABLE_STRATEGIES,
-)
-
-# Weighting
-from trainer.ensemble.weighting import (
-    WeightFactorConfig,
-    DynamicWeightEngine,
-    REGIME_FAMILY_AFFINITY,
-)
-
-# Routing
-from trainer.ensemble.routing import (
-    RoutingDecision,
-    RouterConfig,
-    ExpertRouter,
-)
-
-# Meta model
-from trainer.ensemble.meta_model import (
-    MetaPrediction,
-    MetaFeatureBuilder,
-    EnsembleMetaModel,
-)
+# API
+from trainer.ensemble.api import EnsembleAPI
 
 # Calibration
 from trainer.ensemble.calibration import (
@@ -76,43 +32,87 @@ from trainer.ensemble.calibration import (
     ExpertCalibrator,
 )
 
+# Database
+from trainer.ensemble.database import EnsembleDatabase
+
+# Engine
+from trainer.ensemble.engine import (
+    EnsembleConfig,
+    EnsembleEngine,
+    PredictionBundle,
+)
+
+# Expert
+from trainer.ensemble.expert import (
+    ExpertModel,
+    ExpertPrediction,
+    ExpertRegistry,
+    ModelFamily,
+    SpecializationType,
+    build_default_registry,
+)
+
+# Export
+from trainer.ensemble.export import EnsembleExporter
+
 # Failure analysis
 from trainer.ensemble.failure_analysis import (
-    FailureEvent,
-    ExpertFailureReport,
     ExpertFailureAnalyzer,
+    ExpertFailureReport,
+    FailureEvent,
+)
+
+# Leaderboard
+from trainer.ensemble.leaderboard import (
+    EnsembleLeaderboard,
+    LeaderboardEntry,
+)
+
+# Meta model
+from trainer.ensemble.meta_model import (
+    EnsembleMetaModel,
+    MetaFeatureBuilder,
+    MetaPrediction,
 )
 
 # Online scoring
 from trainer.ensemble.online_scoring import (
+    OnlineScorer,
     PredictionRecord,
     RollingMetrics,
-    OnlineScorer,
 )
 
-# Database
-from trainer.ensemble.database import EnsembleDatabase
+# Routing
+from trainer.ensemble.routing import (
+    ExpertRouter,
+    RouterConfig,
+    RoutingDecision,
+)
 
-# Leaderboard
-from trainer.ensemble.leaderboard import (
-    LeaderboardEntry,
-    EnsembleLeaderboard,
+# Strategies
+from trainer.ensemble.strategies import (
+    AVAILABLE_STRATEGIES,
+    BaseEnsembleStrategy,
+    BlendingStrategy,
+    EnsembleResult,
+    HardVotingStrategy,
+    MixtureOfExpertsStrategy,
+    PerformanceWeightedStrategy,
+    SimpleAveragingStrategy,
+    SoftVotingStrategy,
+    StackingStrategy,
+    WeightedAveragingStrategy,
+    build_strategy,
 )
 
 # Visualization
 from trainer.ensemble.visualization import EnsembleVisualizationBuilder
 
-# API
-from trainer.ensemble.api import EnsembleAPI
-
-# Export
-from trainer.ensemble.export import EnsembleExporter
-
-# Engine
-from trainer.ensemble.engine import (
-    EnsembleConfig,
-    PredictionBundle,
-    EnsembleEngine,
+# Weighting
+from trainer.ensemble.weighting import (
+    REGIME_FAMILY_AFFINITY,
+    DynamicWeightEngine,
+    WeightFactorConfig,
 )
 
 __all__ = [

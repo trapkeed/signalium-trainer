@@ -14,15 +14,15 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.memory.decision_types import (
-    QualityFactor,
-    QUALITY_WEIGHTS,
-    grade_from_score,
-    POSITIVE_OUTCOMES,
-    NEGATIVE_OUTCOMES,
-    OutcomeType,
-)
 from trainer.memory.decision_models import DecisionRecord, DecisionScore
+from trainer.memory.decision_types import (
+    NEGATIVE_OUTCOMES,
+    POSITIVE_OUTCOMES,
+    QUALITY_WEIGHTS,
+    OutcomeType,
+    QualityFactor,
+    grade_from_score,
+)
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:

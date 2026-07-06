@@ -13,8 +13,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, StressScenario, clamp
 from trainer.cert.cert_models import CertificationInput, StressTestResult
+from trainer.cert.cert_types import CheckStatus, StressScenario, clamp
 
 # Max acceptable degradation per scenario (%)
 _DEGRADATION_LIMITS: Dict[str, float] = {

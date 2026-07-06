@@ -19,8 +19,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import AllocationStatus, AllocationRecommendation
 from trainer.icari.icari_models import AllocationRequest, AllocationResult
+from trainer.icari.icari_types import AllocationRecommendation, AllocationStatus
 
 # ── Regime multipliers ─────────────────────────────────────────────────────────
 _REGIME_MULT = {

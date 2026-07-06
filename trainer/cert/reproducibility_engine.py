@@ -11,8 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 from trainer.cert.cert_models import CertificationInput, ReproducibilityResult
+from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 
 _CHECKS = [
     "DATASET_VERSION",

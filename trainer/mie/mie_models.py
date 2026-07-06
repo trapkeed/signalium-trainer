@@ -8,16 +8,16 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from trainer.mie.mie_types import (
-    MarketRegime,
-    RiskRegime,
-    TradeabilityGrade,
     ExecutionMode,
-    SessionType,
-    NewsImpact,
+    LiquidityState,
+    MarketRegime,
     MomentumState,
+    NewsImpact,
+    RiskRegime,
+    SessionType,
+    TradeabilityGrade,
     TrendState,
     VolatilityState,
-    LiquidityState,
     WorkerTrigger,
 )
 

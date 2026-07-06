@@ -17,9 +17,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
+from trainer.portfolio.correlation_engine import CorrelationMatrix
 from trainer.portfolio.portfolio_instruments import ModelForecast
 from trainer.portfolio.portfolio_scorer import PortfolioMetrics, PortfolioScorer
-from trainer.portfolio.correlation_engine import CorrelationMatrix
 
 
 class ScenarioType(str, Enum):

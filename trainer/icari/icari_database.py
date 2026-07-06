@@ -23,12 +23,12 @@ except ImportError:
 
 from trainer.icari.icari_models import (
     AllocationResult,
-    RiskBudget,
-    PortfolioRisk,
     CapitalHealth,
-    ScenarioResult,
-    OptimizationResult,
     DrawdownEvent,
+    OptimizationResult,
+    PortfolioRisk,
+    RiskBudget,
+    ScenarioResult,
 )
 
 _CREATE_TABLES = """

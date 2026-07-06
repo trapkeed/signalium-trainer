@@ -24,10 +24,10 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import (
-    MicrostructureFeatures,
     MarketStateRecord,
-    MicrostructureScore,
     MicrostructureEmbedding,
+    MicrostructureFeatures,
+    MicrostructureScore,
 )
 from trainer.microstructure.micro_types import MarketState
 

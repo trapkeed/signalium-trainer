@@ -26,9 +26,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import LLMProviderType, is_safe_response
-from trainer.analyst.analyst_models import KnowledgeChunk, Citation, LLMResponse
-from trainer.analyst.analyst_types import CitationType
+from trainer.analyst.analyst_models import Citation, KnowledgeChunk, LLMResponse
+from trainer.analyst.analyst_types import CitationType, LLMProviderType, is_safe_response
 
 # ── Abstract base ──────────────────────────────────────────────────────────────
 

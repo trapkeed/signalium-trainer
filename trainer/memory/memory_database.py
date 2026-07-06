@@ -22,17 +22,17 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_models import (
-    DecisionRecord,
-    DecisionSnapshot,
-    DecisionReasoning,
-    DecisionOutcome,
-    DecisionScore,
     CounterfactualResult,
+    DecisionOutcome,
+    DecisionReasoning,
+    DecisionRecord,
+    DecisionScore,
+    DecisionSnapshot,
 )
 from trainer.memory.decision_types import (
+    DecisionGrade,
     DecisionType,
     OutcomeType,
-    DecisionGrade,
 )
 
 _CREATE_TABLES = """

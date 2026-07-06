@@ -23,9 +23,9 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import WorkerTrigger
-from trainer.mie.mie_models import MarketInput, MarketIntelligenceReport, WorkerJob
 from trainer.mie.mie_api import MIEAPI
+from trainer.mie.mie_models import MarketInput, MarketIntelligenceReport, WorkerJob
+from trainer.mie.mie_types import WorkerTrigger
 
 
 class MIEWorker:

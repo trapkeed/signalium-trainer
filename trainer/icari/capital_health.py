@@ -19,8 +19,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import CapitalHealthGrade, health_grade, DrawdownMode
 from trainer.icari.icari_models import CapitalHealth, PortfolioRisk
+from trainer.icari.icari_types import CapitalHealthGrade, DrawdownMode, health_grade
 
 # Score weights (must sum to 1.0)
 _HEALTH_WEIGHTS = {

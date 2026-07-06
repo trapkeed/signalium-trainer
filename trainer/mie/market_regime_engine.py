@@ -13,8 +13,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import MarketRegime, clamp
 from trainer.mie.mie_models import MarketInput, MarketRegimeResult
+from trainer.mie.mie_types import MarketRegime, clamp
 
 
 def _stdev(values: List[float]) -> float:

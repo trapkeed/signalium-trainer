@@ -11,21 +11,21 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.mie.mie_models import (
+    AICommentaryResult,
+    ExecutionMode,
+    ExecutionResult,
+    MarketInput,
+    MarketQualityResult,
+    MarketRegimeResult,
+    RiskIntelligenceResult,
+    TradeabilityResult,
+)
 from trainer.mie.mie_types import (
     MarketRegime,
     RiskRegime,
     TradeabilityGrade,
     clamp,
-)
-from trainer.mie.mie_models import (
-    MarketInput,
-    MarketRegimeResult,
-    RiskIntelligenceResult,
-    TradeabilityResult,
-    MarketQualityResult,
-    ExecutionResult,
-    ExecutionMode,
-    AICommentaryResult,
 )
 
 # ── Template fragments ────────────────────────────────────────────────────────

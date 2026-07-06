@@ -15,8 +15,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import RiskBudgetType, DEFAULT_RISK_BUDGETS
 from trainer.icari.icari_models import RiskBudget
+from trainer.icari.icari_types import DEFAULT_RISK_BUDGETS, RiskBudgetType
 
 
 class RiskBudgetEngine:

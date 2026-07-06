@@ -30,34 +30,79 @@ Quick start::
     print(result.summary())
 """
 
-from trainer.validation.windows import (
-    WindowFold,
-    NestedFold,
-    SlidingWindowValidator,
-    ExpandingWindowValidator,
-    AnchoredWalkForward,
-    NestedValidator,
+from trainer.validation.api import ValidationAPI
+from trainer.validation.calibration_validator import (
+    CalibrationReport,
+    CalibrationValidator,
+)
+from trainer.validation.comparison import (
+    ComparisonMetricDelta,
+    ComparisonReport,
+    ModelComparison,
+    ModelSnapshot,
+)
+from trainer.validation.database import (
+    ValidationDatabase,
+    ValidationRunRecord,
+)
+from trainer.validation.drift import (
+    DriftAnalyzer,
+    DriftReport,
+    FeatureDriftStats,
+)
+from trainer.validation.engine import (
+    EngineConfig,
+    InstitutionalValidationEngine,
+    ValidationResult,
+)
+from trainer.validation.export import ExportConfig, ReportExporter
+from trainer.validation.failure_analysis import (
+    FailureAnalyzer,
+    FailureReport,
+    WorstPerformer,
+)
+from trainer.validation.head_validator import (
+    HeadResult,
+    PredictionHeadValidator,
+)
+from trainer.validation.instrument import (
+    INSTRUMENTS,
+    TIMEFRAMES,
+    InstrumentResult,
+    MultiAssetValidationResult,
+    MultiAssetValidator,
+    get_all_instruments,
+    get_all_timeframes,
+    register_instrument,
+    register_timeframe,
+)
+from trainer.validation.leaderboard import (
+    InstitutionalLeaderboard,
+    LeaderboardEntry,
 )
 from trainer.validation.leakage import (
+    LeakageDetected,
     LeakageDetector,
     LeakageReport,
-    LeakageDetected,
+)
+from trainer.validation.monte_carlo import (
+    MonteCarloResult,
+    MonteCarloValidator,
+)
+from trainer.validation.promotion import (
+    PromotionDecision,
+    PromotionPolicy,
+    PromotionRule,
 )
 from trainer.validation.regime import (
     MarketRegime,
     MarketRegimeClassifier,
     RegimeDistribution,
 )
-from trainer.validation.instrument import (
-    INSTRUMENTS,
-    TIMEFRAMES,
-    register_instrument,
-    register_timeframe,
-    get_all_instruments,
-    get_all_timeframes,
-    InstrumentResult,
-    MultiAssetValidationResult,
-    MultiAssetValidator,
+from trainer.validation.robustness import (
+    RobustnessReport,
+    RobustnessTester,
+    StressScenarioResult,
 )
 from trainer.validation.statistical import (
     StatisticalMetrics,
@@ -65,63 +110,18 @@ from trainer.validation.statistical import (
 )
 from trainer.validation.trading import (
     TradeResult,
+    TradeSimulator,
     TradingMetrics,
     TradingMetricsEngine,
-    TradeSimulator,
-)
-from trainer.validation.monte_carlo import (
-    MonteCarloResult,
-    MonteCarloValidator,
-)
-from trainer.validation.robustness import (
-    StressScenarioResult,
-    RobustnessReport,
-    RobustnessTester,
-)
-from trainer.validation.calibration_validator import (
-    CalibrationReport,
-    CalibrationValidator,
-)
-from trainer.validation.drift import (
-    FeatureDriftStats,
-    DriftReport,
-    DriftAnalyzer,
-)
-from trainer.validation.comparison import (
-    ModelSnapshot,
-    ComparisonMetricDelta,
-    ComparisonReport,
-    ModelComparison,
-)
-from trainer.validation.leaderboard import (
-    LeaderboardEntry,
-    InstitutionalLeaderboard,
-)
-from trainer.validation.promotion import (
-    PromotionRule,
-    PromotionDecision,
-    PromotionPolicy,
-)
-from trainer.validation.failure_analysis import (
-    WorstPerformer,
-    FailureReport,
-    FailureAnalyzer,
-)
-from trainer.validation.database import (
-    ValidationRunRecord,
-    ValidationDatabase,
-)
-from trainer.validation.head_validator import (
-    HeadResult,
-    PredictionHeadValidator,
 )
 from trainer.validation.visualization import VisualizationDataBuilder
-from trainer.validation.export import ExportConfig, ReportExporter
-from trainer.validation.api import ValidationAPI
-from trainer.validation.engine import (
-    EngineConfig,
-    ValidationResult,
-    InstitutionalValidationEngine,
+from trainer.validation.windows import (
+    AnchoredWalkForward,
+    ExpandingWindowValidator,
+    NestedFold,
+    NestedValidator,
+    SlidingWindowValidator,
+    WindowFold,
 )
 
 __all__ = [

@@ -24,12 +24,12 @@ except ImportError:
 
 from trainer.icari.icari_models import (
     AllocationResult,
-    PortfolioRisk,
     CapitalHealth,
     DrawdownEvent,
     OptimizationResult,
-    ScenarioResult,
+    PortfolioRisk,
     RiskBudget,
+    ScenarioResult,
 )
 from trainer.icari.icari_types import AllocationStatus, DrawdownMode
 

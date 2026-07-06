@@ -16,8 +16,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.execution.execution_types import ExecutionForecast, _clamp
 from trainer.execution.entry_zones import EntryZones
+from trainer.execution.execution_types import ExecutionForecast, _clamp
 from trainer.execution.stop_loss_engine import StopLossRecommendation
 
 

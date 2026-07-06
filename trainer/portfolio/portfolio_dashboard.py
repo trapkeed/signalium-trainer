@@ -16,12 +16,12 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List, Optional
 
-from trainer.portfolio.portfolio_instruments import ModelForecast
 from trainer.portfolio.correlation_engine import CorrelationMatrix
-from trainer.portfolio.exposure_engine import ExposureReport
-from trainer.portfolio.portfolio_scorer import PortfolioMetrics
 from trainer.portfolio.dependency_graph import DependencyGraphSnapshot
+from trainer.portfolio.exposure_engine import ExposureReport
 from trainer.portfolio.portfolio_database import PortfolioDatabase
+from trainer.portfolio.portfolio_instruments import ModelForecast
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics
 
 
 def _colour(value: float, lo: float = -1.0, hi: float = 1.0) -> str:

@@ -26,25 +26,25 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.analyst.analyst_dashboard import AnalystDashboard
+from trainer.analyst.analyst_database import AnalystDatabase
+from trainer.analyst.analyst_models import ResearchQuery
 from trainer.analyst.analyst_types import (
+    KnowledgeSourceType,
+    LLMProviderType,
+    Permission,
     QueryType,
     ReportType,
     Role,
-    Permission,
-    LLMProviderType,
-    KnowledgeSourceType,
     has_permission,
 )
-from trainer.analyst.analyst_models import ResearchQuery
 from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider, create_provider
+from trainer.analyst.model_comparator import ModelComparator
+from trainer.analyst.recommendation_engine import RecommendationEngine
+from trainer.analyst.report_generator import ReportGenerator
 from trainer.analyst.research_chat import ResearchChat
 from trainer.analyst.research_search import ResearchSearch
-from trainer.analyst.model_comparator import ModelComparator
-from trainer.analyst.report_generator import ReportGenerator
-from trainer.analyst.recommendation_engine import RecommendationEngine
-from trainer.analyst.analyst_database import AnalystDatabase
-from trainer.analyst.analyst_dashboard import AnalystDashboard
 
 
 class AnalystAPI:

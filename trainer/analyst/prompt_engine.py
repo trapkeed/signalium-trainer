@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+from trainer.analyst.analyst_models import ChatMessage, KnowledgeChunk
 from trainer.analyst.analyst_types import QueryType, ReportType
-from trainer.analyst.analyst_models import KnowledgeChunk, ChatMessage
 
 _SYSTEM_PROMPT = """You are SAQRA — Signalium's AI Quant Research Analyst.
 

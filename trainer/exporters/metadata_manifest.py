@@ -39,13 +39,13 @@ from loguru import logger
 
 from trainer.exporters.manifest import ManifestBuilder
 from trainer.traceability.config import TraceabilityConfig
+from trainer.traceability.context import InferenceContext
 from trainer.traceability.metadata import (
     ModelInfo,
     PredictionMetadata,
     ReproducibilityInfo,
     SchemaVersions,
 )
-from trainer.traceability.context import InferenceContext
 
 
 class MetadataManifestBuilder(ManifestBuilder):
@@ -111,7 +111,7 @@ class MetadataManifestBuilder(ManifestBuilder):
     def _build_traceability_section(self) -> dict[str, Any]:
         cfg = self._trace_config
         try:
-            from trainer.traceability.context import _git_commit, _pytorch_version, _python_version
+            from trainer.traceability.context import _git_commit, _python_version, _pytorch_version
 
             git_hash = _git_commit(short=True)
             pytorch_ver = _pytorch_version()

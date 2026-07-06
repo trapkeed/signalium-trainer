@@ -18,9 +18,9 @@ Usage::
 
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
-import statistics
 
 # ---------------------------------------------------------------------------
 # Pruning decision

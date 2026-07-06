@@ -13,12 +13,12 @@ from trainer.framework import (
     CLASS_BUY,
     CLASS_NO_TRADE,
     CLASS_SELL,
+    FeatureSchema,
     MetricsEngine,
     ModelFactory,
     ModelInput,
     ModelOutput,
     ModelSpec,
-    FeatureSchema,
     OutputSchema,
 )
 from trainer.framework.abstractions import (
@@ -203,7 +203,7 @@ class TestModelFactory:
 
     def test_create_with_model_config(self) -> None:
         from trainer.config.schema import TrainerConfig
-        from trainer.models.quant_v1.config import QuantV1Config, InputEncoderConfig
+        from trainer.models.quant_v1.config import InputEncoderConfig, QuantV1Config
 
         cfg = QuantV1Config(encoder=InputEncoderConfig(input_dim=32, hidden_dim=64))
         model = ModelFactory.create("quant_v1", TrainerConfig(), model_config=cfg)
@@ -253,10 +253,11 @@ class TestEnhancedModelRegistry:
         assert result is None or result is not None  # Either is valid
 
     def test_register_with_spec(self) -> None:
-        from trainer.registry.registry import ModelRegistry
+        import torch
+
         from trainer.config.schema import TrainerConfig
         from trainer.models.base import BaseQuantModel
-        import torch
+        from trainer.registry.registry import ModelRegistry
 
         # Use a unique name to avoid conflicts with other tests
         test_name = "_test_spec_model_unique"
@@ -289,16 +290,16 @@ class TestEnhancedModelRegistry:
         del ModelRegistry._specs[test_name]
 
     def test_summary_includes_all_models(self) -> None:
-        from trainer.registry.registry import ModelRegistry
         from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
+        from trainer.registry.registry import ModelRegistry
 
         rows = ModelRegistry.summary()
         names = [r["name"] for r in rows]
         assert "quant_v1" in names
 
     def test_summary_row_has_expected_keys(self) -> None:
-        from trainer.registry.registry import ModelRegistry
         from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
+        from trainer.registry.registry import ModelRegistry
 
         rows = ModelRegistry.summary()
         for row in rows:

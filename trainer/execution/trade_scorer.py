@@ -18,15 +18,15 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.execution.entry_quality import EntryQualityResult
+from trainer.execution.execution_timing import TimingAssessment
 from trainer.execution.execution_types import (
     ExecutionForecast,
     ExecutionGrade,
     _clamp,
     _grade_from_score,
 )
-from trainer.execution.entry_quality import EntryQualityResult
 from trainer.execution.risk_engine import RiskProfile
-from trainer.execution.execution_timing import TimingAssessment
 
 
 @dataclass

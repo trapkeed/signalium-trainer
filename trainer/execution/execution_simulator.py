@@ -16,14 +16,14 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.execution.entry_zones import EntryZones
 from trainer.execution.execution_types import (
-    ExecutionForecast,
-    BrokerConstraints,
     SESSION_QUALITY,
+    BrokerConstraints,
+    ExecutionForecast,
     _clamp,
     default_broker,
 )
-from trainer.execution.entry_zones import EntryZones
 from trainer.execution.stop_loss_engine import StopLossRecommendation
 from trainer.execution.take_profit_engine import TakeProfitRecommendation
 

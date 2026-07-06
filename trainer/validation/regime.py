@@ -28,8 +28,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-import torch
 import numpy as np
+import torch
 
 
 class MarketRegime(str, Enum):

@@ -6,9 +6,9 @@ import pytest
 import torch
 import torch.nn as nn
 
+from trainer.losses.factory import build_loss
 from trainer.losses.focal import FocalLoss
 from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
-from trainer.losses.factory import build_loss
 from trainer.models.quant_v1.config import LossConfig, LossType
 
 BATCH = 8

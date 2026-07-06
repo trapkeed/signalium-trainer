@@ -18,8 +18,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import OptimizationObjective
 from trainer.icari.icari_models import OptimizationResult
+from trainer.icari.icari_types import OptimizationObjective
 
 
 def _mean(data: List[float]) -> float:

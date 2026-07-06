@@ -18,7 +18,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
+from trainer.microstructure.micro_models import MicrostructureFeatures, OHLCBar
 
 
 def _safe_div(a: float, b: float, default: float = 0.0) -> float:

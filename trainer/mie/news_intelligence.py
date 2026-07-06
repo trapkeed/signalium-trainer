@@ -11,8 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import NewsImpact, NEWS_IMPACT_PENALTY, clamp
 from trainer.mie.mie_models import MarketInput, NewsIntelligenceResult
+from trainer.mie.mie_types import NEWS_IMPACT_PENALTY, NewsImpact, clamp
 
 # Expected dict keys from news_events list items
 _IMPACT_KEY = "impact"  # HIGH | MEDIUM | LOW | NONE

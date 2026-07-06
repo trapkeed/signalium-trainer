@@ -16,8 +16,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import CitationType
 from trainer.analyst.analyst_models import Citation, KnowledgeChunk
+from trainer.analyst.analyst_types import CitationType
 
 _CITATION_PATTERNS = [
     (r"\[EXP[-:](\w+)\]", CitationType.EXPERIMENT),

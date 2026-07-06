@@ -21,6 +21,6 @@ Public API::
     encoder = plugin.instantiate(hidden_dim=128)
 """
 
-from trainer.plugins.registry import PluginRegistry, EncoderPlugin
+from trainer.plugins.registry import EncoderPlugin, PluginRegistry
 
 __all__ = ["PluginRegistry", "EncoderPlugin"]

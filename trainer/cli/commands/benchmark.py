@@ -21,6 +21,7 @@ def benchmark(
 ) -> None:
     """Measure DataLoader throughput and model forward-pass latency."""
     import time
+
     import torch
 
     from trainer.utils.device import resolve_device

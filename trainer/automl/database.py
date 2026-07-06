@@ -36,7 +36,7 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from trainer.automl.experiment import SearchJob, ExperimentRecord, Trial
+from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
 
 # ---------------------------------------------------------------------------
 # Schema DDL

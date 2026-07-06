@@ -431,7 +431,9 @@ class TrainingProfiler:
             ``CPUMemoryResult`` with RSS in MB.
         """
         try:
-            import psutil, os
+            import os
+
+            import psutil
 
             proc = psutil.Process(os.getpid())
             rss_mb = proc.memory_info().rss / 1e6

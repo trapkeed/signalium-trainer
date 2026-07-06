@@ -9,8 +9,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import SessionType, SESSION_QUALITY_SCORES, clamp
 from trainer.mie.mie_models import MarketInput, SessionResult
+from trainer.mie.mie_types import SESSION_QUALITY_SCORES, SessionType, clamp
 
 # UTC hour ranges for each trading session
 _SESSION_HOURS = {

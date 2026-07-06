@@ -34,8 +34,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 
 
 @dataclass

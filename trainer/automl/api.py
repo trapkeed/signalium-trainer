@@ -34,8 +34,8 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from trainer.automl.database import AutoMLDatabase
-from trainer.automl.ranking import ExperimentRanker
 from trainer.automl.objectives import ObjectiveScorer, build_research_scorer
+from trainer.automl.ranking import ExperimentRanker
 from trainer.automl.visualization import AutoMLVisualizationBuilder
 
 # ---------------------------------------------------------------------------

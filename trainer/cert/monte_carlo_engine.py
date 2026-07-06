@@ -14,8 +14,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, clamp
 from trainer.cert.cert_models import CertificationInput, MonteCarloResult
+from trainer.cert.cert_types import CheckStatus, clamp
 
 _TECHNIQUES = [
     "RANDOMIZED_TRADE_ORDER",

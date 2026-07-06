@@ -37,8 +37,8 @@ from typing import Any, Dict, List, Optional
 
 from trainer.research.normalization import (
     CategoryNormaliser,
-    NormMethod,
     Normaliser,
+    NormMethod,
 )
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 

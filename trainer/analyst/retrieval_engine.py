@@ -16,8 +16,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import KnowledgeSourceType
 from trainer.analyst.analyst_models import KnowledgeChunk
+from trainer.analyst.analyst_types import KnowledgeSourceType
 from trainer.analyst.knowledge_index import KnowledgeIndex
 
 _STOPWORDS = frozenset(

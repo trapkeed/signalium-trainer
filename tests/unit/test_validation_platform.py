@@ -38,57 +38,58 @@ import pytest
 import torch
 import torch.nn as nn
 
-# ── Imports under test ────────────────────────────────────────────────────
-
-from trainer.validation.windows import (
-    SlidingWindowValidator,
-    ExpandingWindowValidator,
-    AnchoredWalkForward,
-    NestedValidator,
-    WindowFold,
+from trainer.validation.api import ValidationAPI, _error, _ok
+from trainer.validation.calibration_validator import CalibrationReport, CalibrationValidator
+from trainer.validation.comparison import (
+    ComparisonReport,
+    ModelComparison,
+    ModelSnapshot,
 )
-from trainer.validation.leakage import LeakageDetector, LeakageReport, LeakageDetected
-from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
+from trainer.validation.database import ValidationDatabase, ValidationRunRecord
+from trainer.validation.drift import DriftAnalyzer, DriftReport
+from trainer.validation.engine import (
+    EngineConfig,
+    InstitutionalValidationEngine,
+    ValidationResult,
+)
+from trainer.validation.export import ExportConfig, ReportExporter
+from trainer.validation.failure_analysis import FailureAnalyzer, FailureReport, WorstPerformer
+from trainer.validation.head_validator import HeadResult, PredictionHeadValidator
 from trainer.validation.instrument import (
     INSTRUMENTS,
     TIMEFRAMES,
-    register_instrument,
-    register_timeframe,
-    get_all_instruments,
-    get_all_timeframes,
     InstrumentResult,
     MultiAssetValidationResult,
     MultiAssetValidator,
+    get_all_instruments,
+    get_all_timeframes,
+    register_instrument,
+    register_timeframe,
 )
+from trainer.validation.leaderboard import InstitutionalLeaderboard, LeaderboardEntry
+from trainer.validation.leakage import LeakageDetected, LeakageDetector, LeakageReport
+from trainer.validation.monte_carlo import MonteCarloResult, MonteCarloValidator
+from trainer.validation.promotion import PromotionDecision, PromotionPolicy, PromotionRule
+from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
+from trainer.validation.robustness import RobustnessReport, RobustnessTester
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
 from trainer.validation.trading import (
     TradeResult,
+    TradeSimulator,
     TradingMetrics,
     TradingMetricsEngine,
-    TradeSimulator,
 )
-from trainer.validation.monte_carlo import MonteCarloValidator, MonteCarloResult
-from trainer.validation.robustness import RobustnessTester, RobustnessReport
-from trainer.validation.calibration_validator import CalibrationValidator, CalibrationReport
-from trainer.validation.drift import DriftAnalyzer, DriftReport
-from trainer.validation.comparison import (
-    ModelSnapshot,
-    ModelComparison,
-    ComparisonReport,
-)
-from trainer.validation.leaderboard import LeaderboardEntry, InstitutionalLeaderboard
-from trainer.validation.promotion import PromotionRule, PromotionPolicy, PromotionDecision
-from trainer.validation.failure_analysis import FailureAnalyzer, FailureReport, WorstPerformer
-from trainer.validation.database import ValidationDatabase, ValidationRunRecord
-from trainer.validation.head_validator import PredictionHeadValidator, HeadResult
 from trainer.validation.visualization import VisualizationDataBuilder
-from trainer.validation.export import ReportExporter, ExportConfig
-from trainer.validation.api import ValidationAPI, _ok, _error
-from trainer.validation.engine import (
-    InstitutionalValidationEngine,
-    EngineConfig,
-    ValidationResult,
+from trainer.validation.windows import (
+    AnchoredWalkForward,
+    ExpandingWindowValidator,
+    NestedValidator,
+    SlidingWindowValidator,
+    WindowFold,
 )
+
+# ── Imports under test ────────────────────────────────────────────────────
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
 

@@ -26,37 +26,37 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import (
-    SizingMethod,
-    RiskBudgetType,
-    DrawdownMode,
-    ScenarioType,
-    OptimizationObjective,
-    AllocationRecommendation,
-    AllocationStatus,
-)
+from trainer.icari.allocation_engine import AllocationEngine
+from trainer.icari.allocation_optimizer import AllocationOptimizer
+from trainer.icari.capital_efficiency import CapitalEfficiencyEngine
+from trainer.icari.capital_health import CapitalHealthEngine
+from trainer.icari.correlation_engine import CorrelationEngine
+from trainer.icari.drawdown_manager import DrawdownManager
+from trainer.icari.dynamic_sizer import DynamicSizer
+from trainer.icari.icari_dashboard import IcariDashboard
+from trainer.icari.icari_database import IcariDatabase
 from trainer.icari.icari_models import (
     AllocationRequest,
     AllocationResult,
-    PortfolioRisk,
     CapitalHealth,
     DrawdownEvent,
     OptimizationResult,
+    PortfolioRisk,
     ScenarioResult,
 )
-from trainer.icari.allocation_engine import AllocationEngine
-from trainer.icari.risk_budget_engine import RiskBudgetEngine
-from trainer.icari.position_sizing_engine import PositionSizingEngine
-from trainer.icari.dynamic_sizer import DynamicSizer
-from trainer.icari.capital_efficiency import CapitalEfficiencyEngine
+from trainer.icari.icari_types import (
+    AllocationRecommendation,
+    AllocationStatus,
+    DrawdownMode,
+    OptimizationObjective,
+    RiskBudgetType,
+    ScenarioType,
+    SizingMethod,
+)
 from trainer.icari.portfolio_risk_engine import PortfolioRiskEngine
-from trainer.icari.drawdown_manager import DrawdownManager
-from trainer.icari.correlation_engine import CorrelationEngine
+from trainer.icari.position_sizing_engine import PositionSizingEngine
+from trainer.icari.risk_budget_engine import RiskBudgetEngine
 from trainer.icari.scenario_engine import ScenarioEngine
-from trainer.icari.allocation_optimizer import AllocationOptimizer
-from trainer.icari.capital_health import CapitalHealthEngine
-from trainer.icari.icari_database import IcariDatabase
-from trainer.icari.icari_dashboard import IcariDashboard
 
 
 class IcariAPI:

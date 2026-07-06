@@ -17,9 +17,9 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_types import ExecutionForecast, ManagementAction, _clamp
+from trainer.execution.position_sizer import SizingResult
 from trainer.execution.stop_loss_engine import StopLossRecommendation
 from trainer.execution.take_profit_engine import TakeProfitRecommendation
-from trainer.execution.position_sizer import SizingResult
 
 
 @dataclass

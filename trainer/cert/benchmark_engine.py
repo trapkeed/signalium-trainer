@@ -11,8 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, BenchmarkMetric, clamp
-from trainer.cert.cert_models import CertificationInput, BenchmarkResult
+from trainer.cert.cert_models import BenchmarkResult, CertificationInput
+from trainer.cert.cert_types import BenchmarkMetric, CheckStatus, clamp
 
 # (threshold, unit, higher_is_better)
 _METRIC_CONFIG: Dict[str, tuple] = {

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from tests.mocks.dataset import MockDataset
 from trainer.config.schema import DataLoaderConfig
 from trainer.dataloaders.factory import DataLoaderFactory
-from tests.mocks.dataset import MockDataset
 
 
 @pytest.fixture()

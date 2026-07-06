@@ -17,14 +17,14 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.execution.entry_zones import EntryZones
 from trainer.execution.execution_types import (
+    SESSION_QUALITY,
     ExecutionForecast,
     ExecutionGrade,
-    SESSION_QUALITY,
     _clamp,
     _grade_from_score,
 )
-from trainer.execution.entry_zones import EntryZones
 
 
 @dataclass

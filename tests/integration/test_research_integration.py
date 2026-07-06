@@ -191,8 +191,9 @@ class TestLeaderboardIntegration:
         assert "quant_v1_lstm" in table
 
     def test_custom_weights_change_ranking(self, synthetic_train, synthetic_val) -> None:
-        from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
         import uuid
+
+        from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
 
         result = BenchmarkResult(
             benchmark_id=str(uuid.uuid4()),

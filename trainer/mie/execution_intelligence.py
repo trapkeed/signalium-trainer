@@ -11,15 +11,15 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import ExecutionMode, RiskRegime, LiquidityState, clamp
 from trainer.mie.mie_models import (
+    ExecutionResult,
+    LiquidityResult,
     MarketInput,
     RiskIntelligenceResult,
-    LiquidityResult,
     TradeabilityResult,
     VolatilityResult,
-    ExecutionResult,
 )
+from trainer.mie.mie_types import ExecutionMode, LiquidityState, RiskRegime, clamp
 
 
 class ExecutionIntelligenceEngine:

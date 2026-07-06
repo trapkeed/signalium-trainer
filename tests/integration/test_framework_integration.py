@@ -28,6 +28,9 @@ from trainer.framework.abstractions import (
     BaseLoss,
     BaseSequenceEncoder,
 )
+from trainer.losses.focal import FocalLoss
+from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
+from trainer.models.quant_v1.backbone import GRUBackbone, LSTMBackbone, SequenceEncoder
 from trainer.models.quant_v1.config import (
     BackboneConfig,
     BackboneType,
@@ -36,12 +39,9 @@ from trainer.models.quant_v1.config import (
     InputEncoderConfig,
     QuantV1Config,
 )
-from trainer.models.quant_v1.model import QuantModelV1
 from trainer.models.quant_v1.encoder import InputEncoder
-from trainer.models.quant_v1.backbone import LSTMBackbone, GRUBackbone, SequenceEncoder
 from trainer.models.quant_v1.head import ClassificationHead, ConfidenceHead
-from trainer.losses.focal import FocalLoss
-from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
+from trainer.models.quant_v1.model import QuantModelV1
 
 BATCH = 8
 SEQ_LEN = 20
@@ -248,9 +248,10 @@ class TestModelSpecRegistration:
         assert spec.output_schema.num_classes == 3
 
     def test_spec_to_dict_serialisable(self) -> None:
+        import json
+
         from trainer.models.quant_v1.registration import register_quant_v1_spec
         from trainer.registry.registry import ModelRegistry
-        import json
 
         register_quant_v1_spec()
         spec = ModelRegistry.get_spec("quant_v1")

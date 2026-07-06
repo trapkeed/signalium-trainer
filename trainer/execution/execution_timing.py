@@ -20,11 +20,11 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_types import (
-    ExecutionForecast,
+    SESSION_QUALITY,
     BrokerConstraints,
+    ExecutionForecast,
     Session,
     TimingRecommendation,
-    SESSION_QUALITY,
     _clamp,
     default_broker,
 )

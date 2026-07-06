@@ -18,13 +18,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import ReportType, Permission, Role, has_permission, QueryType
-from trainer.analyst.analyst_models import ResearchReport, ResearchQuery, Citation
-from trainer.analyst.knowledge_index import KnowledgeIndex
-from trainer.analyst.retrieval_engine import RetrievalEngine
-from trainer.analyst.prompt_engine import PromptEngine
+from trainer.analyst.analyst_models import Citation, ResearchQuery, ResearchReport
+from trainer.analyst.analyst_types import Permission, QueryType, ReportType, Role, has_permission
 from trainer.analyst.citation_engine import CitationEngine
+from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
+from trainer.analyst.prompt_engine import PromptEngine
+from trainer.analyst.retrieval_engine import RetrievalEngine
 
 # Report title templates
 _REPORT_TITLES = {

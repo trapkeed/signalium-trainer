@@ -20,28 +20,28 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import (
-    LifecycleState,
-    is_terminal,
-    can_transition,
-    POSITION_OPEN_STATES,
-    STATE_EXPECTED_DURATION_HOURS,
-)
+from trainer.lifecycle.ai_reasoning import AiReasoningEngine, ReasoningReport
+from trainer.lifecycle.event_engine import EventEngine
+from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
 from trainer.lifecycle.lifecycle_models import (
+    EventType,
+    LifecycleConfidence,
+    LifecycleEvent,
     MarketContext,
     PositionMetrics,
     StateRecord,
-    LifecycleEvent,
     TransitionResult,
-    LifecycleConfidence,
-    EventType,
 )
+from trainer.lifecycle.lifecycle_states import (
+    POSITION_OPEN_STATES,
+    STATE_EXPECTED_DURATION_HOURS,
+    LifecycleState,
+    can_transition,
+    is_terminal,
+)
+from trainer.lifecycle.position_monitor import PositionManagementPlan, PositionMonitor
 from trainer.lifecycle.state_machine import StateMachine
 from trainer.lifecycle.transition_engine import TransitionEngine, TransitionRecommendation
-from trainer.lifecycle.position_monitor import PositionMonitor, PositionManagementPlan
-from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
-from trainer.lifecycle.event_engine import EventEngine
-from trainer.lifecycle.ai_reasoning import AiReasoningEngine, ReasoningReport
 
 
 @dataclass

@@ -21,13 +21,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.memory.decision_models import DecisionRecord
 from trainer.memory.decision_types import (
-    DecisionGrade,
-    POSITIVE_OUTCOMES,
     NEGATIVE_OUTCOMES,
+    POSITIVE_OUTCOMES,
+    DecisionGrade,
     OutcomeType,
 )
-from trainer.memory.decision_models import DecisionRecord
 
 
 @dataclass

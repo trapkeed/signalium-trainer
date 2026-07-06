@@ -17,8 +17,8 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")  # Non-interactive backend — safe for server environments
-    import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
 
     _MPL_AVAILABLE = True
 except ImportError:

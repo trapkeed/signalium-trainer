@@ -23,22 +23,22 @@ Public API::
     )
 """
 
+from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.attribution import (
     AttributionResult,
     GradientAttribution,
     IntegratedGradients,
     SmoothGrad,
 )
-from trainer.explainability.attention import AttentionExtractor, AttentionMap
-from trainer.explainability.permutation import PermutationImportance, FeatureImportanceResult
-from trainer.explainability.stream_analysis import StreamContributionAnalyzer, StreamContribution
 from trainer.explainability.explanation import ExplainabilityEngine, PredictionExplanation
+from trainer.explainability.permutation import FeatureImportanceResult, PermutationImportance
+from trainer.explainability.stream_analysis import StreamContribution, StreamContributionAnalyzer
 from trainer.explainability.visualization import (
-    AttentionMapVisualizer,
     AttentionMapChartData,
+    AttentionMapVisualizer,
+    EncoderContributionChartData,
     FeatureImportanceChartData,
     FusionContributionChartData,
-    EncoderContributionChartData,
 )
 
 __all__ = [

@@ -1,6 +1,7 @@
 """Phase 21.6 — Decision types, outcome types, and quality factors."""
 
 from __future__ import annotations
+
 from enum import Enum
 
 

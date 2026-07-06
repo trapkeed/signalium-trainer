@@ -17,8 +17,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import LifecycleState, POSITION_OPEN_STATES
 from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
+from trainer.lifecycle.lifecycle_states import POSITION_OPEN_STATES, LifecycleState
 
 
 class ManagementRecommendation(str):

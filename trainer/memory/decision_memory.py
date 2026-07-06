@@ -16,13 +16,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.memory.decision_types import DecisionType, OutcomeType, MarketRegime
 from trainer.memory.decision_models import (
+    DecisionOutcome,
+    DecisionReasoning,
     DecisionRecord,
     DecisionSnapshot,
-    DecisionReasoning,
-    DecisionOutcome,
 )
+from trainer.memory.decision_types import DecisionType, MarketRegime, OutcomeType
 
 
 class DecisionMemory:

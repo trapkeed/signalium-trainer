@@ -15,13 +15,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import LifecycleState
 from trainer.lifecycle.lifecycle_models import (
+    EventType,
+    LifecycleEvent,
     MarketContext,
     PositionMetrics,
-    LifecycleEvent,
-    EventType,
 )
+from trainer.lifecycle.lifecycle_states import LifecycleState
 
 
 class EventEngine:

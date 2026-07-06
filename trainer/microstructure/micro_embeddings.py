@@ -24,7 +24,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.microstructure.micro_models import MicrostructureFeatures, MicrostructureEmbedding
+from trainer.microstructure.micro_models import MicrostructureEmbedding, MicrostructureFeatures
 from trainer.microstructure.micro_types import EMBEDDING_DIMS, EMBEDDING_TOTAL
 
 

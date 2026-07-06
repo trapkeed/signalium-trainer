@@ -31,11 +31,12 @@ Coverage:
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Any, Optional
+
 import pytest
 import torch
 import torch.nn as nn
-from dataclasses import dataclass, field
-from typing import Any, Optional
 
 # ---------------------------------------------------------------------------
 # Minimal stub models (no real QuantModelV1 import needed)
@@ -656,6 +657,7 @@ class TestExplainabilityEngine:
 
     def test_to_dict_json_safe(self, linear_model, dummy_input):
         import json
+
         from trainer.explainability.explanation import ExplainabilityEngine
 
         engine = ExplainabilityEngine(attribution_method="gradient", extract_attention=False)
@@ -784,16 +786,16 @@ class TestVisualization:
 class TestFutureEncoderInterfaces:
     def test_all_interfaces_importable(self):
         from trainer.interfaces import (
-            BaseExternalEncoder,
-            BaseReinforcementLearningInterface,
-            BaseCrossAssetEncoder,
-            BaseNewsEncoder,
-            BaseMacroEncoder,
             BaseAlternativeDataEncoder,
-            BaseOrderBookEncoder,
-            BaseOptionsDataEncoder,
-            BaseSentimentEncoder,
+            BaseCrossAssetEncoder,
+            BaseExternalEncoder,
             BaseGraphNeuralNetworkInterface,
+            BaseMacroEncoder,
+            BaseNewsEncoder,
+            BaseOptionsDataEncoder,
+            BaseOrderBookEncoder,
+            BaseReinforcementLearningInterface,
+            BaseSentimentEncoder,
         )
 
         # All 10 names must be importable
@@ -807,15 +809,15 @@ class TestFutureEncoderInterfaces:
 
     def test_future_encoder_names(self):
         from trainer.interfaces.future_encoders import (
-            BaseReinforcementLearningInterface,
-            BaseCrossAssetEncoder,
-            BaseNewsEncoder,
-            BaseMacroEncoder,
             BaseAlternativeDataEncoder,
-            BaseOrderBookEncoder,
-            BaseOptionsDataEncoder,
-            BaseSentimentEncoder,
+            BaseCrossAssetEncoder,
             BaseGraphNeuralNetworkInterface,
+            BaseMacroEncoder,
+            BaseNewsEncoder,
+            BaseOptionsDataEncoder,
+            BaseOrderBookEncoder,
+            BaseReinforcementLearningInterface,
+            BaseSentimentEncoder,
         )
 
         # Each concrete stub must declare a name property
@@ -1047,8 +1049,9 @@ class TestModelInfoExtensions:
         assert info.architecture == "QuantModelV1"
 
     def test_to_dict_includes_new_fields(self):
-        from trainer.traceability.metadata import ModelInfo
         from dataclasses import asdict
+
+        from trainer.traceability.metadata import ModelInfo
 
         info = ModelInfo(phase="14.9C", backbone_type="transformer")
         d = asdict(info)

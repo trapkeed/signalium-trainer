@@ -24,66 +24,65 @@ Usage::
     print(resp["data"]["portfolio_metrics"])
 """
 
-# ── Instruments ────────────────────────────────────────────────────────────────
-from trainer.portfolio.portfolio_instruments import (
-    AssetClass,
-    Region,
-    InstrumentInfo,
-    ModelForecast,
-    InstrumentRegistry,
+# ── Conflict Resolver ──────────────────────────────────────────────────────────
+from trainer.portfolio.conflict_resolver import (
+    ConflictDetail,
+    ConflictReport,
+    ConflictResolver,
+    ConflictType,
+    ReinforcementDetail,
+    Resolution,
 )
 
 # ── Correlation ────────────────────────────────────────────────────────────────
 from trainer.portfolio.correlation_engine import (
+    CorrelationEngine,
+    CorrelationMatrix,
     CorrelationMethod,
     CorrelationResult,
-    CorrelationMatrix,
-    CorrelationEngine,
+)
+
+# ── Dependency Graph ───────────────────────────────────────────────────────────
+from trainer.portfolio.dependency_graph import (
+    Cluster,
+    ClusterType,
+    DependencyGraphBuilder,
+    DependencyGraphSnapshot,
+    GraphEdge,
+    GraphNode,
 )
 
 # ── Exposure ───────────────────────────────────────────────────────────────────
 from trainer.portfolio.exposure_engine import (
     ExposureAlert,
     ExposureAlertItem,
-    ExposureReport,
     ExposureEngine,
+    ExposureReport,
 )
 
-# ── Dependency Graph ───────────────────────────────────────────────────────────
-from trainer.portfolio.dependency_graph import (
-    ClusterType,
-    GraphNode,
-    GraphEdge,
-    Cluster,
-    DependencyGraphSnapshot,
-    DependencyGraphBuilder,
+# ── Optimizer ──────────────────────────────────────────────────────────────────
+from trainer.portfolio.optimizer import (
+    OptimizationObjective,
+    OptimizationResult,
+    PortfolioOptimizer,
 )
 
-# ── Regime ─────────────────────────────────────────────────────────────────────
-from trainer.portfolio.regime_detector import (
-    MarketRegime,
-    RegimeSignal,
-    RegimeAssessment,
-    RegimeDetector,
-)
+# ── API ────────────────────────────────────────────────────────────────────────
+from trainer.portfolio.portfolio_api import PortfolioApi
 
-# ── Risk Budget ────────────────────────────────────────────────────────────────
-from trainer.portfolio.risk_budget import (
-    BudgetStatus,
-    BudgetItem,
-    RiskBudgetConfig,
-    BudgetCheckResult,
-    RiskBudgetEngine,
-)
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+from trainer.portfolio.portfolio_dashboard import PortfolioDashboard
 
-# ── Conflict Resolver ──────────────────────────────────────────────────────────
-from trainer.portfolio.conflict_resolver import (
-    ConflictType,
-    Resolution,
-    ConflictDetail,
-    ReinforcementDetail,
-    ConflictReport,
-    ConflictResolver,
+# ── Database ───────────────────────────────────────────────────────────────────
+from trainer.portfolio.portfolio_database import PortfolioDatabase
+
+# ── Instruments ────────────────────────────────────────────────────────────────
+from trainer.portfolio.portfolio_instruments import (
+    AssetClass,
+    InstrumentInfo,
+    InstrumentRegistry,
+    ModelForecast,
+    Region,
 )
 
 # ── Portfolio Scorer ───────────────────────────────────────────────────────────
@@ -99,29 +98,30 @@ from trainer.portfolio.position_allocator import (
     PositionAllocator,
 )
 
+# ── Regime ─────────────────────────────────────────────────────────────────────
+from trainer.portfolio.regime_detector import (
+    MarketRegime,
+    RegimeAssessment,
+    RegimeDetector,
+    RegimeSignal,
+)
+
+# ── Risk Budget ────────────────────────────────────────────────────────────────
+from trainer.portfolio.risk_budget import (
+    BudgetCheckResult,
+    BudgetItem,
+    BudgetStatus,
+    RiskBudgetConfig,
+    RiskBudgetEngine,
+)
+
 # ── Scenario Analysis ──────────────────────────────────────────────────────────
 from trainer.portfolio.scenario_analysis import (
-    ScenarioType,
-    ScenarioResult,
-    ScenarioReport,
     ScenarioAnalyser,
+    ScenarioReport,
+    ScenarioResult,
+    ScenarioType,
 )
-
-# ── Optimizer ──────────────────────────────────────────────────────────────────
-from trainer.portfolio.optimizer import (
-    OptimizationObjective,
-    OptimizationResult,
-    PortfolioOptimizer,
-)
-
-# ── Database ───────────────────────────────────────────────────────────────────
-from trainer.portfolio.portfolio_database import PortfolioDatabase
-
-# ── API ────────────────────────────────────────────────────────────────────────
-from trainer.portfolio.portfolio_api import PortfolioApi
-
-# ── Dashboard ──────────────────────────────────────────────────────────────────
-from trainer.portfolio.portfolio_dashboard import PortfolioDashboard
 
 __all__ = [
     # Instruments

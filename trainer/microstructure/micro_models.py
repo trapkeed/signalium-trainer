@@ -8,13 +8,13 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from trainer.microstructure.micro_types import (
+    EMBEDDING_TOTAL,
+    DataGranularity,
+    LiquidityState,
     MarketState,
     MomentumState,
-    VolatilityState,
-    LiquidityState,
     TrendStrength,
-    DataGranularity,
-    EMBEDDING_TOTAL,
+    VolatilityState,
 )
 
 # ── OHLCBar ────────────────────────────────────────────────────────────────────

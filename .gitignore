@@ -97,7 +97,9 @@ data/raw/
 *.feather
 
 # Checkpoints & exports
-checkpoints/
+# /checkpoints/ is root-anchored so it does NOT exclude trainer/checkpoints/
+# (the Python source package for checkpoint management).
+/checkpoints/
 exports/
 reports/
 

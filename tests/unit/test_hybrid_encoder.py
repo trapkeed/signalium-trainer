@@ -618,8 +618,9 @@ class TestHybridEncoder:
 def _make_full_hybrid_model():
     """Create a minimal QuantModelV1 with hybrid encoder enabled."""
     from unittest.mock import MagicMock
-    from trainer.models.quant_v1.model import QuantModelV1
+
     from trainer.models.quant_v1.config import QuantV1Config
+    from trainer.models.quant_v1.model import QuantModelV1
 
     cfg = QuantV1Config()
     cfg.hybrid_encoder = _minimal_hybrid_config(latent_dim=256)
@@ -634,6 +635,7 @@ def _make_full_hybrid_model():
 class TestQuantModelV1HybridIntegration:
     def test_backward_compat_plain_tensor(self) -> None:
         from unittest.mock import MagicMock
+
         from trainer.models.quant_v1.model import QuantModelV1
 
         model = QuantModelV1(MagicMock())

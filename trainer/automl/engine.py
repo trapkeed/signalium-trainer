@@ -48,26 +48,26 @@ from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 
-from trainer.automl.search_space import SearchSpace, build_standard_space, BaseParameter
+from trainer.automl.api import AutoMLAPI
+from trainer.automl.backbone_search import (
+    BackboneCatalog,
+    BackboneEvalResult,
+    BackboneSearcher,
+    BackboneSpec,
+)
+from trainer.automl.database import AutoMLDatabase
+from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial, TrialStatus
 from trainer.automl.objectives import (
     ObjectiveScorer,
     build_research_scorer,
     compute_composite_research_score,
 )
 from trainer.automl.pruning import BasePruner, NoPruner, build_pruner
-from trainer.automl.strategies import BaseStrategy, build_strategy, Suggestion
-from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord, TrialStatus
-from trainer.automl.resource_manager import ResourceManager
-from trainer.automl.backbone_search import (
-    BackboneCatalog,
-    BackboneSpec,
-    BackboneEvalResult,
-    BackboneSearcher,
-)
 from trainer.automl.ranking import ExperimentRanker, RankingResult
-from trainer.automl.database import AutoMLDatabase
+from trainer.automl.resource_manager import ResourceManager
+from trainer.automl.search_space import BaseParameter, SearchSpace, build_standard_space
+from trainer.automl.strategies import BaseStrategy, Suggestion, build_strategy
 from trainer.automl.visualization import AutoMLVisualizationBuilder
-from trainer.automl.api import AutoMLAPI
 
 # ---------------------------------------------------------------------------
 # Engine result
@@ -549,7 +549,8 @@ class AutoMLEngine:
 
         Returns plausible but random-seeded metrics based on config hash.
         """
-        import hashlib, math
+        import hashlib
+        import math
 
         seed = int(hashlib.md5(str(sorted(config.items())).encode()).hexdigest()[:8], 16)
         rng_val = (seed % 1000) / 1000.0

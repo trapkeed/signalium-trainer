@@ -22,9 +22,9 @@ except ImportError:
 
 from trainer.analyst.analyst_models import (
     ChatSession,
-    ResearchReport,
-    Recommendation,
     KnowledgeChunk,
+    Recommendation,
+    ResearchReport,
 )
 from trainer.analyst.analyst_types import KnowledgeSourceType, RecommendationType
 

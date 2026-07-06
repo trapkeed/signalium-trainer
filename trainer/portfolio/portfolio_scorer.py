@@ -17,8 +17,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from trainer.portfolio.portfolio_instruments import ModelForecast
 from trainer.portfolio.correlation_engine import CorrelationMatrix
+from trainer.portfolio.portfolio_instruments import ModelForecast
 
 
 @dataclass

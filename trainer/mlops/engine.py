@@ -45,7 +45,7 @@ from loguru import logger
 
 from trainer.mlops.alerting import AlertingSystem
 from trainer.mlops.api import MLOpsAPI
-from trainer.mlops.audit import AuditSystem, AuditEventType
+from trainer.mlops.audit import AuditEventType, AuditSystem
 from trainer.mlops.champion import ChampionChallengerManager
 from trainer.mlops.database import MLOpsDatabase
 from trainer.mlops.export import MLOpsExporter

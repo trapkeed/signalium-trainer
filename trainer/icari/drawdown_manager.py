@@ -17,8 +17,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import DrawdownMode
 from trainer.icari.icari_models import DrawdownEvent
+from trainer.icari.icari_types import DrawdownMode
 
 
 class DrawdownManager:
