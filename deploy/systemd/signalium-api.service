@@ -1,10 +1,11 @@
 # =============================================================================
-# Signalium Trainer API — systemd Unit File
+# Signalium Trainer — systemd Unit File
+# Repo: signalium-trainer (NOT the Signalium platform)
 # Target: Ubuntu 24.04 / systemd 255+
 #
-# This unit starts PM2 as the signalium OS user and keeps it alive across
-# reboots.  PM2 manages the individual Node.js worker processes; systemd
-# manages PM2 itself.
+# This unit starts PM2 as the signalium-trainer OS user and keeps it alive
+# across reboots. PM2 manages the individual Node.js worker processes;
+# systemd manages PM2 itself.
 #
 # Installation:
 #   sudo cp deploy/systemd/signalium-api.service /etc/systemd/system/
@@ -12,7 +13,7 @@
 #   sudo systemctl enable signalium-api
 #   sudo systemctl start  signalium-api
 #
-# To view logs:
+# Logs:
 #   journalctl -u signalium-api -f
 # =============================================================================
 
@@ -21,34 +22,35 @@ Description=Signalium Trainer API (PM2)
 Documentation=https://github.com/trapkeed/signalium-trainer
 After=network-online.target postgresql.service
 Wants=network-online.target
-# Remove the postgresql.service dependency if PostgreSQL is on a remote host.
+# Remove the postgresql.service dependency if PostgreSQL runs on a remote host.
 
 [Service]
 Type=forking
 
 # ---------------------------------------------------------------------------
-# Identity — run as the dedicated application user (never root)
+# Identity — run as the dedicated OS user (never root)
 # ---------------------------------------------------------------------------
-User=signalium
-Group=signalium
-WorkingDirectory=/opt/signalium
+User=signalium-trainer
+Group=signalium-trainer
+WorkingDirectory=/opt/signalium-trainer
 
 # ---------------------------------------------------------------------------
 # Environment — load the production .env file
+# All variables are trainer-specific; none conflict with platform env vars.
 # ---------------------------------------------------------------------------
-EnvironmentFile=/opt/signalium/.env
+EnvironmentFile=/opt/signalium-trainer/.env
 
 # ---------------------------------------------------------------------------
 # Process management
 # PM2 forks into the background (Type=forking).
 # PIDFile is written by `pm2 start --no-daemon` via the pm2 startup hook.
 # ---------------------------------------------------------------------------
-ExecStartPre=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 delete trainer-api --silent || true
+ExecStartPre=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 delete signalium-trainer --silent || true
 ExecStart=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 start \
-    /opt/signalium/deploy/pm2/ecosystem.config.cjs \
+    /opt/signalium-trainer/deploy/pm2/ecosystem.config.cjs \
     --no-daemon
-ExecReload=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 reload trainer-api
-ExecStop=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 stop  trainer-api
+ExecReload=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 reload signalium-trainer
+ExecStop=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 stop  signalium-trainer
 
 # ---------------------------------------------------------------------------
 # Restart policy
@@ -71,14 +73,14 @@ MemoryMax=4G
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
-ReadWritePaths=/opt/signalium /var/log/signalium-trainer /var/lib/signalium
+ReadWritePaths=/opt/signalium-trainer /var/log/signalium-trainer /var/lib/signalium-trainer
 
 # ---------------------------------------------------------------------------
 # Logging — all PM2 output goes to the system journal
 # ---------------------------------------------------------------------------
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=signalium-api
+SyslogIdentifier=signalium-trainer
 
 [Install]
 WantedBy=multi-user.target

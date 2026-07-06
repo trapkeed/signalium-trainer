@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Signalium Trainer API — Production Start Script
+# Signalium Trainer — Production Start Script
+# Repo: signalium-trainer (NOT the Signalium platform)
+#
 # Usage: ./deploy/scripts/start.sh [--skip-build] [--skip-migrate]
 # =============================================================================
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Configurable via environment — override before calling this script.
+# All variables are prefixed TRAINER_ to avoid collisions with platform vars.
 # ---------------------------------------------------------------------------
-APP_DIR="${APP_DIR:-/opt/signalium}"
-LOG_DIR="${LOG_DIR:-/var/log/signalium-trainer}"
-ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
-PM2_ECOSYSTEM="${PM2_ECOSYSTEM:-${APP_DIR}/deploy/pm2/ecosystem.config.cjs}"
-APP_PORT="${APP_PORT:-8080}"
-HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:${APP_PORT}/api/healthz}"
-HEALTH_RETRIES="${HEALTH_RETRIES:-15}"
-HEALTH_INTERVAL="${HEALTH_INTERVAL:-2}"
+TRAINER_DIR="${TRAINER_DIR:-/opt/signalium-trainer}"
+TRAINER_LOG_DIR="${TRAINER_LOG_DIR:-/var/log/signalium-trainer}"
+TRAINER_ENV_FILE="${TRAINER_ENV_FILE:-${TRAINER_DIR}/.env}"
+TRAINER_PM2_ECOSYSTEM="${TRAINER_PM2_ECOSYSTEM:-${TRAINER_DIR}/deploy/pm2/ecosystem.config.cjs}"
+TRAINER_PORT="${TRAINER_PORT:-8080}"
+TRAINER_HEALTH_URL="${TRAINER_HEALTH_URL:-http://127.0.0.1:${TRAINER_PORT}/api/healthz}"
+TRAINER_HEALTH_RETRIES="${TRAINER_HEALTH_RETRIES:-15}"
+TRAINER_HEALTH_INTERVAL="${TRAINER_HEALTH_INTERVAL:-2}"
 
 # ---------------------------------------------------------------------------
 # Flags
@@ -40,16 +43,16 @@ fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [FAIL]  $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 log "Running preflight checks..."
 
-[[ -d "$APP_DIR" ]]  || fail "APP_DIR not found: $APP_DIR"
-[[ -f "$ENV_FILE" ]] || fail "ENV file not found: $ENV_FILE (copy .env.example → .env)"
+[[ -d "$TRAINER_DIR" ]]      || fail "TRAINER_DIR not found: $TRAINER_DIR"
+[[ -f "$TRAINER_ENV_FILE" ]] || fail "Env file not found: $TRAINER_ENV_FILE (copy .env.example → .env)"
 
 # Verify required env vars are present in the env file
 for var in PORT DATABASE_URL API_KEY; do
-  grep -q "^${var}=" "$ENV_FILE" || fail "Required variable ${var} missing from ${ENV_FILE}"
+  grep -q "^${var}=" "$TRAINER_ENV_FILE" || fail "Required variable ${var} missing from ${TRAINER_ENV_FILE}"
 done
 
 # Ensure log directory exists
-mkdir -p "$LOG_DIR"
+mkdir -p "$TRAINER_LOG_DIR"
 
 # Verify Node.js 22+
 NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1) || fail "Node.js not found"
@@ -65,14 +68,14 @@ log "Preflight checks passed (Node v${NODE_VERSION})."
 # ---------------------------------------------------------------------------
 set -a
 # shellcheck disable=SC1090
-source "$ENV_FILE"
+source "$TRAINER_ENV_FILE"
 set +a
 
 # ---------------------------------------------------------------------------
 # Install / update Node dependencies
 # ---------------------------------------------------------------------------
 log "Installing Node.js dependencies..."
-cd "$APP_DIR"
+cd "$TRAINER_DIR"
 pnpm install --frozen-lockfile --prod 2>&1 | tail -5
 
 # ---------------------------------------------------------------------------
@@ -81,12 +84,12 @@ pnpm install --frozen-lockfile --prod 2>&1 | tail -5
 if [[ "$SKIP_BUILD" == "false" ]]; then
   log "Building TypeScript bundle..."
   pnpm run build 2>&1 | tail -10
-  [[ -f "${APP_DIR}/apps/trainer-api/dist/index.mjs" ]] \
+  [[ -f "${TRAINER_DIR}/apps/trainer-api/dist/index.mjs" ]] \
     || fail "Build failed — dist/index.mjs not found"
   log "Build complete."
 else
   log "Skipping build (--skip-build)."
-  [[ -f "${APP_DIR}/apps/trainer-api/dist/index.mjs" ]] \
+  [[ -f "${TRAINER_DIR}/apps/trainer-api/dist/index.mjs" ]] \
     || fail "dist/index.mjs not found and --skip-build was set"
 fi
 
@@ -104,25 +107,25 @@ fi
 # ---------------------------------------------------------------------------
 # Start PM2
 # ---------------------------------------------------------------------------
-log "Starting Trainer API via PM2..."
-pm2 start "$PM2_ECOSYSTEM"
+log "Starting signalium-trainer via PM2..."
+pm2 start "$TRAINER_PM2_ECOSYSTEM"
 pm2 save
 
 # ---------------------------------------------------------------------------
 # Health check — wait for the API to start accepting requests
 # ---------------------------------------------------------------------------
-log "Waiting for health endpoint at ${HEALTH_URL}..."
+log "Waiting for health endpoint at ${TRAINER_HEALTH_URL}..."
 attempt=0
-until curl -sf "$HEALTH_URL" >/dev/null 2>&1; do
+until curl -sf "$TRAINER_HEALTH_URL" >/dev/null 2>&1; do
   attempt=$((attempt + 1))
-  if [[ "$attempt" -ge "$HEALTH_RETRIES" ]]; then
-    pm2 logs trainer-api --lines 30 --nostream
-    fail "Health check failed after ${HEALTH_RETRIES} attempts. See logs above."
+  if [[ "$attempt" -ge "$TRAINER_HEALTH_RETRIES" ]]; then
+    pm2 logs signalium-trainer --lines 30 --nostream
+    fail "Health check failed after ${TRAINER_HEALTH_RETRIES} attempts. See logs above."
   fi
-  log "  Attempt ${attempt}/${HEALTH_RETRIES} — waiting ${HEALTH_INTERVAL}s..."
-  sleep "$HEALTH_INTERVAL"
+  log "  Attempt ${attempt}/${TRAINER_HEALTH_RETRIES} — waiting ${TRAINER_HEALTH_INTERVAL}s..."
+  sleep "$TRAINER_HEALTH_INTERVAL"
 done
 
-log "✅ Trainer API is up and healthy."
+log "✅ signalium-trainer is up and healthy."
 log "   Run 'pm2 list' to see worker status."
-log "   Run 'pm2 logs trainer-api' to tail logs."
+log "   Run 'pm2 logs signalium-trainer' to tail logs."
