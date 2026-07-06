@@ -1,0 +1,84 @@
+# =============================================================================
+# Signalium Trainer API — systemd Unit File
+# Target: Ubuntu 24.04 / systemd 255+
+#
+# This unit starts PM2 as the signalium OS user and keeps it alive across
+# reboots.  PM2 manages the individual Node.js worker processes; systemd
+# manages PM2 itself.
+#
+# Installation:
+#   sudo cp deploy/systemd/signalium-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable signalium-api
+#   sudo systemctl start  signalium-api
+#
+# To view logs:
+#   journalctl -u signalium-api -f
+# =============================================================================
+
+[Unit]
+Description=Signalium Trainer API (PM2)
+Documentation=https://github.com/trapkeed/signalium-trainer
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Remove the postgresql.service dependency if PostgreSQL is on a remote host.
+
+[Service]
+Type=forking
+
+# ---------------------------------------------------------------------------
+# Identity — run as the dedicated application user (never root)
+# ---------------------------------------------------------------------------
+User=signalium
+Group=signalium
+WorkingDirectory=/opt/signalium
+
+# ---------------------------------------------------------------------------
+# Environment — load the production .env file
+# ---------------------------------------------------------------------------
+EnvironmentFile=/opt/signalium/.env
+
+# ---------------------------------------------------------------------------
+# Process management
+# PM2 forks into the background (Type=forking).
+# PIDFile is written by `pm2 start --no-daemon` via the pm2 startup hook.
+# ---------------------------------------------------------------------------
+ExecStartPre=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 delete trainer-api --silent || true
+ExecStart=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 start \
+    /opt/signalium/deploy/pm2/ecosystem.config.cjs \
+    --no-daemon
+ExecReload=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 reload trainer-api
+ExecStop=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 stop  trainer-api
+
+# ---------------------------------------------------------------------------
+# Restart policy
+# ---------------------------------------------------------------------------
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=60s
+StartLimitBurst=3
+
+# ---------------------------------------------------------------------------
+# Resource limits
+# ---------------------------------------------------------------------------
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=4G
+
+# ---------------------------------------------------------------------------
+# Security hardening
+# ---------------------------------------------------------------------------
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/signalium /var/log/signalium-trainer /var/lib/signalium
+
+# ---------------------------------------------------------------------------
+# Logging — all PM2 output goes to the system journal
+# ---------------------------------------------------------------------------
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=signalium-api
+
+[Install]
+WantedBy=multi-user.target
