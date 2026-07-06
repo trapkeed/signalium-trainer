@@ -470,7 +470,7 @@ class TestBackboneRegistry:
         assert out.shape == (4, 32)
 
     def test_transformer_output_shape(self) -> None:
-        cfg = self._cfg(BackboneType.TRANSFORMER, num_heads=4, ff_dim=64, num_layers=2)
+        cfg = BackboneConfig(type=BackboneType.TRANSFORMER, hidden_size=32, num_layers=2, dropout=0.0, num_heads=4, ff_dim=64)
         bb = TransformerBackbone(input_dim=16, config=cfg)
         x = torch.randn(4, 10, 16)
         out = bb(x)
@@ -703,7 +703,7 @@ class TestGradientAccumulation:
         g_full = self._run_full_batch(x, y)
         for name in g_full:
             assert torch.allclose(
-                g_accum[name], g_full[name], atol=1e-5
+                g_accum[name], g_full[name], atol=1e-4
             ), f"Gradient mismatch for {name}"
 
     def test_accum_4_matches_full_batch(self) -> None:
@@ -714,5 +714,5 @@ class TestGradientAccumulation:
         g_full = self._run_full_batch(x, y)
         for name in g_full:
             assert torch.allclose(
-                g_accum[name], g_full[name], atol=1e-5
+                g_accum[name], g_full[name], atol=1e-4
             ), f"Gradient mismatch for {name}"

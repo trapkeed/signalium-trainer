@@ -169,7 +169,7 @@ class TestRegressionLossTypes:
     ) -> None:
         criterion = MultiTaskLoss(
             config=config,
-            expected_move_loss_type=loss_type,
+            regression_loss_type=loss_type,
         )
         preds = {
             "direction_logits": torch.randn(BATCH, NUM_CLASSES),

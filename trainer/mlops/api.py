@@ -96,12 +96,14 @@ class MLOpsAPI:
             record = ModelRecord.from_dict(model_dict)
             self.registry.register(record)
             self.db.save_model(record)
-            self.audit.log(
-                AuditEventType.REGISTRY_REGISTER,
-                actor=model_dict.get("registered_by", "system"),
-                model_id=record.model_id,
-                description=f"Model registered: {record.full_name}",
-                metadata={"version": record.version, "architecture": record.architecture},
+            self.db.save_audit_event(
+                self.audit.log(
+                    AuditEventType.REGISTRY_REGISTER,
+                    actor=model_dict.get("registered_by", "system"),
+                    model_id=record.model_id,
+                    description=f"Model registered: {record.full_name}",
+                    metadata={"version": record.version, "architecture": record.architecture},
+                ).to_dict()
             )
             return _ok(record.to_dict(), "Model registered.")
         except Exception as e:

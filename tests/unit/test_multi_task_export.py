@@ -113,7 +113,7 @@ class TestExportMetadataStructure:
     def test_output_version_is_string(self, model: QuantModelV1) -> None:
         meta = model.get_export_metadata()
         assert isinstance(meta["output_version"], str)
-        assert meta["output_version"] == "2.0.0"
+        assert meta["output_version"] == "3.0.0"
 
     def test_phase_is_14_5(self, model: QuantModelV1) -> None:
         meta = model.get_export_metadata()
@@ -225,7 +225,7 @@ class TestManifestBuilderIntegration:
         builder.set_metadata(model.get_export_metadata())
         manifest = builder.build()
         assert "metadata" in manifest
-        assert manifest["metadata"]["output_version"] == "2.0.0"
+        assert manifest["metadata"]["output_version"] == "3.0.0"
 
     def test_manifest_is_json_serialisable(self, model: QuantModelV1) -> None:
         from trainer.exporters.manifest import ManifestBuilder

@@ -1317,6 +1317,8 @@ class TestMLOpsAPI:
     def test_set_champion(self):
         api, engine = self._api()
         mid = api.register_model(_model_dict())["data"]["model_id"]
+        for state in ["training", "validating", "candidate", "approved"]:
+            api.transition(mid, state)
         resp = api.set_champion(mid, approver="head_quant")
         assert resp["status"] == "ok"
         champion_resp = api.get_champion()
@@ -1612,6 +1614,9 @@ class TestMLOpsEngine:
     def test_set_champion(self):
         engine = self._engine()
         mid = engine.register_model(_model_dict())
+        for state in ["training", "validating", "candidate"]:
+            engine.transition(mid, state)
+        engine.approve(mid, approver="head_quant")
         resp = engine.set_champion(mid, approver="head_quant")
         assert resp["status"] == "ok"
         assert engine.champion_manager.current_champion["model_id"] == mid

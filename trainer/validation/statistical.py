@@ -269,7 +269,8 @@ class StatisticalMetricsEngine:
                 fp += 1
             tpr.append(tp / n_pos)
             fpr.append(fp / n_neg)
-        return float(np.trapz(tpr, fpr))
+        _trapz = getattr(np, "trapezoid", np.trapz)
+        return float(_trapz(tpr, fpr))
 
     @staticmethod
     def _average_precision(scores: np.ndarray, labels: np.ndarray) -> float:
@@ -285,7 +286,8 @@ class StatisticalMetricsEngine:
                 tp += 1
             precisions.append(tp / (i + 1))
             recalls.append(tp / n_pos)
-        return float(np.trapz(precisions, recalls)) if len(recalls) > 1 else 0.0
+        _trapz = getattr(np, "trapezoid", np.trapz)
+        return float(_trapz(precisions, recalls)) if len(recalls) > 1 else 0.0
 
     def _ece(self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray, n: int) -> float:
         correct = (preds == labels).astype(float)
