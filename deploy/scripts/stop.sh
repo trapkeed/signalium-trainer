@@ -13,18 +13,19 @@ TRAINER_DRAIN_TIMEOUT="${TRAINER_DRAIN_TIMEOUT:-15}"  # seconds to wait for work
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [STOP]  $*"; }
 fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [FAIL]  $*" >&2; exit 1; }
 
-command -v pm2 >/dev/null 2>&1 || fail "PM2 not found"
+# Executable discovery — no hardcoded paths
+PM2_BIN="$(command -v pm2 2>/dev/null)" || fail "pm2 not found in PATH"
 
 # Check if the process is actually running before trying to stop it
-if ! pm2 list | grep -q "signalium-trainer"; then
+if ! "$PM2_BIN" list | grep -q "signalium-trainer"; then
   log "signalium-trainer is not running — nothing to stop."
   exit 0
 fi
 
 log "Sending SIGTERM to all signalium-trainer workers (graceful drain up to ${TRAINER_DRAIN_TIMEOUT}s)..."
-pm2 stop signalium-trainer --timeout "$TRAINER_DRAIN_TIMEOUT"
+"$PM2_BIN" stop signalium-trainer --timeout "$TRAINER_DRAIN_TIMEOUT"
 
 log "Saving PM2 process list..."
-pm2 save
+"$PM2_BIN" save
 
 log "✅ signalium-trainer stopped."

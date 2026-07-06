@@ -34,7 +34,9 @@ done
 log()  { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [RESTART] $*"; }
 fail() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [FAIL]    $*" >&2; exit 1; }
 
-command -v pm2 >/dev/null 2>&1 || fail "PM2 not found"
+# Executable discovery — no hardcoded paths
+PM2_BIN="$(command -v pm2 2>/dev/null)" || fail "pm2 not found in PATH"
+
 [[ -f "$TRAINER_ENV_FILE" ]] || fail "Env file not found: $TRAINER_ENV_FILE"
 
 # ---------------------------------------------------------------------------
@@ -64,10 +66,10 @@ fi
 # In-flight requests on old workers complete before those workers die.
 # ---------------------------------------------------------------------------
 log "Zero-downtime reload of signalium-trainer workers..."
-pm2 reload signalium-trainer --update-env
+"$PM2_BIN" reload signalium-trainer --update-env
 
 log "Saving PM2 process list..."
-pm2 save
+"$PM2_BIN" save
 
 # ---------------------------------------------------------------------------
 # Post-reload health check
@@ -77,7 +79,7 @@ attempt=0
 until curl -sf "$TRAINER_HEALTH_URL" >/dev/null 2>&1; do
   attempt=$((attempt + 1))
   if [[ "$attempt" -ge "$TRAINER_HEALTH_RETRIES" ]]; then
-    pm2 logs signalium-trainer --lines 20 --nostream
+    "$PM2_BIN" logs signalium-trainer --lines 20 --nostream
     fail "Health check failed after reload. See logs above."
   fi
   log "  Attempt ${attempt}/${TRAINER_HEALTH_RETRIES} — waiting ${TRAINER_HEALTH_INTERVAL}s..."
@@ -86,4 +88,4 @@ done
 
 log "✅ Reload complete — all signalium-trainer workers healthy."
 log "   PM2 status:"
-pm2 list
+"$PM2_BIN" list

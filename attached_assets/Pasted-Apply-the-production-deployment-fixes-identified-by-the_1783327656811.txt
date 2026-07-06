@@ -1,0 +1,155 @@
+Apply the production deployment fixes identified by the deployment audit.
+
+Repository:
+signalium-trainer
+
+Do NOT change business logic.
+Do NOT rename files unless required.
+Keep TypeScript builds passing.
+
+Fix the following issues.
+
+=================================================
+1. PM2 Working Directory
+=================================================
+
+In deploy/pm2/ecosystem.config.cjs
+
+Add an explicit:
+
+cwd: process.env.TRAINER_DIR || "/opt/signalium-trainer"
+
+to every application definition.
+
+=================================================
+2. Runtime Directories
+=================================================
+
+Update deployment scripts so they automatically create if missing:
+
+/var/log/signalium-trainer
+/var/lib/signalium-trainer
+
+Also ensure ownership is set correctly for the
+signalium-trainer Linux user.
+
+Do not assume they already exist.
+
+=================================================
+3. start.sh Build Bug
+=================================================
+
+Current deployment installs only production dependencies before building.
+
+This breaks because esbuild is a devDependency.
+
+Change the deployment flow to:
+
+pnpm install --frozen-lockfile
+
+pnpm run build
+
+pnpm prune --prod
+
+or another production-safe equivalent.
+
+The build must succeed on a clean Ubuntu server.
+
+=================================================
+4. systemd Service
+=================================================
+
+Current service mixes
+
+Type=forking
+
+with
+
+pm2 --no-daemon
+
+These are incompatible.
+
+Fix the unit using the recommended PM2 production approach.
+
+Ensure automatic restart still works.
+
+=================================================
+5. Executable Discovery
+=================================================
+
+Do NOT hardcode
+
+/usr/bin/node
+
+or
+
+/usr/lib/node_modules/pm2
+
+Detect them dynamically using:
+
+which node
+
+which pm2
+
+or equivalent.
+
+Deployment must work regardless of whether Node was installed via:
+
+- NodeSource
+- apt
+- nvm
+- fnm
+
+=================================================
+6. NGINX Template
+=================================================
+
+Keep nginx/signalium.conf as a reusable template.
+
+Replace
+
+YOUR_DOMAIN
+
+with
+
+trainer.example.com
+
+and clearly mark it as a placeholder that must be changed before deployment.
+
+Do NOT hardcode any real domain.
+
+=================================================
+7. Documentation
+=================================================
+
+Update deployment documentation describing:
+
+- required runtime directories
+- required Linux user
+- required permissions
+- deployment order
+- build process
+- PM2 startup
+- NGINX setup
+
+=================================================
+8. Validation
+=================================================
+
+Run a complete self-audit after all fixes.
+
+Verify:
+
+✓ no hardcoded executable paths
+
+✓ runtime directories created
+
+✓ PM2 config valid
+
+✓ systemd unit valid
+
+✓ build succeeds
+
+✓ deployment scripts internally consistent
+
+Return a report listing every modified file and every fix applied.

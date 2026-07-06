@@ -7,10 +7,10 @@
 // This file is for the signalium-trainer monorepo only.
 // It is NOT related to the Signalium platform API.
 //
-// Customise via environment variables before calling pm2 start:
-//   TRAINER_DIR      - repo root on disk             (default: /opt/signalium-trainer)
-//   TRAINER_PORT     - port Express binds to         (default: 8080)
-//   TRAINER_LOG_DIR  - writable log directory        (default: /var/log/signalium-trainer)
+// Override any default via environment variable before calling pm2 start:
+//   TRAINER_DIR      - repo root on disk          (default: /opt/signalium-trainer)
+//   TRAINER_PORT     - port Express binds to      (default: 8080)
+//   TRAINER_LOG_DIR  - writable log directory     (default: /var/log/signalium-trainer)
 // ---------------------------------------------------------------------------
 
 const TRAINER_DIR     = process.env.TRAINER_DIR     ?? "/opt/signalium-trainer";
@@ -25,6 +25,11 @@ module.exports = {
       script:           `${TRAINER_DIR}/apps/trainer-api/dist/index.mjs`,
       interpreter:      "node",
       interpreter_args: "--enable-source-maps",
+
+      // ── Working directory ────────────────────────────────────────────────
+      // Must be set explicitly so source-map resolution is deterministic
+      // regardless of where `pm2 start` is invoked from.
+      cwd: TRAINER_DIR,
 
       // ── Cluster mode — one worker per logical CPU core ───────────────────
       instances: "max",

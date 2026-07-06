@@ -3,9 +3,16 @@
 # Repo: signalium-trainer (NOT the Signalium platform)
 # Target: Ubuntu 24.04 / systemd 255+
 #
-# This unit starts PM2 as the signalium-trainer OS user and keeps it alive
-# across reboots. PM2 manages the individual Node.js worker processes;
-# systemd manages PM2 itself.
+# Design: Type=simple + PM2 --no-daemon
+#   systemd holds a direct reference to the PM2 process (no fork tracking).
+#   PM2 manages the Node.js cluster workers internally.
+#   This avoids the Type=forking / --no-daemon incompatibility.
+#
+# Executable discovery:
+#   ExecStart uses /usr/bin/env so `pm2` and `node` are resolved via PATH.
+#   Works regardless of how Node.js was installed (apt, nvm, fnm, Volta).
+#   If using nvm: add the nvm bin dir to PATH in /opt/signalium-trainer/.env
+#   e.g.  PATH=/home/signalium-trainer/.nvm/versions/node/v22.0.0/bin:/usr/local/bin:/usr/bin:/bin
 #
 # Installation:
 #   sudo cp deploy/systemd/signalium-api.service /etc/systemd/system/
@@ -25,59 +32,62 @@ Wants=network-online.target
 # Remove the postgresql.service dependency if PostgreSQL runs on a remote host.
 
 [Service]
-Type=forking
+# ── Type ───────────────────────────────────────────────────────────────────
+# Type=simple: systemd tracks the PM2 foreground process directly.
+# PM2 is started with --no-daemon so it stays in the foreground.
+# Do NOT use Type=forking here — it is incompatible with --no-daemon.
+Type=simple
 
-# ---------------------------------------------------------------------------
-# Identity — run as the dedicated OS user (never root)
-# ---------------------------------------------------------------------------
+# ── Identity — run as the dedicated OS user (never root) ────────────────────
 User=signalium-trainer
 Group=signalium-trainer
 WorkingDirectory=/opt/signalium-trainer
 
-# ---------------------------------------------------------------------------
-# Environment — load the production .env file
-# All variables are trainer-specific; none conflict with platform env vars.
-# ---------------------------------------------------------------------------
+# ── Runtime directories ─────────────────────────────────────────────────────
+# systemd creates these directories automatically and sets ownership to
+# User=signalium-trainer before the service starts. Requires systemd 235+.
+# Paths: /var/log/signalium-trainer  /var/lib/signalium-trainer
+LogsDirectory=signalium-trainer
+StateDirectory=signalium-trainer
+
+# ── Environment ──────────────────────────────────────────────────────────────
+# PATH covers the most common Node.js installation locations.
+# nvm users: add your node bin path to PATH in /opt/signalium-trainer/.env
+# e.g. PATH=/home/signalium-trainer/.nvm/versions/node/v22.x.x/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
 EnvironmentFile=/opt/signalium-trainer/.env
 
-# ---------------------------------------------------------------------------
-# Process management
-# PM2 forks into the background (Type=forking).
-# PIDFile is written by `pm2 start --no-daemon` via the pm2 startup hook.
-# ---------------------------------------------------------------------------
-ExecStartPre=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 delete signalium-trainer --silent || true
-ExecStart=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 start \
+# ── Process management ────────────────────────────────────────────────────────
+# /usr/bin/env resolves `pm2` via PATH — no hardcoded install location.
+# --no-daemon keeps PM2 in the foreground so systemd can track it directly.
+ExecStart=/usr/bin/env pm2 start \
     /opt/signalium-trainer/deploy/pm2/ecosystem.config.cjs \
     --no-daemon
-ExecReload=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 reload signalium-trainer
-ExecStop=/usr/bin/node /usr/lib/node_modules/pm2/bin/pm2 stop  signalium-trainer
 
-# ---------------------------------------------------------------------------
-# Restart policy
-# ---------------------------------------------------------------------------
+# Reload: zero-downtime rolling restart of all cluster workers.
+ExecReload=/usr/bin/env pm2 reload signalium-trainer
+
+# Stop: graceful SIGTERM drain (kill_timeout in ecosystem.config.cjs = 12 s).
+ExecStop=/usr/bin/env pm2 stop signalium-trainer
+
+# ── Restart policy ───────────────────────────────────────────────────────────
 Restart=on-failure
 RestartSec=10s
 StartLimitIntervalSec=60s
 StartLimitBurst=3
 
-# ---------------------------------------------------------------------------
-# Resource limits
-# ---------------------------------------------------------------------------
+# ── Resource limits ──────────────────────────────────────────────────────────
 LimitNOFILE=65536
 LimitNPROC=4096
 MemoryMax=4G
 
-# ---------------------------------------------------------------------------
-# Security hardening
-# ---------------------------------------------------------------------------
+# ── Security hardening ───────────────────────────────────────────────────────
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ReadWritePaths=/opt/signalium-trainer /var/log/signalium-trainer /var/lib/signalium-trainer
 
-# ---------------------------------------------------------------------------
-# Logging — all PM2 output goes to the system journal
-# ---------------------------------------------------------------------------
+# ── Logging — all PM2 output goes to the system journal ────────────────────
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=signalium-trainer
