@@ -23,12 +23,11 @@ Usage::
 
 from __future__ import annotations
 
-import math
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Health point
@@ -56,9 +55,9 @@ class HealthPoint:
     n_predictions: int = 0
     regime: str = ""
     notes: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "point_id": self.point_id,
             "model_id": self.model_id,
@@ -108,9 +107,9 @@ class HealthTrend:
     latest_accuracy: float = 0.0
     accuracy_delta: float = 0.0
     overall_health: str = "stable"  # improving / stable / degrading
-    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    generated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "n_points": self.n_points,
@@ -157,8 +156,8 @@ class ModelHealthEvolutionTracker:
         self.window = window
         self.improve_thr = trend_improvement_threshold
         self.degrade_thr = trend_degradation_threshold
-        self._buffers: Dict[str, Deque[HealthPoint]] = {}
-        self._all_points: Dict[str, List[HealthPoint]] = {}
+        self._buffers: dict[str, deque[HealthPoint]] = {}
+        self._all_points: dict[str, list[HealthPoint]] = {}
 
     def record_health_point(
         self,
@@ -277,7 +276,7 @@ class ModelHealthEvolutionTracker:
             overall_health=overall,
         )
 
-    def evolution_report(self, model_id: str) -> Dict[str, Any]:
+    def evolution_report(self, model_id: str) -> dict[str, Any]:
         """Generate full health evolution report for a model."""
         trend = self.get_trend(model_id)
         pts = self._all_points.get(model_id, [])
@@ -297,19 +296,19 @@ class ModelHealthEvolutionTracker:
             "trend": trend.to_dict(),
             "n_points": len(pts),
             "timeline": timeline,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def all_trends(self) -> Dict[str, HealthTrend]:
+    def all_trends(self) -> dict[str, HealthTrend]:
         return {mid: self.get_trend(mid) for mid in self._all_points}
 
-    def degrading_models(self) -> List[str]:
+    def degrading_models(self) -> list[str]:
         return [mid for mid, t in self.all_trends().items() if t.overall_health == "degrading"]
 
-    def improving_models(self) -> List[str]:
+    def improving_models(self) -> list[str]:
         return [mid for mid, t in self.all_trends().items() if t.overall_health == "improving"]
 
-    def global_summary(self) -> Dict[str, Any]:
+    def global_summary(self) -> dict[str, Any]:
         trends = self.all_trends()
         return {
             "total_models_tracked": len(trends),

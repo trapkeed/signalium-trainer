@@ -25,8 +25,8 @@ Usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -40,7 +40,7 @@ def _ok(data: Any, message: str = "") -> dict[str, Any]:
         "status": "ok",
         "message": message,
         "data": data,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -50,7 +50,7 @@ def _error(message: str, code: str = "ERROR") -> dict[str, Any]:
         "code": code,
         "message": message,
         "data": None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -117,8 +117,8 @@ class ValidationAPI:
 
     def list_reports(
         self,
-        model_id: Optional[str] = None,
-        status: Optional[str] = None,
+        model_id: str | None = None,
+        status: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, Any]:
@@ -155,9 +155,9 @@ class ValidationAPI:
         self,
         sort_by: str = "overall_score",
         limit: int = 50,
-        promotion_status: Optional[str] = None,
-        architecture: Optional[str] = None,
-        min_accuracy: Optional[float] = None,
+        promotion_status: str | None = None,
+        architecture: str | None = None,
+        min_accuracy: float | None = None,
     ) -> dict[str, Any]:
         """Query the institutional leaderboard.
 
@@ -271,7 +271,7 @@ class ValidationAPI:
             promo["is_promoted"] = True
             promo["approved_by"] = approver
             promo["approval_notes"] = notes
-            promo["approved_at"] = datetime.now(timezone.utc).isoformat()
+            promo["approved_at"] = datetime.now(UTC).isoformat()
             self._db.update_status(run_id, "completed")
 
             # Update leaderboard

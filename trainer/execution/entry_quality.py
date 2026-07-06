@@ -8,7 +8,6 @@ Grades: EXCELLENT / GOOD / ACCEPTABLE / POOR / REJECT
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -34,8 +33,8 @@ class EntryQualityResult:
     instrument: str
     grade: ExecutionGrade
     score: float  # 0-1
-    reasons: List[str] = field(default_factory=list)
-    risk_factors: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
+    risk_factors: list[str] = field(default_factory=list)
 
     # Sub-scores ─────────────────────────────────────────────────────────────
     spread_score: float = 0.0
@@ -47,7 +46,7 @@ class EntryQualityResult:
     def is_tradeable(self) -> bool:
         return self.grade not in (ExecutionGrade.REJECT, ExecutionGrade.POOR)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "grade": self.grade.value,
@@ -87,11 +86,11 @@ class EntryQualityEngine:
     def evaluate(
         self,
         forecast: ExecutionForecast,
-        zones: Optional[EntryZones] = None,
+        zones: EntryZones | None = None,
     ) -> EntryQualityResult:
 
-        reasons: List[str] = []
-        risks: List[str] = []
+        reasons: list[str] = []
+        risks: list[str] = []
 
         # 1. Spread score ─────────────────────────────────────────────────────
         spread_ratio = forecast.spread / max(forecast.atr, 1e-9)

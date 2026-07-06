@@ -255,7 +255,6 @@ class TestMultiTaskGradientFlow:
         self, multi_task_model: QuantModelV1, x: torch.Tensor
     ) -> None:
         from trainer.losses.multi_task import MultiTaskLoss
-        from trainer.models.quant_v1.config import MultiTaskLossConfig
 
         multi_task_model.train()
         criterion = MultiTaskLoss(config=MultiTaskLossConfig())
@@ -283,7 +282,6 @@ class TestMultiTaskGradientFlow:
 
     def test_total_loss_is_finite(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
         from trainer.losses.multi_task import MultiTaskLoss
-        from trainer.models.quant_v1.config import MultiTaskLossConfig
 
         multi_task_model.train()
         criterion = MultiTaskLoss(config=MultiTaskLossConfig())

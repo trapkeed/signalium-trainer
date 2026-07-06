@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from trainer.api.auth import APIKeyAuth, BearerAuth, resolve_auth

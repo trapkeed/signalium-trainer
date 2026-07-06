@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import platform
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import mlflow
 from loguru import logger
@@ -23,10 +23,10 @@ class MLflowTracker:
         run_id: Optional existing run ID to resume logging into.
     """
 
-    def __init__(self, config: MLflowConfig, run_id: Optional[str] = None) -> None:
+    def __init__(self, config: MLflowConfig, run_id: str | None = None) -> None:
         self._config = config
         self._run_id = run_id
-        self._active_run: Optional[mlflow.ActiveRun] = None
+        self._active_run: mlflow.ActiveRun | None = None
 
         if config.enabled:
             mlflow.set_tracking_uri(config.tracking_uri)
@@ -76,7 +76,7 @@ class MLflowTracker:
 
         return run_id
 
-    def log_metrics(self, metrics: dict[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
         """Log a dict of scalar metrics.
 
         Args:

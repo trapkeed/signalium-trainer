@@ -22,11 +22,10 @@ Usage::
 
 from __future__ import annotations
 
-import statistics
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # ScoreSnapshot
@@ -41,13 +40,13 @@ class ScoreSnapshot:
     name: str = ""
     composite: float = 0.0
     grade_label: str = ""
-    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    category_scores: Dict[str, float] = field(default_factory=dict)
+    recorded_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    category_scores: dict[str, float] = field(default_factory=dict)
     model_family: str = ""
     backbone: str = ""
     is_champion: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "experiment_id": self.experiment_id,
@@ -76,10 +75,10 @@ class ChampionChange:
     new_champion_score: float = 0.0
     old_champion_score: float = 0.0
     score_improvement: float = 0.0
-    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    recorded_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "change_id": self.change_id,
             "new_champion_id": self.new_champion_id,
@@ -104,9 +103,9 @@ class RegressionAlert:
     current_score: float
     peak_score: float
     drop: float
-    detected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    detected_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "name": self.name,
@@ -127,9 +126,9 @@ class ScoreTrendTracker:
     """Tracks Research Score history and detects trends and regressions."""
 
     def __init__(self) -> None:
-        self._history: List[ScoreSnapshot] = []
-        self._champion_changes: List[ChampionChange] = []
-        self._current_champion_id: Optional[str] = None
+        self._history: list[ScoreSnapshot] = []
+        self._champion_changes: list[ChampionChange] = []
+        self._current_champion_id: str | None = None
 
     # ------------------------------------------------------------------
     # Recording
@@ -143,7 +142,7 @@ class ScoreTrendTracker:
         model_id: str = "",
         name: str = "",
         grade_label: str = "",
-        category_scores: Optional[Dict[str, float]] = None,
+        category_scores: dict[str, float] | None = None,
         model_family: str = "",
         backbone: str = "",
         is_champion: bool = False,
@@ -199,12 +198,12 @@ class ScoreTrendTracker:
     # Trend analysis
     # ------------------------------------------------------------------
 
-    def score_history(self, experiment_id: Optional[str] = None) -> List[ScoreSnapshot]:
+    def score_history(self, experiment_id: str | None = None) -> list[ScoreSnapshot]:
         if experiment_id:
             return [s for s in self._history if s.experiment_id == experiment_id]
         return sorted(self._history, key=lambda s: s.recorded_at)
 
-    def improvement_trend(self, window: int = 10) -> Dict[str, Any]:
+    def improvement_trend(self, window: int = 10) -> dict[str, Any]:
         """Compute linear regression slope over the last `window` scores."""
         snaps = self.score_history()[-window:]
         if len(snaps) < 2:
@@ -228,12 +227,12 @@ class ScoreTrendTracker:
             "score_latest": scores[-1],
         }
 
-    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> List[RegressionAlert]:
+    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> list[RegressionAlert]:
         """Detect experiments whose score dropped more than `threshold` points
         from their peak within the last `window` snapshots."""
-        alerts: List[RegressionAlert] = []
+        alerts: list[RegressionAlert] = []
         # Group by experiment
-        by_exp: Dict[str, List[ScoreSnapshot]] = {}
+        by_exp: dict[str, list[ScoreSnapshot]] = {}
         for snap in self._history:
             by_exp.setdefault(snap.experiment_id, []).append(snap)
 
@@ -258,13 +257,13 @@ class ScoreTrendTracker:
                 )
         return alerts
 
-    def champion_timeline(self) -> List[Dict[str, Any]]:
+    def champion_timeline(self) -> list[dict[str, Any]]:
         return [c.to_dict() for c in self._champion_changes]
 
-    def current_champion_id(self) -> Optional[str]:
+    def current_champion_id(self) -> str | None:
         return self._current_champion_id
 
-    def score_distribution(self) -> Dict[str, Any]:
+    def score_distribution(self) -> dict[str, Any]:
         scores = [s.composite for s in self._history]
         if not scores:
             return {"n": 0}
@@ -279,7 +278,7 @@ class ScoreTrendTracker:
             lo, hi = int(idx), min(int(idx) + 1, n - 1)
             return sorted_scores[lo] + (idx - lo) * (sorted_scores[hi] - sorted_scores[lo])
 
-        grade_counts: Dict[str, int] = {}
+        grade_counts: dict[str, int] = {}
         for s in self._history:
             grade_counts[s.grade_label] = grade_counts.get(s.grade_label, 0) + 1
 
@@ -300,7 +299,7 @@ class ScoreTrendTracker:
     # Report
     # ------------------------------------------------------------------
 
-    def trend_report(self) -> Dict[str, Any]:
+    def trend_report(self) -> dict[str, Any]:
         return {
             "total_scored_experiments": len(self._history),
             "champion_changes": len(self._champion_changes),
@@ -314,5 +313,5 @@ class ScoreTrendTracker:
     def load_snapshot(self, snap: ScoreSnapshot) -> None:
         self._history.append(snap)
 
-    def all_snapshots(self) -> List[ScoreSnapshot]:
+    def all_snapshots(self) -> list[ScoreSnapshot]:
         return list(self._history)

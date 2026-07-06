@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ class ParquetDataset(BaseDataset):
         self,
         root: Path,
         split: str = "train",
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
         label_column: str = "label",
         transform: Any = None,
         dtype: torch.dtype = torch.float32,
@@ -90,7 +90,7 @@ class StreamingParquetDataset(BaseDataset):
         self,
         root: Path,
         split: str = "train",
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
         label_column: str = "label",
         transform: Any = None,
     ) -> None:
@@ -127,7 +127,6 @@ class StreamingParquetDataset(BaseDataset):
         return self._length
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-        import pyarrow as pa
 
         # Locate row group and row within group
         row_group_sizes = [

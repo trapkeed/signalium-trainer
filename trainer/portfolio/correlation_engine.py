@@ -16,9 +16,8 @@ Zero new runtime dependencies — stdlib math only.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 
 class CorrelationMethod(str, Enum):
@@ -38,7 +37,7 @@ class CorrelationResult:
     confidence: float
     method: str
     n_observations: int
-    p_value: Optional[float] = None
+    p_value: float | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -54,22 +53,22 @@ class CorrelationResult:
 
 @dataclass
 class CorrelationMatrix:
-    instruments: List[str]
-    matrix: Dict[Tuple[str, str], float]
+    instruments: list[str]
+    matrix: dict[tuple[str, str], float]
     method: str
     timestamp: str = ""
 
     @classmethod
     def from_results(
-        cls, results: List[CorrelationResult], method: str, timestamp: str = ""
-    ) -> "CorrelationMatrix":
-        instruments: List[str] = []
+        cls, results: list[CorrelationResult], method: str, timestamp: str = ""
+    ) -> CorrelationMatrix:
+        instruments: list[str] = []
         for r in results:
             if r.instrument_a not in instruments:
                 instruments.append(r.instrument_a)
             if r.instrument_b not in instruments:
                 instruments.append(r.instrument_b)
-        matrix: Dict[Tuple[str, str], float] = {}
+        matrix: dict[tuple[str, str], float] = {}
         for r in results:
             matrix[(r.instrument_a, r.instrument_b)] = r.correlation
             matrix[(r.instrument_b, r.instrument_a)] = r.correlation
@@ -80,7 +79,7 @@ class CorrelationMatrix:
     def get(self, a: str, b: str) -> float:
         return self.matrix.get((a, b), 0.0)
 
-    def to_heatmap_data(self) -> List[List[float]]:
+    def to_heatmap_data(self) -> list[list[float]]:
         n = len(self.instruments)
         data = []
         for i in range(n):
@@ -90,7 +89,7 @@ class CorrelationMatrix:
             data.append(row)
         return data
 
-    def high_correlation_pairs(self, threshold: float = 0.7) -> List[Tuple[str, str, float]]:
+    def high_correlation_pairs(self, threshold: float = 0.7) -> list[tuple[str, str, float]]:
         seen = set()
         result = []
         for (a, b), corr in self.matrix.items():
@@ -129,7 +128,7 @@ class CorrelationEngine:
     def __init__(self, window: int = 60, decay: float = 0.94) -> None:
         self._window = max(5, window)
         self._decay = max(0.5, min(0.999, decay))
-        self._series: Dict[str, List[float]] = {}
+        self._series: dict[str, list[float]] = {}
 
     def add_observation(self, instrument: str, value: float) -> None:
         series = self._series.setdefault(instrument, [])
@@ -137,16 +136,16 @@ class CorrelationEngine:
         if len(series) > self._window * 3:
             self._series[instrument] = series[-self._window * 3 :]
 
-    def add_observations(self, observations: Dict[str, float]) -> None:
+    def add_observations(self, observations: dict[str, float]) -> None:
         for instrument, value in observations.items():
             self.add_observation(instrument, value)
 
-    def instruments(self) -> List[str]:
+    def instruments(self) -> list[str]:
         return list(self._series.keys())
 
     def _series_pair(
-        self, a: str, b: str, window: Optional[int] = None
-    ) -> Tuple[List[float], List[float]]:
+        self, a: str, b: str, window: int | None = None
+    ) -> tuple[list[float], list[float]]:
         w = window or self._window
         sa = self._series.get(a, [])[-w:]
         sb = self._series.get(b, [])[-w:]
@@ -156,7 +155,7 @@ class CorrelationEngine:
     # ── Pearson rolling correlation ──────────────────────────────────────────
 
     @staticmethod
-    def _pearson(x: List[float], y: List[float]) -> Tuple[float, float]:
+    def _pearson(x: list[float], y: list[float]) -> tuple[float, float]:
         n = len(x)
         if n < 3:
             return 0.0, 0.0
@@ -169,9 +168,7 @@ class CorrelationEngine:
         conf = min(1.0, n / 30.0)
         return corr, conf
 
-    def rolling_correlation(
-        self, a: str, b: str, window: Optional[int] = None
-    ) -> CorrelationResult:
+    def rolling_correlation(self, a: str, b: str, window: int | None = None) -> CorrelationResult:
         x, y = self._series_pair(a, b, window)
         corr, conf = self._pearson(x, y)
         return CorrelationResult(a, b, corr, conf, "rolling", len(x))
@@ -179,7 +176,7 @@ class CorrelationEngine:
     # ── Spearman rank correlation ────────────────────────────────────────────
 
     @staticmethod
-    def _rank(series: List[float]) -> List[float]:
+    def _rank(series: list[float]) -> list[float]:
         n = len(series)
         sorted_vals = sorted(range(n), key=lambda i: series[i])
         ranks = [0.0] * n
@@ -187,7 +184,7 @@ class CorrelationEngine:
             ranks[idx] = float(rank)
         return ranks
 
-    def rank_correlation(self, a: str, b: str, window: Optional[int] = None) -> CorrelationResult:
+    def rank_correlation(self, a: str, b: str, window: int | None = None) -> CorrelationResult:
         x, y = self._series_pair(a, b, window)
         if len(x) < 3:
             return CorrelationResult(a, b, 0.0, 0.0, "rank", len(x))
@@ -204,7 +201,7 @@ class CorrelationEngine:
         b: str,
         tail: str = "lower",
         quantile: float = 0.20,
-        window: Optional[int] = None,
+        window: int | None = None,
     ) -> CorrelationResult:
         x, y = self._series_pair(a, b, window)
         if len(x) < 6:
@@ -251,7 +248,7 @@ class CorrelationEngine:
         b: str,
         condition_series: str,
         condition_value: str = "positive",
-        window: Optional[int] = None,
+        window: int | None = None,
     ) -> CorrelationResult:
         x, y = self._series_pair(a, b, window)
         cond_raw = (self._series.get(condition_series) or [])[-len(x) :]
@@ -275,12 +272,12 @@ class CorrelationEngine:
 
     def compute_matrix(
         self,
-        instruments: Optional[List[str]] = None,
+        instruments: list[str] | None = None,
         method: CorrelationMethod = CorrelationMethod.ROLLING,
         timestamp: str = "",
     ) -> CorrelationMatrix:
         syms = instruments or self.instruments()
-        results: List[CorrelationResult] = []
+        results: list[CorrelationResult] = []
         for i in range(len(syms)):
             for j in range(i + 1, len(syms)):
                 a, b = syms[i], syms[j]
@@ -300,7 +297,7 @@ class CorrelationEngine:
         return CorrelationMatrix.from_results(results, method=method.value, timestamp=timestamp)
 
     def regime_aware_matrix(
-        self, instruments: Optional[List[str]] = None, regime: str = "normal", timestamp: str = ""
+        self, instruments: list[str] | None = None, regime: str = "normal", timestamp: str = ""
     ) -> CorrelationMatrix:
         if regime in ("risk_off", "high_volatility", "crash"):
             method = CorrelationMethod.TAIL_LOWER

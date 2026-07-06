@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, WeightedRandomSampler
+from torch.utils.data import WeightedRandomSampler
 
 from trainer.models.quant_v1.config import BalancingConfig, BalancingStrategy
 

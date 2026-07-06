@@ -29,9 +29,8 @@ Usage::
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from trainer.ensemble.expert import ExpertModel, SpecializationType
 
@@ -76,7 +75,7 @@ class WeightFactorConfig:
     min_weight: float = 0.05
     max_weight_ratio: float = 10.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "recent_performance_factor": self.recent_performance_factor,
             "regime_match_factor": self.regime_match_factor,
@@ -94,7 +93,7 @@ class WeightFactorConfig:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "WeightFactorConfig":
+    def from_dict(d: dict[str, Any]) -> WeightFactorConfig:
         cfg = WeightFactorConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -108,7 +107,7 @@ class WeightFactorConfig:
 
 # Maps regime keywords to preferred model families.
 # Router uses these to apply regime_boost to matched experts.
-REGIME_FAMILY_AFFINITY: Dict[str, List[str]] = {
+REGIME_FAMILY_AFFINITY: dict[str, list[str]] = {
     "trending_up": ["transformer_encoder", "hybrid_lstm_transformer"],
     "trending_down": ["transformer_encoder", "hybrid_lstm_transformer"],
     "ranging": ["lstm", "gru"],
@@ -121,7 +120,7 @@ REGIME_FAMILY_AFFINITY: Dict[str, List[str]] = {
     "unknown": [],
 }
 
-REGIME_SPECIALIZATION_AFFINITY: Dict[str, List[str]] = {
+REGIME_SPECIALIZATION_AFFINITY: dict[str, list[str]] = {
     "trending_up": [SpecializationType.TRENDING],
     "trending_down": [SpecializationType.TRENDING],
     "ranging": [SpecializationType.RANGING],
@@ -146,16 +145,16 @@ class DynamicWeightEngine:
         config: WeightFactorConfig controlling factor importance.
     """
 
-    def __init__(self, config: Optional[WeightFactorConfig] = None) -> None:
+    def __init__(self, config: WeightFactorConfig | None = None) -> None:
         self.config = config or WeightFactorConfig()
-        self._weight_history: Dict[str, List[float]] = {}
+        self._weight_history: dict[str, list[float]] = {}
 
     def compute_weights(
         self,
-        experts: List[ExpertModel],
-        context: Optional[Dict[str, Any]] = None,
-        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
-    ) -> Dict[str, float]:
+        experts: list[ExpertModel],
+        context: dict[str, Any] | None = None,
+        recent_metrics: dict[str, dict[str, float]] | None = None,
+    ) -> dict[str, float]:
         """Compute normalized weights for a list of active experts.
 
         Args:
@@ -176,7 +175,7 @@ class DynamicWeightEngine:
         timeframe = ctx.get("timeframe", "")
 
         cfg = self.config
-        raw_weights: Dict[str, float] = {}
+        raw_weights: dict[str, float] = {}
 
         for expert in experts:
             met = (recent_metrics or {}).get(expert.expert_id, {})
@@ -244,7 +243,7 @@ class DynamicWeightEngine:
 
         return normalized
 
-    def _apply_ratio_cap(self, weights: Dict[str, float]) -> Dict[str, float]:
+    def _apply_ratio_cap(self, weights: dict[str, float]) -> dict[str, float]:
         """Cap the ratio between max and min weights."""
         if not weights:
             return weights
@@ -252,20 +251,20 @@ class DynamicWeightEngine:
         min_floor = max_w / self.config.max_weight_ratio
         return {k: max(v, min_floor) for k, v in weights.items()}
 
-    def weight_evolution(self, expert_id: str) -> List[float]:
+    def weight_evolution(self, expert_id: str) -> list[float]:
         """Return weight history for an expert."""
         return self._weight_history.get(expert_id, [])
 
-    def all_weight_evolution(self) -> Dict[str, List[float]]:
+    def all_weight_evolution(self) -> dict[str, list[float]]:
         """Return weight history for all experts."""
         return dict(self._weight_history)
 
     def update_expert_weights_from_performance(
         self,
-        experts: List[ExpertModel],
-        context: Optional[Dict[str, Any]] = None,
-        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
-    ) -> Dict[str, float]:
+        experts: list[ExpertModel],
+        context: dict[str, Any] | None = None,
+        recent_metrics: dict[str, dict[str, float]] | None = None,
+    ) -> dict[str, float]:
         """Compute weights and update expert.weight field in-place."""
         weights = self.compute_weights(experts, context, recent_metrics)
         for expert in experts:

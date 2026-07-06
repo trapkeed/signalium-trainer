@@ -8,8 +8,6 @@ historical_strategy_performance, model_health.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -18,7 +16,6 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_models import AllocationRequest, PositionSize
-from trainer.icari.icari_types import SizingMethod
 from trainer.icari.position_sizing_engine import PositionSizingEngine
 
 _ADJUSTMENT_BOUNDS = (0.10, 2.0)  # min/max adjustment multiplier
@@ -37,7 +34,7 @@ class DynamicSizer:
         drawdown_soft_limit: float = 0.05,
         drawdown_hard_limit: float = 0.10,
         max_correlation: float = 0.70,
-        session_multipliers: Optional[Dict[str, float]] = None,
+        session_multipliers: dict[str, float] | None = None,
     ):
         self._engine = base_engine or PositionSizingEngine()
         self._dd_soft = drawdown_soft_limit
@@ -64,7 +61,7 @@ class DynamicSizer:
         """Size the position then apply all dynamic adjustments."""
         base = self._engine.size(req)
 
-        adjustments: Dict[str, float] = {}
+        adjustments: dict[str, float] = {}
 
         # 1. Drawdown adjustment
         dd_adj = self._drawdown_adj(current_drawdown)

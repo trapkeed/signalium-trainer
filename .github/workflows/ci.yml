@@ -163,8 +163,7 @@ jobs:
       # ── Smoke test — import check, no GPU required ─────────────────────────
       - name: Smoke test — verify trainer imports inside container
         run: |
-          docker run --rm signalium-trainer:ci-cpu \
-            python -c "
+          docker run --rm --entrypoint python signalium-trainer:ci-cpu -c "
           import torch
           import trainer
           assert not torch.cuda.is_available(), 'Expected CPU-only image to have no CUDA'

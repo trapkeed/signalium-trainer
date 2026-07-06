@@ -8,7 +8,7 @@ if it is not installed by returning None.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -17,7 +17,6 @@ try:
     import matplotlib
 
     matplotlib.use("Agg")  # Non-interactive backend — safe for server environments
-    import matplotlib.patches as mpatches
     import matplotlib.pyplot as plt
 
     _MPL_AVAILABLE = True
@@ -36,7 +35,7 @@ def plot_training_curves(
     history: dict[str, list[float]],
     output_path: Path,
     title: str = "Training Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot train/val loss and accuracy curves side-by-side.
 
     Args:
@@ -94,7 +93,7 @@ def plot_confusion_matrix(
     class_labels: list[str],
     output_path: Path,
     title: str = "Confusion Matrix",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot and save a confusion matrix.
 
     Args:
@@ -151,7 +150,7 @@ def plot_roc_curves(
     class_labels: list[str],
     output_path: Path,
     title: str = "ROC Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot one-vs-rest ROC curves for each class.
 
     Args:
@@ -223,7 +222,7 @@ def plot_calibration_curve(
     output_path: Path,
     n_bins: int = 10,
     title: str = "Calibration Curve",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot reliability diagram for one class.
 
     Args:
@@ -275,7 +274,7 @@ def plot_pr_curve(
     class_labels: list[str],
     output_path: Path,
     title: str = "Precision-Recall Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot precision-recall curves for each class.
 
     Args:
@@ -334,7 +333,7 @@ def plot_leaderboard(
     output_path: Path,
     title: str = "Model Leaderboard",
     metric: str = "overall_score",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot a horizontal bar chart of the leaderboard.
 
     Args:

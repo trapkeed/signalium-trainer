@@ -27,8 +27,7 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -134,9 +133,9 @@ class VisualizationDataBuilder:
             }.get(tf, 99),
         )
 
-        matrix: list[list[Optional[float]]] = []
+        matrix: list[list[float | None]] = []
         for instr in instruments:
-            row: list[Optional[float]] = []
+            row: list[float | None] = []
             for tf in timeframes:
                 r = multi_asset_result.results.get(instr, {}).get(tf)
                 if r and r.status == "ok":
@@ -160,7 +159,7 @@ class VisualizationDataBuilder:
     def build_confusion_matrix(
         probs: Any,
         labels: Any,
-        class_names: Optional[list[str]] = None,
+        class_names: list[str] | None = None,
     ) -> dict[str, Any]:
         """Build confusion matrix chart data.
 
@@ -173,7 +172,6 @@ class VisualizationDataBuilder:
             Normalised confusion matrix dict.
         """
         try:
-            import torch
 
             if hasattr(probs, "cpu"):
                 p = probs.cpu().float().numpy()
@@ -200,7 +198,7 @@ class VisualizationDataBuilder:
             "class_names": names,
             "matrix_raw": cm.tolist(),
             "matrix_normalised": cm_norm.tolist(),
-            "n_samples": int(len(y)),
+            "n_samples": len(y),
         }
 
     # ── Calibration Curve ─────────────────────────────────────────────────
@@ -352,7 +350,7 @@ class VisualizationDataBuilder:
     @staticmethod
     def build_risk_distribution(
         trading_metrics: Any,
-        mc_result: Optional[Any] = None,
+        mc_result: Any | None = None,
     ) -> dict[str, Any]:
         """Build risk distribution chart data.
 

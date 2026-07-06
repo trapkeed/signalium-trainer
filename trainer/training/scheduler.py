@@ -19,10 +19,8 @@ Usage::
 
 from __future__ import annotations
 
-import math
-from typing import Any, Optional
+from typing import Any
 
-import torch
 import torch.optim as optim
 from loguru import logger
 
@@ -51,7 +49,7 @@ class WarmupScheduler:
         optimizer: optim.Optimizer,
         warmup_epochs: int,
         base_scheduler: Any,
-        start_lr: Optional[float] = None,
+        start_lr: float | None = None,
         is_plateau: bool = False,
     ) -> None:
         self._optimizer = optimizer
@@ -79,7 +77,7 @@ class WarmupScheduler:
     # Public step API
     # ------------------------------------------------------------------
 
-    def step(self, metric: Optional[float] = None) -> None:
+    def step(self, metric: float | None = None) -> None:
         """Advance the scheduler by one epoch.
 
         During warmup, applies linear LR interpolation.

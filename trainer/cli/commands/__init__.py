@@ -12,14 +12,14 @@ from trainer.cli.commands.upload import app as upload_app
 from trainer.cli.commands.validate import app as validate_app
 
 __all__ = [
-    "download_app",
-    "validate_app",
-    "train_app",
-    "evaluate_app",
-    "export_app",
-    "upload_app",
-    "resume_app",
     "benchmark_app",
     "clean_app",
     "doctor_app",
+    "download_app",
+    "evaluate_app",
+    "export_app",
+    "resume_app",
+    "train_app",
+    "upload_app",
+    "validate_app",
 ]

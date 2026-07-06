@@ -6,7 +6,6 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 
@@ -99,7 +98,7 @@ class DatasetValidator:
         elif not self._dir.is_dir():
             result.add_error(f"Path exists but is not a directory: {self._dir}")
 
-    def _load_manifest(self, result: ValidationResult) -> Optional[dict]:
+    def _load_manifest(self, result: ValidationResult) -> dict | None:
         manifest_path = self._dir / self._manifest_name
         if not manifest_path.exists():
             result.add_warning(f"Manifest file not found: {manifest_path}")

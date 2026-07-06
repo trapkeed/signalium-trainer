@@ -10,8 +10,6 @@ Estimates portfolio resilience under each scenario.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -56,16 +54,16 @@ class ScenarioEngine:
     def run(
         self,
         scenario: ScenarioType,
-        weights: Dict[str, float],  # instrument → portfolio weight
-        volatilities: Dict[str, float],  # instrument → daily vol
-        currencies: Optional[Dict[str, str]] = None,  # instrument → base CCY
+        weights: dict[str, float],  # instrument → portfolio weight
+        volatilities: dict[str, float],  # instrument → daily vol
+        currencies: dict[str, str] | None = None,  # instrument → base CCY
     ) -> ScenarioResult:
         """Run a single scenario simulation."""
         factors = SCENARIO_FACTORS.get(scenario, (0.0, 1.0, 1.0))
         ret_factor, vol_factor, liq_factor = factors
 
         # Instrument-level impacts
-        instrument_impacts: Dict[str, float] = {}
+        instrument_impacts: dict[str, float] = {}
         for ins, w in weights.items():
             base_vol = volatilities.get(ins, 0.01)
             stressed_vol = base_vol * vol_factor
@@ -120,10 +118,10 @@ class ScenarioEngine:
 
     def run_all(
         self,
-        weights: Dict[str, float],
-        volatilities: Dict[str, float],
-        currencies: Optional[Dict[str, str]] = None,
-    ) -> List[ScenarioResult]:
+        weights: dict[str, float],
+        volatilities: dict[str, float],
+        currencies: dict[str, str] | None = None,
+    ) -> list[ScenarioResult]:
         """Run all 11 scenarios and return results sorted by resilience (ascending)."""
         results = [self.run(s, weights, volatilities, currencies) for s in ScenarioType]
         results.sort(key=lambda r: r.resilience_score)
@@ -131,15 +129,15 @@ class ScenarioEngine:
 
     def worst_case(
         self,
-        weights: Dict[str, float],
-        volatilities: Dict[str, float],
-        currencies: Optional[Dict[str, str]] = None,
+        weights: dict[str, float],
+        volatilities: dict[str, float],
+        currencies: dict[str, str] | None = None,
     ) -> ScenarioResult:
         """Return the scenario with the lowest resilience."""
         results = self.run_all(weights, volatilities, currencies)
         return results[0] if results else ScenarioResult(scenario=ScenarioType.FLASH_CRASH)
 
-    def resilience_summary(self, results: List[ScenarioResult]) -> Dict:
+    def resilience_summary(self, results: list[ScenarioResult]) -> dict:
         if not results:
             return {}
         avg = sum(r.resilience_score for r in results) / len(results)
@@ -160,7 +158,7 @@ class ScenarioEngine:
         port_return: float,
         resilience: float,
         liq_factor: float,
-    ) -> List[str]:
+    ) -> list[str]:
         recs = []
         if resilience < 0.70:
             recs.append("Reduce overall portfolio risk before event")

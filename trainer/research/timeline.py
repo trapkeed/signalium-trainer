@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Event type constants
@@ -81,11 +81,11 @@ class TimelineEvent:
     entity_id: str = ""
     entity_type: str = ""
     description: str = ""
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    attributes: dict[str, Any] = field(default_factory=dict)
+    recorded_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     researcher: str = "system"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_type": self.event_type,
@@ -98,7 +98,7 @@ class TimelineEvent:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "TimelineEvent":
+    def from_dict(cls, d: dict[str, Any]) -> TimelineEvent:
         return cls(
             event_id=d.get("event_id", str(uuid.uuid4())),
             event_type=d.get("event_type", ""),
@@ -106,7 +106,7 @@ class TimelineEvent:
             entity_type=d.get("entity_type", ""),
             description=d.get("description", ""),
             attributes=d.get("attributes", {}),
-            recorded_at=d.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+            recorded_at=d.get("recorded_at", datetime.now(UTC).isoformat()),
             researcher=d.get("researcher", "system"),
         )
 
@@ -120,7 +120,7 @@ class ResearchTimeline:
     """Chronological log of all research events."""
 
     def __init__(self) -> None:
-        self._events: List[TimelineEvent] = []
+        self._events: list[TimelineEvent] = []
 
     # ------------------------------------------------------------------
     # Recording
@@ -133,7 +133,7 @@ class ResearchTimeline:
         entity_id: str = "",
         entity_type: str = "",
         description: str = "",
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
         researcher: str = "system",
     ) -> str:
         """Record a timeline event and return its event_id."""
@@ -163,9 +163,9 @@ class ResearchTimeline:
         node_id: str,
         name: str,
         status: str,
-        accuracy: Optional[float] = None,
+        accuracy: float | None = None,
     ) -> str:
-        attrs: Dict[str, Any] = {"name": name, "status": status}
+        attrs: dict[str, Any] = {"name": name, "status": status}
         if accuracy is not None:
             attrs["accuracy"] = accuracy
         return self.record(
@@ -257,29 +257,29 @@ class ResearchTimeline:
     # Querying
     # ------------------------------------------------------------------
 
-    def all_events(self) -> List[TimelineEvent]:
+    def all_events(self) -> list[TimelineEvent]:
         return sorted(self._events, key=lambda e: e.recorded_at)
 
-    def by_type(self, event_type: str) -> List[TimelineEvent]:
+    def by_type(self, event_type: str) -> list[TimelineEvent]:
         return [e for e in self._events if e.event_type == event_type]
 
-    def by_entity(self, entity_id: str) -> List[TimelineEvent]:
+    def by_entity(self, entity_id: str) -> list[TimelineEvent]:
         return [e for e in self._events if e.entity_id == entity_id]
 
-    def since(self, iso_timestamp: str) -> List[TimelineEvent]:
+    def since(self, iso_timestamp: str) -> list[TimelineEvent]:
         return [e for e in self.all_events() if e.recorded_at >= iso_timestamp]
 
-    def between(self, start_iso: str, end_iso: str) -> List[TimelineEvent]:
+    def between(self, start_iso: str, end_iso: str) -> list[TimelineEvent]:
         return [e for e in self.all_events() if start_iso <= e.recorded_at <= end_iso]
 
-    def recent(self, n: int = 20) -> List[TimelineEvent]:
+    def recent(self, n: int = 20) -> list[TimelineEvent]:
         return self.all_events()[-n:]
 
     # ------------------------------------------------------------------
     # Aggregates
     # ------------------------------------------------------------------
 
-    def experiment_history(self) -> List[Dict[str, Any]]:
+    def experiment_history(self) -> list[dict[str, Any]]:
         started = {e.entity_id: e for e in self.by_type(TimelineEventType.EXPERIMENT_STARTED)}
         completed = {
             e.entity_id: e
@@ -290,7 +290,7 @@ class ResearchTimeline:
         }
         result = []
         for eid, start_event in started.items():
-            entry: Dict[str, Any] = {
+            entry: dict[str, Any] = {
                 "experiment_id": eid,
                 "name": start_event.attributes.get("name", eid),
                 "started_at": start_event.recorded_at,
@@ -307,16 +307,16 @@ class ResearchTimeline:
             result.append(entry)
         return sorted(result, key=lambda x: x["started_at"])
 
-    def champion_history(self) -> List[Dict[str, Any]]:
+    def champion_history(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.by_type(TimelineEventType.CHAMPION_CHANGED)]
 
-    def dataset_history(self) -> List[Dict[str, Any]]:
+    def dataset_history(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.by_type(TimelineEventType.DATASET_UPDATED)]
 
-    def architecture_history(self) -> List[Dict[str, Any]]:
+    def architecture_history(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.by_type(TimelineEventType.ARCHITECTURE_CHANGED)]
 
-    def deployment_history(self) -> List[Dict[str, Any]]:
+    def deployment_history(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.by_type(TimelineEventType.DEPLOYMENT_CREATED)]
 
     def total_events(self) -> int:
@@ -326,9 +326,9 @@ class ResearchTimeline:
     # Reports
     # ------------------------------------------------------------------
 
-    def timeline_report(self) -> Dict[str, Any]:
+    def timeline_report(self) -> dict[str, Any]:
         events = self.all_events()
-        type_counts: Dict[str, int] = {}
+        type_counts: dict[str, int] = {}
         for e in events:
             type_counts[e.event_type] = type_counts.get(e.event_type, 0) + 1
         return {
@@ -354,5 +354,5 @@ class ResearchTimeline:
         """Load a pre-built event (used by persistence layer)."""
         self._events.append(event)
 
-    def to_dicts(self) -> List[Dict[str, Any]]:
+    def to_dicts(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self._events]

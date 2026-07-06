@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -96,7 +96,7 @@ class TrainingEngine:
         self,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        resume_checkpoint: Optional[Path] = None,
+        resume_checkpoint: Path | None = None,
     ) -> dict[str, Any]:
         """Execute the complete training loop.
 

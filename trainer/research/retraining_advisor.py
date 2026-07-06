@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Retraining trigger
@@ -106,12 +106,12 @@ class RetrainingRecommendation:
     priority: int = 3
     confidence: float = 0.5
     status: str = "pending"
-    context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    acted_at: Optional[str] = None
-    acted_by: Optional[str] = None
+    context: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    acted_at: str | None = None
+    acted_by: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "recommendation_id": self.recommendation_id,
             "model_id": self.model_id,
@@ -150,19 +150,18 @@ class AdvisorRule:
     estimated_risk: str = "Low"
     enabled: bool = True
     cooldown_hours: float = 24.0
-    last_triggered: Optional[str] = None
+    last_triggered: str | None = None
 
     def is_in_cooldown(self) -> bool:
         if not self.last_triggered:
             return False
-        from datetime import timedelta
 
         last = datetime.fromisoformat(self.last_triggered)
         if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
-        return (datetime.now(timezone.utc) - last).total_seconds() < self.cooldown_hours * 3600
+            last = last.replace(tzinfo=UTC)
+        return (datetime.now(UTC) - last).total_seconds() < self.cooldown_hours * 3600
 
-    def evaluates(self, context: Dict[str, Any]) -> bool:
+    def evaluates(self, context: dict[str, Any]) -> bool:
         if not self.enabled or self.is_in_cooldown():
             return False
         val = context.get(self.context_key)
@@ -175,7 +174,7 @@ class AdvisorRule:
         else:
             return float(val) <= self.threshold
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_id": self.rule_id,
             "trigger": self.trigger,
@@ -208,8 +207,8 @@ class RetrainingAdvisor:
         if auto_retrain:
             raise ValueError("auto_retrain=True is not permitted. " "Retraining is advisory only.")
         self.auto_retrain = False
-        self._rules: Dict[str, AdvisorRule] = {}
-        self._recommendations: List[RetrainingRecommendation] = []
+        self._rules: dict[str, AdvisorRule] = {}
+        self._recommendations: list[RetrainingRecommendation] = []
 
     def add_rule(self, rule: AdvisorRule) -> str:
         self._rules[rule.rule_id] = rule
@@ -219,8 +218,8 @@ class RetrainingAdvisor:
         return bool(self._rules.pop(rule_id, None))
 
     def evaluate(
-        self, model_id: str, context: Dict[str, Any], force_manual: bool = False
-    ) -> List[RetrainingRecommendation]:
+        self, model_id: str, context: dict[str, Any], force_manual: bool = False
+    ) -> list[RetrainingRecommendation]:
         """Evaluate all rules against context and return recommendations.
 
         Args:
@@ -271,7 +270,7 @@ class RetrainingAdvisor:
 
         return recs
 
-    def _build_reason(self, rule: AdvisorRule, value: Any, context: Dict[str, Any]) -> str:
+    def _build_reason(self, rule: AdvisorRule, value: Any, context: dict[str, Any]) -> str:
         if isinstance(value, bool):
             return f"{rule.trigger}: {rule.context_key} is available. " f"Retraining recommended."
         if isinstance(value, (int, float)):
@@ -286,7 +285,7 @@ class RetrainingAdvisor:
         for r in self._recommendations:
             if r.recommendation_id == recommendation_id:
                 r.status = "acted_upon"
-                r.acted_at = datetime.now(timezone.utc).isoformat()
+                r.acted_at = datetime.now(UTC).isoformat()
                 r.acted_by = acted_by
                 return True
         return False
@@ -298,21 +297,21 @@ class RetrainingAdvisor:
                 return True
         return False
 
-    def pending(self, model_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def pending(self, model_id: str | None = None) -> list[dict[str, Any]]:
         recs = [r for r in self._recommendations if r.status == "pending"]
         if model_id:
             recs = [r for r in recs if r.model_id == model_id]
         return [r.to_dict() for r in sorted(recs, key=lambda r: r.priority)]
 
     def all_recommendations(
-        self, model_id: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, model_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         recs = list(reversed(self._recommendations))
         if model_id:
             recs = [r for r in recs if r.model_id == model_id]
         return [r.to_dict() for r in recs[:limit]]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "total_rules": len(self._rules),
             "active_rules": sum(1 for r in self._rules.values() if r.enabled),

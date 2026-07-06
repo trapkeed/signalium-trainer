@@ -12,14 +12,11 @@ Output: ``(batch, out_dim)``
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
 from trainer.models.quant_v1.hybrid.config import (
     ContextEmbeddingStreamConfig,
-    EmbeddingSpec,
 )
 
 
@@ -75,7 +72,7 @@ class ContextEmbeddingStream(nn.Module):
     def forward(
         self,
         context_ids: dict[str, torch.Tensor],
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> torch.Tensor:
         """Args:
             context_ids: dict of {category_name: (batch,) long tensor}

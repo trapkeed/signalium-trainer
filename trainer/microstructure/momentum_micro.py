@@ -8,7 +8,6 @@ Directional Persistence, Trend Energy, Impulse Decay.
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -33,7 +32,7 @@ class MomentumMicrostructure:
 
     def analyse_window(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         if len(bars) < 3:

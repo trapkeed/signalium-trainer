@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import Dict, List, Tuple
 
 try:
     from loguru import logger
@@ -15,17 +14,16 @@ except ImportError:
 from trainer.mie.mie_models import MarketInput, RiskIntelligenceResult
 from trainer.mie.mie_types import (
     RISK_REGIME_MULTIPLIERS,
-    MarketRegime,
     RiskRegime,
     clamp,
 )
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _stdev(vals: List[float]) -> float:
+def _stdev(vals: list[float]) -> float:
     return statistics.stdev(vals) if len(vals) >= 2 else 0.0
 
 
@@ -76,9 +74,9 @@ class RiskIntelligenceEngine:
     def _score_factors(
         self,
         inp: MarketInput,
-    ) -> Tuple[Dict[str, float], List[str]]:
-        factors: Dict[str, float] = {}
-        warnings: List[str] = []
+    ) -> tuple[dict[str, float], list[str]]:
+        factors: dict[str, float] = {}
+        warnings: list[str] = []
 
         # 1. Volatility ratio (0-25)
         returns = inp.returns or []

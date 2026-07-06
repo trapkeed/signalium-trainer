@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from loguru import logger
@@ -29,9 +29,9 @@ class ONNXExporter(BaseExporter):
         model: BaseQuantModel,
         config: TrainerConfig,
         example_input_shape: tuple[int, ...],
-        input_names: Optional[list[str]] = None,
-        output_names: Optional[list[str]] = None,
-        dynamic_axes: Optional[dict[str, dict[int, str]]] = None,
+        input_names: list[str] | None = None,
+        output_names: list[str] | None = None,
+        dynamic_axes: dict[str, dict[int, str]] | None = None,
     ) -> None:
         super().__init__(model, config)
         self._example_input_shape = example_input_shape

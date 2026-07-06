@@ -30,8 +30,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Experiment category
@@ -101,13 +101,13 @@ class ExperimentSuggestion:
     estimated_duration: str = ""
     priority: int = 3
     confidence: float = 0.5
-    prerequisites: List[str] = field(default_factory=list)
-    config_changes: Dict[str, Any] = field(default_factory=dict)
+    prerequisites: list[str] = field(default_factory=list)
+    config_changes: dict[str, Any] = field(default_factory=dict)
     status: str = "pending"
-    trigger_context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    trigger_context: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "suggestion_id": self.suggestion_id,
             "title": self.title,
@@ -140,9 +140,9 @@ class ExperimentRecommendationEngine:
     """
 
     def __init__(self) -> None:
-        self._suggestions: List[ExperimentSuggestion] = []
+        self._suggestions: list[ExperimentSuggestion] = []
 
-    def generate(self, context: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def generate(self, context: dict[str, Any]) -> list[ExperimentSuggestion]:
         """Generate experiment suggestions from context.
 
         Context keys (all optional):
@@ -174,7 +174,7 @@ class ExperimentRecommendationEngine:
             self._suggestions.append(s)
         return generated
 
-    def _check_architecture(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_architecture(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         backbones = ctx.get("available_backbones", [])
         current = ctx.get("current_backbone", "")
@@ -213,7 +213,7 @@ class ExperimentRecommendationEngine:
             )
         return results
 
-    def _check_hyperparameters(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_hyperparameters(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         seq_len = ctx.get("current_sequence_length", 0)
         dropout = ctx.get("current_dropout", 0.0)
@@ -272,7 +272,7 @@ class ExperimentRecommendationEngine:
         )
         return results
 
-    def _check_feature_engineering(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_feature_engineering(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         deprecated = ctx.get("deprecated_features", [])
         new_features = ctx.get("new_features", [])
@@ -328,7 +328,7 @@ class ExperimentRecommendationEngine:
             )
         return results
 
-    def _check_calibration(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_calibration(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         ece = ctx.get("current_calibration_error", 0.0)
         if ece > 0.06 or ctx.get("high_calibration_error"):
@@ -366,7 +366,7 @@ class ExperimentRecommendationEngine:
             )
         return results
 
-    def _check_data_expansion(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_data_expansion(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         new_instruments = ctx.get("available_instruments", [])
         current_instruments = ctx.get("current_instruments", [])
@@ -389,7 +389,7 @@ class ExperimentRecommendationEngine:
             )
         return results
 
-    def _check_regime_specialization(self, ctx: Dict[str, Any]) -> List[ExperimentSuggestion]:
+    def _check_regime_specialization(self, ctx: dict[str, Any]) -> list[ExperimentSuggestion]:
         results = []
         degrading_regimes = ctx.get("degrading_regimes", [])
         for regime in degrading_regimes[:3]:
@@ -416,14 +416,14 @@ class ExperimentRecommendationEngine:
                 return True
         return False
 
-    def pending(self) -> List[Dict[str, Any]]:
+    def pending(self) -> list[dict[str, Any]]:
         return [s.to_dict() for s in self._suggestions if s.status == "pending"]
 
-    def all_suggestions(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def all_suggestions(self, limit: int = 100) -> list[dict[str, Any]]:
         return [s.to_dict() for s in reversed(self._suggestions[:limit])]
 
-    def stats(self) -> Dict[str, Any]:
-        by_cat: Dict[str, int] = {}
+    def stats(self) -> dict[str, Any]:
+        by_cat: dict[str, int] = {}
         for s in self._suggestions:
             by_cat[s.category] = by_cat.get(s.category, 0) + 1
         return {

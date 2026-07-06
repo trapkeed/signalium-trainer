@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import statistics
-from typing import Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -60,13 +57,13 @@ class MarketQualityEngine:
     def evaluate(
         self,
         inp: MarketInput,
-        volatility: Optional[VolatilityResult] = None,
-        momentum: Optional[MomentumResult] = None,
-        trend: Optional[TrendResult] = None,
-        liquidity: Optional[LiquidityResult] = None,
-        session: Optional[SessionResult] = None,
-        news: Optional[NewsIntelligenceResult] = None,
-        reliability: Optional[PredictionReliabilityResult] = None,
+        volatility: VolatilityResult | None = None,
+        momentum: MomentumResult | None = None,
+        trend: TrendResult | None = None,
+        liquidity: LiquidityResult | None = None,
+        session: SessionResult | None = None,
+        news: NewsIntelligenceResult | None = None,
+        reliability: PredictionReliabilityResult | None = None,
     ) -> MarketQualityResult:
 
         vol_q = volatility.quality if volatility else 50.0

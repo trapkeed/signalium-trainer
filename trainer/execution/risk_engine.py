@@ -7,9 +7,7 @@ Estimates full trade risk profile:
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -48,7 +46,7 @@ class RiskProfile:
     def is_positive_ev(self) -> bool:
         return self.expected_value > 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -73,8 +71,8 @@ class RiskEngine:
     def analyze(
         self,
         forecast: ExecutionForecast,
-        stop_loss: Optional[StopLossRecommendation] = None,
-        take_profit: Optional[TakeProfitRecommendation] = None,
+        stop_loss: StopLossRecommendation | None = None,
+        take_profit: TakeProfitRecommendation | None = None,
         lot_size: float = 1.0,
     ) -> RiskProfile:
 

@@ -8,10 +8,8 @@ SQLite persistence for SAQRA.
 from __future__ import annotations
 
 import contextlib
-import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional
 
 try:
     from loguru import logger
@@ -106,7 +104,7 @@ class AnalystDatabase:
 
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -157,7 +155,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM chat_sessions").fetchone()[0]
 
-    def active_session_ids(self) -> List[str]:
+    def active_session_ids(self) -> list[str]:
         with self._conn() as conn:
             rows = conn.execute("SELECT session_id FROM chat_sessions WHERE active=1").fetchall()
         return [r["session_id"] for r in rows]
@@ -186,7 +184,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM research_queries").fetchone()[0]
 
-    def recent_queries(self, limit: int = 20) -> List[Dict]:
+    def recent_queries(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM research_queries ORDER BY timestamp DESC LIMIT ?", (limit,)
@@ -220,7 +218,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM generated_reports").fetchone()[0]
 
-    def reports_by_type(self, report_type: str) -> List[Dict]:
+    def reports_by_type(self, report_type: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM generated_reports WHERE report_type=? ORDER BY generated_at DESC",
@@ -254,7 +252,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM recommendation_history").fetchone()[0]
 
-    def pending_recommendations(self) -> List[Dict]:
+    def pending_recommendations(self) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM recommendation_history WHERE implemented=0 ORDER BY priority, timestamp"
@@ -318,7 +316,7 @@ class AnalystDatabase:
             ).fetchone()
         return row[0] or 0
 
-    def usage_by_provider(self) -> Dict[str, int]:
+    def usage_by_provider(self) -> dict[str, int]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT provider, COUNT(*) as cnt FROM llm_usage GROUP BY provider"
@@ -327,7 +325,7 @@ class AnalystDatabase:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "sessions": self.count_sessions(),
             "queries": self.count_queries(),

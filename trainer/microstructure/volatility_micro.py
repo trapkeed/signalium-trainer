@@ -7,9 +7,7 @@ Volatility Shock Detection, Noise Ratio, Range Compression, Range Expansion.
 
 from __future__ import annotations
 
-import math
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -40,7 +38,7 @@ class VolatilityMicrostructure:
 
     def analyse_window(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
         atr_period: int = 14,
     ) -> MicrostructureFeatures:
@@ -99,7 +97,7 @@ class VolatilityMicrostructure:
         return features
 
     @staticmethod
-    def _autocorr_lag1(series: List[float]) -> float:
+    def _autocorr_lag1(series: list[float]) -> float:
         """Pearson autocorrelation at lag 1."""
         n = len(series)
         if n < 3:

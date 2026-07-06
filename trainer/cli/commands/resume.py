@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -19,7 +18,7 @@ def resume(
     dataset_dir: Path = typer.Option(
         Path("data/datasets"), "--dataset-dir", "-d", help="Dataset directory."
     ),
-    epochs: Optional[int] = typer.Option(None, "--epochs", "-e", help="Total epochs to run."),
+    epochs: int | None = typer.Option(None, "--epochs", "-e", help="Total epochs to run."),
 ) -> None:
     """Resume training from a saved checkpoint file."""
     if not checkpoint.exists():

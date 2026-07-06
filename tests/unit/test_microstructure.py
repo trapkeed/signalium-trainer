@@ -118,7 +118,6 @@ def make_trending_bars(n=20, direction=1, base=1.10000, step=0.00050) -> list:
 def make_ranging_bars(n=20, base=1.10000, amplitude=0.00100) -> list:
     bars = []
     ts = time.time() - n * 3600
-    import math
 
     for i in range(n):
         mid = base + amplitude * math.sin(i * 0.8)

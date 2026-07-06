@@ -6,9 +6,7 @@ timeout rules, confidence, expected benefit, risk rating, and reason.
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -19,16 +17,12 @@ except ImportError:
 
 from trainer.lifecycle.lifecycle_models import (
     MarketContext,
-    PositionMetrics,
     TransitionResult,
 )
 from trainer.lifecycle.lifecycle_states import (
     STATE_EXPECTED_DURATION_HOURS,
-    TERMINAL_STATES,
-    VALID_TRANSITIONS,
     LifecycleState,
     can_transition,
-    is_terminal,
 )
 
 # ── Transition Rule ───────────────────────────────────────────────────────────
@@ -40,9 +34,9 @@ class TransitionRule:
 
     from_state: LifecycleState
     to_state: LifecycleState
-    entry_conditions: List[str]  # human-readable required conditions
-    exit_conditions: List[str]  # conditions that trigger exit from from_state
-    validation_rules: List[str]  # rules that must hold for the transition
+    entry_conditions: list[str]  # human-readable required conditions
+    exit_conditions: list[str]  # conditions that trigger exit from from_state
+    validation_rules: list[str]  # rules that must hold for the transition
     timeout_hours: float  # max time to wait for conditions
     base_confidence: float  # 0-1 default confidence when conditions met
     expected_benefit: float  # 0-1 upside if transition proceeds
@@ -52,7 +46,7 @@ class TransitionRule:
 
 # ── Rule Registry ─────────────────────────────────────────────────────────────
 
-_RULES: List[TransitionRule] = [
+_RULES: list[TransitionRule] = [
     TransitionRule(
         LifecycleState.IDEA,
         LifecycleState.WATCHLIST,
@@ -261,7 +255,7 @@ _RULES: List[TransitionRule] = [
 ]
 
 # Build fast lookup: (from, to) → rule
-_RULE_LOOKUP: Dict[Tuple[LifecycleState, LifecycleState], TransitionRule] = {
+_RULE_LOOKUP: dict[tuple[LifecycleState, LifecycleState], TransitionRule] = {
     (r.from_state, r.to_state): r for r in _RULES
 }
 
@@ -279,7 +273,7 @@ class StateMachine:
         self,
         from_state: LifecycleState,
         to_state: LifecycleState,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
         confidence: float = 0.65,
     ) -> TransitionResult:
         """Check whether a transition is structurally and contextually valid."""
@@ -312,8 +306,8 @@ class StateMachine:
             )
 
         # 3. Contextual validation
-        met: List[str] = []
-        failed: List[str] = []
+        met: list[str] = []
+        failed: list[str] = []
 
         if context is not None:
             # news_risk check
@@ -352,9 +346,9 @@ class StateMachine:
             met.append("no market context provided — assuming conditions met")
 
         # Confidence check
-        if f"confidence >= 0.65" in rule.validation_rules and confidence < 0.65:
+        if "confidence >= 0.65" in rule.validation_rules and confidence < 0.65:
             failed.append(f"confidence {confidence:.2f} < 0.65")
-        elif f"confidence >= 0.60" in rule.validation_rules and confidence < 0.60:
+        elif "confidence >= 0.60" in rule.validation_rules and confidence < 0.60:
             failed.append(f"confidence {confidence:.2f} < 0.60")
 
         allowed = len(failed) == 0
@@ -380,13 +374,13 @@ class StateMachine:
             timeout_hours=rule.timeout_hours,
         )
 
-    def all_rules(self) -> List[TransitionRule]:
+    def all_rules(self) -> list[TransitionRule]:
         return list(_RULES)
 
-    def rules_for_state(self, state: LifecycleState) -> List[TransitionRule]:
+    def rules_for_state(self, state: LifecycleState) -> list[TransitionRule]:
         return [r for r in _RULES if r.from_state == state]
 
     def get_rule(
         self, from_state: LifecycleState, to_state: LifecycleState
-    ) -> Optional[TransitionRule]:
+    ) -> TransitionRule | None:
         return _RULE_LOOKUP.get((from_state, to_state))

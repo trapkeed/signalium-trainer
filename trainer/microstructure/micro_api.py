@@ -13,9 +13,6 @@ Endpoints:
 
 from __future__ import annotations
 
-import time
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -63,21 +60,21 @@ class MicrostructureAPI:
         self.dashboard_eng = MicrostructureDashboard()
 
         # In-memory history
-        self._features: List[MicrostructureFeatures] = []
-        self._scores: List[MicrostructureScore] = []
-        self._states: List[MarketStateRecord] = []
-        self._embeddings: List[MicrostructureEmbedding] = []
+        self._features: list[MicrostructureFeatures] = []
+        self._scores: list[MicrostructureScore] = []
+        self._states: list[MarketStateRecord] = []
+        self._embeddings: list[MicrostructureEmbedding] = []
 
     # ── 1. Full analysis ──────────────────────────────────────────────────────
 
     def analyse(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         instrument: str = "",
         timeframe: str = "H1",
-        ticks: Optional[List[TickBar]] = None,
+        ticks: list[TickBar] | None = None,
         persist: bool = True,
-    ) -> Dict:
+    ) -> dict:
         """Run the full OHLC microstructure analysis pipeline.
 
         Returns: features, score, market_state, embedding.
@@ -142,19 +139,19 @@ class MicrostructureAPI:
 
     # ── 2. Current state ──────────────────────────────────────────────────────
 
-    def current_state(self) -> Optional[Dict]:
+    def current_state(self) -> dict | None:
         if not self._states:
             return None
         return self._states[-1].to_dict()
 
     # ── 3. Scores ─────────────────────────────────────────────────────────────
 
-    def scores(self, last_n: int = 1) -> List[Dict]:
+    def scores(self, last_n: int = 1) -> list[dict]:
         return [s.to_dict() for s in self._scores[-last_n:]]
 
     # ── 4. Embedding ──────────────────────────────────────────────────────────
 
-    def embedding(self) -> Optional[Dict]:
+    def embedding(self) -> dict | None:
         if not self._embeddings:
             return None
         return self._embeddings[-1].to_dict()
@@ -163,9 +160,9 @@ class MicrostructureAPI:
 
     def historical(
         self,
-        instrument: Optional[str] = None,
+        instrument: str | None = None,
         limit: int = 100,
-    ) -> Dict:
+    ) -> dict:
         features = self._features[-limit:]
         scores = self._scores[-limit:]
         states = self._states[-limit:]
@@ -179,7 +176,7 @@ class MicrostructureAPI:
 
     # ── 6. Dashboard ──────────────────────────────────────────────────────────
 
-    def get_dashboard(self, name: str = "all") -> Dict:
+    def get_dashboard(self, name: str = "all") -> dict:
         fns = {
             "microstructure_timeline": lambda: self.dashboard_eng.microstructure_timeline(
                 self._features, self._scores
@@ -206,7 +203,7 @@ class MicrostructureAPI:
 
     # ── 7. System stats ───────────────────────────────────────────────────────
 
-    def system_stats(self) -> Dict:
+    def system_stats(self) -> dict:
         return {
             "in_memory": {
                 "features": len(self._features),
@@ -222,5 +219,5 @@ class MicrostructureAPI:
 
     # ── 8. Order flow status ──────────────────────────────────────────────────
 
-    def order_flow_status(self) -> Dict:
+    def order_flow_status(self) -> dict:
         return self.order_flow.data_quality_report()

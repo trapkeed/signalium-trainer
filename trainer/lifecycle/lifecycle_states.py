@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, FrozenSet, Set
 
 
 class LifecycleState(str, Enum):
@@ -32,7 +31,7 @@ class LifecycleState(str, Enum):
 
 
 # ── Terminal states (no further transitions) ──────────────────────────────────
-TERMINAL_STATES: FrozenSet[LifecycleState] = frozenset(
+TERMINAL_STATES: frozenset[LifecycleState] = frozenset(
     {
         LifecycleState.CLOSED,
         LifecycleState.INVALIDATED,
@@ -42,7 +41,7 @@ TERMINAL_STATES: FrozenSet[LifecycleState] = frozenset(
 )
 
 # States that resolve to CLOSED
-CLOSING_STATES: FrozenSet[LifecycleState] = frozenset(
+CLOSING_STATES: frozenset[LifecycleState] = frozenset(
     {
         LifecycleState.STOPPED,
         LifecycleState.FORCED_EXIT,
@@ -51,7 +50,7 @@ CLOSING_STATES: FrozenSet[LifecycleState] = frozenset(
 )
 
 # States where a position is open
-POSITION_OPEN_STATES: FrozenSet[LifecycleState] = frozenset(
+POSITION_OPEN_STATES: frozenset[LifecycleState] = frozenset(
     {
         LifecycleState.ACTIVE,
         LifecycleState.POSITION_BUILDING,
@@ -68,7 +67,7 @@ POSITION_OPEN_STATES: FrozenSet[LifecycleState] = frozenset(
 )
 
 # Pre-entry states
-PRE_ENTRY_STATES: FrozenSet[LifecycleState] = frozenset(
+PRE_ENTRY_STATES: frozenset[LifecycleState] = frozenset(
     {
         LifecycleState.IDEA,
         LifecycleState.WATCHLIST,
@@ -79,7 +78,7 @@ PRE_ENTRY_STATES: FrozenSet[LifecycleState] = frozenset(
 )
 
 # ── Valid transitions map ─────────────────────────────────────────────────────
-VALID_TRANSITIONS: Dict[LifecycleState, FrozenSet[LifecycleState]] = {
+VALID_TRANSITIONS: dict[LifecycleState, frozenset[LifecycleState]] = {
     LifecycleState.IDEA: frozenset(
         {
             LifecycleState.WATCHLIST,
@@ -202,7 +201,7 @@ VALID_TRANSITIONS: Dict[LifecycleState, FrozenSet[LifecycleState]] = {
 }
 
 # ── State ordering (for progress metrics) ────────────────────────────────────
-STATE_ORDER: Dict[LifecycleState, int] = {
+STATE_ORDER: dict[LifecycleState, int] = {
     LifecycleState.IDEA: 0,
     LifecycleState.WATCHLIST: 1,
     LifecycleState.PREPARATION: 2,
@@ -227,7 +226,7 @@ STATE_ORDER: Dict[LifecycleState, int] = {
 }
 
 # ── Expected duration hints per state (hours) ─────────────────────────────────
-STATE_EXPECTED_DURATION_HOURS: Dict[LifecycleState, float] = {
+STATE_EXPECTED_DURATION_HOURS: dict[LifecycleState, float] = {
     LifecycleState.IDEA: 24.0,
     LifecycleState.WATCHLIST: 48.0,
     LifecycleState.PREPARATION: 12.0,

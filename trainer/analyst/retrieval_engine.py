@@ -7,7 +7,6 @@ keyword scoring. Builds the context string fed into the LLM prompt.
 from __future__ import annotations
 
 import math
-from typing import List, Optional
 
 try:
     from loguru import logger
@@ -63,7 +62,7 @@ _STOPWORDS = frozenset(
 )
 
 
-def _tokenise(text: str) -> List[str]:
+def _tokenise(text: str) -> list[str]:
     """Lowercase tokenise, remove stopwords and short tokens."""
     tokens = text.lower().replace(",", " ").replace(".", " ").replace("?", " ").split()
     return [t for t in tokens if t not in _STOPWORDS and len(t) > 2]
@@ -84,10 +83,10 @@ class RetrievalEngine:
     def retrieve(
         self,
         query: str,
-        top_k: Optional[int] = None,
-        source_type: Optional[KnowledgeSourceType] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[KnowledgeChunk]:
+        top_k: int | None = None,
+        source_type: KnowledgeSourceType | None = None,
+        tags: list[str] | None = None,
+    ) -> list[KnowledgeChunk]:
         """Retrieve the most relevant chunks for a query."""
         k = top_k or self._top_k
         query_terms = _tokenise(query)
@@ -155,7 +154,7 @@ class RetrievalEngine:
         )
         return result
 
-    def build_context(self, chunks: List[KnowledgeChunk], max_chars: int = 3000) -> str:
+    def build_context(self, chunks: list[KnowledgeChunk], max_chars: int = 3000) -> str:
         """Build a context string from retrieved chunks for the LLM prompt."""
         if not chunks:
             return ""
@@ -180,9 +179,9 @@ class RetrievalEngine:
     def retrieve_and_build(
         self,
         query: str,
-        top_k: Optional[int] = None,
-        source_type: Optional[KnowledgeSourceType] = None,
-        tags: Optional[List[str]] = None,
+        top_k: int | None = None,
+        source_type: KnowledgeSourceType | None = None,
+        tags: list[str] | None = None,
         max_chars: int = 3000,
     ) -> tuple:
         """Retrieve chunks and build context. Returns (chunks, context_str)."""

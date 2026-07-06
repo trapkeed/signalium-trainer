@@ -23,4 +23,4 @@ Public API::
 
 from trainer.plugins.registry import EncoderPlugin, PluginRegistry
 
-__all__ = ["PluginRegistry", "EncoderPlugin"]
+__all__ = ["EncoderPlugin", "PluginRegistry"]

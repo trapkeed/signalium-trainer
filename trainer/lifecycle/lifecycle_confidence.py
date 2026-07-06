@@ -6,8 +6,6 @@ transition probability, and failure probability.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -20,9 +18,7 @@ from trainer.lifecycle.lifecycle_models import (
     MarketContext,
 )
 from trainer.lifecycle.lifecycle_states import (
-    CLOSING_STATES,
     STATE_EXPECTED_DURATION_HOURS,
-    TERMINAL_STATES,
     LifecycleState,
 )
 
@@ -35,7 +31,7 @@ class LifecycleConfidenceEngine:
     """Computes confidence and forward projections for any lifecycle state."""
 
     # Base transition probabilities per state (empirical defaults)
-    _BASE_TRANSITION_PROB: Dict[LifecycleState, float] = {
+    _BASE_TRANSITION_PROB: dict[LifecycleState, float] = {
         LifecycleState.IDEA: 0.60,
         LifecycleState.WATCHLIST: 0.65,
         LifecycleState.PREPARATION: 0.70,
@@ -59,7 +55,7 @@ class LifecycleConfidenceEngine:
     }
 
     # Base failure probability per state
-    _BASE_FAILURE_PROB: Dict[LifecycleState, float] = {
+    _BASE_FAILURE_PROB: dict[LifecycleState, float] = {
         LifecycleState.IDEA: 0.40,
         LifecycleState.WATCHLIST: 0.30,
         LifecycleState.PREPARATION: 0.20,
@@ -83,7 +79,7 @@ class LifecycleConfidenceEngine:
     }
 
     # Expected reward fraction per state (how much of potential reward remains)
-    _BASE_REWARD: Dict[LifecycleState, float] = {
+    _BASE_REWARD: dict[LifecycleState, float] = {
         LifecycleState.IDEA: 0.08,
         LifecycleState.WATCHLIST: 0.08,
         LifecycleState.PREPARATION: 0.08,
@@ -110,12 +106,12 @@ class LifecycleConfidenceEngine:
         self,
         state: LifecycleState,
         confidence: float,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
         expected_return: float = 0.08,
         expected_risk: float = 0.10,
     ) -> LifecycleConfidence:
 
-        notes: List[str] = []
+        notes: list[str] = []
 
         # Base values
         base_trans = self._BASE_TRANSITION_PROB.get(state, 0.65)

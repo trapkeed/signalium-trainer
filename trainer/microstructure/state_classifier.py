@@ -7,8 +7,6 @@ BREAKOUT, FAKE_BREAKOUT, REVERSAL, HIGH_VOLATILITY, LOW_VOLATILITY, TRANSITION.
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -25,7 +23,6 @@ from trainer.microstructure.micro_types import (
     LiquidityState,
     MarketState,
     MomentumState,
-    TrendStrength,
     VolatilityState,
     trend_strength_from_score,
 )
@@ -85,7 +82,7 @@ class MarketStateClassifier:
         score: MicrostructureScore,
     ):
         """Returns (MarketState, confidence, reasoning)."""
-        reasoning: List[str] = []
+        reasoning: list[str] = []
 
         ts = score.trend_score
         vs = score.volatility_score

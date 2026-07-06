@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -259,9 +259,8 @@ class AttentionExtractor:
         was_training = model.training
         model.eval()
         try:
-            with extractor.register(model):
-                with torch.no_grad():
-                    model(input_tensor)
+            with extractor.register(model), torch.no_grad():
+                model(input_tensor)
             return extractor.get_last_attention_map()
         finally:
             if was_training:

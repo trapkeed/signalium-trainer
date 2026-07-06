@@ -27,10 +27,9 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.research.hrsa_benchmarks import HRSABenchmarkEngine
-from trainer.research.hrsa_categories import HRSACategoryScorer
 from trainer.research.hrsa_database import HRSADatabase
 from trainer.research.hrsa_explanations import HRSAExplainer
 from trainer.research.hrsa_grades import HRSAGradeEngine
@@ -44,11 +43,11 @@ from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 # ---------------------------------------------------------------------------
 
 
-def _ok(data: Any) -> Dict[str, Any]:
+def _ok(data: Any) -> dict[str, Any]:
     return {"status": "ok", "data": data}
 
 
-def _err(msg: str) -> Dict[str, Any]:
+def _err(msg: str) -> dict[str, Any]:
     return {"status": "error", "error": msg}
 
 
@@ -63,9 +62,9 @@ class HRSAApi:
     def __init__(
         self,
         db_path: str = ":memory:",
-        registry: Optional[RawMetricsRegistry] = None,
-        scorer: Optional[HierarchicalResearchScorer] = None,
-        grade_engine: Optional[HRSAGradeEngine] = None,
+        registry: RawMetricsRegistry | None = None,
+        scorer: HierarchicalResearchScorer | None = None,
+        grade_engine: HRSAGradeEngine | None = None,
     ) -> None:
         self._registry = registry or RawMetricsRegistry.default()
         self._scorer = scorer or HierarchicalResearchScorer()
@@ -75,7 +74,7 @@ class HRSAApi:
         self._benchmarks = HRSABenchmarkEngine()
         self._explainer = HRSAExplainer()
         self._simulator = HRSAWhatIfSimulator(scorer=self._scorer)
-        self._bundles: Dict[str, RawMetricsBundle] = {}  # experiment_id → bundle
+        self._bundles: dict[str, RawMetricsBundle] = {}  # experiment_id → bundle
 
     # ------------------------------------------------------------------
     # Scoring
@@ -92,7 +91,7 @@ class HRSAApi:
         model_family: str = "",
         trend_slope: float = 0.0,
         save: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Score a RawMetricsBundle through the full 3-level pipeline."""
         try:
             hs = self._scorer.score(
@@ -112,13 +111,13 @@ class HRSAApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def get_score(self, score_id: str) -> Dict[str, Any]:
+    def get_score(self, score_id: str) -> dict[str, Any]:
         row = self._db.get_score(score_id)
         if row is None:
             return _err(f"Score not found: {score_id}")
         return _ok(row)
 
-    def get_latest(self, experiment_id: str) -> Dict[str, Any]:
+    def get_latest(self, experiment_id: str) -> dict[str, Any]:
         row = self._db.get_latest(experiment_id)
         if row is None:
             return _err(f"No scores for experiment: {experiment_id}")
@@ -128,15 +127,13 @@ class HRSAApi:
     # Category & metric details
     # ------------------------------------------------------------------
 
-    def category_scores(self, score_id: str) -> Dict[str, Any]:
+    def category_scores(self, score_id: str) -> dict[str, Any]:
         cats = self._db.category_scores_for(score_id)
         if not cats:
             return _err(f"No category scores for: {score_id}")
         return _ok({"score_id": score_id, "categories": cats})
 
-    def metric_scores(
-        self, experiment_id: str, metric_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def metric_scores(self, experiment_id: str, metric_name: str | None = None) -> dict[str, Any]:
         if metric_name:
             history = self._db.metric_history(experiment_id, metric_name)
             return _ok({"experiment_id": experiment_id, "metric": metric_name, "history": history})
@@ -159,7 +156,7 @@ class HRSAApi:
         role: str = "candidate",
         name: str = "",
         generation: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             hs = self._scorer.score(bundle, name=name)
             rec = self._benchmarks.register(experiment_id, hs, role=role, generation=generation)
@@ -172,8 +169,8 @@ class HRSAApi:
         self,
         experiment_id: str,
         bundle: RawMetricsBundle,
-        roles: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        roles: list[str] | None = None,
+    ) -> dict[str, Any]:
         try:
             hs = self._scorer.score(bundle)
             suite = self._benchmarks.compare(experiment_id, hs, roles=roles)
@@ -181,14 +178,14 @@ class HRSAApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def benchmark_report(self) -> Dict[str, Any]:
+    def benchmark_report(self) -> dict[str, Any]:
         return _ok(self._benchmarks.full_report())
 
     # ------------------------------------------------------------------
     # Trends
     # ------------------------------------------------------------------
 
-    def historical_trends(self, experiment_id: str, window: int = 0) -> Dict[str, Any]:
+    def historical_trends(self, experiment_id: str, window: int = 0) -> dict[str, Any]:
         history = self._db.composite_history(experiment_id)
         cat_trend = self._trends.category_trends(window)
         comp_trend = self._trends.composite_trend(window)
@@ -204,14 +201,14 @@ class HRSAApi:
             }
         )
 
-    def trend_report(self, window: int = 0) -> Dict[str, Any]:
+    def trend_report(self, window: int = 0) -> dict[str, Any]:
         return _ok(self._trends.trend_report(window))
 
     # ------------------------------------------------------------------
     # Explanations & recommendations
     # ------------------------------------------------------------------
 
-    def explain(self, score_id: str, bundle: Optional[RawMetricsBundle] = None) -> Dict[str, Any]:
+    def explain(self, score_id: str, bundle: RawMetricsBundle | None = None) -> dict[str, Any]:
         row = self._db.get_score(score_id)
         if row is None:
             return _err(f"Score not found: {score_id}")
@@ -229,8 +226,8 @@ class HRSAApi:
         return _ok(explanation.to_dict())
 
     def recommendations(
-        self, experiment_id: str, bundle: Optional[RawMetricsBundle] = None
-    ) -> Dict[str, Any]:
+        self, experiment_id: str, bundle: RawMetricsBundle | None = None
+    ) -> dict[str, Any]:
         b = bundle or self._bundles.get(experiment_id)
         if b is None:
             return _err("Bundle required for recommendations (not cached)")
@@ -251,9 +248,9 @@ class HRSAApi:
     def what_if(
         self,
         experiment_id: str,
-        scenarios: List[Dict[str, Any]],
-        bundle: Optional[RawMetricsBundle] = None,
-    ) -> Dict[str, Any]:
+        scenarios: list[dict[str, Any]],
+        bundle: RawMetricsBundle | None = None,
+    ) -> dict[str, Any]:
         """Run category-level what-if scenarios.
 
         Each scenario: {"name": "...", "changes": {"category": new_score, ...}}
@@ -279,9 +276,9 @@ class HRSAApi:
     def what_if_optimal(
         self,
         experiment_id: str,
-        bundle: Optional[RawMetricsBundle] = None,
+        bundle: RawMetricsBundle | None = None,
         budget: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         b = bundle or self._bundles.get(experiment_id)
         if b is None:
             return _err("Bundle required for optimal what-if (not cached)")
@@ -308,9 +305,9 @@ class HRSAApi:
     def leaderboard(
         self,
         top_n: int = 20,
-        instrument: Optional[str] = None,
+        instrument: str | None = None,
         min_confidence: float = 0.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         rows = self._db.leaderboard(top_n, instrument, min_confidence)
         return _ok({"leaderboard": rows, "count": len(rows)})
 
@@ -320,7 +317,7 @@ class HRSAApi:
         bundle_a: RawMetricsBundle,
         experiment_b: str,
         bundle_b: RawMetricsBundle,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             hs_a = self._scorer.score(bundle_a, name=experiment_a)
             hs_b = self._scorer.score(bundle_b, name=experiment_b)
@@ -339,7 +336,7 @@ class HRSAApi:
     # System
     # ------------------------------------------------------------------
 
-    def registry_info(self) -> Dict[str, Any]:
+    def registry_info(self) -> dict[str, Any]:
         return _ok(
             {
                 "total_metrics": self._registry.total(),
@@ -351,7 +348,7 @@ class HRSAApi:
             }
         )
 
-    def grade_system(self) -> Dict[str, Any]:
+    def grade_system(self) -> dict[str, Any]:
         return _ok(
             {
                 "institutional_grades": self._grade_engine.all_institutional_grades(),
@@ -359,7 +356,7 @@ class HRSAApi:
             }
         )
 
-    def system_stats(self) -> Dict[str, Any]:
+    def system_stats(self) -> dict[str, Any]:
         db_stats = self._db.stats()
         return _ok(
             {

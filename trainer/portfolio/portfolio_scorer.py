@@ -14,8 +14,7 @@ Computes portfolio-level metrics:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 from trainer.portfolio.correlation_engine import CorrelationMatrix
 from trainer.portfolio.portfolio_instruments import ModelForecast
@@ -99,9 +98,9 @@ class PortfolioScorer:
 
     def score(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        correlation_matrix: CorrelationMatrix | None = None,
     ) -> PortfolioMetrics:
         if not forecasts:
             return self._empty_metrics()
@@ -147,7 +146,7 @@ class PortfolioScorer:
         )
 
     @staticmethod
-    def _portfolio_return(forecasts: List[ModelForecast], norm_w: Dict[str, float]) -> float:
+    def _portfolio_return(forecasts: list[ModelForecast], norm_w: dict[str, float]) -> float:
         total = 0.0
         for fc in forecasts:
             w = norm_w.get(fc.instrument, 0.0)
@@ -156,9 +155,9 @@ class PortfolioScorer:
 
     @staticmethod
     def _portfolio_volatility(
-        forecasts: List[ModelForecast],
-        norm_w: Dict[str, float],
-        matrix: Optional[CorrelationMatrix],
+        forecasts: list[ModelForecast],
+        norm_w: dict[str, float],
+        matrix: CorrelationMatrix | None,
     ) -> float:
         n = len(forecasts)
         if n == 0:
@@ -185,7 +184,7 @@ class PortfolioScorer:
         return expected_vol * factor
 
     def _sortino(
-        self, expected_return: float, forecasts: List[ModelForecast], norm_w: Dict[str, float]
+        self, expected_return: float, forecasts: list[ModelForecast], norm_w: dict[str, float]
     ) -> float:
         downside_var = 0.0
         for fc in forecasts:
@@ -197,9 +196,9 @@ class PortfolioScorer:
 
     @staticmethod
     def _diversification_score(
-        norm_w: Dict[str, float],
-        forecasts: List[ModelForecast],
-        matrix: Optional[CorrelationMatrix],
+        norm_w: dict[str, float],
+        forecasts: list[ModelForecast],
+        matrix: CorrelationMatrix | None,
     ) -> float:
         if not forecasts or not matrix:
             # Fallback: 1/n approximation
@@ -222,7 +221,7 @@ class PortfolioScorer:
 
     @staticmethod
     def _correlation_risk(
-        forecasts: List[ModelForecast], matrix: Optional[CorrelationMatrix]
+        forecasts: list[ModelForecast], matrix: CorrelationMatrix | None
     ) -> float:
         if matrix is None or len(forecasts) < 2:
             return 0.0
@@ -239,7 +238,7 @@ class PortfolioScorer:
         return round(total_abs_corr / pairs, 4)
 
     @staticmethod
-    def _concentration_score(norm_w: Dict[str, float]) -> float:
+    def _concentration_score(norm_w: dict[str, float]) -> float:
         if not norm_w:
             return 0.0
         weights = [abs(v) for v in norm_w.values()]
@@ -256,7 +255,7 @@ class PortfolioScorer:
         return round((hhi - min_hhi) / (max_hhi - min_hhi), 4)
 
     @staticmethod
-    def _weighted_confidence(forecasts: List[ModelForecast], norm_w: Dict[str, float]) -> float:
+    def _weighted_confidence(forecasts: list[ModelForecast], norm_w: dict[str, float]) -> float:
         total = 0.0
         for fc in forecasts:
             w = abs(norm_w.get(fc.instrument, 0.0))

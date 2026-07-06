@@ -30,14 +30,11 @@ Usage::
 
 from __future__ import annotations
 
-import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
-
-from loguru import logger
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Inference record
@@ -66,7 +63,7 @@ class InferenceRecord:
     regime: str = ""
     is_signal: bool = False  # True if predicted != no_trade
     unix_ts: float = field(default_factory=time.time)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -120,16 +117,16 @@ class MonitoringSnapshot:
     avg_confidence: float = 0.5
     avg_uncertainty: float = 0.5
     confidence_trend: str = "insufficient"
-    distribution: Dict[str, float] = field(default_factory=dict)
+    distribution: dict[str, float] = field(default_factory=dict)
     signal_rate: float = 0.0
     buy_rate: float = 0.0
     sell_rate: float = 0.0
     no_trade_rate: float = 0.0
     latency_alert: bool = False
     memory_alert: bool = False
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "window": self.window,
@@ -184,8 +181,8 @@ class ProductionMonitor:
         self.latency_alert_ms = latency_alert_ms
         self.memory_alert_mb = memory_alert_mb
         self.confidence_alert_threshold = confidence_alert_threshold
-        self._buffers: Dict[str, Deque[InferenceRecord]] = {}
-        self._all_records: Dict[str, List[InferenceRecord]] = {}
+        self._buffers: dict[str, deque[InferenceRecord]] = {}
+        self._all_records: dict[str, list[InferenceRecord]] = {}
 
     def record_inference(
         self,
@@ -302,7 +299,7 @@ class ProductionMonitor:
             memory_alert=peak_mem > self.memory_alert_mb,
         )
 
-    def all_snapshots(self) -> Dict[str, MonitoringSnapshot]:
+    def all_snapshots(self) -> dict[str, MonitoringSnapshot]:
         return {mid: self.get_snapshot(mid) for mid in self._buffers}
 
     def n_inferences(self, model_id: str) -> int:
@@ -311,7 +308,7 @@ class ProductionMonitor:
     def total_inferences(self) -> int:
         return sum(len(v) for v in self._all_records.values())
 
-    def latency_trend(self, model_id: str, recent: int = 50) -> Dict[str, Any]:
+    def latency_trend(self, model_id: str, recent: int = 50) -> dict[str, Any]:
         """Return latency trend data for a model."""
         buf = list(self._buffers.get(model_id, []))[-recent:]
         return {
@@ -325,7 +322,7 @@ class ProductionMonitor:
 
     def confidence_trend_chart(
         self, model_id: str, recent: int = 100, window: int = 20
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Return rolling confidence chart data."""
         buf = list(self._buffers.get(model_id, []))[-recent:]
         data = []

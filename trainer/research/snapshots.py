@@ -30,8 +30,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # DatasetSnapshot
@@ -43,15 +43,15 @@ class DatasetSnapshot:
     """Immutable record of a dataset's state at a point in time."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    captured_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Identity
     dataset_version: str = ""
     dataset_hash: str = ""
 
     # Coverage
-    instruments: List[str] = field(default_factory=list)
-    timeframes: List[str] = field(default_factory=list)
+    instruments: list[str] = field(default_factory=list)
+    timeframes: list[str] = field(default_factory=list)
     coverage_start: str = ""
     coverage_end: str = ""
     sample_count: int = 0
@@ -68,11 +68,11 @@ class DatasetSnapshot:
     data_quality_score: float = 0.0
 
     # Arbitrary metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def diff(self, other: "DatasetSnapshot") -> Dict[str, Any]:
+    def diff(self, other: DatasetSnapshot) -> dict[str, Any]:
         """Return field-level differences between this and another snapshot."""
-        changes: Dict[str, Any] = {}
+        changes: dict[str, Any] = {}
         for attr in (
             "dataset_version",
             "dataset_hash",
@@ -106,7 +106,7 @@ class DatasetSnapshot:
             }
         return changes
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "captured_at": self.captured_at,
@@ -128,10 +128,10 @@ class DatasetSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "DatasetSnapshot":
+    def from_dict(cls, d: dict[str, Any]) -> DatasetSnapshot:
         return cls(
             snapshot_id=d.get("snapshot_id", str(uuid.uuid4())),
-            captured_at=d.get("captured_at", datetime.now(timezone.utc).isoformat()),
+            captured_at=d.get("captured_at", datetime.now(UTC).isoformat()),
             dataset_version=d.get("dataset_version", ""),
             dataset_hash=d.get("dataset_hash", ""),
             instruments=d.get("instruments", []),
@@ -160,36 +160,36 @@ class FeatureSnapshot:
     """Immutable record of the feature engineering state."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    captured_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     feature_count: int = 0
-    feature_names: List[str] = field(default_factory=list)
-    feature_definitions: Dict[str, Any] = field(default_factory=dict)
-    feature_parameters: Dict[str, Any] = field(default_factory=dict)
+    feature_names: list[str] = field(default_factory=list)
+    feature_definitions: dict[str, Any] = field(default_factory=dict)
+    feature_parameters: dict[str, Any] = field(default_factory=dict)
 
     # Performance / quality metrics per feature
-    feature_importance: Dict[str, float] = field(default_factory=dict)
-    feature_statistics: Dict[str, Any] = field(default_factory=dict)
-    feature_distributions: Dict[str, Any] = field(default_factory=dict)
-    feature_correlations: Dict[str, float] = field(default_factory=dict)
+    feature_importance: dict[str, float] = field(default_factory=dict)
+    feature_statistics: dict[str, Any] = field(default_factory=dict)
+    feature_distributions: dict[str, Any] = field(default_factory=dict)
+    feature_correlations: dict[str, float] = field(default_factory=dict)
 
     # Lifecycle state
-    feature_drift_status: Dict[str, str] = field(default_factory=dict)
-    feature_lifecycle_status: Dict[str, str] = field(default_factory=dict)
+    feature_drift_status: dict[str, str] = field(default_factory=dict)
+    feature_lifecycle_status: dict[str, str] = field(default_factory=dict)
 
     # Version hash
     feature_set_hash: str = ""
 
-    def diff(self, other: "FeatureSnapshot") -> Dict[str, Any]:
+    def diff(self, other: FeatureSnapshot) -> dict[str, Any]:
         """Return differences in feature sets."""
-        changes: Dict[str, Any] = {}
+        changes: dict[str, Any] = {}
         added = set(other.feature_names) - set(self.feature_names)
         removed = set(self.feature_names) - set(other.feature_names)
         if added:
             changes["features_added"] = sorted(added)
         if removed:
             changes["features_removed"] = sorted(removed)
-        importance_changes: Dict[str, Any] = {}
+        importance_changes: dict[str, Any] = {}
         for name in set(self.feature_importance) & set(other.feature_importance):
             delta = other.feature_importance[name] - self.feature_importance[name]
             if abs(delta) > 0.005:
@@ -207,7 +207,7 @@ class FeatureSnapshot:
             }
         return changes
 
-    def top_features(self, n: int = 10) -> List[str]:
+    def top_features(self, n: int = 10) -> list[str]:
         """Return top-n feature names by importance."""
         return sorted(
             self.feature_importance,
@@ -215,7 +215,7 @@ class FeatureSnapshot:
             reverse=True,
         )[:n]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "captured_at": self.captured_at,
@@ -233,10 +233,10 @@ class FeatureSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "FeatureSnapshot":
+    def from_dict(cls, d: dict[str, Any]) -> FeatureSnapshot:
         return cls(
             snapshot_id=d.get("snapshot_id", str(uuid.uuid4())),
-            captured_at=d.get("captured_at", datetime.now(timezone.utc).isoformat()),
+            captured_at=d.get("captured_at", datetime.now(UTC).isoformat()),
             feature_count=d.get("feature_count", 0),
             feature_names=d.get("feature_names", []),
             feature_definitions=d.get("feature_definitions", {}),
@@ -261,20 +261,20 @@ class ModelSnapshot:
     """Immutable record of a model's architecture and training configuration."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    captured_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Architecture
     architecture: str = ""
     backbone: str = ""
     parameter_count: int = 0
     hidden_layers: int = 0
-    embedding_sizes: List[int] = field(default_factory=list)
+    embedding_sizes: list[int] = field(default_factory=list)
     attention_heads: int = 0
     fusion_strategy: str = ""
-    prediction_heads: List[str] = field(default_factory=list)
+    prediction_heads: list[str] = field(default_factory=list)
 
     # Training configuration
-    loss_functions: List[str] = field(default_factory=list)
+    loss_functions: list[str] = field(default_factory=list)
     optimizer: str = ""
     learning_rate: float = 0.0
     scheduler: str = ""
@@ -287,11 +287,11 @@ class ModelSnapshot:
     torchscript_hash: str = ""
 
     # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def diff(self, other: "ModelSnapshot") -> Dict[str, Any]:
+    def diff(self, other: ModelSnapshot) -> dict[str, Any]:
         """Return differences in model configuration."""
-        changes: Dict[str, Any] = {}
+        changes: dict[str, Any] = {}
         for attr in (
             "architecture",
             "backbone",
@@ -321,7 +321,7 @@ class ModelSnapshot:
             }
         return changes
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "captured_at": self.captured_at,
@@ -346,10 +346,10 @@ class ModelSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ModelSnapshot":
+    def from_dict(cls, d: dict[str, Any]) -> ModelSnapshot:
         return cls(
             snapshot_id=d.get("snapshot_id", str(uuid.uuid4())),
-            captured_at=d.get("captured_at", datetime.now(timezone.utc).isoformat()),
+            captured_at=d.get("captured_at", datetime.now(UTC).isoformat()),
             architecture=d.get("architecture", ""),
             backbone=d.get("backbone", ""),
             parameter_count=d.get("parameter_count", 0),
@@ -381,19 +381,19 @@ class ValidationSnapshot:
     """Immutable record of a validation run's results."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    captured_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Walk-forward results
     walk_forward_accuracy: float = 0.0
     walk_forward_f1_macro: float = 0.0
     walk_forward_n_folds: int = 0
-    walk_forward_results: List[Dict[str, Any]] = field(default_factory=list)
+    walk_forward_results: list[dict[str, Any]] = field(default_factory=list)
 
     # Calibration
     calibration_ece: float = 0.0
     calibration_mce: float = 0.0
     calibration_brier: float = 0.0
-    calibration_reliability: Dict[str, Any] = field(default_factory=dict)
+    calibration_reliability: dict[str, Any] = field(default_factory=dict)
 
     # Trading metrics
     sharpe_ratio: float = 0.0
@@ -404,21 +404,21 @@ class ValidationSnapshot:
     calmar_ratio: float = 0.0
 
     # Stress tests / Monte Carlo
-    stress_test_results: Dict[str, Any] = field(default_factory=dict)
+    stress_test_results: dict[str, Any] = field(default_factory=dict)
     monte_carlo_var_95: float = 0.0
     monte_carlo_var_99: float = 0.0
 
     # Failure analysis
-    failure_modes: List[str] = field(default_factory=list)
-    regime_performance: Dict[str, float] = field(default_factory=dict)
+    failure_modes: list[str] = field(default_factory=list)
+    regime_performance: dict[str, float] = field(default_factory=dict)
 
     # Promotion
     promotion_decision: str = ""
     promotion_rationale: str = ""
 
-    def diff(self, other: "ValidationSnapshot") -> Dict[str, Any]:
+    def diff(self, other: ValidationSnapshot) -> dict[str, Any]:
         """Return differences in validation results."""
-        changes: Dict[str, Any] = {}
+        changes: dict[str, Any] = {}
         for attr in (
             "walk_forward_accuracy",
             "walk_forward_f1_macro",
@@ -446,7 +446,7 @@ class ValidationSnapshot:
             }
         return changes
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "walk_forward_accuracy": self.walk_forward_accuracy,
             "walk_forward_f1_macro": self.walk_forward_f1_macro,
@@ -457,7 +457,7 @@ class ValidationSnapshot:
             "promotion_decision": self.promotion_decision,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "captured_at": self.captured_at,
@@ -485,10 +485,10 @@ class ValidationSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ValidationSnapshot":
+    def from_dict(cls, d: dict[str, Any]) -> ValidationSnapshot:
         return cls(
             snapshot_id=d.get("snapshot_id", str(uuid.uuid4())),
-            captured_at=d.get("captured_at", datetime.now(timezone.utc).isoformat()),
+            captured_at=d.get("captured_at", datetime.now(UTC).isoformat()),
             walk_forward_accuracy=d.get("walk_forward_accuracy", 0.0),
             walk_forward_f1_macro=d.get("walk_forward_f1_macro", 0.0),
             walk_forward_n_folds=d.get("walk_forward_n_folds", 0),

@@ -11,7 +11,6 @@ Institutional search over the decision memory:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -22,8 +21,6 @@ except ImportError:
 
 from trainer.memory.decision_models import DecisionRecord
 from trainer.memory.decision_types import (
-    NEGATIVE_OUTCOMES,
-    POSITIVE_OUTCOMES,
     DecisionType,
     MarketRegime,
     OutcomeType,
@@ -37,27 +34,27 @@ class SearchQuery:
     # Text filter (applied to instrument, tags, reasoning)
     text: str = ""
     # Field filters
-    instrument: Optional[str] = None
-    decision_type: Optional[str] = None  # DecisionType value
-    outcome_type: Optional[str] = None  # OutcomeType value
-    regime: Optional[str] = None
-    session: Optional[str] = None
-    grade: Optional[str] = None  # EXCELLENT | GOOD | ...
+    instrument: str | None = None
+    decision_type: str | None = None  # DecisionType value
+    outcome_type: str | None = None  # OutcomeType value
+    regime: str | None = None
+    session: str | None = None
+    grade: str | None = None  # EXCELLENT | GOOD | ...
     # Numeric ranges
     min_confidence: float = 0.0
     max_confidence: float = 1.0
-    min_pnl: Optional[float] = None
-    max_pnl: Optional[float] = None
+    min_pnl: float | None = None
+    max_pnl: float | None = None
     # Flags
-    direction_correct: Optional[bool] = None
-    hit_tp: Optional[bool] = None
-    hit_sl: Optional[bool] = None
-    profitable: Optional[bool] = None  # pnl > 0
+    direction_correct: bool | None = None
+    hit_tp: bool | None = None
+    hit_sl: bool | None = None
+    profitable: bool | None = None  # pnl > 0
     # Result
     limit: int = 100
     sort_by: str = "timestamp"  # timestamp | confidence | pnl | quality
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v is not None and v != ""}
 
 
@@ -67,10 +64,10 @@ class SearchResult:
 
     query: SearchQuery
     total_found: int
-    records: List[DecisionRecord] = field(default_factory=list)
+    records: list[DecisionRecord] = field(default_factory=list)
     summary: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "query": self.query.to_dict(),
             "total_found": self.total_found,
@@ -84,7 +81,7 @@ class MemorySearch:
 
     def search(
         self,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         query: SearchQuery,
     ) -> SearchResult:
         """Execute a structured search over decision records."""
@@ -207,7 +204,7 @@ class MemorySearch:
     # ── Convenience methods ───────────────────────────────────────────────────
 
     def incorrect_buys(
-        self, records: List[DecisionRecord], instrument: Optional[str] = None
+        self, records: list[DecisionRecord], instrument: str | None = None
     ) -> SearchResult:
         return self.search(
             records,
@@ -218,7 +215,7 @@ class MemorySearch:
             ),
         )
 
-    def profitable_no_trades(self, records: List[DecisionRecord]) -> SearchResult:
+    def profitable_no_trades(self, records: list[DecisionRecord]) -> SearchResult:
         """Decisions where NO_TRADE was taken and market moved favourably (pnl=0 vs opportunity)."""
         return self.search(
             records,
@@ -229,20 +226,20 @@ class MemorySearch:
         )
 
     def high_confidence_decisions(
-        self, records: List[DecisionRecord], min_conf: float = 0.90
+        self, records: list[DecisionRecord], min_conf: float = 0.90
     ) -> SearchResult:
         return self.search(records, SearchQuery(min_confidence=min_conf))
 
     def decisions_by_regime_and_outcome(
         self,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         regime: str,
         positive: bool = True,
     ) -> SearchResult:
         q = SearchQuery(regime=regime, profitable=positive)
         return self.search(records, q)
 
-    def failed_breakouts(self, records: List[DecisionRecord]) -> SearchResult:
+    def failed_breakouts(self, records: list[DecisionRecord]) -> SearchResult:
         return self.search(
             records,
             SearchQuery(
@@ -251,7 +248,7 @@ class MemorySearch:
             ),
         )
 
-    def successful_pullbacks(self, records: List[DecisionRecord]) -> SearchResult:
+    def successful_pullbacks(self, records: list[DecisionRecord]) -> SearchResult:
         return self.search(
             records,
             SearchQuery(

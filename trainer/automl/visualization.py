@@ -23,7 +23,7 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Visualization builder
@@ -38,8 +38,8 @@ class AutoMLVisualizationBuilder:
     # -----------------------------------------------------------------------
 
     def optimization_history(
-        self, records: List[Dict[str, Any]], score_key: str = "primary_score"
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]], score_key: str = "primary_score"
+    ) -> dict[str, Any]:
         """Trial-by-trial score over the search.
 
         Returns a line chart data dict with x = trial index, y = score.
@@ -70,8 +70,8 @@ class AutoMLVisualizationBuilder:
     # -----------------------------------------------------------------------
 
     def search_convergence(
-        self, records: List[Dict[str, Any]], score_key: str = "primary_score"
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]], score_key: str = "primary_score"
+    ) -> dict[str, Any]:
         """Running best score over the search (convergence curve)."""
         completed = [r for r in records if r.get("status") == "completed"]
         completed.sort(key=lambda r: r.get("created_at", ""))
@@ -102,8 +102,8 @@ class AutoMLVisualizationBuilder:
     # -----------------------------------------------------------------------
 
     def parameter_importance(
-        self, records: List[Dict[str, Any]], score_key: str = "primary_score"
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]], score_key: str = "primary_score"
+    ) -> dict[str, Any]:
         """Estimate parameter importance via Pearson correlation with score.
 
         Returns a bar chart sorted by absolute correlation.
@@ -124,7 +124,7 @@ class AutoMLVisualizationBuilder:
         scores = [r.get(score_key) or 0.0 for r in completed]
         configs = [r.get("config") or {} for r in completed]
 
-        param_names: List[str] = []
+        param_names: list[str] = []
         for c in configs:
             for k in c:
                 if k not in param_names:
@@ -164,8 +164,8 @@ class AutoMLVisualizationBuilder:
     # -----------------------------------------------------------------------
 
     def leaderboard_progression(
-        self, records: List[Dict[str, Any]], top_n: int = 5
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]], top_n: int = 5
+    ) -> dict[str, Any]:
         """Show how the top-N models evolved over the search."""
         completed = [r for r in records if r.get("status") == "completed"]
         completed.sort(key=lambda r: r.get("primary_score") or 0.0, reverse=True)
@@ -193,7 +193,7 @@ class AutoMLVisualizationBuilder:
     # Experiment timeline (Gantt)
     # -----------------------------------------------------------------------
 
-    def experiment_timeline(self, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def experiment_timeline(self, records: list[dict[str, Any]]) -> dict[str, Any]:
         """Gantt-style trial timeline data."""
         entries = []
         for r in records:
@@ -225,7 +225,7 @@ class AutoMLVisualizationBuilder:
     # Resource utilization
     # -----------------------------------------------------------------------
 
-    def resource_utilization(self, usage_report: Dict[str, Any]) -> Dict[str, Any]:
+    def resource_utilization(self, usage_report: dict[str, Any]) -> dict[str, Any]:
         """Build a resource utilization summary chart."""
         return {
             "chart_type": "gauge",
@@ -265,11 +265,11 @@ class AutoMLVisualizationBuilder:
 
     def objective_tradeoff(
         self,
-        records: List[Dict[str, Any]],
+        records: list[dict[str, Any]],
         objective_x: str = "sharpe_ratio",
         objective_y: str = "max_drawdown",
-        pareto_indices: Optional[List[int]] = None,
-    ) -> Dict[str, Any]:
+        pareto_indices: list[int] | None = None,
+    ) -> dict[str, Any]:
         """2D scatter of two objectives, highlighting the Pareto front."""
         completed = [r for r in records if r.get("status") == "completed"]
         points = []
@@ -300,8 +300,8 @@ class AutoMLVisualizationBuilder:
     # -----------------------------------------------------------------------
 
     def score_distribution(
-        self, records: List[Dict[str, Any]], n_bins: int = 20, score_key: str = "primary_score"
-    ) -> Dict[str, Any]:
+        self, records: list[dict[str, Any]], n_bins: int = 20, score_key: str = "primary_score"
+    ) -> dict[str, Any]:
         """Histogram of trial scores."""
         scores = [r.get(score_key) or 0.0 for r in records if r.get("status") == "completed"]
         if not scores:
@@ -340,10 +340,10 @@ class AutoMLVisualizationBuilder:
 
     def full_dashboard(
         self,
-        records: List[Dict[str, Any]],
-        usage_report: Optional[Dict[str, Any]] = None,
-        pareto_indices: Optional[List[int]] = None,
-    ) -> Dict[str, Any]:
+        records: list[dict[str, Any]],
+        usage_report: dict[str, Any] | None = None,
+        pareto_indices: list[int] | None = None,
+    ) -> dict[str, Any]:
         """Return all charts in one dashboard dict."""
         return {
             "optimization_history": self.optimization_history(records),
@@ -366,7 +366,7 @@ class AutoMLVisualizationBuilder:
 # ---------------------------------------------------------------------------
 
 
-def _pearson(x: List[float], y: List[float]) -> float:
+def _pearson(x: list[float], y: list[float]) -> float:
     n = len(x)
     if n < 2:
         return 0.0
@@ -380,7 +380,7 @@ def _pearson(x: List[float], y: List[float]) -> float:
     return cov / (n * std_x * std_y)
 
 
-def _extract_nested(d: Dict[str, Any], key: str) -> Optional[float]:
+def _extract_nested(d: dict[str, Any], key: str) -> float | None:
     val = d.get(key)
     if val is not None:
         try:

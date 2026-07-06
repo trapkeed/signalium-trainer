@@ -9,9 +9,6 @@ ensemble_confidence, decision_quality, historical_performance.
 
 from __future__ import annotations
 
-import math
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -63,7 +60,7 @@ class AllocationEngine:
         self._max_frac = max_allocation_frac
         self._min_conf = min_confidence
         self._base_frac = base_frac
-        self._history: List[AllocationResult] = []
+        self._history: list[AllocationResult] = []
 
     def allocate(self, req: AllocationRequest) -> AllocationResult:
         """Compute the capital allocation for a request."""
@@ -104,7 +101,7 @@ class AllocationEngine:
         frac = max(0.0, frac)
 
         status = AllocationStatus.APPROVED
-        recs: List[AllocationRecommendation] = []
+        recs: list[AllocationRecommendation] = []
 
         if frac < raw_frac:
             status = AllocationStatus.REDUCED
@@ -130,10 +127,10 @@ class AllocationEngine:
         logger.debug(f"AllocationEngine: {req.instrument} frac={frac:.4f} status={status.value}")
         return result
 
-    def allocate_batch(self, requests: List[AllocationRequest]) -> List[AllocationResult]:
+    def allocate_batch(self, requests: list[AllocationRequest]) -> list[AllocationResult]:
         return [self.allocate(r) for r in requests]
 
-    def _compute_factors(self, req: AllocationRequest) -> Dict[str, float]:
+    def _compute_factors(self, req: AllocationRequest) -> dict[str, float]:
         vol_adj = max(0.0, 1.0 - req.volatility * 20)  # penalise high vol
         corr_adj = max(0.0, 1.0 - req.correlation)  # penalise high correlation
 
@@ -157,7 +154,7 @@ class AllocationEngine:
             "correlation_adj": corr_adj,
         }
 
-    def _composite_confidence(self, factors: Dict[str, float]) -> float:
+    def _composite_confidence(self, factors: dict[str, float]) -> float:
         return sum(_WEIGHTS.get(k, 0.0) * v for k, v in factors.items())
 
     def _rationale(self, frac: float, conf: float, regime_mult: float, exp_pen: float) -> str:
@@ -167,7 +164,7 @@ class AllocationEngine:
         parts.append(f"allocation={frac*100:.1f}%")
         return "; ".join(parts)
 
-    def history(self, last_n: int = 50) -> List[AllocationResult]:
+    def history(self, last_n: int = 50) -> list[AllocationResult]:
         return self._history[-last_n:]
 
     def denied_count(self) -> int:
@@ -178,5 +175,5 @@ class AllocationEngine:
             return 0.0
         return sum(r.confidence for r in self._history) / len(self._history)
 
-    def factor_weights(self) -> Dict[str, float]:
+    def factor_weights(self) -> dict[str, float]:
         return dict(_WEIGHTS)

@@ -10,8 +10,7 @@ Tick Volatility, Tick Acceleration, Tick Entropy.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -21,7 +20,6 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.microstructure.micro_models import MicrostructureFeatures
-from trainer.microstructure.micro_types import DataGranularity
 
 
 @dataclass
@@ -56,7 +54,7 @@ class TickInterface:
         """Returns False until tick data integration is complete."""
         return False
 
-    def tick_velocity(self, ticks: Optional[List[TickBar]]) -> Optional[float]:
+    def tick_velocity(self, ticks: list[TickBar] | None) -> float | None:
         """Ticks per second — measures speed of market activity."""
         if not ticks or len(ticks) < 2:
             return None
@@ -65,15 +63,13 @@ class TickInterface:
             return None
         return round(len(ticks) / duration, 4)
 
-    def tick_density(
-        self, ticks: Optional[List[TickBar]], price_range: float = 0.0
-    ) -> Optional[float]:
+    def tick_density(self, ticks: list[TickBar] | None, price_range: float = 0.0) -> float | None:
         """Ticks per unit price range — concentration of activity."""
         if not ticks or price_range < 1e-10:
             return None
         return round(len(ticks) / price_range, 4)
 
-    def tick_imbalance(self, ticks: Optional[List[TickBar]]) -> Optional[float]:
+    def tick_imbalance(self, ticks: list[TickBar] | None) -> float | None:
         """Directional imbalance: (buys - sells) / total.
         +1 = all buys, -1 = all sells, 0 = balanced.
         """
@@ -86,7 +82,7 @@ class TickInterface:
             return None
         return round((buys - sells) / total, 4)
 
-    def tick_momentum(self, ticks: Optional[List[TickBar]], window: int = 20) -> Optional[float]:
+    def tick_momentum(self, ticks: list[TickBar] | None, window: int = 20) -> float | None:
         """Exponentially weighted price momentum over recent ticks."""
         if not ticks or len(ticks) < 2:
             return None
@@ -99,7 +95,7 @@ class TickInterface:
             return None
         return round(price_change / price_range, 4)
 
-    def tick_volatility(self, ticks: Optional[List[TickBar]]) -> Optional[float]:
+    def tick_volatility(self, ticks: list[TickBar] | None) -> float | None:
         """Standard deviation of tick price changes."""
         if not ticks or len(ticks) < 3:
             return None
@@ -110,7 +106,7 @@ class TickInterface:
             return None
         return round(statistics.stdev(changes), 6)
 
-    def tick_acceleration(self, ticks: Optional[List[TickBar]]) -> Optional[float]:
+    def tick_acceleration(self, ticks: list[TickBar] | None) -> float | None:
         """Second derivative of tick momentum — acceleration of price movement."""
         if not ticks or len(ticks) < 4:
             return None
@@ -123,7 +119,7 @@ class TickInterface:
             return None
         return round(late_mom - early_mom, 4)
 
-    def tick_entropy(self, ticks: Optional[List[TickBar]]) -> Optional[float]:
+    def tick_entropy(self, ticks: list[TickBar] | None) -> float | None:
         """Shannon entropy of tick direction distribution.
 
         High entropy = random/balanced market.
@@ -150,7 +146,7 @@ class TickInterface:
     def enrich_features(
         self,
         features: MicrostructureFeatures,
-        ticks: Optional[List[TickBar]],
+        ticks: list[TickBar] | None,
     ) -> MicrostructureFeatures:
         """Attempt to enrich features with tick data.
 

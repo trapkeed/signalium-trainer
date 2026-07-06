@@ -6,8 +6,6 @@ Return Efficiency, Exposure Efficiency, Capital Turnover.
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 try:
     from loguru import logger
 except ImportError:
@@ -21,7 +19,7 @@ class CapitalEfficiencyEngine:
 
     def __init__(self, capital: float = 100_000.0):
         self._capital = capital
-        self._history: List[Dict] = []
+        self._history: list[dict] = []
 
     def analyse(
         self,
@@ -32,7 +30,7 @@ class CapitalEfficiencyEngine:
         num_open_trades: int,
         num_closed_trades: int = 0,
         period_days: float = 1.0,
-    ) -> Dict:
+    ) -> dict:
         """Compute all capital efficiency metrics."""
         cap = max(self._capital, 1.0)
 
@@ -82,7 +80,7 @@ class CapitalEfficiencyEngine:
         logger.debug(f"CapitalEfficiency: utilisation={utilisation:.2%} idle={idle:.2%}")
         return result
 
-    def efficiency_score(self, metrics: Dict) -> float:
+    def efficiency_score(self, metrics: dict) -> float:
         """Aggregate efficiency score 0–1 from metrics dict."""
         u = metrics.get("utilisation", 0.0)  # want ~0.6–0.8
         ri = metrics.get("risk_efficiency", 0.0)  # higher is better
@@ -108,10 +106,10 @@ class CapitalEfficiencyEngine:
         u = min(1.0, allocated_usd / max(self._capital, 1.0))
         return round(1.0 - abs(u - 0.70) / 0.70, 4)
 
-    def history(self, last_n: int = 30) -> List[Dict]:
+    def history(self, last_n: int = 30) -> list[dict]:
         return self._history[-last_n:]
 
-    def trend(self) -> Dict:
+    def trend(self) -> dict:
         if len(self._history) < 2:
             return {"trend": "insufficient_data"}
         first = self._history[0]["utilisation"]

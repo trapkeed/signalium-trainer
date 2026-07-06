@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
@@ -106,7 +104,7 @@ class ExecutionForecast:
             return 0.0
         return self.expected_return / self.expected_risk
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -150,7 +148,7 @@ class BrokerConstraints:
     def spread_ok(self, spread: float) -> bool:
         return spread <= self.max_spread_to_trade
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "broker": self.broker_name,
             "min_lot": self.min_lot_size,
@@ -187,7 +185,7 @@ def default_broker() -> BrokerConstraints:
     return BrokerConstraints()
 
 
-SESSION_QUALITY: Dict[Session, float] = {
+SESSION_QUALITY: dict[Session, float] = {
     Session.OVERLAP: 1.0,
     Session.LONDON: 0.85,
     Session.NEW_YORK: 0.80,

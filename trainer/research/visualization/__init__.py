@@ -10,10 +10,10 @@ from trainer.research.visualization.charts import (
 )
 
 __all__ = [
-    "plot_training_curves",
-    "plot_confusion_matrix",
-    "plot_roc_curves",
     "plot_calibration_curve",
-    "plot_pr_curve",
+    "plot_confusion_matrix",
     "plot_leaderboard",
+    "plot_pr_curve",
+    "plot_roc_curves",
+    "plot_training_curves",
 ]

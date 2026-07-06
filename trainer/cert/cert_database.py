@@ -6,7 +6,8 @@ import contextlib
 import json
 import sqlite3
 import time
-from typing import Any, Dict, Iterator, List, Optional
+from collections.abc import Iterator
+from typing import Any
 
 try:
     from loguru import logger
@@ -117,7 +118,7 @@ class CertDatabase:
     def __init__(self, db_path: str = ":memory:") -> None:
         self._path = db_path
         if db_path == ":memory:":
-            self._persistent_conn: Optional[sqlite3.Connection] = sqlite3.connect(":memory:")
+            self._persistent_conn: sqlite3.Connection | None = sqlite3.connect(":memory:")
             self._persistent_conn.row_factory = sqlite3.Row
             self._persistent_conn.executescript(_SCHEMA)
             self._persistent_conn.commit()
@@ -144,7 +145,7 @@ class CertDatabase:
 
     # ── Write: Certification Runs ──────────────────────────────────────────
 
-    def save_run(self, rec: Dict[str, Any]) -> int:
+    def save_run(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO certification_runs
             (run_id, model_id, model_name, model_version, requester,
@@ -174,7 +175,7 @@ class CertDatabase:
 
     # ── Write: Stage Results ───────────────────────────────────────────────
 
-    def save_stage_result(self, rec: Dict[str, Any]) -> int:
+    def save_stage_result(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO certification_results
             (run_id, stage, status, score, findings_json,
@@ -199,7 +200,7 @@ class CertDatabase:
 
     # ── Write: Checklist Items ─────────────────────────────────────────────
 
-    def save_checklist_item(self, run_id: str, rec: Dict[str, Any]) -> int:
+    def save_checklist_item(self, run_id: str, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO certification_criteria
             (run_id, check_id, category, description, mandatory,
@@ -226,7 +227,7 @@ class CertDatabase:
 
     # ── Write: Benchmark Results ───────────────────────────────────────────
 
-    def save_benchmark(self, rec: Dict[str, Any]) -> int:
+    def save_benchmark(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO benchmark_results
             (run_id, metric, value, unit, threshold, status)
@@ -248,7 +249,7 @@ class CertDatabase:
 
     # ── Write: Audit Package ───────────────────────────────────────────────
 
-    def save_audit_package(self, rec: Dict[str, Any]) -> int:
+    def save_audit_package(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO audit_packages
             (run_id, certification_report, validation_report,
@@ -284,7 +285,7 @@ class CertDatabase:
 
     # ── Write: Production Approvals ────────────────────────────────────────
 
-    def save_approval(self, rec: Dict[str, Any]) -> int:
+    def save_approval(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO production_approvals
             (run_id, model_id, approved_by, approval_status,
@@ -309,14 +310,14 @@ class CertDatabase:
 
     # ── Read ───────────────────────────────────────────────────────────────
 
-    def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_run(self, run_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM certification_runs WHERE run_id=?", (run_id,)
             ).fetchone()
         return dict(row) if row else None
 
-    def get_runs_for_model(self, model_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_runs_for_model(self, model_id: str, limit: int = 20) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM certification_runs WHERE model_id=? "
@@ -325,7 +326,7 @@ class CertDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_stage_results(self, run_id: str) -> List[Dict[str, Any]]:
+    def get_stage_results(self, run_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM certification_results WHERE run_id=? " "ORDER BY created_at ASC",
@@ -333,7 +334,7 @@ class CertDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_checklist(self, run_id: str) -> List[Dict[str, Any]]:
+    def get_checklist(self, run_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM certification_criteria WHERE run_id=? " "ORDER BY created_at ASC",
@@ -341,7 +342,7 @@ class CertDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_benchmarks(self, run_id: str) -> List[Dict[str, Any]]:
+    def get_benchmarks(self, run_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM benchmark_results WHERE run_id=? ORDER BY metric",
@@ -349,12 +350,12 @@ class CertDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_audit_package(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_audit_package(self, run_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute("SELECT * FROM audit_packages WHERE run_id=?", (run_id,)).fetchone()
         return dict(row) if row else None
 
-    def get_approvals(self, model_id: str) -> List[Dict[str, Any]]:
+    def get_approvals(self, model_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM production_approvals WHERE model_id=? " "ORDER BY approved_at DESC",
@@ -362,7 +363,7 @@ class CertDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_latest_certified(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_latest_certified(self, model_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM certification_runs "

@@ -24,7 +24,6 @@ Endpoints:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -52,11 +51,11 @@ from trainer.lifecycle.transition_engine import TransitionEngine
 class ApiResponse:
     success: bool
     endpoint: str
-    data: Dict = field(default_factory=dict)
+    data: dict = field(default_factory=dict)
     error: str = ""
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         d = {
             "success": self.success,
             "endpoint": self.endpoint,
@@ -72,7 +71,7 @@ class ApiResponse:
 class LifecycleAPI:
     """Public API for the Trade Lifecycle Intelligence Engine."""
 
-    def __init__(self, db: Optional[LifecycleDatabase] = None):
+    def __init__(self, db: LifecycleDatabase | None = None):
         self._db = db or LifecycleDatabase()
         self._sm = StateMachine()
         self._te = TransitionEngine()
@@ -84,7 +83,7 @@ class LifecycleAPI:
         self._lo = LifecycleOptimizer()
         self._dash = LifecycleDashboard()
         # In-memory registry (supplement to DB for live objects)
-        self._active: Dict[str, TradeLifecycle] = {}
+        self._active: dict[str, TradeLifecycle] = {}
 
     # ── 1. Create Lifecycle ───────────────────────────────────────────────────
 
@@ -93,8 +92,8 @@ class LifecycleAPI:
         instrument: str,
         direction: str,
         confidence: float = 0.50,
-        context: Optional[MarketContext] = None,
-        tags: Optional[List[str]] = None,
+        context: MarketContext | None = None,
+        tags: list[str] | None = None,
     ) -> ApiResponse:
         try:
             tl = TradeLifecycle.new(
@@ -130,9 +129,9 @@ class LifecycleAPI:
         trade_id: str,
         new_state: LifecycleState,
         reason: str,
-        confidence: Optional[float] = None,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
+        confidence: float | None = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -162,7 +161,7 @@ class LifecycleAPI:
     def auto_transition(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -216,7 +215,7 @@ class LifecycleAPI:
     def recommend_transition(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -230,8 +229,8 @@ class LifecycleAPI:
     def position_management(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -245,7 +244,7 @@ class LifecycleAPI:
     def lifecycle_confidence(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -259,9 +258,9 @@ class LifecycleAPI:
     def detect_events(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        prev_context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -285,8 +284,8 @@ class LifecycleAPI:
     def reasoning(
         self,
         trade_id: str,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
         prev_conf: float = 0.65,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
@@ -327,7 +326,7 @@ class LifecycleAPI:
 
     def lifecycle_analytics(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
         lifecycles = [
             self._active[tid] for tid in (trade_ids or []) if tid in self._active
@@ -346,7 +345,7 @@ class LifecycleAPI:
 
     def optimisation(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
         lifecycles = [
             self._active[tid] for tid in (trade_ids or []) if tid in self._active
@@ -391,7 +390,7 @@ class LifecycleAPI:
 
     def transition_dashboard(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
         lifecycles = [
             self._active[tid] for tid in (trade_ids or []) if tid in self._active
@@ -407,7 +406,7 @@ class LifecycleAPI:
 
     def statistics_dashboard(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
         lifecycles = [
             self._active[tid] for tid in (trade_ids or []) if tid in self._active

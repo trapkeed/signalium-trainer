@@ -24,8 +24,8 @@ Usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # IRSEScoreDashboard
@@ -53,9 +53,9 @@ class IRSEScoreDashboard:
 
     def research_score_timeline(
         self,
-        experiment_id: Optional[str] = None,
+        experiment_id: str | None = None,
         limit: int = 100,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Composite score over time — suitable for a line chart."""
         history = self._db.get_score_history(experiment_id, limit=limit)
         series = [
@@ -75,14 +75,14 @@ class IRSEScoreDashboard:
             "series": series,
             "x_label": "Date",
             "y_label": "Research Score (0–100)",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 2. Radar Chart
     # ------------------------------------------------------------------
 
-    def radar_chart(self, experiment_id: str) -> Dict[str, Any]:
+    def radar_chart(self, experiment_id: str) -> dict[str, Any]:
         """8-axis radar chart for one experiment's category scores."""
         entry = self._lb.get_by_experiment(experiment_id)
         if entry is None:
@@ -118,14 +118,14 @@ class IRSEScoreDashboard:
             "composite_score": entry.get("composite", 0.0),
             "grade_label": entry.get("grade_label", ""),
             "axes": points,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 3. Category Breakdown
     # ------------------------------------------------------------------
 
-    def category_breakdown(self, top_n: int = 10) -> Dict[str, Any]:
+    def category_breakdown(self, top_n: int = 10) -> dict[str, Any]:
         """Bar chart data: category scores for top-N experiments."""
         top_entries = self._lb.top(top_n)
         categories = [
@@ -159,14 +159,14 @@ class IRSEScoreDashboard:
             "title": f"Category Breakdown — Top {top_n} Experiments",
             "top_n": top_n,
             "series": series,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 4. Benchmark Comparison
     # ------------------------------------------------------------------
 
-    def benchmark_comparison(self, subject_id: Optional[str] = None) -> Dict[str, Any]:
+    def benchmark_comparison(self, subject_id: str | None = None) -> dict[str, Any]:
         """Side-by-side category scores across all benchmark roles."""
         report = self._bm.full_benchmark_report()
         records = report.get("ranking", [])
@@ -202,28 +202,28 @@ class IRSEScoreDashboard:
             "champion_id": report.get("champion_id"),
             "models": models_data,
             "categories": categories,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 5. Leaderboard Dashboard
     # ------------------------------------------------------------------
 
-    def leaderboard_dashboard(self, top_n: int = 20) -> Dict[str, Any]:
+    def leaderboard_dashboard(self, top_n: int = 20) -> dict[str, Any]:
         """Top-N leaderboard table with rank, grade, score, categories."""
         report = self._lb.leaderboard_report(top_n=top_n)
         return {
             "type": "leaderboard",
             "title": f"IRSE Leaderboard — Top {top_n}",
             **report,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 6. Score Heatmap
     # ------------------------------------------------------------------
 
-    def score_heatmap(self, top_n: int = 20) -> Dict[str, Any]:
+    def score_heatmap(self, top_n: int = 20) -> dict[str, Any]:
         """Experiment × Category score matrix for a heatmap visualisation."""
         entries = self._lb.top(top_n)
         categories = [
@@ -263,14 +263,14 @@ class IRSEScoreDashboard:
             "category_labels": cat_labels,
             "rows": rows,
             "scale": {"min": 0.0, "max": 100.0},
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
     # 7. Historical Evolution
     # ------------------------------------------------------------------
 
-    def historical_evolution(self, limit: int = 200) -> Dict[str, Any]:
+    def historical_evolution(self, limit: int = 200) -> dict[str, Any]:
         """Champion score progression over time — suitable for an area chart."""
         history = self._db.get_score_history(limit=limit)
         champion_snapshots = [
@@ -294,7 +294,7 @@ class IRSEScoreDashboard:
             "all_series": all_series,
             "score_distribution": dist,
             "champion_changes": self._trends.champion_timeline(),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     # ------------------------------------------------------------------
@@ -304,10 +304,10 @@ class IRSEScoreDashboard:
     def build_all(
         self,
         top_n: int = 10,
-        sample_experiment_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        sample_experiment_id: str | None = None,
+    ) -> dict[str, Any]:
         """Build all 7 dashboards and return in a bundle."""
-        dashboards: Dict[str, Any] = {
+        dashboards: dict[str, Any] = {
             "research_score_timeline": self.research_score_timeline(limit=top_n * 3),
             "category_breakdown": self.category_breakdown(top_n=top_n),
             "benchmark_comparison": self.benchmark_comparison(),
@@ -320,5 +320,5 @@ class IRSEScoreDashboard:
         return {
             "dashboards": dashboards,
             "count": len(dashboards),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }

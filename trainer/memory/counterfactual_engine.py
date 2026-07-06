@@ -11,8 +11,6 @@ For every completed decision, evaluates alternative scenarios:
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -21,7 +19,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_models import CounterfactualResult, DecisionRecord
-from trainer.memory.decision_types import POSITIVE_OUTCOMES, DecisionType
+from trainer.memory.decision_types import DecisionType
 
 
 class CounterfactualEngine:
@@ -31,9 +29,9 @@ class CounterfactualEngine:
     _LARGE_TP_FACTOR = 1.5  # How much larger the alternative TP is
     _TIGHT_SL_FACTOR = 0.70  # How much tighter the alternative SL is
 
-    def analyse(self, record: DecisionRecord) -> List[CounterfactualResult]:
+    def analyse(self, record: DecisionRecord) -> list[CounterfactualResult]:
         """Generate all applicable counterfactuals for a decision record."""
-        results: List[CounterfactualResult] = []
+        results: list[CounterfactualResult] = []
 
         if not record.has_outcome:
             return results  # need actual outcome to compare against
@@ -66,7 +64,7 @@ class CounterfactualEngine:
                     estimated_pnl=0.0,
                     estimated_pnl_pct=0.0,
                     probability=0.45,
-                    better_than_actual=0.0 > actual_pnl,
+                    better_than_actual=actual_pnl < 0.0,
                     delta_pnl=round(-actual_pnl, 5),
                     notes="Counterfactual: completely avoiding the trade",
                 )
@@ -82,7 +80,7 @@ class CounterfactualEngine:
             )
             results.append(
                 CounterfactualResult(
-                    scenario=f"TP set at 1.5× (larger target)",
+                    scenario="TP set at 1.5× (larger target)",
                     alternative_action="LARGER_TP",
                     estimated_pnl=round(est_pnl_larger, 5),
                     estimated_pnl_pct=round(est_pnl_larger / max(snap.price, 1e-9), 5),
@@ -168,7 +166,7 @@ class CounterfactualEngine:
         )
         return results
 
-    def best_alternative(self, record: DecisionRecord) -> Optional[CounterfactualResult]:
+    def best_alternative(self, record: DecisionRecord) -> CounterfactualResult | None:
         """Return the counterfactual with the highest estimated PnL."""
         if not record.counterfactuals:
             self.analyse(record)
@@ -176,7 +174,7 @@ class CounterfactualEngine:
             return None
         return max(record.counterfactuals, key=lambda c: c.estimated_pnl)
 
-    def worst_alternative(self, record: DecisionRecord) -> Optional[CounterfactualResult]:
+    def worst_alternative(self, record: DecisionRecord) -> CounterfactualResult | None:
         if not record.counterfactuals:
             self.analyse(record)
         if not record.counterfactuals:

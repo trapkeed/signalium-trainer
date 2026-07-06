@@ -29,7 +29,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -150,11 +150,11 @@ class FailureAnalyzer:
 
     def analyze(
         self,
-        instrument_results: Optional[Any] = None,
-        regime_performance: Optional[dict[str, dict[str, float]]] = None,
-        head_results: Optional[dict[str, dict[str, float]]] = None,
-        session_performance: Optional[dict[str, dict[str, float]]] = None,
-        confidence_bins: Optional[list[dict[str, Any]]] = None,
+        instrument_results: Any | None = None,
+        regime_performance: dict[str, dict[str, float]] | None = None,
+        head_results: dict[str, dict[str, float]] | None = None,
+        session_performance: dict[str, dict[str, float]] | None = None,
+        confidence_bins: list[dict[str, Any]] | None = None,
     ) -> FailureReport:
         """Run full failure analysis.
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -55,7 +55,7 @@ class ModelRunResult:
     model_size_mb: float = 0.0
     gpu_memory_mb: float = 0.0
     history: list[dict[str, float]] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
     status: str = "completed"
 
 
@@ -75,7 +75,7 @@ class BenchmarkResult:
     runs: list[ModelRunResult] = field(default_factory=list)
     total_duration_seconds: float = 0.0
 
-    def get_run(self, model_name: str) -> Optional[ModelRunResult]:
+    def get_run(self, model_name: str) -> ModelRunResult | None:
         """Retrieve the run result for a specific model.
 
         Args:
@@ -146,7 +146,7 @@ class BenchmarkRunner:
     def __init__(
         self,
         conditions: BenchmarkConditions,
-        experiment_tracker: Optional[Any] = None,
+        experiment_tracker: Any | None = None,
     ) -> None:
         conditions.validate()
         self._conditions = conditions
@@ -157,8 +157,8 @@ class BenchmarkRunner:
         self,
         name: str,
         model_factory: Callable[[], nn.Module],
-        hyperparameters: Optional[dict[str, Any]] = None,
-    ) -> "BenchmarkRunner":
+        hyperparameters: dict[str, Any] | None = None,
+    ) -> BenchmarkRunner:
         """Register a model for benchmarking.
 
         Args:
@@ -182,9 +182,9 @@ class BenchmarkRunner:
         self,
         train_data: tuple[torch.Tensor, torch.Tensor],
         val_data: tuple[torch.Tensor, torch.Tensor],
-        criterion: Optional[nn.Module] = None,
+        criterion: nn.Module | None = None,
         learning_rate: float = 1e-3,
-        benchmark_id: Optional[str] = None,
+        benchmark_id: str | None = None,
     ) -> BenchmarkResult:
         """Run all registered models under identical conditions.
 

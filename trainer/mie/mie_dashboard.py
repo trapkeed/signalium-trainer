@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -33,7 +32,7 @@ class MIEDashboard:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
-    def overview(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def overview(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         t = report.tradeability
         ri = report.risk
         re = report.regime
@@ -52,7 +51,7 @@ class MIEDashboard:
             "commentary": report.commentary.summary if report.commentary else None,
         }
 
-    def regime_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def regime_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         re = report.regime
         if not re:
             return {"error": "No regime result"}
@@ -74,7 +73,7 @@ class MIEDashboard:
             "vol_ratio": round(v.vol_ratio, 3) if v else None,
         }
 
-    def risk_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def risk_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         ri = report.risk
         if not ri:
             return {"error": "No risk result"}
@@ -87,7 +86,7 @@ class MIEDashboard:
             "warnings": ri.warnings,
         }
 
-    def tradeability_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def tradeability_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         t = report.tradeability
         if not t:
             return {"error": "No tradeability result"}
@@ -100,25 +99,25 @@ class MIEDashboard:
             "suggestions": t.suggestions,
         }
 
-    def quality_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def quality_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         q = report.quality
         if not q:
             return {"error": "No quality result"}
         return q.to_dict()
 
-    def execution_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def execution_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         e = report.execution
         if not e:
             return {"error": "No execution result"}
         return e.to_dict()
 
-    def commentary_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def commentary_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         c = report.commentary
         if not c:
             return {"error": "No commentary result"}
         return c.to_dict()
 
-    def feature_view(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def feature_view(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         f = report.features
         if not f:
             return {"error": "No feature export"}
@@ -129,7 +128,7 @@ class MIEDashboard:
             "named_features": f.to_dict(),
         }
 
-    def live_analysis(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def live_analysis(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         """Full live analysis view — EA / Android / Website compatible."""
         t = report.tradeability
         ri = report.risk
@@ -173,8 +172,8 @@ class MIEDashboard:
         }
 
     def ea_view(
-        self, report: MarketIntelligenceReport, inp_dict: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+        self, report: MarketIntelligenceReport, inp_dict: dict | None = None
+    ) -> dict[str, Any]:
         """EA-specific view with prediction, tradeability, SL/TP."""
         t = report.tradeability
         ri = report.risk
@@ -197,8 +196,8 @@ class MIEDashboard:
         }
 
     def android_view(
-        self, report: MarketIntelligenceReport, inp_dict: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+        self, report: MarketIntelligenceReport, inp_dict: dict | None = None
+    ) -> dict[str, Any]:
         """Android-specific view — compact for mobile display."""
         t = report.tradeability
         q = report.quality
@@ -216,7 +215,7 @@ class MIEDashboard:
             "execution_mode": e.mode.value if e else None,
         }
 
-    def all_views(self, report: MarketIntelligenceReport) -> Dict[str, Any]:
+    def all_views(self, report: MarketIntelligenceReport) -> dict[str, Any]:
         return {
             "overview": self.overview(report),
             "regime": self.regime_view(report),

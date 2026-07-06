@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -16,7 +15,7 @@ from trainer.mie.mie_models import LiquidityResult, MarketInput
 from trainer.mie.mie_types import LiquidityState, clamp
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
@@ -96,7 +95,7 @@ class LiquidityIntelligenceEngine:
             )
         return clamp(100.0 - spread_atr_ratio / self._spread_poor * 70.0, 30.0, 100.0)
 
-    def _score_depth(self, volumes: List[float]) -> float:
+    def _score_depth(self, volumes: list[float]) -> float:
         """Consistency of volume = proxy for market depth."""
         if len(volumes) < 5:
             return 50.0

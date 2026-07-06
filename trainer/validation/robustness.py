@@ -22,7 +22,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -130,12 +130,12 @@ class RobustnessTester:
         self,
         seed: int = 42,
         tolerance: float = 0.20,
-        missing_fractions: Optional[list[float]] = None,
-        noise_levels: Optional[list[float]] = None,
-        spread_multipliers: Optional[list[float]] = None,
-        latency_shifts: Optional[list[int]] = None,
-        gap_fractions: Optional[list[float]] = None,
-        spike_multipliers: Optional[list[float]] = None,
+        missing_fractions: list[float] | None = None,
+        noise_levels: list[float] | None = None,
+        spread_multipliers: list[float] | None = None,
+        latency_shifts: list[int] | None = None,
+        gap_fractions: list[float] | None = None,
+        spike_multipliers: list[float] | None = None,
         crash_window: int = 20,
     ) -> None:
         self._seed = seed

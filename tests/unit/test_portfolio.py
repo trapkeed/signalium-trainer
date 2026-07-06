@@ -96,7 +96,7 @@ def _make_forecasts(n: int = 4):
     ]
 
 
-def _make_api() -> "_api.PortfolioApi":
+def _make_api() -> _api.PortfolioApi:
     return _api.PortfolioApi(db_path=":memory:")
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 from trainer.icari.icari_types import (
     AllocationRecommendation,
@@ -45,7 +44,7 @@ class AllocationRequest:
     capital: float = 100_000.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
 
 
@@ -63,11 +62,11 @@ class AllocationResult:
     allocation_usd: float = 0.0  # dollar allocation
     confidence: float = 0.0  # composite confidence
     rationale: str = ""
-    factors: Dict[str, float] = field(default_factory=dict)
-    recommendations: List[AllocationRecommendation] = field(default_factory=list)
+    factors: dict[str, float] = field(default_factory=dict)
+    recommendations: list[AllocationRecommendation] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "request_id": self.request_id,
             "instrument": self.instrument,
@@ -95,10 +94,10 @@ class PositionSize:
     risk_frac: float = 0.0  # fraction of capital at risk
     stop_distance: float = 0.001
     adjusted: bool = False  # True if dynamic adjustments applied
-    adjustments: Dict[str, float] = field(default_factory=dict)
+    adjustments: dict[str, float] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "method": self.method.value,
@@ -135,7 +134,7 @@ class RiskBudget:
     def is_breached(self) -> bool:
         return self.used > self.limit
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "budget_type": self.budget_type.value,
             "limit": round(self.limit, 4),
@@ -159,12 +158,12 @@ class PortfolioRisk:
     expected_shortfall: float = 0.0
     max_expected_drawdown: float = 0.0
     portfolio_volatility: float = 0.0
-    risk_contribution: Dict[str, float] = field(default_factory=dict)
-    marginal_risk: Dict[str, float] = field(default_factory=dict)
+    risk_contribution: dict[str, float] = field(default_factory=dict)
+    marginal_risk: dict[str, float] = field(default_factory=dict)
     diversification_ratio: float = 1.0
     risk_concentration: float = 0.0  # Herfindahl index
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "var_95": round(self.var_95, 4),
             "var_99": round(self.var_99, 4),
@@ -196,7 +195,7 @@ class CapitalHealth:
     grade: CapitalHealthGrade = CapitalHealthGrade.FAIR
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "efficiency_score": round(self.efficiency_score, 4),
             "risk_score": round(self.risk_score, 4),
@@ -221,10 +220,10 @@ class ScenarioResult:
     portfolio_var: float = 0.0
     max_drawdown: float = 0.0
     resilience_score: float = 0.0  # 0–1
-    instrument_impacts: Dict[str, float] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    instrument_impacts: dict[str, float] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "scenario": self.scenario.value,
             "portfolio_return": round(self.portfolio_return, 4),
@@ -249,16 +248,16 @@ class DrawdownEvent:
     drawdown: float = 0.0  # fraction e.g. 0.05 = 5%
     mode: DrawdownMode = DrawdownMode.NORMAL
     start_ts: float = field(default_factory=time.time)
-    end_ts: Optional[float] = None
+    end_ts: float | None = None
     recovered: bool = False
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         if self.end_ts:
             return self.end_ts - self.start_ts
         return None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "event_id": self.event_id,
             "peak": round(self.peak, 4),
@@ -280,13 +279,13 @@ class OptimizationResult:
 
     result_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     objective: OptimizationObjective = OptimizationObjective.MAX_SHARPE
-    weights: Dict[str, float] = field(default_factory=dict)  # instrument → weight
-    metrics: Dict[str, float] = field(default_factory=dict)
+    weights: dict[str, float] = field(default_factory=dict)  # instrument → weight
+    metrics: dict[str, float] = field(default_factory=dict)
     converged: bool = False
     iterations: int = 0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "result_id": self.result_id,
             "objective": self.objective.value,

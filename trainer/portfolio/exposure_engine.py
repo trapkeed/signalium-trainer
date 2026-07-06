@@ -7,14 +7,10 @@ and conflicting exposure.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from trainer.portfolio.portfolio_instruments import (
-    AssetClass,
-    InstrumentInfo,
     InstrumentRegistry,
     ModelForecast,
 )
@@ -34,7 +30,7 @@ class ExposureAlertItem:
     alert_type: ExposureAlert
     severity: str
     description: str
-    instruments: List[str]
+    instruments: list[str]
     value: float = 0.0
 
     def to_dict(self) -> dict:
@@ -49,16 +45,16 @@ class ExposureAlertItem:
 
 @dataclass
 class ExposureReport:
-    by_asset_class: Dict[str, float]
-    by_currency: Dict[str, float]
-    by_region: Dict[str, float]
-    by_instrument: Dict[str, float]
+    by_asset_class: dict[str, float]
+    by_currency: dict[str, float]
+    by_region: dict[str, float]
+    by_instrument: dict[str, float]
     gross_exposure: float
     net_exposure: float
     long_exposure: float
     short_exposure: float
     diversification_ratio: float
-    alerts: List[ExposureAlertItem] = field(default_factory=list)
+    alerts: list[ExposureAlertItem] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -85,13 +81,13 @@ class ExposureEngine:
     SINGLE_INSTRUMENT_LIMIT = 0.35
     USD_NET_LIMIT = 0.55
 
-    def __init__(self, registry: Optional[InstrumentRegistry] = None) -> None:
+    def __init__(self, registry: InstrumentRegistry | None = None) -> None:
         self._registry = registry or InstrumentRegistry.default()
 
     def compute(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
     ) -> ExposureReport:
         if not forecasts:
             return ExposureReport({}, {}, {}, {}, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -101,10 +97,10 @@ class ExposureEngine:
             w = 1.0 / len(forecasts)
             weights = {f.instrument: w for f in forecasts}
 
-        by_asset: Dict[str, float] = {}
-        by_currency: Dict[str, float] = {}
-        by_region: Dict[str, float] = {}
-        by_instrument: Dict[str, float] = {}
+        by_asset: dict[str, float] = {}
+        by_currency: dict[str, float] = {}
+        by_region: dict[str, float] = {}
+        by_instrument: dict[str, float] = {}
         long_exp = 0.0
         short_exp = 0.0
 
@@ -158,7 +154,7 @@ class ExposureEngine:
         )
 
     @staticmethod
-    def _diversification_ratio(by_instrument: Dict[str, float], gross: float) -> float:
+    def _diversification_ratio(by_instrument: dict[str, float], gross: float) -> float:
         if gross < 1e-9 or not by_instrument:
             return 0.0
         n = len([v for v in by_instrument.values() if abs(v) > 1e-9])
@@ -169,14 +165,14 @@ class ExposureEngine:
 
     def _detect_alerts(
         self,
-        by_asset: Dict[str, float],
-        by_currency: Dict[str, float],
-        by_region: Dict[str, float],
-        by_instrument: Dict[str, float],
+        by_asset: dict[str, float],
+        by_currency: dict[str, float],
+        by_region: dict[str, float],
+        by_instrument: dict[str, float],
         gross: float,
-        forecasts: List[ModelForecast],
-    ) -> List[ExposureAlertItem]:
-        alerts: List[ExposureAlertItem] = []
+        forecasts: list[ModelForecast],
+    ) -> list[ExposureAlertItem]:
+        alerts: list[ExposureAlertItem] = []
         if gross < 1e-9:
             return alerts
 
@@ -256,7 +252,7 @@ class ExposureEngine:
                 )
 
         # Duplicated exposure: two instruments with same base + same direction
-        instrument_dirs: Dict[str, List[str]] = {}
+        instrument_dirs: dict[str, list[str]] = {}
         for fc in forecasts:
             info = self._registry.get(fc.instrument)
             if info is None:
@@ -279,8 +275,8 @@ class ExposureEngine:
 
     def exposure_breakdown(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
     ) -> dict:
         report = self.compute(forecasts, weights)
         return {

@@ -31,13 +31,11 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.research.normalization import (
     CategoryNormaliser,
-    Normaliser,
     NormMethod,
 )
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
@@ -51,7 +49,7 @@ from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 class MetricMapping:
     name: str
     weight: float = 1.0
-    normalisation_method: Optional[str] = None  # overrides category default
+    normalisation_method: str | None = None  # overrides category default
 
 
 # ---------------------------------------------------------------------------
@@ -64,14 +62,14 @@ class CategoryDefinition:
     name: str
     display_name: str
     weight: float  # within Level 3 composite (sums to 1.0 across all)
-    metric_mappings: List[MetricMapping] = field(default_factory=list)
+    metric_mappings: list[MetricMapping] = field(default_factory=list)
     normalisation_method: str = NormMethod.MIN_MAX
     description: str = ""
 
-    def metric_weights(self) -> Dict[str, float]:
+    def metric_weights(self) -> dict[str, float]:
         return {m.name: m.weight for m in self.metric_mappings}
 
-    def metric_names(self) -> List[str]:
+    def metric_names(self) -> list[str]:
         return [m.name for m in self.metric_mappings]
 
 
@@ -80,7 +78,7 @@ class CategoryDefinition:
 # ---------------------------------------------------------------------------
 
 
-def _default_categories() -> List[CategoryDefinition]:
+def _default_categories() -> list[CategoryDefinition]:
     return [
         CategoryDefinition(
             name="validation_quality",
@@ -296,12 +294,12 @@ class CategoryResult:
     weight: float  # this category's weight in Level 3
     weighted_score: float  # score * weight (for Level 3 aggregation)
     grade: str
-    metric_scores: Dict[str, float]  # metric_name → normalised score (0–100)
-    raw_values: Dict[str, float]  # metric_name → raw value
+    metric_scores: dict[str, float]  # metric_name → normalised score (0–100)
+    raw_values: dict[str, float]  # metric_name → raw value
     metric_count: int = 0
     coverage: float = 0.0  # fraction of expected metrics present
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "display_name": self.display_name,
@@ -338,7 +336,7 @@ def _category_grade(score: float) -> str:
     return "Critical"
 
 
-def _category_confidence(coverage: float, metric_count: int, scores: List[float]) -> float:
+def _category_confidence(coverage: float, metric_count: int, scores: list[float]) -> float:
     """Compute confidence for a category score.
 
     Higher coverage + more metrics + lower score variance → higher confidence.
@@ -363,17 +361,17 @@ class HRSACategoryScorer:
 
     def __init__(
         self,
-        categories: Optional[List[CategoryDefinition]] = None,
-        registry: Optional[RawMetricsRegistry] = None,
+        categories: list[CategoryDefinition] | None = None,
+        registry: RawMetricsRegistry | None = None,
     ) -> None:
-        self._cats: Dict[str, CategoryDefinition] = {}
+        self._cats: dict[str, CategoryDefinition] = {}
         for cat in categories or _default_categories():
             self._cats[cat.name] = cat
         self._registry = registry or RawMetricsRegistry.default()
         self._normaliser = CategoryNormaliser()
 
     @classmethod
-    def default(cls) -> "HRSACategoryScorer":
+    def default(cls) -> HRSACategoryScorer:
         return cls()
 
     def score_category(self, bundle: RawMetricsBundle, category: str) -> CategoryResult:
@@ -416,16 +414,16 @@ class HRSACategoryScorer:
             coverage=coverage,
         )
 
-    def score_all_categories(self, bundle: RawMetricsBundle) -> Dict[str, CategoryResult]:
-        results: Dict[str, CategoryResult] = {}
+    def score_all_categories(self, bundle: RawMetricsBundle) -> dict[str, CategoryResult]:
+        results: dict[str, CategoryResult] = {}
         for cat_name in self._cats:
             results[cat_name] = self.score_category(bundle, cat_name)
         return results
 
-    def category_names(self) -> List[str]:
+    def category_names(self) -> list[str]:
         return list(self._cats.keys())
 
-    def category_definitions(self) -> Dict[str, CategoryDefinition]:
+    def category_definitions(self) -> dict[str, CategoryDefinition]:
         return dict(self._cats)
 
     def total_weight(self) -> float:

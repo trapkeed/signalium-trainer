@@ -19,8 +19,8 @@ Usage::
 from __future__ import annotations
 
 import statistics
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Pruning decision
@@ -47,7 +47,7 @@ class PruningDecision:
     score: float = 0.0
     threshold: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "prune": self.prune,
             "trial_id": self.trial_id,
@@ -69,7 +69,7 @@ class BasePruner:
     name: str = "base"
 
     def should_prune(
-        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+        self, trial_id: str, step: int, score: float, history: dict[str, list[tuple[int, float]]]
     ) -> PruningDecision:
         """Determine if trial should be pruned.
 
@@ -85,7 +85,7 @@ class BasePruner:
         """
         raise NotImplementedError
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"type": self.name}
 
 
@@ -100,7 +100,7 @@ class NoPruner(BasePruner):
     name = "none"
 
     def should_prune(
-        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+        self, trial_id: str, step: int, score: float, history: dict[str, list[tuple[int, float]]]
     ) -> PruningDecision:
         return PruningDecision(
             prune=False, trial_id=trial_id, step=step, score=score, reason="pruning disabled"
@@ -137,7 +137,7 @@ class MedianPruner(BasePruner):
         self.percentile = percentile
 
     def should_prune(
-        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+        self, trial_id: str, step: int, score: float, history: dict[str, list[tuple[int, float]]]
     ) -> PruningDecision:
         n_completed = len(history)
 
@@ -211,7 +211,7 @@ class MedianPruner(BasePruner):
             ),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.name,
             "n_startup_trials": self.n_startup_trials,
@@ -246,7 +246,7 @@ class SuccessiveHalvingPruner(BasePruner):
         self.reduction_factor = reduction_factor
         self.min_early_stopping_rate = min_early_stopping_rate
 
-    def _rung_levels(self, max_step: int) -> List[int]:
+    def _rung_levels(self, max_step: int) -> list[int]:
         """Return rung resource levels from min_resource to max_step."""
         rungs = []
         r = self.min_resource
@@ -256,7 +256,7 @@ class SuccessiveHalvingPruner(BasePruner):
         return rungs
 
     def should_prune(
-        self, trial_id: str, step: int, score: float, history: Dict[str, List[Tuple[int, float]]]
+        self, trial_id: str, step: int, score: float, history: dict[str, list[tuple[int, float]]]
     ) -> PruningDecision:
         if step < self.min_resource:
             return PruningDecision(
@@ -331,7 +331,7 @@ class SuccessiveHalvingPruner(BasePruner):
             ),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.name,
             "min_resource": self.min_resource,
@@ -345,7 +345,7 @@ class SuccessiveHalvingPruner(BasePruner):
 # ---------------------------------------------------------------------------
 
 
-def build_pruner(config: Dict[str, Any]) -> BasePruner:
+def build_pruner(config: dict[str, Any]) -> BasePruner:
     """Instantiate a pruner from a config dict.
 
     Config keys:

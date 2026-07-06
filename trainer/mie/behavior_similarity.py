@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import statistics
-from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
@@ -29,7 +28,7 @@ _FEATURE_KEYS = [
 ]
 
 # Feature weights for weighted Euclidean distance
-_FEATURE_WEIGHTS: Dict[str, float] = {
+_FEATURE_WEIGHTS: dict[str, float] = {
     "adx": 0.20,
     "rsi": 0.15,
     "vol_ratio": 0.20,
@@ -41,7 +40,7 @@ _FEATURE_WEIGHTS: Dict[str, float] = {
 
 # Absolute normalisation scales (fallback when historical stdev = 0).
 # These represent domain-knowledge estimates of typical feature spread.
-_ABSOLUTE_SCALES: Dict[str, float] = {
+_ABSOLUTE_SCALES: dict[str, float] = {
     "adx": 25.0,
     "rsi": 20.0,
     "vol_ratio": 1.0,
@@ -52,7 +51,7 @@ _ABSOLUTE_SCALES: Dict[str, float] = {
 }
 
 
-def _extract_current(inp: MarketInput) -> Dict[str, float]:
+def _extract_current(inp: MarketInput) -> dict[str, float]:
     returns = inp.returns or []
     curr_vol = statistics.stdev(returns[-20:]) if len(returns) >= 2 else 0.0
     base_vol = statistics.stdev(returns) if len(returns) >= 10 else max(curr_vol, 1e-9)
@@ -73,9 +72,9 @@ def _extract_current(inp: MarketInput) -> Dict[str, float]:
 
 
 def _weighted_distance(
-    a: Dict[str, float],
-    b: Dict[str, float],
-    scales: Dict[str, float],
+    a: dict[str, float],
+    b: dict[str, float],
+    scales: dict[str, float],
 ) -> float:
     """Weighted Euclidean distance between two feature dicts."""
     dist = 0.0
@@ -88,14 +87,14 @@ def _weighted_distance(
 
 
 def _normalise_scales(
-    records: List[Dict[str, float]],
-) -> Dict[str, float]:
+    records: list[dict[str, float]],
+) -> dict[str, float]:
     """Return per-feature normalisation scales.
 
     Uses the max of (historical stdev, absolute domain-knowledge scale) to
     ensure non-zero scales even when all records have identical feature values.
     """
-    scales: Dict[str, float] = {}
+    scales: dict[str, float] = {}
     for key in _FEATURE_KEYS:
         vals = [r.get(key, 0.0) for r in records]
         hist_std = statistics.stdev(vals) if len(vals) >= 2 else 0.0
@@ -142,7 +141,7 @@ class BehaviorSimilarityEngine:
 
         scales = _normalise_scales([{k: r.get(k, 0.0) for k in _FEATURE_KEYS} for r in records])
 
-        scored: List[Tuple[float, Dict]] = []
+        scored: list[tuple[float, dict]] = []
         for record in records:
             feat = {k: float(record.get(k, 0.0)) for k in _FEATURE_KEYS}
             dist = _weighted_distance(current, feat, scales)

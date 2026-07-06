@@ -14,15 +14,15 @@ from trainer.losses.multi_task import MultiTaskLoss, MultiTaskLossOutput
 from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
 
 __all__ = [
+    "CalibrationLoss",
+    "DistributionLoss",
+    "DynamicLossWeighting",
     "FocalLoss",
-    "WeightedCrossEntropyLoss",
-    "build_loss",
+    "GaussianNLLLoss",
+    "MultiStepBCELoss",
     "MultiTaskLoss",
     "MultiTaskLossOutput",
     "QuantileLoss",
-    "GaussianNLLLoss",
-    "DistributionLoss",
-    "MultiStepBCELoss",
-    "DynamicLossWeighting",
-    "CalibrationLoss",
+    "WeightedCrossEntropyLoss",
+    "build_loss",
 ]

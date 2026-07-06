@@ -98,7 +98,7 @@ def run_tests():
             fn()
             print(f"  PASS  {fn.__name__}")
             _passed += 1
-        except Exception as exc:
+        except Exception:
             import traceback
 
             print(f"  FAIL  {fn.__name__}: ")

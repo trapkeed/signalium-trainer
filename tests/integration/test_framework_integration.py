@@ -19,7 +19,6 @@ from trainer.framework import (
     InferenceAdapterFactory,
     MetricsEngine,
     ModelFactory,
-    ModelInput,
 )
 from trainer.framework.abstractions import (
     BaseClassificationHead,

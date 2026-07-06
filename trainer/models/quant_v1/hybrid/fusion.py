@@ -18,8 +18,6 @@ Stream contribution tracking is available for training monitoring:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 

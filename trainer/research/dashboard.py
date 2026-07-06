@@ -22,8 +22,8 @@ Usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # DashboardBuilder
@@ -59,7 +59,7 @@ class DashboardBuilder:
     # Router
     # ------------------------------------------------------------------
 
-    def build(self, dashboard_type: str) -> Dict[str, Any]:
+    def build(self, dashboard_type: str) -> dict[str, Any]:
         """Build a single dashboard payload by type."""
         builders = {
             "research_timeline": self._build_timeline,
@@ -77,14 +77,14 @@ class DashboardBuilder:
             )
         return {
             "dashboard_type": dashboard_type,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "data": fn(),
         }
 
-    def build_all(self) -> Dict[str, Any]:
+    def build_all(self) -> dict[str, Any]:
         """Build all seven dashboards and return them as a single payload."""
         return {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "dashboards": {dt: self.build(dt) for dt in self.DASHBOARD_TYPES},
         }
 
@@ -92,17 +92,17 @@ class DashboardBuilder:
     # 1. Research Timeline
     # ------------------------------------------------------------------
 
-    def _build_timeline(self) -> Dict[str, Any]:
+    def _build_timeline(self) -> dict[str, Any]:
         report = self._tl.timeline_report()
         events = self._tl.all_events()
 
         # Aggregate events per day for a bar/area chart
-        daily: Dict[str, int] = {}
+        daily: dict[str, int] = {}
         for e in events:
             day = e.recorded_at[:10]
             daily[day] = daily.get(day, 0) + 1
 
-        type_series: Dict[str, List[Dict[str, Any]]] = {}
+        type_series: dict[str, list[dict[str, Any]]] = {}
         for e in events:
             type_series.setdefault(e.event_type, []).append(
                 {"timestamp": e.recorded_at, "entity_id": e.entity_id, "description": e.description}
@@ -124,12 +124,12 @@ class DashboardBuilder:
     # 2. Knowledge Graph
     # ------------------------------------------------------------------
 
-    def _build_knowledge_graph(self) -> Dict[str, Any]:
+    def _build_knowledge_graph(self) -> dict[str, Any]:
         kg_dict = self._kg.to_dict()
         report = self._kg.graph_report()
 
         # Build adjacency summary for frontend graph layout
-        adjacency: List[Dict[str, Any]] = []
+        adjacency: list[dict[str, Any]] = []
         for edge in kg_dict["edges"]:
             adjacency.append(
                 {
@@ -155,12 +155,12 @@ class DashboardBuilder:
     # 3. Experiment Tree
     # ------------------------------------------------------------------
 
-    def _build_experiment_tree(self) -> Dict[str, Any]:
+    def _build_experiment_tree(self) -> dict[str, Any]:
         summary = self._tree.tree_summary()
         nodes = self._tree.all_nodes()
 
         # Build hierarchical tree structure
-        def _node_to_tree(node: Any) -> Dict[str, Any]:
+        def _node_to_tree(node: Any) -> dict[str, Any]:
             return {
                 "node_id": node.node_id,
                 "name": node.name,
@@ -202,11 +202,11 @@ class DashboardBuilder:
     # 4. Dataset History
     # ------------------------------------------------------------------
 
-    def _build_dataset_history(self) -> Dict[str, Any]:
+    def _build_dataset_history(self) -> dict[str, Any]:
         ds_events = self._tl.dataset_history()
 
         # Extract unique dataset versions from lineage nodes
-        dataset_snapshots: List[Dict[str, Any]] = []
+        dataset_snapshots: list[dict[str, Any]] = []
         seen: set = set()
         for node in self._tree.all_nodes():
             if node.dataset_snapshot:
@@ -236,11 +236,11 @@ class DashboardBuilder:
     # 5. Champion Evolution
     # ------------------------------------------------------------------
 
-    def _build_champion_evolution(self) -> Dict[str, Any]:
+    def _build_champion_evolution(self) -> dict[str, Any]:
         champion_events = self._tl.champion_history()
 
         # Extract validation metrics from lineage nodes that succeeded
-        performance_series: List[Dict[str, Any]] = []
+        performance_series: list[dict[str, Any]] = []
         for node in sorted(self._tree.all_nodes(), key=lambda n: n.created_at):
             if node.validation_snapshot and node.status == "succeeded":
                 vs = node.validation_snapshot
@@ -268,11 +268,11 @@ class DashboardBuilder:
     # 6. Training Cost
     # ------------------------------------------------------------------
 
-    def _build_training_cost(self) -> Dict[str, Any]:
+    def _build_training_cost(self) -> dict[str, Any]:
         report = self._costs.cost_report()
 
         # Cost over time series
-        cost_series: List[Dict[str, Any]] = [
+        cost_series: list[dict[str, Any]] = [
             {
                 "entity_id": c.entity_id,
                 "recorded_at": c.recorded_at,
@@ -306,9 +306,9 @@ class DashboardBuilder:
     # 7. Feature Evolution
     # ------------------------------------------------------------------
 
-    def _build_feature_evolution(self) -> Dict[str, Any]:
+    def _build_feature_evolution(self) -> dict[str, Any]:
         # Collect feature snapshots across all lineage nodes
-        feature_timeline: List[Dict[str, Any]] = []
+        feature_timeline: list[dict[str, Any]] = []
         all_feature_names: set = set()
 
         for node in sorted(self._tree.all_nodes(), key=lambda n: n.created_at):
@@ -340,8 +340,8 @@ class DashboardBuilder:
 # ---------------------------------------------------------------------------
 
 
-def _count_values(d: Dict[str, Any]) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _count_values(d: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for v in d.values():
         counts[str(v)] = counts.get(str(v), 0) + 1
     return counts

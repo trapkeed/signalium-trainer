@@ -5,7 +5,7 @@ from trainer.research.benchmark.runner import BenchmarkResult, BenchmarkRunner, 
 
 __all__ = [
     "BenchmarkConditions",
-    "BenchmarkRunner",
     "BenchmarkResult",
+    "BenchmarkRunner",
     "ModelRunResult",
 ]

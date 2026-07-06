@@ -26,8 +26,8 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Resource snapshot
@@ -50,7 +50,7 @@ class ResourceSnapshot:
     """
 
     trial_id: str
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     cpu_percent: float = 0.0
     ram_mb: float = 0.0
     gpu_percent: float = 0.0
@@ -58,7 +58,7 @@ class ResourceSnapshot:
     disk_mb: float = 0.0
     elapsed_seconds: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trial_id": self.trial_id,
             "timestamp": self.timestamp,
@@ -83,7 +83,7 @@ class WorkerSlot:
     token: str = field(default_factory=lambda: str(uuid.uuid4()))
     trial_id: str = ""
     acquired_at: float = field(default_factory=time.monotonic)
-    released_at: Optional[float] = None
+    released_at: float | None = None
 
     @property
     def is_active(self) -> bool:
@@ -126,8 +126,8 @@ class ResourceManager:
         self.checkpoint_dir = checkpoint_dir
 
         self._lock = threading.Lock()
-        self._slots: Dict[str, WorkerSlot] = {}
-        self._snapshots: Dict[str, List[ResourceSnapshot]] = {}
+        self._slots: dict[str, WorkerSlot] = {}
+        self._snapshots: dict[str, list[ResourceSnapshot]] = {}
         self._total_gpu_allocated_mb: float = 0.0
 
     @property
@@ -143,7 +143,7 @@ class ResourceManager:
         """Return True if a worker slot is available."""
         return self.available_slots > 0
 
-    def acquire_slot(self, trial_id: str = "") -> Optional[str]:
+    def acquire_slot(self, trial_id: str = "") -> str | None:
         """Acquire a worker slot. Returns token or None if no slot available."""
         with self._lock:
             if self.active_workers >= self.max_workers:
@@ -186,7 +186,7 @@ class ResourceManager:
             self._snapshots[trial_id].append(snap)
         return snap
 
-    def get_trial_usage(self, trial_id: str) -> Dict[str, Any]:
+    def get_trial_usage(self, trial_id: str) -> dict[str, Any]:
         """Return aggregated resource usage for a trial."""
         snaps = self._snapshots.get(trial_id, [])
         if not snaps:
@@ -204,7 +204,7 @@ class ResourceManager:
             "total_elapsed_seconds": snaps[-1].elapsed_seconds if snaps else 0.0,
         }
 
-    def usage_report(self) -> Dict[str, Any]:
+    def usage_report(self) -> dict[str, Any]:
         """Return a full resource usage report across all trials."""
         all_snaps = [s for snaps in self._snapshots.values() for s in snaps]
         active = self.active_workers
@@ -240,7 +240,7 @@ class ResourceManager:
             return True
         return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "max_workers": self.max_workers,
             "gpu_memory_gb": self.gpu_memory_gb,

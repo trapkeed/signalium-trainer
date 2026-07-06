@@ -56,19 +56,18 @@ import csv
 import io
 import json
 import traceback
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Envelope helpers
 # ---------------------------------------------------------------------------
 
 
-def _ok(data: Any = None) -> Dict[str, Any]:
+def _ok(data: Any = None) -> dict[str, Any]:
     return {"status": "ok", "data": data, "error": None}
 
 
-def _err(msg: str) -> Dict[str, Any]:
+def _err(msg: str) -> dict[str, Any]:
     return {"status": "error", "data": None, "error": msg}
 
 
@@ -98,7 +97,7 @@ class IRSEApi:
     # Research Scores
     # ------------------------------------------------------------------
 
-    def score_experiment(self, inputs: Any) -> Dict[str, Any]:
+    def score_experiment(self, inputs: Any) -> dict[str, Any]:
         """Compute a Research Score and persist + index it."""
         try:
             rs = self._scorer.score(inputs)
@@ -125,7 +124,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(f"Scoring failed: {exc}\n{traceback.format_exc()}")
 
-    def score_and_get_full(self, inputs: Any) -> Dict[str, Any]:
+    def score_and_get_full(self, inputs: Any) -> dict[str, Any]:
         """Score and return the full ResearchScore dict."""
         try:
             rs = self._scorer.score(inputs)
@@ -135,7 +134,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def get_score(self, score_id: str) -> Dict[str, Any]:
+    def get_score(self, score_id: str) -> dict[str, Any]:
         try:
             row = self._db.get_research_score(score_id)
             if row is None:
@@ -144,7 +143,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def get_latest_score(self, experiment_id: str) -> Dict[str, Any]:
+    def get_latest_score(self, experiment_id: str) -> dict[str, Any]:
         try:
             row = self._db.get_latest_for_experiment(experiment_id)
             if row is None:
@@ -153,7 +152,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def score_breakdown(self, score_id: str) -> Dict[str, Any]:
+    def score_breakdown(self, score_id: str) -> dict[str, Any]:
         try:
             row = self._db.get_research_score(score_id)
             if row is None:
@@ -177,17 +176,17 @@ class IRSEApi:
         self,
         axis: str = "research_score",
         limit: int = 20,
-        instrument: Optional[str] = None,
-        timeframe: Optional[str] = None,
-        backbone: Optional[str] = None,
-        architecture: Optional[str] = None,
-        dataset_version: Optional[str] = None,
-        feature_version: Optional[str] = None,
-        model_family: Optional[str] = None,
-        grade_label: Optional[str] = None,
-        promotion_eligible: Optional[bool] = None,
-        min_score: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        instrument: str | None = None,
+        timeframe: str | None = None,
+        backbone: str | None = None,
+        architecture: str | None = None,
+        dataset_version: str | None = None,
+        feature_version: str | None = None,
+        model_family: str | None = None,
+        grade_label: str | None = None,
+        promotion_eligible: bool | None = None,
+        min_score: float | None = None,
+    ) -> dict[str, Any]:
         try:
             lb = self._lb.filter(
                 instrument=instrument,
@@ -206,7 +205,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def get_promotion_candidates(self) -> Dict[str, Any]:
+    def get_promotion_candidates(self) -> dict[str, Any]:
         try:
             candidates = self._lb.promotion_candidates()
             return _ok(
@@ -218,13 +217,13 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def get_category_leaders(self) -> Dict[str, Any]:
+    def get_category_leaders(self) -> dict[str, Any]:
         try:
             return _ok(self._lb.category_leaders())
         except Exception as exc:
             return _err(str(exc))
 
-    def get_grade_distribution(self) -> Dict[str, Any]:
+    def get_grade_distribution(self) -> dict[str, Any]:
         try:
             return _ok(self._lb.grade_distribution())
         except Exception as exc:
@@ -239,7 +238,7 @@ class IRSEApi:
         experiment_id: str,
         research_score: Any,
         role: str = "experimental",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             record = self._bm.register(experiment_id, research_score, role)
             self._db.save_benchmark_record(record.to_dict())
@@ -256,8 +255,8 @@ class IRSEApi:
     def compare_experiments(
         self,
         subject_id: str,
-        reference_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reference_id: str | None = None,
+    ) -> dict[str, Any]:
         try:
             comp = self._bm.compare(subject_id, against=reference_id)
             comp_dict = comp.to_dict()
@@ -266,14 +265,14 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def benchmark_report(self, experiment_id: str) -> Dict[str, Any]:
+    def benchmark_report(self, experiment_id: str) -> dict[str, Any]:
         try:
             report = self._bm.benchmark_report(experiment_id)
             return _ok(report)
         except Exception as exc:
             return _err(str(exc))
 
-    def full_benchmark(self) -> Dict[str, Any]:
+    def full_benchmark(self) -> dict[str, Any]:
         try:
             return _ok(self._bm.full_benchmark_report())
         except Exception as exc:
@@ -283,22 +282,20 @@ class IRSEApi:
     # Historical Trends
     # ------------------------------------------------------------------
 
-    def score_history(
-        self, experiment_id: Optional[str] = None, limit: int = 100
-    ) -> Dict[str, Any]:
+    def score_history(self, experiment_id: str | None = None, limit: int = 100) -> dict[str, Any]:
         try:
             history = self._db.get_score_history(experiment_id, limit=limit)
             return _ok({"count": len(history), "history": history})
         except Exception as exc:
             return _err(str(exc))
 
-    def trend_report(self) -> Dict[str, Any]:
+    def trend_report(self) -> dict[str, Any]:
         try:
             return _ok(self._trends.trend_report())
         except Exception as exc:
             return _err(str(exc))
 
-    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> Dict[str, Any]:
+    def detect_regressions(self, window: int = 5, threshold: float = 5.0) -> dict[str, Any]:
         try:
             alerts = self._trends.detect_regressions(window, threshold)
             return _ok(
@@ -310,13 +307,13 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def champion_timeline(self) -> Dict[str, Any]:
+    def champion_timeline(self) -> dict[str, Any]:
         try:
             return _ok(self._trends.champion_timeline())
         except Exception as exc:
             return _err(str(exc))
 
-    def score_distribution(self) -> Dict[str, Any]:
+    def score_distribution(self) -> dict[str, Any]:
         try:
             return _ok(self._trends.score_distribution())
         except Exception as exc:
@@ -326,13 +323,13 @@ class IRSEApi:
     # Weight management
     # ------------------------------------------------------------------
 
-    def get_weights(self) -> Dict[str, Any]:
+    def get_weights(self) -> dict[str, Any]:
         try:
             return _ok(self._scorer.weights.as_dict())
         except Exception as exc:
             return _err(str(exc))
 
-    def set_weights(self, weights_dict: Dict[str, float]) -> Dict[str, Any]:
+    def set_weights(self, weights_dict: dict[str, float]) -> dict[str, Any]:
         try:
             from trainer.research.weights import ScoringWeights
 
@@ -344,15 +341,15 @@ class IRSEApi:
             return _err(str(exc))
 
     def save_weight_preset(
-        self, name: str, weights: Dict[str, float], description: str = ""
-    ) -> Dict[str, Any]:
+        self, name: str, weights: dict[str, float], description: str = ""
+    ) -> dict[str, Any]:
         try:
             config_id = self._db.save_weight_configuration(name, weights, description)
             return _ok({"config_id": config_id, "name": name})
         except Exception as exc:
             return _err(str(exc))
 
-    def list_weight_presets(self) -> Dict[str, Any]:
+    def list_weight_presets(self) -> dict[str, Any]:
         try:
             presets = self._db.list_weight_configurations()
             return _ok({"count": len(presets), "presets": presets})
@@ -363,7 +360,7 @@ class IRSEApi:
     # Export helpers (JSON / CSV)
     # ------------------------------------------------------------------
 
-    def export_leaderboard(self, fmt: str = "json", limit: int = 100) -> Dict[str, Any]:
+    def export_leaderboard(self, fmt: str = "json", limit: int = 100) -> dict[str, Any]:
         try:
             entries = self._lb.rank_by("research_score")[:limit]
             if fmt == "json":
@@ -386,7 +383,7 @@ class IRSEApi:
         except Exception as exc:
             return _err(str(exc))
 
-    def export_score(self, score_id: str, fmt: str = "json") -> Dict[str, Any]:
+    def export_score(self, score_id: str, fmt: str = "json") -> dict[str, Any]:
         try:
             row = self._db.get_research_score(score_id)
             if row is None:
@@ -409,7 +406,7 @@ class IRSEApi:
     # System
     # ------------------------------------------------------------------
 
-    def system_stats(self) -> Dict[str, Any]:
+    def system_stats(self) -> dict[str, Any]:
         try:
             return _ok(
                 {

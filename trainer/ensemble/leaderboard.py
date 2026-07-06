@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Leaderboard entry
@@ -65,10 +65,10 @@ class LeaderboardEntry:
     calibration_error: float = 0.0
     n_predictions: int = 0
     model_family: str = ""
-    specializations: List[str] = field(default_factory=list)
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    specializations: list[str] = field(default_factory=list)
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entry_id": self.entry_id,
             "entity_id": self.entity_id,
@@ -94,7 +94,7 @@ class LeaderboardEntry:
 # ---------------------------------------------------------------------------
 
 
-def _composite_score(metrics: Dict[str, float]) -> float:
+def _composite_score(metrics: dict[str, float]) -> float:
     """Compute composite leaderboard score from metrics dict."""
     acc = metrics.get("accuracy", 0.0)
     sharpe = metrics.get("sharpe_ratio", 0.0)
@@ -119,17 +119,17 @@ class EnsembleLeaderboard:
     """
 
     def __init__(self) -> None:
-        self._entries: Dict[str, LeaderboardEntry] = {}
-        self._metrics: Dict[str, Dict[str, float]] = {}
+        self._entries: dict[str, LeaderboardEntry] = {}
+        self._metrics: dict[str, dict[str, float]] = {}
 
     def update_expert(
         self,
         expert_id: str,
-        metrics: Dict[str, float],
+        metrics: dict[str, float],
         name: str = "",
         status: str = "active",
         model_family: str = "",
-        specializations: Optional[List[str]] = None,
+        specializations: list[str] | None = None,
     ) -> LeaderboardEntry:
         """Update or create a leaderboard entry for an expert."""
         self._metrics[expert_id] = metrics
@@ -148,12 +148,12 @@ class EnsembleLeaderboard:
         e.n_predictions = metrics.get("n_predictions", e.n_predictions)
         e.model_family = model_family or e.model_family
         e.specializations = specializations or e.specializations
-        e.updated_at = datetime.now(timezone.utc).isoformat()
+        e.updated_at = datetime.now(UTC).isoformat()
         self._rerank()
         return e
 
     def update_ensemble(
-        self, metrics: Dict[str, float], strategy: str = "ensemble"
+        self, metrics: dict[str, float], strategy: str = "ensemble"
     ) -> LeaderboardEntry:
         """Update the ensemble leaderboard entry."""
         entity_id = "ensemble"
@@ -171,11 +171,11 @@ class EnsembleLeaderboard:
         e.profit_factor = metrics.get("profit_factor", e.profit_factor)
         e.calibration_error = metrics.get("calibration_error", e.calibration_error)
         e.n_predictions = metrics.get("n_predictions", e.n_predictions)
-        e.updated_at = datetime.now(timezone.utc).isoformat()
+        e.updated_at = datetime.now(UTC).isoformat()
         self._rerank()
         return e
 
-    def update_meta_model(self, metrics: Dict[str, float]) -> LeaderboardEntry:
+    def update_meta_model(self, metrics: dict[str, float]) -> LeaderboardEntry:
         """Update the meta model leaderboard entry."""
         entity_id = "meta_model"
         self._metrics[entity_id] = metrics
@@ -188,7 +188,7 @@ class EnsembleLeaderboard:
         e.score = round(score, 6)
         e.accuracy = metrics.get("accuracy", e.accuracy)
         e.n_predictions = metrics.get("n_training_samples", e.n_predictions)
-        e.updated_at = datetime.now(timezone.utc).isoformat()
+        e.updated_at = datetime.now(UTC).isoformat()
         self._rerank()
         return e
 
@@ -203,8 +203,8 @@ class EnsembleLeaderboard:
                 e.rank = 0
 
     def get_rankings(
-        self, include_retired: bool = False, entity_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, include_retired: bool = False, entity_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return sorted leaderboard entries."""
         entries = list(self._entries.values())
         if not include_retired:
@@ -213,7 +213,7 @@ class EnsembleLeaderboard:
             entries = [e for e in entries if e.entity_type == entity_type]
         return [e.to_dict() for e in sorted(entries, key=lambda e: e.rank)]
 
-    def get_champion(self) -> Optional[Dict[str, Any]]:
+    def get_champion(self) -> dict[str, Any] | None:
         champions = [e for e in self._entries.values() if e.status == "champion"]
         if champions:
             return champions[0].to_dict()
@@ -238,16 +238,16 @@ class EnsembleLeaderboard:
             self._entries[entity_id].status = "retired"
             self._entries[entity_id].rank = 0
 
-    def experts(self) -> List[Dict[str, Any]]:
+    def experts(self) -> list[dict[str, Any]]:
         return self.get_rankings(entity_type="expert")
 
-    def retired(self) -> List[Dict[str, Any]]:
+    def retired(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self._entries.values() if e.status == "retired"]
 
-    def experimental(self) -> List[Dict[str, Any]]:
+    def experimental(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self._entries.values() if e.status == "experimental"]
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         all_entries = list(self._entries.values())
         return {
             "total_entries": len(all_entries),
@@ -259,7 +259,7 @@ class EnsembleLeaderboard:
             "champion": self.get_champion(),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entries": {eid: e.to_dict() for eid, e in self._entries.items()},
         }

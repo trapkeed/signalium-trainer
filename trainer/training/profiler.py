@@ -25,8 +25,7 @@ from __future__ import annotations
 import gc
 import time
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -83,11 +82,11 @@ class ModelSizeResult:
 
 @dataclass
 class BenchmarkReport:
-    training_speed: Optional[TrainingSpeedResult] = None
-    inference_speed: Optional[InferenceSpeedResult] = None
-    gpu_memory: Optional[GPUMemoryResult] = None
-    cpu_memory: Optional[CPUMemoryResult] = None
-    model_size: Optional[ModelSizeResult] = None
+    training_speed: TrainingSpeedResult | None = None
+    inference_speed: InferenceSpeedResult | None = None
+    gpu_memory: GPUMemoryResult | None = None
+    cpu_memory: CPUMemoryResult | None = None
+    model_size: ModelSizeResult | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def summary(self) -> str:
@@ -96,7 +95,7 @@ class BenchmarkReport:
         if self.model_size:
             s = self.model_size
             lines += [
-                f"Model Size",
+                "Model Size",
                 f"  Total params:      {s.total_params:,}",
                 f"  Trainable params:  {s.trainable_params:,}",
                 f"  Estimated size:    {s.estimated_mb:.2f} MB",
@@ -106,7 +105,7 @@ class BenchmarkReport:
             s = self.training_speed
             lines += [
                 "",
-                f"Training Speed",
+                "Training Speed",
                 f"  Batches/sec:       {s.batches_per_sec:.2f}",
                 f"  Samples/sec:       {s.samples_per_sec:.2f}",
                 f"  ms/batch:          {s.ms_per_batch:.2f}",
@@ -131,7 +130,7 @@ class BenchmarkReport:
             if s.available:
                 lines += [
                     "",
-                    f"GPU Memory",
+                    "GPU Memory",
                     f"  Peak allocated:   {s.peak_mb:.1f} MB",
                     f"  Current allocated:{s.allocated_mb:.1f} MB",
                     f"  Reserved:         {s.reserved_mb:.1f} MB",
@@ -140,7 +139,7 @@ class BenchmarkReport:
         if self.cpu_memory:
             lines += [
                 "",
-                f"CPU Memory",
+                "CPU Memory",
                 f"  RSS:               {self.cpu_memory.rss_mb:.1f} MB",
             ]
 
@@ -451,7 +450,7 @@ class TrainingProfiler:
     def full_benchmark(
         self,
         loader: Any,
-        input_shape: Optional[tuple[int, ...]] = None,
+        input_shape: tuple[int, ...] | None = None,
         n_training_batches: int = 50,
         n_inference_runs: int = 200,
     ) -> BenchmarkReport:

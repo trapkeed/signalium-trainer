@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -16,15 +15,15 @@ from trainer.mie.mie_models import MarketInput, VolatilityResult
 from trainer.mie.mie_types import VolatilityState, clamp
 
 
-def _stdev(vals: List[float]) -> float:
+def _stdev(vals: list[float]) -> float:
     return statistics.stdev(vals) if len(vals) >= 2 else 0.0
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _percentile_rank(values: List[float], target: float) -> float:
+def _percentile_rank(values: list[float], target: float) -> float:
     """Return percentile rank of target in values list (0-100)."""
     if not values:
         return 50.0

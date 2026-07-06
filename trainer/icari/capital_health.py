@@ -8,10 +8,6 @@ Overall Capital Health Score.
 
 from __future__ import annotations
 
-import math
-import statistics
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -20,7 +16,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_models import CapitalHealth, PortfolioRisk
-from trainer.icari.icari_types import CapitalHealthGrade, DrawdownMode, health_grade
+from trainer.icari.icari_types import DrawdownMode, health_grade
 
 # Score weights (must sum to 1.0)
 _HEALTH_WEIGHTS = {
@@ -38,7 +34,7 @@ class CapitalHealthEngine:
     """Computes composite capital health scores."""
 
     def __init__(self):
-        self._history: List[CapitalHealth] = []
+        self._history: list[CapitalHealth] = []
 
     def score(
         self,
@@ -48,9 +44,9 @@ class CapitalHealthEngine:
         current_drawdown: float = 0.0,
         num_instruments: int = 1,
         avg_correlation: float = 0.0,
-        portfolio_vol: Optional[float] = None,
-        recent_returns: Optional[List[float]] = None,
-        allocation_results: Optional[List[Dict]] = None,
+        portfolio_vol: float | None = None,
+        recent_returns: list[float] | None = None,
+        allocation_results: list[dict] | None = None,
     ) -> CapitalHealth:
         """Compute all health scores and return a CapitalHealth object."""
 
@@ -117,7 +113,7 @@ class CapitalHealthEngine:
         score = 1.0 - mode_penalty - var_penalty - dd_penalty
         return max(0.0, score)
 
-    def _allocation_quality(self, results: Optional[List[Dict]]) -> float:
+    def _allocation_quality(self, results: list[dict] | None) -> float:
         """Quality based on proportion of APPROVED vs DENIED allocations."""
         if not results:
             return 0.70  # neutral if no data
@@ -146,8 +142,8 @@ class CapitalHealthEngine:
     def _stability_score(
         self,
         pr: PortfolioRisk,
-        recent_r: Optional[List[float]],
-        port_vol: Optional[float],
+        recent_r: list[float] | None,
+        port_vol: float | None,
     ) -> float:
         """Stable returns and low max_dd → high stability score."""
         vol = port_vol if port_vol is not None else pr.portfolio_volatility
@@ -168,10 +164,10 @@ class CapitalHealthEngine:
 
     # ── History & trends ─────────────────────────────────────────────────────
 
-    def history(self, last_n: int = 30) -> List[CapitalHealth]:
+    def history(self, last_n: int = 30) -> list[CapitalHealth]:
         return self._history[-last_n:]
 
-    def trend(self) -> Dict:
+    def trend(self) -> dict:
         h = self._history
         if len(h) < 2:
             return {"trend": "insufficient_data"}
@@ -186,5 +182,5 @@ class CapitalHealthEngine:
             "direction": direction,
         }
 
-    def latest(self) -> Optional[CapitalHealth]:
+    def latest(self) -> CapitalHealth | None:
         return self._history[-1] if self._history else None

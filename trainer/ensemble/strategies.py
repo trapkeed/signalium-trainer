@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.ensemble.expert import ExpertPrediction
 
@@ -62,10 +62,10 @@ class EnsembleResult:
     uncertainty: float = 0.5
     strategy: str = ""
     n_experts: int = 0
-    contributing_experts: List[str] = field(default_factory=list)
-    weight_map: Dict[str, float] = field(default_factory=dict)
+    contributing_experts: list[str] = field(default_factory=list)
+    weight_map: dict[str, float] = field(default_factory=dict)
     agreement_score: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         total = self.buy_prob + self.sell_prob + self.no_trade_prob
@@ -93,7 +93,7 @@ class EnsembleResult:
         label = {"buy": "LONG", "sell": "SHORT", "no_trade": "NEUTRAL"}[cls]
         return f"{strength} {label} | conf={conf:.2f} agree={self.agreement_score:.2f}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "buy_prob": self.buy_prob,
             "sell_prob": self.sell_prob,
@@ -122,11 +122,11 @@ class BaseEnsembleStrategy:
     name: str = "base"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         raise NotImplementedError
 
-    def _agreement(self, predictions: List[ExpertPrediction]) -> float:
+    def _agreement(self, predictions: list[ExpertPrediction]) -> float:
         """Compute inter-expert agreement [0, 1]."""
         if not predictions:
             return 0.0
@@ -135,8 +135,8 @@ class BaseEnsembleStrategy:
         return classes.count(majority) / len(classes)
 
     def _normalize_weights(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]]
-    ) -> Dict[str, float]:
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None
+    ) -> dict[str, float]:
         """Return normalized weights for the given predictions."""
         if not weights:
             w = {p.expert_id: 1.0 for p in predictions}
@@ -159,7 +159,7 @@ class SimpleAveragingStrategy(BaseEnsembleStrategy):
     name = "simple_averaging"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -194,7 +194,7 @@ class WeightedAveragingStrategy(BaseEnsembleStrategy):
     name = "weighted_averaging"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -229,7 +229,7 @@ class PerformanceWeightedStrategy(BaseEnsembleStrategy):
     name = "performance_weighted"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -264,12 +264,12 @@ class HardVotingStrategy(BaseEnsembleStrategy):
     name = "hard_voting"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
         w = self._normalize_weights(predictions, weights)
-        votes: Dict[str, float] = {"buy": 0.0, "sell": 0.0, "no_trade": 0.0}
+        votes: dict[str, float] = {"buy": 0.0, "sell": 0.0, "no_trade": 0.0}
         for p in predictions:
             votes[p.predicted_class] += w[p.expert_id]
         winner = max(votes, key=votes.get)
@@ -305,7 +305,7 @@ class SoftVotingStrategy(BaseEnsembleStrategy):
     name = "soft_voting"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -351,7 +351,7 @@ class MixtureOfExpertsStrategy(BaseEnsembleStrategy):
     def __init__(self, temperature: float = 1.0) -> None:
         self.temperature = max(temperature, 1e-6)
 
-    def _softmax(self, weights: Dict[str, float]) -> Dict[str, float]:
+    def _softmax(self, weights: dict[str, float]) -> dict[str, float]:
         vals = list(weights.values())
         keys = list(weights.keys())
         scaled = [v / self.temperature for v in vals]
@@ -361,7 +361,7 @@ class MixtureOfExpertsStrategy(BaseEnsembleStrategy):
         return {k: e / total for k, e in zip(keys, exps)}
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -415,12 +415,12 @@ class StackingStrategy(BaseEnsembleStrategy):
     def __init__(self, learning_rate: float = 0.01, regularization: float = 1e-4) -> None:
         self.lr = learning_rate
         self.reg = regularization
-        self._weights: Dict[str, Dict[str, float]] = {}
+        self._weights: dict[str, dict[str, float]] = {}
 
     def _get_weight(self, expert_id: str, cls: str) -> float:
         return self._weights.get(expert_id, {}).get(cls, 1.0)
 
-    def update(self, predictions: List[ExpertPrediction], true_class: str) -> None:
+    def update(self, predictions: list[ExpertPrediction], true_class: str) -> None:
         """Online gradient descent update on stacker weights."""
         class_map = {"buy": 0, "sell": 1, "no_trade": 2}
         for p in predictions:
@@ -434,7 +434,7 @@ class StackingStrategy(BaseEnsembleStrategy):
                 self._weights[p.expert_id][cls] = w - self.lr * (grad + self.reg * w)
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)
@@ -487,7 +487,7 @@ class BlendingStrategy(BaseEnsembleStrategy):
     name = "blending"
 
     def combine(
-        self, predictions: List[ExpertPrediction], weights: Optional[Dict[str, float]] = None
+        self, predictions: list[ExpertPrediction], weights: dict[str, float] | None = None
     ) -> EnsembleResult:
         if not predictions:
             return EnsembleResult(strategy=self.name)

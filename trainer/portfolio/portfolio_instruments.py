@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class AssetClass(str, Enum):
@@ -41,9 +40,9 @@ class InstrumentInfo:
     is_inverse: bool = False
     tick_value: float = 1.0
     typical_spread: float = 0.0001
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    def currency_exposures(self) -> Dict[str, float]:
+    def currency_exposures(self) -> dict[str, float]:
         if self.asset_class == AssetClass.FOREX:
             return {self.base_currency: 1.0, self.quote_currency: -1.0}
         if self.asset_class == AssetClass.COMMODITY:
@@ -76,7 +75,7 @@ class ModelForecast:
     expected_return: float
     expected_risk: float
     timestamp: str = ""
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         assert self.direction in (
@@ -104,7 +103,7 @@ class ModelForecast:
         }
 
 
-_DEFAULT_INSTRUMENTS: List[dict] = [
+_DEFAULT_INSTRUMENTS: list[dict] = [
     dict(
         symbol="EURUSD",
         asset_class=AssetClass.FOREX,
@@ -256,10 +255,10 @@ class InstrumentRegistry:
     """Central registry for all tradeable instruments."""
 
     def __init__(self) -> None:
-        self._instruments: Dict[str, InstrumentInfo] = {}
+        self._instruments: dict[str, InstrumentInfo] = {}
 
     @classmethod
-    def default(cls) -> "InstrumentRegistry":
+    def default(cls) -> InstrumentRegistry:
         reg = cls()
         for d in _DEFAULT_INSTRUMENTS:
             reg.register(
@@ -278,7 +277,7 @@ class InstrumentRegistry:
     def register(self, info: InstrumentInfo) -> None:
         self._instruments[info.symbol] = info
 
-    def get(self, symbol: str) -> Optional[InstrumentInfo]:
+    def get(self, symbol: str) -> InstrumentInfo | None:
         return self._instruments.get(symbol)
 
     def get_required(self, symbol: str) -> InstrumentInfo:
@@ -287,19 +286,19 @@ class InstrumentRegistry:
             raise KeyError(f"Instrument {symbol!r} not registered.")
         return info
 
-    def all_symbols(self) -> List[str]:
+    def all_symbols(self) -> list[str]:
         return sorted(self._instruments.keys())
 
-    def by_asset_class(self, asset_class: AssetClass) -> List[InstrumentInfo]:
+    def by_asset_class(self, asset_class: AssetClass) -> list[InstrumentInfo]:
         return [i for i in self._instruments.values() if i.asset_class == asset_class]
 
-    def by_region(self, region: Region) -> List[InstrumentInfo]:
+    def by_region(self, region: Region) -> list[InstrumentInfo]:
         return [i for i in self._instruments.values() if i.region == region]
 
-    def by_tag(self, tag: str) -> List[InstrumentInfo]:
+    def by_tag(self, tag: str) -> list[InstrumentInfo]:
         return [i for i in self._instruments.values() if tag in i.tags]
 
-    def by_currency(self, currency: str) -> List[InstrumentInfo]:
+    def by_currency(self, currency: str) -> list[InstrumentInfo]:
         return [
             i
             for i in self._instruments.values()
@@ -309,12 +308,12 @@ class InstrumentRegistry:
     def total(self) -> int:
         return len(self._instruments)
 
-    def asset_class_summary(self) -> Dict[str, int]:
-        summary: Dict[str, int] = {}
+    def asset_class_summary(self) -> dict[str, int]:
+        summary: dict[str, int] = {}
         for info in self._instruments.values():
             key = info.asset_class.value
             summary[key] = summary.get(key, 0) + 1
         return summary
 
-    def to_dict(self) -> Dict[str, dict]:
+    def to_dict(self) -> dict[str, dict]:
         return {sym: info.to_dict() for sym, info in self._instruments.items()}

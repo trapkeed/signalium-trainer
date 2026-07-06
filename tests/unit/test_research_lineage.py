@@ -23,16 +23,14 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 
-from trainer.research.cost_tracker import CostTracker, ExperimentCost
+from trainer.research.cost_tracker import CostTracker
 from trainer.research.dashboard import DashboardBuilder
 from trainer.research.differencing import (
     DatasetDiff,
     ExperimentDiffer,
-    FeatureDiff,
     ModelDiff,
     ValidationDiff,
 )

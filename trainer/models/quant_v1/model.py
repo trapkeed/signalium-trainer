@@ -34,8 +34,8 @@ Backward compatibility is fully preserved:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional, Union
+from datetime import UTC, datetime
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -74,7 +74,6 @@ from trainer.models.quant_v1.hybrid.input import HybridInput
 from trainer.models.quant_v1.output import (
     MultiTaskQuantModelOutput,
     OutputLayer,
-    QuantModelOutput,
 )
 from trainer.registry.registry import ModelRegistry
 
@@ -124,7 +123,7 @@ class QuantModelV1(BaseQuantModel):
     def __init__(
         self,
         trainer_config: TrainerConfig,
-        model_config: Optional[QuantV1Config] = None,
+        model_config: QuantV1Config | None = None,
     ) -> None:
         super().__init__(trainer_config)
         self._model_config = model_config or QuantV1Config()
@@ -148,97 +147,97 @@ class QuantModelV1(BaseQuantModel):
         self.output_layer = OutputLayer(label_names=cls_cfg.label_names)
 
         # ── Phase 14.5 optional heads ────────────────────────────────────
-        self.expected_move_head: Optional[ExpectedMoveHead] = (
+        self.expected_move_head: ExpectedMoveHead | None = (
             ExpectedMoveHead(ctx_dim, mt.expected_move_head)
             if mt.expected_move_head.enabled
             else None
         )
-        self.stop_loss_head: Optional[StopLossHead] = (
+        self.stop_loss_head: StopLossHead | None = (
             StopLossHead(ctx_dim, mt.stop_loss_head) if mt.stop_loss_head.enabled else None
         )
-        self.take_profit_head: Optional[TakeProfitHead] = (
+        self.take_profit_head: TakeProfitHead | None = (
             TakeProfitHead(ctx_dim, mt.take_profit_head) if mt.take_profit_head.enabled else None
         )
-        self.holding_time_head: Optional[HoldingTimeHead] = (
+        self.holding_time_head: HoldingTimeHead | None = (
             HoldingTimeHead(ctx_dim, mt.holding_time_head) if mt.holding_time_head.enabled else None
         )
-        self.tp_probability_head: Optional[TPProbabilityHead] = (
+        self.tp_probability_head: TPProbabilityHead | None = (
             TPProbabilityHead(ctx_dim, mt.tp_probability_head)
             if mt.tp_probability_head.enabled
             else None
         )
 
         # ── Phase 14.6 optional heads ────────────────────────────────────
-        self.mfe_head: Optional[MFEHead] = (
+        self.mfe_head: MFEHead | None = (
             MFEHead(ctx_dim, mt.mfe_head) if mt.mfe_head.enabled else None
         )
-        self.mae_excursion_head: Optional[MAEExcursionHead] = (
+        self.mae_excursion_head: MAEExcursionHead | None = (
             MAEExcursionHead(ctx_dim, mt.mae_excursion_head)
             if mt.mae_excursion_head.enabled
             else None
         )
-        self.trade_efficiency_head: Optional[TradeEfficiencyHead] = (
+        self.trade_efficiency_head: TradeEfficiencyHead | None = (
             TradeEfficiencyHead(ctx_dim, mt.trade_efficiency_head)
             if mt.trade_efficiency_head.enabled
             else None
         )
-        self.reward_risk_head: Optional[RewardRiskHead] = (
+        self.reward_risk_head: RewardRiskHead | None = (
             RewardRiskHead(ctx_dim, mt.reward_risk_head) if mt.reward_risk_head.enabled else None
         )
-        self.trade_survival_head: Optional[TradeSurvivalHead] = (
+        self.trade_survival_head: TradeSurvivalHead | None = (
             TradeSurvivalHead(ctx_dim, mt.trade_survival_head)
             if mt.trade_survival_head.enabled
             else None
         )
-        self.sl_resilience_head: Optional[SLResilienceHead] = (
+        self.sl_resilience_head: SLResilienceHead | None = (
             SLResilienceHead(ctx_dim, mt.sl_resilience_head)
             if mt.sl_resilience_head.enabled
             else None
         )
-        self.tp_achievability_head: Optional[TPAchievabilityHead] = (
+        self.tp_achievability_head: TPAchievabilityHead | None = (
             TPAchievabilityHead(ctx_dim, mt.tp_achievability_head)
             if mt.tp_achievability_head.enabled
             else None
         )
-        self.entry_quality_head: Optional[EntryQualityHead] = (
+        self.entry_quality_head: EntryQualityHead | None = (
             EntryQualityHead(ctx_dim, mt.entry_quality_head)
             if mt.entry_quality_head.enabled
             else None
         )
-        self.exit_quality_head: Optional[ExitQualityHead] = (
+        self.exit_quality_head: ExitQualityHead | None = (
             ExitQualityHead(ctx_dim, mt.exit_quality_head) if mt.exit_quality_head.enabled else None
         )
-        self.market_stability_head: Optional[MarketStabilityHead] = (
+        self.market_stability_head: MarketStabilityHead | None = (
             MarketStabilityHead(ctx_dim, mt.market_stability_head)
             if mt.market_stability_head.enabled
             else None
         )
-        self.trade_decay_head: Optional[TradeDecayHead] = (
+        self.trade_decay_head: TradeDecayHead | None = (
             TradeDecayHead(ctx_dim, mt.trade_decay_head) if mt.trade_decay_head.enabled else None
         )
-        self.profit_distribution_head: Optional[ProfitDistributionHead] = (
+        self.profit_distribution_head: ProfitDistributionHead | None = (
             ProfitDistributionHead(ctx_dim, mt.profit_distribution_head)
             if mt.profit_distribution_head.enabled
             else None
         )
-        self.loss_distribution_head: Optional[LossDistributionHead] = (
+        self.loss_distribution_head: LossDistributionHead | None = (
             LossDistributionHead(ctx_dim, mt.loss_distribution_head)
             if mt.loss_distribution_head.enabled
             else None
         )
-        self.position_size_quality_head: Optional[PositionSizeQualityHead] = (
+        self.position_size_quality_head: PositionSizeQualityHead | None = (
             PositionSizeQualityHead(ctx_dim, mt.position_size_quality_head)
             if mt.position_size_quality_head.enabled
             else None
         )
-        self.uncertainty_head: Optional[UncertaintyHead] = (
+        self.uncertainty_head: UncertaintyHead | None = (
             UncertaintyHead(ctx_dim, mt.uncertainty_head) if mt.uncertainty_head.enabled else None
         )
 
         self._initialize_weights()
 
         # ── Phase 14.9A — Hybrid Encoder (disabled by default) ───────────
-        self.hybrid_encoder: Optional[HybridEncoder] = None
+        self.hybrid_encoder: HybridEncoder | None = None
         hybrid_cfg = getattr(self._model_config, "hybrid_encoder", None)
         if hybrid_cfg is not None and hybrid_cfg.enabled:
             self.hybrid_encoder = HybridEncoder(hybrid_cfg)
@@ -255,7 +254,7 @@ class QuantModelV1(BaseQuantModel):
 
     # ── Forward pass — backward compatible ──────────────────────────────
 
-    def forward(self, x: Union[torch.Tensor, HybridInput]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor | HybridInput) -> torch.Tensor:
         """Standard forward pass — returns direction logits only.
 
         Accepts either a plain ``torch.Tensor`` (original path, unchanged) or
@@ -271,7 +270,7 @@ class QuantModelV1(BaseQuantModel):
         _, logits, _ = self._encode(x)
         return logits
 
-    def predict(self, x: Union[torch.Tensor, HybridInput]) -> MultiTaskQuantModelOutput:
+    def predict(self, x: torch.Tensor | HybridInput) -> MultiTaskQuantModelOutput:
         """Full inference pass — returns complete MultiTaskQuantModelOutput.
 
         All enabled head outputs are populated.  Compatible with existing
@@ -285,7 +284,7 @@ class QuantModelV1(BaseQuantModel):
         """
         return self._forward_full(x)
 
-    def forward_multi_task(self, x: Union[torch.Tensor, HybridInput]) -> dict[str, torch.Tensor]:
+    def forward_multi_task(self, x: torch.Tensor | HybridInput) -> dict[str, torch.Tensor]:
         """Multi-task forward for the training engine — returns dict of tensors.
 
         Always present:
@@ -316,7 +315,7 @@ class QuantModelV1(BaseQuantModel):
         }
 
         # ── Phase 14.5 ───────────────────────────────────────────────────
-        _p14_5: list[tuple[Optional[nn.Module], str]] = [
+        _p14_5: list[tuple[nn.Module | None, str]] = [
             (self.expected_move_head, "expected_move"),
             (self.stop_loss_head, "stop_loss"),
             (self.take_profit_head, "take_profit"),
@@ -325,7 +324,7 @@ class QuantModelV1(BaseQuantModel):
         ]
 
         # ── Phase 14.6 ───────────────────────────────────────────────────
-        _p14_6: list[tuple[Optional[nn.Module], str]] = [
+        _p14_6: list[tuple[nn.Module | None, str]] = [
             (self.mfe_head, "mfe"),
             (self.mae_excursion_head, "mae_excursion"),
             (self.trade_efficiency_head, "trade_efficiency"),
@@ -375,7 +374,7 @@ class QuantModelV1(BaseQuantModel):
     def enabled_heads(self) -> list[str]:
         """Names of all currently enabled prediction heads."""
         heads = ["direction", "confidence"]
-        _all_optional: list[tuple[Optional[nn.Module], str]] = [
+        _all_optional: list[tuple[nn.Module | None, str]] = [
             (self.expected_move_head, "expected_move"),
             (self.stop_loss_head, "stop_loss"),
             (self.take_profit_head, "take_profit"),
@@ -502,7 +501,7 @@ class QuantModelV1(BaseQuantModel):
     # ── Private helpers ──────────────────────────────────────────────────
 
     def _encode(
-        self, x: Union[torch.Tensor, HybridInput]
+        self, x: torch.Tensor | HybridInput
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Shared encoder pass — (context, logits, confidence).
 
@@ -538,16 +537,16 @@ class QuantModelV1(BaseQuantModel):
         confidence = self.confidence_head(context)
         return context, logits, confidence
 
-    def _forward_full(self, x: Union[torch.Tensor, HybridInput]) -> MultiTaskQuantModelOutput:
+    def _forward_full(self, x: torch.Tensor | HybridInput) -> MultiTaskQuantModelOutput:
         """Internal full forward — shared by predict()."""
         context, logits, confidence = self._encode(x)
         base = self.output_layer(logits, confidence)
 
-        def _call(head: Optional[nn.Module]) -> Optional[torch.Tensor]:
+        def _call(head: nn.Module | None) -> torch.Tensor | None:
             return head(context) if head is not None else None
 
         # For MarketStabilityHead, return softmax probabilities at inference
-        market_stability_out: Optional[torch.Tensor] = None
+        market_stability_out: torch.Tensor | None = None
         if self.market_stability_head is not None:
             market_stability_out = self.market_stability_head.predict_proba(context)
 
@@ -581,7 +580,7 @@ class QuantModelV1(BaseQuantModel):
             loss_distribution=_call(self.loss_distribution_head),
             position_size_quality=_call(self.position_size_quality_head),
             uncertainty=_call(self.uncertainty_head),
-            prediction_timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            prediction_timestamp=datetime.now(tz=UTC).isoformat(),
             model_version=self.model_version,
         )
 

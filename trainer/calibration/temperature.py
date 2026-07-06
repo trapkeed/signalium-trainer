@@ -16,8 +16,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -79,7 +77,7 @@ class TemperatureScaling(nn.Module):
         max_iter: int = 500,
         lr: float = 0.01,
         verbose: bool = False,
-    ) -> "TemperatureScaling":
+    ) -> TemperatureScaling:
         """Optimise temperature on a held-out calibration set.
 
         Args:

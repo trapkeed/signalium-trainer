@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -46,14 +46,14 @@ class ChampionEvent:
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     event_type: str = "promotion"  # promotion | rollback | retirement | comparison
     champion_id: str = ""
-    challenger_id: Optional[str] = None
+    challenger_id: str | None = None
     actor: str = "system"
     reason: str = ""
     outcome: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_type": self.event_type,
@@ -87,11 +87,11 @@ class ChampionChallengerManager:
         self.registry = registry
         self.lifecycle = lifecycle
         self.governance = governance
-        self._current_champion_id: Optional[str] = None
-        self._challengers: List[str] = []
-        self._historical_champions: List[str] = []
-        self._retired_champions: List[str] = []
-        self._events: List[ChampionEvent] = []
+        self._current_champion_id: str | None = None
+        self._challengers: list[str] = []
+        self._historical_champions: list[str] = []
+        self._retired_champions: list[str] = []
+        self._events: list[ChampionEvent] = []
 
     def set_champion(
         self, model_id: str, approver: str = "system", reason: str = ""
@@ -141,7 +141,7 @@ class ChampionChallengerManager:
 
     def rollback_champion(
         self, actor: str = "ops", reason: str = "rollback"
-    ) -> Optional[ChampionEvent]:
+    ) -> ChampionEvent | None:
         """Roll back the current champion to ROLLED_BACK state."""
         if not self._current_champion_id:
             return None
@@ -228,9 +228,9 @@ class ChampionChallengerManager:
         self,
         model_a_id: str,
         model_b_id: str,
-        metrics_a: Optional[Dict[str, float]] = None,
-        metrics_b: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        metrics_a: dict[str, float] | None = None,
+        metrics_b: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
         """Compare two models on registered validation metrics.
 
         Returns a comparison dict with winner per metric and overall winner.
@@ -250,7 +250,7 @@ class ChampionChallengerManager:
             "max_drawdown",
             "validation_score",
         ]
-        results: Dict[str, Any] = {}
+        results: dict[str, Any] = {}
         a_wins = 0
         b_wins = 0
 
@@ -307,14 +307,14 @@ class ChampionChallengerManager:
         return comparison
 
     @property
-    def current_champion(self) -> Optional[Dict[str, Any]]:
+    def current_champion(self) -> dict[str, Any] | None:
         if not self._current_champion_id:
             return None
         m = self.registry.get(self._current_champion_id)
         return m.to_dict() if m else None
 
     @property
-    def challengers(self) -> List[Dict[str, Any]]:
+    def challengers(self) -> list[dict[str, Any]]:
         result = []
         for mid in self._challengers:
             m = self.registry.get(mid)
@@ -323,7 +323,7 @@ class ChampionChallengerManager:
         return result
 
     @property
-    def historical_champions(self) -> List[Dict[str, Any]]:
+    def historical_champions(self) -> list[dict[str, Any]]:
         result = []
         for mid in self._historical_champions:
             m = self.registry.get(mid)
@@ -332,7 +332,7 @@ class ChampionChallengerManager:
         return result
 
     @property
-    def retired_champions(self) -> List[Dict[str, Any]]:
+    def retired_champions(self) -> list[dict[str, Any]]:
         result = []
         for mid in self._retired_champions:
             m = self.registry.get(mid)
@@ -340,10 +340,10 @@ class ChampionChallengerManager:
                 result.append(m.to_dict())
         return result
 
-    def event_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def event_history(self, limit: int = 50) -> list[dict[str, Any]]:
         return [e.to_dict() for e in reversed(self._events[-limit:])]
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "current_champion": self.current_champion,
             "n_challengers": len(self._challengers),

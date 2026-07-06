@@ -20,7 +20,7 @@ import csv
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -63,8 +63,8 @@ class ReportExporter:
 
     def __init__(
         self,
-        output_dir: Optional[Path] = None,
-        config: Optional[ExportConfig] = None,
+        output_dir: Path | None = None,
+        config: ExportConfig | None = None,
     ) -> None:
         self._cfg = config or ExportConfig()
         if output_dir:
@@ -74,7 +74,7 @@ class ReportExporter:
     def export_all(
         self,
         run_record: Any,
-        leaderboard: Optional[Any] = None,
+        leaderboard: Any | None = None,
     ) -> list[Path]:
         """Export a validation run in all configured formats.
 
@@ -121,7 +121,7 @@ class ReportExporter:
 
     # ── Format implementations ────────────────────────────────────────────
 
-    def _export_json(self, run_record: Any, leaderboard: Optional[Any]) -> Path:
+    def _export_json(self, run_record: Any, leaderboard: Any | None) -> Path:
         path = self._cfg.output_dir / f"validation_run_{run_record.run_id[:8]}.json"
         data: dict[str, Any] = {
             "run_id": run_record.run_id,
@@ -150,7 +150,7 @@ class ReportExporter:
         path.write_text(json.dumps(data, indent=2, default=str))
         return path
 
-    def _export_csv(self, run_record: Any, leaderboard: Optional[Any]) -> Path:
+    def _export_csv(self, run_record: Any, leaderboard: Any | None) -> Path:
         path = self._cfg.output_dir / f"metrics_{run_record.run_id[:8]}.csv"
         rows: list[dict[str, Any]] = []
 
@@ -175,7 +175,7 @@ class ReportExporter:
                 writer.writerows(rows)
         return path
 
-    def _export_html(self, run_record: Any, leaderboard: Optional[Any]) -> Path:
+    def _export_html(self, run_record: Any, leaderboard: Any | None) -> Path:
         path = self._cfg.output_dir / f"report_{run_record.run_id[:8]}.html"
         stat = run_record.statistical_metrics
         trade = run_record.trading_metrics
@@ -265,7 +265,7 @@ h1{{color:#1a1a2e;}} h2{{color:#16213e;border-bottom:2px solid #0f3460;padding-b
         path.write_text(html)
         return path
 
-    def _export_pdf(self, run_record: Any, leaderboard: Optional[Any]) -> Path:
+    def _export_pdf(self, run_record: Any, leaderboard: Any | None) -> Path:
         """Export as a text-based 'PDF' report (plain text formatted for clarity)."""
         path = self._cfg.output_dir / f"report_{run_record.run_id[:8]}.pdf.txt"
         stat = run_record.statistical_metrics

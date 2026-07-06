@@ -8,7 +8,6 @@ Recovery Mode, Emergency Capital Lockdown.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -41,12 +40,12 @@ class DrawdownManager:
         self._peak = capital
         self._current = capital
         self._mode = DrawdownMode.NORMAL
-        self._events: List[DrawdownEvent] = []
-        self._active_event: Optional[DrawdownEvent] = None
+        self._events: list[DrawdownEvent] = []
+        self._active_event: DrawdownEvent | None = None
 
     # ── Equity update ─────────────────────────────────────────────────────────
 
-    def update(self, equity: float) -> Dict:
+    def update(self, equity: float) -> dict:
         """Update current equity and recompute drawdown mode."""
         self._current = equity
         if equity > self._peak:
@@ -151,7 +150,7 @@ class DrawdownManager:
     def can_trade(self) -> bool:
         return self._mode != DrawdownMode.EMERGENCY_LOCKDOWN
 
-    def events(self, last_n: int = 20) -> List[DrawdownEvent]:
+    def events(self, last_n: int = 20) -> list[DrawdownEvent]:
         return self._events[-last_n:]
 
     def max_drawdown(self) -> float:
@@ -171,7 +170,7 @@ class DrawdownManager:
         self._active_event = None
         logger.info(f"DrawdownManager: peak reset to {equity:.2f}")
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "peak": round(self._peak, 2),
             "current": round(self._current, 2),

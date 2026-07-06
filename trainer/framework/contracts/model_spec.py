@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -63,8 +63,8 @@ class ModelSpec:
     version: str
     architecture: str
     description: str = ""
-    input_schema: Optional[FeatureSchema] = None
-    output_schema: Optional[OutputSchema] = None
+    input_schema: FeatureSchema | None = None
+    output_schema: OutputSchema | None = None
     export_formats: list[str] = field(default_factory=lambda: ["torchscript", "onnx"])
     tags: dict[str, Any] = field(default_factory=dict)
 

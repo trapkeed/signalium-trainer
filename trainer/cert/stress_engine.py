@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import math
-import random
-from typing import Any, Dict, List
-
 try:
     from loguru import logger
 except ImportError:
@@ -14,10 +10,10 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.cert.cert_models import CertificationInput, StressTestResult
-from trainer.cert.cert_types import CheckStatus, StressScenario, clamp
+from trainer.cert.cert_types import CheckStatus, StressScenario
 
 # Max acceptable degradation per scenario (%)
-_DEGRADATION_LIMITS: Dict[str, float] = {
+_DEGRADATION_LIMITS: dict[str, float] = {
     StressScenario.HIGH_VOLATILITY.value: 40.0,
     StressScenario.LOW_VOLATILITY.value: 30.0,
     StressScenario.FLASH_CRASH.value: 60.0,
@@ -30,7 +26,7 @@ _DEGRADATION_LIMITS: Dict[str, float] = {
     StressScenario.MISSING_FEATURES.value: 30.0,
 }
 
-_DEGRADATION_WARN: Dict[str, float] = {k: v * 0.6 for k, v in _DEGRADATION_LIMITS.items()}
+_DEGRADATION_WARN: dict[str, float] = {k: v * 0.6 for k, v in _DEGRADATION_LIMITS.items()}
 
 
 def _check_status(degradation: float, scenario: str) -> CheckStatus:
@@ -51,7 +47,7 @@ class StressEngine:
     Otherwise a deterministic simulation is computed from the baseline OOS metrics.
     """
 
-    def run_all(self, inp: CertificationInput) -> List[StressTestResult]:
+    def run_all(self, inp: CertificationInput) -> list[StressTestResult]:
         results = [self._run_scenario(inp, s) for s in StressScenario]
         passed = sum(1 for r in results if r.status == CheckStatus.PASS)
         logger.debug(f"[SE] Stress: {passed}/{len(results)} scenarios passed")
@@ -86,7 +82,7 @@ class StressEngine:
         base_dd = inp.oos_max_drawdown
 
         # Scenario-specific multipliers
-        factors: Dict[str, float] = {
+        factors: dict[str, float] = {
             StressScenario.HIGH_VOLATILITY.value: (0.70, 1.40),
             StressScenario.LOW_VOLATILITY.value: (0.80, 0.80),
             StressScenario.FLASH_CRASH.value: (0.40, 2.50),

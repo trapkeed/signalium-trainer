@@ -11,8 +11,6 @@ All streams output a fixed-dimension vector ``(batch, out_dim)`` that the
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -238,7 +236,7 @@ class MultiTimeframeStream(nn.Module):
     def forward(
         self,
         timeframe_inputs: dict[str, torch.Tensor],
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> torch.Tensor:
         """Args:
             timeframe_inputs: dict of {tf_name: (batch, seq_len, feat_dim)}

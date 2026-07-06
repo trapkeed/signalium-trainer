@@ -46,9 +46,10 @@ Usage (future implementation)::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Type
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -77,7 +78,7 @@ class EncoderPlugin:
     encoder_class: type
     description: str = ""
     status: str = "future"
-    registered_at: str = field(default_factory=lambda: datetime.now(tz=timezone.utc).isoformat())
+    registered_at: str = field(default_factory=lambda: datetime.now(tz=UTC).isoformat())
     tags: list[str] = field(default_factory=list)
 
     def instantiate(self, **kwargs: Any) -> Any:
@@ -136,7 +137,7 @@ class PluginRegistry:
         version: str = "1.0.0",
         description: str = "",
         status: str = "experimental",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> Callable[[type], type]:
         """Class decorator that registers an encoder class.
 
@@ -192,7 +193,7 @@ class PluginRegistry:
         version: str = "1.0.0",
         description: str = "",
         status: str = "experimental",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> EncoderPlugin:
         """Register an encoder class explicitly (non-decorator form).
 

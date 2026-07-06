@@ -8,7 +8,6 @@ Also recommends order expiry and reasoning.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -24,7 +23,6 @@ from trainer.execution.execution_types import (
     ExecutionForecast,
     OrderType,
     TimingRecommendation,
-    _clamp,
     default_broker,
 )
 
@@ -40,18 +38,18 @@ class OrderRecommendation:
     alternative_type: OrderType
 
     # Order parameters
-    limit_price: Optional[float] = None  # for LIMIT / STOP_LIMIT
-    stop_price: Optional[float] = None  # for STOP / STOP_LIMIT
+    limit_price: float | None = None  # for LIMIT / STOP_LIMIT
+    stop_price: float | None = None  # for STOP / STOP_LIMIT
     entry_price: float = 0.0  # reference entry
 
     expiry_hours: float = 24.0  # GTC in hours
     expiry_note: str = ""
 
-    reasoning: List[str] = field(default_factory=list)
+    reasoning: list[str] = field(default_factory=list)
     fill_confidence: float = 0.0  # 0-1, probability of fill
 
-    def to_dict(self) -> Dict:
-        d: Dict = {
+    def to_dict(self) -> dict:
+        d: dict = {
             "instrument": self.instrument,
             "direction": self.direction,
             "primary_type": self.primary_type.value,
@@ -83,16 +81,16 @@ class OrderStrategyEngine:
     def recommend(
         self,
         forecast: ExecutionForecast,
-        zones: Optional[EntryZones] = None,
-        timing: Optional[TimingAssessment] = None,
-        broker: Optional[BrokerConstraints] = None,
+        zones: EntryZones | None = None,
+        timing: TimingAssessment | None = None,
+        broker: BrokerConstraints | None = None,
     ) -> OrderRecommendation:
 
         broker = broker or default_broker()
         entry = forecast.current_price
         sign = 1.0 if forecast.is_buy else -1.0
         atr = forecast.atr
-        reasoning: List[str] = []
+        reasoning: list[str] = []
 
         pri_entry = zones.primary_entry if zones else entry
         timing_rec = timing.recommendation if timing else TimingRecommendation.WAIT

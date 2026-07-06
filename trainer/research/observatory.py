@@ -29,8 +29,8 @@ from __future__ import annotations
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Production snapshot
@@ -43,7 +43,7 @@ class ProductionSnapshot:
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
-    metrics: Dict[str, float] = field(default_factory=dict)
+    metrics: dict[str, float] = field(default_factory=dict)
     latency_ms: float = 0.0
     throughput_rps: float = 0.0
     cpu_pct: float = 0.0
@@ -56,9 +56,9 @@ class ProductionSnapshot:
     calibration_error: float = 0.0
     regime: str = "unknown"
     n_predictions: int = 0
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "model_id": self.model_id,
@@ -100,7 +100,7 @@ class SignalOutcome:
     entry_price: float = 0.0
     exit_price: float = 0.0
     holding_bars: int = 0
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @property
     def is_correct(self) -> bool:
@@ -110,7 +110,7 @@ class SignalOutcome:
             or (self.signal == "no_trade" and self.outcome == "neutral")
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "outcome_id": self.outcome_id,
             "model_id": self.model_id,
@@ -152,9 +152,9 @@ class ValidationRecord:
     label_version: str = ""
     n_samples: int = 0
     notes: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "record_id": self.record_id,
             "model_id": self.model_id,
@@ -191,17 +191,17 @@ class ResearchObservatory:
 
     def __init__(self, window: int = 200) -> None:
         self.window = window
-        self._snapshots: Dict[str, Deque[ProductionSnapshot]] = {}
-        self._all_snapshots: Dict[str, List[ProductionSnapshot]] = {}
-        self._outcomes: Dict[str, Deque[SignalOutcome]] = {}
-        self._all_outcomes: Dict[str, List[SignalOutcome]] = {}
-        self._validation_records: List[ValidationRecord] = []
-        self._trade_stats: Dict[str, Dict[str, Any]] = {}
+        self._snapshots: dict[str, deque[ProductionSnapshot]] = {}
+        self._all_snapshots: dict[str, list[ProductionSnapshot]] = {}
+        self._outcomes: dict[str, deque[SignalOutcome]] = {}
+        self._all_outcomes: dict[str, list[SignalOutcome]] = {}
+        self._validation_records: list[ValidationRecord] = []
+        self._trade_stats: dict[str, dict[str, Any]] = {}
 
     def record_production_snapshot(
         self,
         model_id: str,
-        metrics: Optional[Dict[str, float]] = None,
+        metrics: dict[str, float] | None = None,
         latency_ms: float = 0.0,
         throughput_rps: float = 0.0,
         cpu_pct: float = 0.0,
@@ -271,7 +271,7 @@ class ResearchObservatory:
     def record_validation(self, record: ValidationRecord) -> None:
         self._validation_records.append(record)
 
-    def get_signal_stats(self, model_id: str) -> Dict[str, Any]:
+    def get_signal_stats(self, model_id: str) -> dict[str, Any]:
         """Compute signal quality statistics for a model."""
         outcomes = list(self._outcomes.get(model_id, []))
         n = len(outcomes)
@@ -305,7 +305,7 @@ class ResearchObservatory:
             "avg_pnl_per_trade": round(total_pnl / n, 6),
         }
 
-    def get_production_trend(self, model_id: str) -> Dict[str, Any]:
+    def get_production_trend(self, model_id: str) -> dict[str, Any]:
         """Compute production metric trends for a model."""
         snaps = list(self._snapshots.get(model_id, []))
         n = len(snaps)
@@ -336,7 +336,7 @@ class ResearchObservatory:
             "confidence_trend": conf_trend,
         }
 
-    def get_observatory_report(self) -> Dict[str, Any]:
+    def get_observatory_report(self) -> dict[str, Any]:
         """Generate full observatory report across all models."""
         model_ids = list(set(list(self._snapshots.keys()) + list(self._outcomes.keys())))
         return {
@@ -347,7 +347,7 @@ class ResearchObservatory:
             "signal_stats": {mid: self.get_signal_stats(mid) for mid in self._outcomes},
             "total_snapshots": sum(len(v) for v in self._all_snapshots.values()),
             "total_outcomes": sum(len(v) for v in self._all_outcomes.values()),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     @property

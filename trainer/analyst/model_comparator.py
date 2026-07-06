@@ -6,7 +6,7 @@ Generates structured comparison reports with citations.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -15,8 +15,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import Citation, LLMResponse, ResearchQuery
-from trainer.analyst.analyst_types import CitationType, Permission, QueryType, Role, has_permission
+from trainer.analyst.analyst_models import ResearchQuery
+from trainer.analyst.analyst_types import Permission, QueryType, has_permission
 from trainer.analyst.citation_engine import CitationEngine
 from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
@@ -30,7 +30,7 @@ class ModelComparator:
     def __init__(
         self,
         index: KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         top_k: int = 6,
     ):
         self._index = index
@@ -44,8 +44,8 @@ class ModelComparator:
         query: ResearchQuery,
         artifact_a: str,
         artifact_b: str,
-        metrics: Optional[List[str]] = None,
-    ) -> Dict:
+        metrics: list[str] | None = None,
+    ) -> dict:
         """Compare two research artifacts and return a structured comparison report."""
         if not has_permission(query.role, Permission.COMPARE):
             return {"error": "Access denied. COMPARE permission required."}
@@ -91,14 +91,14 @@ class ModelComparator:
     def compare_batch(
         self,
         query: ResearchQuery,
-        artifacts: List[str],
-    ) -> Dict:
+        artifacts: list[str],
+    ) -> dict:
         """Compare multiple artifacts. Returns pairwise comparison matrix."""
         if not has_permission(query.role, Permission.COMPARE):
             return {"error": "Access denied."}
 
         all_chunks = []
-        artifact_data: Dict[str, List] = {}
+        artifact_data: dict[str, list] = {}
         for art in artifacts:
             chunks = self._index.get_by_artifact(art)
             artifact_data[art] = chunks
@@ -122,13 +122,13 @@ class ModelComparator:
 
     def _build_table(
         self,
-        chunks_a: List,
-        chunks_b: List,
-        metrics: Optional[List[str]],
-    ) -> Dict[str, Dict]:
+        chunks_a: list,
+        chunks_b: list,
+        metrics: list[str] | None,
+    ) -> dict[str, dict]:
         """Build a metric comparison table from chunk metadata."""
         default_metrics = metrics or ["sharpe", "max_drawdown", "accuracy", "calibration", "status"]
-        table: Dict[str, Dict] = {}
+        table: dict[str, dict] = {}
 
         meta_a = {}
         for c in chunks_a:
@@ -155,9 +155,9 @@ class ModelComparator:
     def ranking(
         self,
         query: ResearchQuery,
-        artifacts: List[str],
+        artifacts: list[str],
         metric: str = "sharpe",
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Rank artifacts by a given metric (descending for sharpe, ascending for drawdown)."""
         if not has_permission(query.role, Permission.COMPARE):
             return []
@@ -165,14 +165,14 @@ class ModelComparator:
         ranked = []
         for art in artifacts:
             chunks = self._index.get_by_artifact(art)
-            meta: Dict[str, Any] = {}
+            meta: dict[str, Any] = {}
             for c in chunks:
                 meta.update(c.metadata)
             ranked.append(
                 {
                     "artifact_id": art,
                     "metric": metric,
-                    "value": meta.get(metric, None),
+                    "value": meta.get(metric),
                 }
             )
 

@@ -38,8 +38,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -58,7 +58,7 @@ class ExperimentCost:
     project: str = ""
     branch: str = ""
     researcher: str = "system"
-    recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    recorded_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Resource consumption
     gpu_hours: float = 0.0
@@ -84,7 +84,7 @@ class ExperimentCost:
             + self.inference_cost_usd
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cost_id": self.cost_id,
             "entity_id": self.entity_id,
@@ -107,7 +107,7 @@ class ExperimentCost:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ExperimentCost":
+    def from_dict(cls, d: dict[str, Any]) -> ExperimentCost:
         return cls(
             cost_id=d.get("cost_id", str(uuid.uuid4())),
             entity_id=d.get("entity_id", ""),
@@ -115,7 +115,7 @@ class ExperimentCost:
             project=d.get("project", ""),
             branch=d.get("branch", ""),
             researcher=d.get("researcher", "system"),
-            recorded_at=d.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+            recorded_at=d.get("recorded_at", datetime.now(UTC).isoformat()),
             gpu_hours=d.get("gpu_hours", 0.0),
             cpu_hours=d.get("cpu_hours", 0.0),
             storage_gb_months=d.get("storage_gb_months", 0.0),
@@ -154,7 +154,7 @@ class CostTracker:
         self.cpu_rate = cpu_rate_per_hour
         self.storage_rate = storage_rate_per_gb_month
         self.inference_rate = inference_rate_per_hour
-        self._costs: List[ExperimentCost] = []
+        self._costs: list[ExperimentCost] = []
 
     # ------------------------------------------------------------------
     # Recording
@@ -234,22 +234,22 @@ class CostTracker:
     # Querying
     # ------------------------------------------------------------------
 
-    def get(self, entity_id: str) -> Optional[ExperimentCost]:
+    def get(self, entity_id: str) -> ExperimentCost | None:
         for c in reversed(self._costs):
             if c.entity_id == entity_id:
                 return c
         return None
 
-    def all_costs(self) -> List[ExperimentCost]:
+    def all_costs(self) -> list[ExperimentCost]:
         return list(self._costs)
 
-    def by_project(self, project: str) -> List[ExperimentCost]:
+    def by_project(self, project: str) -> list[ExperimentCost]:
         return [c for c in self._costs if c.project == project]
 
-    def by_branch(self, branch: str) -> List[ExperimentCost]:
+    def by_branch(self, branch: str) -> list[ExperimentCost]:
         return [c for c in self._costs if c.branch == branch]
 
-    def by_researcher(self, researcher: str) -> List[ExperimentCost]:
+    def by_researcher(self, researcher: str) -> list[ExperimentCost]:
         return [c for c in self._costs if c.researcher == researcher]
 
     # ------------------------------------------------------------------
@@ -265,21 +265,21 @@ class CostTracker:
     def total_cpu_hours(self) -> float:
         return sum(c.cpu_hours for c in self._costs)
 
-    def cost_by_project(self) -> Dict[str, float]:
-        result: Dict[str, float] = {}
+    def cost_by_project(self) -> dict[str, float]:
+        result: dict[str, float] = {}
         for c in self._costs:
             key = c.project or "unassigned"
             result[key] = result.get(key, 0.0) + c.total_cost_usd
         return {k: round(v, 4) for k, v in result.items()}
 
-    def cost_by_researcher(self) -> Dict[str, float]:
-        result: Dict[str, float] = {}
+    def cost_by_researcher(self) -> dict[str, float]:
+        result: dict[str, float] = {}
         for c in self._costs:
             key = c.researcher or "unknown"
             result[key] = result.get(key, 0.0) + c.total_cost_usd
         return {k: round(v, 4) for k, v in result.items()}
 
-    def cost_by_category(self) -> Dict[str, float]:
+    def cost_by_category(self) -> dict[str, float]:
         return {
             "training": round(sum(c.training_cost_usd for c in self._costs), 4),
             "cpu": round(sum(c.cpu_cost_usd for c in self._costs), 4),
@@ -288,14 +288,14 @@ class CostTracker:
             "inference": round(sum(c.inference_cost_usd for c in self._costs), 4),
         }
 
-    def most_expensive(self, n: int = 5) -> List[ExperimentCost]:
+    def most_expensive(self, n: int = 5) -> list[ExperimentCost]:
         return sorted(self._costs, key=lambda c: c.total_cost_usd, reverse=True)[:n]
 
     # ------------------------------------------------------------------
     # Report
     # ------------------------------------------------------------------
 
-    def cost_report(self) -> Dict[str, Any]:
+    def cost_report(self) -> dict[str, Any]:
         return {
             "total_experiments": len(self._costs),
             "total_cost_usd": round(self.total_cost_usd(), 4),

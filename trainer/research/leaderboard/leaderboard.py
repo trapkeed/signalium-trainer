@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
-from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
+from trainer.research.benchmark.runner import BenchmarkResult
 
 
 @dataclass
@@ -99,7 +98,7 @@ class Leaderboard:
                  Defaults to equal weighting of accuracy, F1, and speed.
     """
 
-    def __init__(self, weights: Optional[ScoringWeights] = None) -> None:
+    def __init__(self, weights: ScoringWeights | None = None) -> None:
         self._weights = weights or ScoringWeights()
         self._entries: list[LeaderboardEntry] = []
         self._benchmark_id: str = ""
@@ -193,7 +192,7 @@ class Leaderboard:
         completed = [e for e in self._entries if e.status == "completed"]
         return completed[:n]
 
-    def champion(self) -> Optional[LeaderboardEntry]:
+    def champion(self) -> LeaderboardEntry | None:
         """Return the top-ranked completed entry (rank 1).
 
         Returns:

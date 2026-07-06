@@ -5,13 +5,12 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.analyst.analyst_types import (
     CitationType,
     KnowledgeSourceType,
     LLMProviderType,
-    Permission,
     QueryType,
     RecommendationType,
     ReportType,
@@ -30,15 +29,15 @@ class KnowledgeChunk:
     artifact_id: str  # experiment ID, model ID, etc.
     title: str
     content: str
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def word_count(self) -> int:
         return len(self.content.split())
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "chunk_id": self.chunk_id,
             "source_type": self.source_type.value,
@@ -63,7 +62,7 @@ class Citation:
     description: str
     relevance: float = 1.0  # 0–1
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "citation_type": self.citation_type.value,
             "artifact_id": self.artifact_id,
@@ -83,7 +82,7 @@ class LLMResponse:
     """Response from an LLM provider."""
 
     content: str
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     provider: LLMProviderType = LLMProviderType.MOCK
     model_name: str = "mock"
     prompt_tokens: int = 0
@@ -91,13 +90,13 @@ class LLMResponse:
     latency_ms: float = 0.0
     grounded: bool = True
     safe: bool = True
-    retrieved_chunks: List[KnowledgeChunk] = field(default_factory=list)
+    retrieved_chunks: list[KnowledgeChunk] = field(default_factory=list)
 
     @property
     def total_tokens(self) -> int:
         return self.prompt_tokens + self.response_tokens
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "content": self.content,
             "citations": [c.to_dict() for c in self.citations],
@@ -126,9 +125,9 @@ class ResearchQuery:
     role: Role = Role.RESEARCHER
     session_id: str = ""
     timestamp: float = field(default_factory=time.time)
-    filters: Dict[str, Any] = field(default_factory=dict)
+    filters: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "query_id": self.query_id,
             "text": self.text,
@@ -149,11 +148,11 @@ class ChatMessage:
     message_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     role: str = "user"  # user | assistant
     content: str = ""
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
     tokens: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "message_id": self.message_id,
             "role": self.role,
@@ -174,7 +173,7 @@ class ChatSession:
     session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     researcher: str = ""
     role: Role = Role.RESEARCHER
-    messages: List[ChatMessage] = field(default_factory=list)
+    messages: list[ChatMessage] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     active: bool = True
@@ -183,17 +182,17 @@ class ChatSession:
     def message_count(self) -> int:
         return len(self.messages)
 
-    def add_message(self, role: str, content: str, citations: List[Citation] = None) -> ChatMessage:
+    def add_message(self, role: str, content: str, citations: list[Citation] = None) -> ChatMessage:
         msg = ChatMessage(role=role, content=content, citations=citations or [])
         self.messages.append(msg)
         self.updated_at = time.time()
         return msg
 
-    def context_window(self, last_n: int = 6) -> List[ChatMessage]:
+    def context_window(self, last_n: int = 6) -> list[ChatMessage]:
         """Return recent messages for context."""
         return self.messages[-last_n:]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "session_id": self.session_id,
             "researcher": self.researcher,
@@ -216,14 +215,14 @@ class ResearchReport:
     report_type: ReportType = ReportType.DAILY_SUMMARY
     title: str = ""
     content: str = ""
-    sections: List[Dict] = field(default_factory=list)
-    citations: List[Citation] = field(default_factory=list)
+    sections: list[dict] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     generated_at: float = field(default_factory=time.time)
     period: str = ""
     word_count: int = 0
     grounded: bool = True
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "report_id": self.report_id,
             "report_type": self.report_type.value,
@@ -249,12 +248,12 @@ class Recommendation:
     title: str = ""
     description: str = ""
     rationale: str = ""
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     priority: str = "MEDIUM"  # HIGH | MEDIUM | LOW
     timestamp: float = field(default_factory=time.time)
     implemented: bool = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "rec_id": self.rec_id,
             "rec_type": self.rec_type.value,

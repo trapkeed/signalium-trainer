@@ -28,9 +28,10 @@ Usage::
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -132,8 +133,8 @@ class ExpertPrediction:
     instrument: str = ""
     timeframe: str = ""
     latency_ms: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def __post_init__(self) -> None:
         total = self.buy_prob + self.sell_prob + self.no_trade_prob
@@ -156,7 +157,7 @@ class ExpertPrediction:
     def is_high_confidence(self) -> bool:
         return self.confidence >= 0.7 and self.uncertainty <= 0.3
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "expert_id": self.expert_id,
             "buy_prob": self.buy_prob,
@@ -175,7 +176,7 @@ class ExpertPrediction:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ExpertPrediction":
+    def from_dict(d: dict[str, Any]) -> ExpertPrediction:
         return ExpertPrediction(
             expert_id=d["expert_id"],
             buy_prob=d.get("buy_prob", 0.33),
@@ -188,7 +189,7 @@ class ExpertPrediction:
             timeframe=d.get("timeframe", ""),
             latency_ms=d.get("latency_ms", 0.0),
             metadata=d.get("metadata", {}),
-            timestamp=d.get("timestamp", datetime.now(timezone.utc).isoformat()),
+            timestamp=d.get("timestamp", datetime.now(UTC).isoformat()),
         )
 
 
@@ -232,9 +233,9 @@ class ExpertModel:
     expert_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "Expert"
     model_family: str = ModelFamily.LSTM
-    specializations: List[str] = field(default_factory=list)
-    instruments: List[str] = field(default_factory=list)
-    timeframes: List[str] = field(default_factory=list)
+    specializations: list[str] = field(default_factory=list)
+    instruments: list[str] = field(default_factory=list)
+    timeframes: list[str] = field(default_factory=list)
     version: str = "1.0.0"
     checkpoint_path: str = ""
     model_version: str = ""
@@ -246,10 +247,10 @@ class ExpertModel:
     calibration_error: float = 0.0
     n_predictions: int = 0
     n_correct: int = 0
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    predict_fn: Optional[Callable] = field(default=None, repr=False)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
+    predict_fn: Callable | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if not self.specializations:
@@ -265,7 +266,7 @@ class ExpertModel:
     def is_active(self) -> bool:
         return self.status in ("active", "champion", "experimental")
 
-    def predict(self, features: Dict[str, Any]) -> ExpertPrediction:
+    def predict(self, features: dict[str, Any]) -> ExpertPrediction:
         """Run live inference via the injected predict_fn."""
         if self.predict_fn is not None:
             return self.predict_fn(features)
@@ -285,19 +286,19 @@ class ExpertModel:
         self.n_predictions += 1
         if correct:
             self.n_correct += 1
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
     def retire(self) -> None:
         self.status = "retired"
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
         logger.info(f"Expert {self.expert_id} ({self.name}) retired.")
 
     def promote_to_champion(self) -> None:
         self.status = "champion"
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
         logger.info(f"Expert {self.expert_id} ({self.name}) promoted to champion.")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "expert_id": self.expert_id,
             "name": self.name,
@@ -323,7 +324,7 @@ class ExpertModel:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ExpertModel":
+    def from_dict(d: dict[str, Any]) -> ExpertModel:
         return ExpertModel(
             expert_id=d.get("expert_id", str(uuid.uuid4())),
             name=d.get("name", "Expert"),
@@ -342,8 +343,8 @@ class ExpertModel:
             calibration_error=d.get("calibration_error", 0.0),
             n_predictions=d.get("n_predictions", 0),
             n_correct=d.get("n_correct", 0),
-            created_at=d.get("created_at", datetime.now(timezone.utc).isoformat()),
-            updated_at=d.get("updated_at", datetime.now(timezone.utc).isoformat()),
+            created_at=d.get("created_at", datetime.now(UTC).isoformat()),
+            updated_at=d.get("updated_at", datetime.now(UTC).isoformat()),
             metadata=d.get("metadata", {}),
         )
 
@@ -363,9 +364,9 @@ class ExpertRegistry:
     """
 
     def __init__(self) -> None:
-        self._experts: Dict[str, ExpertModel] = {}
-        self._order: List[str] = []
-        self._champion_id: Optional[str] = None
+        self._experts: dict[str, ExpertModel] = {}
+        self._order: list[str] = []
+        self._champion_id: str | None = None
 
     def register(self, expert: ExpertModel) -> str:
         """Register an expert. Returns expert_id."""
@@ -375,7 +376,7 @@ class ExpertRegistry:
         logger.info(f"Registered expert {expert.expert_id} ({expert.name})")
         return expert.expert_id
 
-    def get(self, expert_id: str) -> Optional[ExpertModel]:
+    def get(self, expert_id: str) -> ExpertModel | None:
         return self._experts.get(expert_id)
 
     def get_or_raise(self, expert_id: str) -> ExpertModel:
@@ -391,32 +392,32 @@ class ExpertRegistry:
             return True
         return False
 
-    def all_experts(self) -> List[ExpertModel]:
+    def all_experts(self) -> list[ExpertModel]:
         """Return all experts in registration order."""
         return [self._experts[eid] for eid in self._order if eid in self._experts]
 
-    def active_experts(self) -> List[ExpertModel]:
+    def active_experts(self) -> list[ExpertModel]:
         return [e for e in self.all_experts() if e.is_active]
 
-    def by_specialization(self, spec: str) -> List[ExpertModel]:
+    def by_specialization(self, spec: str) -> list[ExpertModel]:
         return [
             e
             for e in self.active_experts()
             if spec in e.specializations or SpecializationType.GENERAL in e.specializations
         ]
 
-    def by_instrument(self, instrument: str) -> List[ExpertModel]:
+    def by_instrument(self, instrument: str) -> list[ExpertModel]:
         return [
             e for e in self.active_experts() if not e.instruments or instrument in e.instruments
         ]
 
-    def by_timeframe(self, timeframe: str) -> List[ExpertModel]:
+    def by_timeframe(self, timeframe: str) -> list[ExpertModel]:
         return [e for e in self.active_experts() if not e.timeframes or timeframe in e.timeframes]
 
-    def by_family(self, family: str) -> List[ExpertModel]:
+    def by_family(self, family: str) -> list[ExpertModel]:
         return [e for e in self.active_experts() if e.model_family == family]
 
-    def champion(self) -> Optional[ExpertModel]:
+    def champion(self) -> ExpertModel | None:
         if self._champion_id:
             return self._experts.get(self._champion_id)
         champions = [e for e in self.active_experts() if e.status == "champion"]
@@ -441,7 +442,7 @@ class ExpertRegistry:
     def n_active(self) -> int:
         return len(self.active_experts())
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "n_experts": self.n_experts,
             "n_active": self.n_active,
@@ -450,7 +451,7 @@ class ExpertRegistry:
             "families": list({e.model_family for e in self.all_experts()}),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experts": {eid: e.to_dict() for eid, e in self._experts.items()},
             "order": self._order,
@@ -458,7 +459,7 @@ class ExpertRegistry:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ExpertRegistry":
+    def from_dict(d: dict[str, Any]) -> ExpertRegistry:
         registry = ExpertRegistry()
         registry._champion_id = d.get("champion_id")
         for eid in d.get("order", []):

@@ -14,7 +14,6 @@ Generates visualisation data structures for:
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional
 
 from trainer.portfolio.correlation_engine import CorrelationMatrix
 from trainer.portfolio.dependency_graph import DependencyGraphSnapshot
@@ -41,12 +40,12 @@ def _colour(value: float, lo: float = -1.0, hi: float = 1.0) -> str:
 class PortfolioDashboard:
     """Produces visualisation-ready data for all Phase 20 charts."""
 
-    def __init__(self, db: Optional[PortfolioDatabase] = None) -> None:
+    def __init__(self, db: PortfolioDatabase | None = None) -> None:
         self._db = db
 
     # ── 1. Correlation Heatmap ─────────────────────────────────────────────
 
-    def correlation_heatmap(self, matrix: Optional[CorrelationMatrix]) -> dict:
+    def correlation_heatmap(self, matrix: CorrelationMatrix | None) -> dict:
         if matrix is None or not matrix.instruments:
             return {"type": "correlation_heatmap", "instruments": [], "cells": []}
         cells = []
@@ -76,7 +75,7 @@ class PortfolioDashboard:
 
     # ── 2. Exposure Charts ─────────────────────────────────────────────────
 
-    def exposure_chart(self, exposure: Optional[ExposureReport]) -> dict:
+    def exposure_chart(self, exposure: ExposureReport | None) -> dict:
         if exposure is None:
             return {
                 "type": "exposure_chart",
@@ -85,7 +84,7 @@ class PortfolioDashboard:
                 "by_region": [],
             }
 
-        def _bars(d: Dict[str, float], title: str) -> List[dict]:
+        def _bars(d: dict[str, float], title: str) -> list[dict]:
             return sorted(
                 [
                     {
@@ -122,8 +121,8 @@ class PortfolioDashboard:
 
     def risk_allocation_chart(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
     ) -> dict:
         if not forecasts:
             return {"type": "risk_allocation_chart", "segments": []}
@@ -158,7 +157,7 @@ class PortfolioDashboard:
 
     # ── 4. Dependency Graph ────────────────────────────────────────────────
 
-    def dependency_graph_chart(self, graph: Optional[DependencyGraphSnapshot]) -> dict:
+    def dependency_graph_chart(self, graph: DependencyGraphSnapshot | None) -> dict:
         if graph is None:
             return {"type": "dependency_graph", "nodes": [], "edges": [], "clusters": []}
         return {
@@ -175,7 +174,7 @@ class PortfolioDashboard:
 
     # ── 5. Portfolio Timeline ──────────────────────────────────────────────
 
-    def portfolio_timeline(self, experiment_id: Optional[str] = None) -> dict:
+    def portfolio_timeline(self, experiment_id: str | None = None) -> dict:
         if self._db is None:
             return {"type": "portfolio_timeline", "points": []}
         history = self._db.recommendations_history(limit=50)
@@ -202,7 +201,7 @@ class PortfolioDashboard:
         if self._db is None:
             return {"type": "optimization_dashboard", "history": [], "best_by_objective": {}}
         history = self._db.optimization_history(limit=50)
-        by_obj: Dict[str, dict] = {}
+        by_obj: dict[str, dict] = {}
         for r in history:
             obj = r["objective"]
             if obj not in by_obj or r["expected_sharpe"] > by_obj[obj]["expected_sharpe"]:
@@ -256,7 +255,7 @@ class PortfolioDashboard:
     def portfolio_scorecard(
         self,
         metrics: PortfolioMetrics,
-        exposure: Optional[ExposureReport] = None,
+        exposure: ExposureReport | None = None,
     ) -> dict:
         def _grade_value(v: float, lo: float, hi: float, higher_better: bool = True) -> str:
             norm = (v - lo) / max(hi - lo, 1e-9)
@@ -345,12 +344,12 @@ class PortfolioDashboard:
 
     def build_all(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        metrics: Optional[PortfolioMetrics] = None,
-        exposure: Optional[ExposureReport] = None,
-        matrix: Optional[CorrelationMatrix] = None,
-        graph: Optional[DependencyGraphSnapshot] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        metrics: PortfolioMetrics | None = None,
+        exposure: ExposureReport | None = None,
+        matrix: CorrelationMatrix | None = None,
+        graph: DependencyGraphSnapshot | None = None,
     ) -> dict:
         return {
             "correlation_heatmap": self.correlation_heatmap(matrix),

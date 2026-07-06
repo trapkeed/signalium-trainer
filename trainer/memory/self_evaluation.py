@@ -12,7 +12,6 @@ Generates periodic institutional AI self-assessments:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -39,17 +38,17 @@ class SelfAssessment:
     decisions_with_outcome: int = 0
     overall_win_rate: float = 0.0
     overall_quality_score: float = 0.0
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
-    common_mistakes: List[str] = field(default_factory=list)
-    failure_modes: List[str] = field(default_factory=list)
-    best_conditions: List[str] = field(default_factory=list)
-    worst_conditions: List[str] = field(default_factory=list)
-    opportunities: List[str] = field(default_factory=list)
+    strengths: list[str] = field(default_factory=list)
+    weaknesses: list[str] = field(default_factory=list)
+    common_mistakes: list[str] = field(default_factory=list)
+    failure_modes: list[str] = field(default_factory=list)
+    best_conditions: list[str] = field(default_factory=list)
+    worst_conditions: list[str] = field(default_factory=list)
+    opportunities: list[str] = field(default_factory=list)
     grade: str = "ACCEPTABLE"
     summary: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "period": self.period,
             "total_decisions": self.total_decisions,
@@ -73,7 +72,7 @@ class SelfEvaluationEngine:
 
     def evaluate(
         self,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         period: str = "CURRENT",
     ) -> SelfAssessment:
 
@@ -265,8 +264,8 @@ class SelfEvaluationEngine:
         return assessment
 
     @staticmethod
-    def _group_metric(records, key_fn) -> Dict[str, Dict]:
-        groups: Dict[str, List] = {}
+    def _group_metric(records, key_fn) -> dict[str, dict]:
+        groups: dict[str, list] = {}
         for r in records:
             k = key_fn(r)
             groups.setdefault(k, [])

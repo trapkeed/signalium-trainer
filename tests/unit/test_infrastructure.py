@@ -12,14 +12,11 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
 import torch.nn as nn
-import torch.optim as optim
 
 from trainer.checkpoints.manager import CheckpointManager
 from trainer.config.schema import (

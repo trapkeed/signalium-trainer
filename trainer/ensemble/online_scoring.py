@@ -27,8 +27,8 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Rolling prediction record
@@ -41,7 +41,7 @@ class PredictionRecord:
 
     expert_id: str
     predicted_class: str
-    true_class: Optional[str]
+    true_class: str | None
     profit_pnl: float = 0.0
     confidence: float = 0.5
     uncertainty: float = 0.5
@@ -50,7 +50,7 @@ class PredictionRecord:
     timeframe: str = ""
 
     @property
-    def is_correct(self) -> Optional[bool]:
+    def is_correct(self) -> bool | None:
         if self.true_class is None:
             return None
         return self.predicted_class == self.true_class
@@ -101,7 +101,7 @@ class RollingMetrics:
     alert: bool = False
     alert_reason: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "expert_id": self.expert_id,
             "window": self.window,
@@ -149,15 +149,15 @@ class OnlineScorer:
         self.alert_acc_threshold = alert_accuracy_threshold
         self.alert_sharpe_threshold = alert_sharpe_threshold
         self.weight_adjust_drop = weight_adjust_accuracy_drop
-        self._buffers: Dict[str, Deque[PredictionRecord]] = {}
-        self._all_records: Dict[str, List[PredictionRecord]] = {}
-        self._peak_accuracy: Dict[str, float] = {}
+        self._buffers: dict[str, deque[PredictionRecord]] = {}
+        self._all_records: dict[str, list[PredictionRecord]] = {}
+        self._peak_accuracy: dict[str, float] = {}
 
     def record(
         self,
         expert_id: str,
         predicted_class: str,
-        true_class: Optional[str] = None,
+        true_class: str | None = None,
         profit_pnl: float = 0.0,
         confidence: float = 0.5,
         uncertainty: float = 0.5,
@@ -274,11 +274,11 @@ class OnlineScorer:
             alert_reason=alert_reason,
         )
 
-    def all_metrics(self) -> Dict[str, RollingMetrics]:
+    def all_metrics(self) -> dict[str, RollingMetrics]:
         """Return rolling metrics for all tracked experts."""
         return {eid: self.get_metrics(eid) for eid in self._buffers}
 
-    def check_alerts(self) -> List[Dict[str, Any]]:
+    def check_alerts(self) -> list[dict[str, Any]]:
         """Return list of experts with active performance alerts."""
         alerts = []
         for eid, metrics in self.all_metrics().items():
@@ -302,10 +302,10 @@ class OnlineScorer:
             return False
         return (peak - m.rolling_accuracy) >= self.weight_adjust_drop
 
-    def regime_breakdown(self, expert_id: str) -> Dict[str, Dict[str, Any]]:
+    def regime_breakdown(self, expert_id: str) -> dict[str, dict[str, Any]]:
         """Return per-regime metrics for an expert from the rolling window."""
         buf = list(self._buffers.get(expert_id, []))
-        regimes: Dict[str, List[PredictionRecord]] = {}
+        regimes: dict[str, list[PredictionRecord]] = {}
         for r in buf:
             if r.regime not in regimes:
                 regimes[r.regime] = []
@@ -330,7 +330,7 @@ class OnlineScorer:
 # ---------------------------------------------------------------------------
 
 
-def _compute_sharpe(pnls: List[float], annualization: float = 252.0) -> float:
+def _compute_sharpe(pnls: list[float], annualization: float = 252.0) -> float:
     n = len(pnls)
     if n < 2:
         return 0.0

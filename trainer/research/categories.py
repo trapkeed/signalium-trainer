@@ -28,9 +28,7 @@ Usage::
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
 # Normalisation helpers
@@ -62,7 +60,7 @@ def _threshold(value: float, threshold: float, above: bool = True) -> float:
     return 100.0 if value <= threshold else (threshold / value) * 100.0 if value > 0 else 0.0
 
 
-def _weighted_avg(pairs: List[Tuple[float, float]]) -> float:
+def _weighted_avg(pairs: list[tuple[float, float]]) -> float:
     """Weighted average of (score, weight) pairs."""
     total_w = sum(w for _, w in pairs)
     if total_w <= 0:
@@ -93,8 +91,8 @@ class ValidationQualityScorer:
     # Targets: accuracy ≥ 0.65 is 80 pts, ≥ 0.75 is 100 pts
     _ACC_LO, _ACC_HI = 0.50, 0.75
 
-    def score(self, inputs: ValidationQualityInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {}
+    def score(self, inputs: ValidationQualityInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {}
 
         sub["walk_forward_accuracy"] = _linear(
             inputs.walk_forward_accuracy, self._ACC_LO, self._ACC_HI
@@ -152,8 +150,8 @@ class TradingPerformanceInputs:
 
 
 class TradingPerformanceScorer:
-    def score(self, inputs: TradingPerformanceInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {}
+    def score(self, inputs: TradingPerformanceInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {}
 
         # Profit factor: 1.0 → 0, 1.3 → 60, 2.0+ → 100
         sub["profit_factor"] = (
@@ -223,8 +221,8 @@ class RobustnessInputs:
 
 
 class RobustnessScorer:
-    def score(self, inputs: RobustnessInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: RobustnessInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             "monte_carlo_stability": _clamp(inputs.monte_carlo_stability * 100.0),
             "stress_test_pass_rate": _clamp(inputs.stress_test_pass_rate * 100.0),
             "noise_resistance": _clamp(inputs.noise_resistance * 100.0),
@@ -262,8 +260,8 @@ class CalibrationInputs:
 
 
 class CalibrationScorer:
-    def score(self, inputs: CalibrationInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: CalibrationInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             # ECE: 0.0 → 100, 0.10+ → 0
             "expected_calibration_error": _inverse_linear(
                 inputs.expected_calibration_error, 0.0, 0.10
@@ -305,8 +303,8 @@ class GeneralizationInputs:
 class GeneralizationScorer:
     _LO, _HI = 0.50, 0.75
 
-    def score(self, inputs: GeneralizationInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: GeneralizationInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             "unseen_instrument_performance": _linear(
                 inputs.unseen_instrument_performance, self._LO, self._HI
             ),
@@ -352,8 +350,8 @@ class EfficiencyInputs:
 
 
 class EfficiencyScorer:
-    def score(self, inputs: EfficiencyInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: EfficiencyInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             # Latency: 5ms → 100, 100ms → 0
             "inference_latency": _inverse_linear(inputs.inference_latency_ms, 5.0, 100.0),
             # Training time: 1h → 100, 48h → 0
@@ -396,8 +394,8 @@ class ExplainabilityInputs:
 
 
 class ExplainabilityScorer:
-    def score(self, inputs: ExplainabilityInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: ExplainabilityInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             "feature_attribution_coverage": _clamp(inputs.feature_attribution_coverage * 100.0),
             "attention_quality": _clamp(inputs.attention_quality * 100.0),
             "prediction_traceability": _clamp(inputs.prediction_traceability * 100.0),
@@ -432,8 +430,8 @@ class OperationalReadinessInputs:
 
 
 class OperationalReadinessScorer:
-    def score(self, inputs: OperationalReadinessInputs) -> Tuple[float, Dict[str, float]]:
-        sub: Dict[str, float] = {
+    def score(self, inputs: OperationalReadinessInputs) -> tuple[float, dict[str, float]]:
+        sub: dict[str, float] = {
             "deployment_readiness": _clamp(inputs.deployment_readiness * 100.0),
             "monitoring_coverage": _clamp(inputs.monitoring_coverage * 100.0),
             "health_checks": _clamp(inputs.health_checks * 100.0),

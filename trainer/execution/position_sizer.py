@@ -6,9 +6,7 @@ Enforces maximum daily / weekly / portfolio risk limits.
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -83,7 +81,7 @@ class SizingResult:
     portfolio_risk_ok: bool = True
     size_reduced: bool = False
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -119,8 +117,8 @@ class PositionSizer:
 
     def __init__(
         self,
-        broker: Optional[BrokerConstraints] = None,
-        risk_limits: Optional[RiskLimits] = None,
+        broker: BrokerConstraints | None = None,
+        risk_limits: RiskLimits | None = None,
     ):
         self._broker = broker or default_broker()
         self._limits = risk_limits or RiskLimits()
@@ -128,7 +126,7 @@ class PositionSizer:
     def calculate(
         self,
         forecast: ExecutionForecast,
-        stop_loss: Optional[StopLossRecommendation] = None,
+        stop_loss: StopLossRecommendation | None = None,
         method: SizingMethod = SizingMethod.FIXED_RISK,
     ) -> SizingResult:
 

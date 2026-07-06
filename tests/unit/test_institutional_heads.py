@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import pytest
 import torch
-import torch.nn as nn
 
 from trainer.losses.advanced import (
     DistributionLoss,
@@ -31,7 +30,6 @@ from trainer.models.quant_v1.config import (
     MarketStabilityHeadConfig,
     MultiTaskLossConfig,
     QuantV1Config,
-    RegressionUnit,
     TradeDecayHeadConfig,
     TradeSurvivalHeadConfig,
     UncertaintyHeadConfig,

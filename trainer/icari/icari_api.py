@@ -16,9 +16,6 @@ Endpoints:
 
 from __future__ import annotations
 
-import time
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -37,9 +34,7 @@ from trainer.icari.icari_dashboard import IcariDashboard
 from trainer.icari.icari_database import IcariDatabase
 from trainer.icari.icari_models import (
     AllocationRequest,
-    AllocationResult,
     CapitalHealth,
-    DrawdownEvent,
     OptimizationResult,
     PortfolioRisk,
     ScenarioResult,
@@ -47,7 +42,6 @@ from trainer.icari.icari_models import (
 from trainer.icari.icari_types import (
     AllocationRecommendation,
     AllocationStatus,
-    DrawdownMode,
     OptimizationObjective,
     RiskBudgetType,
     ScenarioType,
@@ -88,14 +82,14 @@ class IcariAPI:
         self._health_engine = CapitalHealthEngine()
 
         # State
-        self._latest_risk: Optional[PortfolioRisk] = None
-        self._latest_health: Optional[CapitalHealth] = None
-        self._opt_results: List[OptimizationResult] = []
-        self._scenario_results: List[ScenarioResult] = []
+        self._latest_risk: PortfolioRisk | None = None
+        self._latest_health: CapitalHealth | None = None
+        self._opt_results: list[OptimizationResult] = []
+        self._scenario_results: list[ScenarioResult] = []
 
     # ── 1. Allocate ───────────────────────────────────────────────────────────
 
-    def allocate(self, request: AllocationRequest) -> Dict:
+    def allocate(self, request: AllocationRequest) -> dict:
         """Run the full allocation pipeline for a single request."""
         # Check drawdown lockdown
         if self._dd_manager.is_locked():
@@ -127,7 +121,7 @@ class IcariAPI:
         )
         return result.to_dict()
 
-    def allocate_batch(self, requests: List[AllocationRequest]) -> List[Dict]:
+    def allocate_batch(self, requests: list[AllocationRequest]) -> list[dict]:
         return [self.allocate(r) for r in requests]
 
     # ── 2. Position Sizing ────────────────────────────────────────────────────
@@ -135,11 +129,11 @@ class IcariAPI:
     def size_position(
         self,
         request: AllocationRequest,
-        method: Optional[SizingMethod] = None,
+        method: SizingMethod | None = None,
         use_dynamic: bool = True,
         current_drawdown: float = 0.0,
         session: str = "LONDON",
-    ) -> Dict:
+    ) -> dict:
         if use_dynamic:
             result = self._dynamic_sizer.size(
                 request,
@@ -150,7 +144,7 @@ class IcariAPI:
             result = self._sizer.size(request, method=method)
         return result.to_dict()
 
-    def compare_sizing_methods(self, request: AllocationRequest) -> Dict:
+    def compare_sizing_methods(self, request: AllocationRequest) -> dict:
         """Compare all sizing methods for a single request."""
         return {
             method: self._sizer.size(request, method=SizingMethod(method)).to_dict()
@@ -161,18 +155,18 @@ class IcariAPI:
 
     def portfolio_risk(
         self,
-        returns: Dict[str, List[float]],
-        weights: Dict[str, float],
-    ) -> Dict:
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
+    ) -> dict:
         risk = self._risk_engine.calculate(returns, weights)
         self._latest_risk = risk
         self._db.save_portfolio_risk(risk)
         return risk.to_dict()
 
-    def correlation_matrix(self, returns: Dict[str, List[float]]) -> Dict:
+    def correlation_matrix(self, returns: dict[str, list[float]]) -> dict:
         return self._corr_engine.correlation_matrix(returns)
 
-    def correlation_clusters(self, returns: Dict[str, List[float]]) -> List:
+    def correlation_clusters(self, returns: dict[str, list[float]]) -> list:
         clusters = self._corr_engine.correlation_clusters(returns)
         return [list(c) for c in clusters]
 
@@ -184,8 +178,8 @@ class IcariAPI:
         current_drawdown: float = 0.0,
         num_instruments: int = 1,
         avg_correlation: float = 0.0,
-        recent_returns: Optional[List[float]] = None,
-    ) -> Dict:
+        recent_returns: list[float] | None = None,
+    ) -> dict:
         pr = self._latest_risk or PortfolioRisk()
         mode = self._dd_manager.mode
         alloc_history = [r.to_dict() for r in self._allocator.history(last_n=20)]
@@ -206,15 +200,15 @@ class IcariAPI:
 
     # ── 5. Risk Budgets ───────────────────────────────────────────────────────
 
-    def get_budgets(self) -> Dict:
+    def get_budgets(self) -> dict:
         return self._budget.summary()
 
-    def set_budget(self, budget_type: RiskBudgetType, limit: float, label: str = "") -> Dict:
+    def set_budget(self, budget_type: RiskBudgetType, limit: float, label: str = "") -> dict:
         budget = self._budget.set_budget(budget_type, limit, label)
         self._db.save_budget(budget)
         return budget.to_dict()
 
-    def check_budget(self, budget_type: RiskBudgetType, amount: float) -> Dict:
+    def check_budget(self, budget_type: RiskBudgetType, amount: float) -> dict:
         return self._budget.check(budget_type, amount)
 
     def reset_budget(self, budget_type: RiskBudgetType) -> bool:
@@ -228,15 +222,15 @@ class IcariAPI:
     def optimize(
         self,
         objective: OptimizationObjective,
-        returns: Dict[str, List[float]],
-        initial_weights: Optional[Dict[str, float]] = None,
-    ) -> Dict:
+        returns: dict[str, list[float]],
+        initial_weights: dict[str, float] | None = None,
+    ) -> dict:
         result = self._optimizer.optimize(objective, returns, initial_weights)
         self._opt_results.append(result)
         self._db.save_optimization(result)
         return result.to_dict()
 
-    def optimize_all(self, returns: Dict[str, List[float]]) -> Dict:
+    def optimize_all(self, returns: dict[str, list[float]]) -> dict:
         results = self._optimizer.compare_objectives(returns)
         for r in results.values():
             self._opt_results.append(r)
@@ -248,10 +242,10 @@ class IcariAPI:
     def scenario(
         self,
         scenario: ScenarioType,
-        weights: Dict[str, float],
-        volatilities: Dict[str, float],
-        currencies: Optional[Dict[str, str]] = None,
-    ) -> Dict:
+        weights: dict[str, float],
+        volatilities: dict[str, float],
+        currencies: dict[str, str] | None = None,
+    ) -> dict:
         result = self._scenario.run(scenario, weights, volatilities, currencies)
         self._scenario_results.append(result)
         self._db.save_scenario(result)
@@ -259,10 +253,10 @@ class IcariAPI:
 
     def scenario_all(
         self,
-        weights: Dict[str, float],
-        volatilities: Dict[str, float],
-        currencies: Optional[Dict[str, str]] = None,
-    ) -> Dict:
+        weights: dict[str, float],
+        volatilities: dict[str, float],
+        currencies: dict[str, str] | None = None,
+    ) -> dict:
         results = self._scenario.run_all(weights, volatilities, currencies)
         for r in results:
             self._scenario_results.append(r)
@@ -273,10 +267,10 @@ class IcariAPI:
 
     # ── Drawdown ──────────────────────────────────────────────────────────────
 
-    def update_equity(self, equity: float) -> Dict:
+    def update_equity(self, equity: float) -> dict:
         return self._dd_manager.update(equity)
 
-    def drawdown_stats(self) -> Dict:
+    def drawdown_stats(self) -> dict:
         return self._dd_manager.stats()
 
     # ── Capital Efficiency ────────────────────────────────────────────────────
@@ -290,7 +284,7 @@ class IcariAPI:
         num_open: int,
         num_closed: int = 0,
         period_days: float = 1.0,
-    ) -> Dict:
+    ) -> dict:
         metrics = self._efficiency.analyse(
             allocated_usd,
             at_risk_usd,
@@ -305,12 +299,12 @@ class IcariAPI:
 
     # ── 8. Dashboard ──────────────────────────────────────────────────────────
 
-    def get_dashboard(self, name: str = "all") -> Dict:
+    def get_dashboard(self, name: str = "all") -> dict:
         results = self._allocator.history()
         pr = self._latest_risk or PortfolioRisk()
         budgets = self._budget.all_budgets()
-        weights: Dict[str, float] = {}
-        rc: Dict[str, float] = {}
+        weights: dict[str, float] = {}
+        rc: dict[str, float] = {}
         dd_events = self._dd_manager.events()
         health = self._latest_health or CapitalHealth()
 
@@ -350,7 +344,7 @@ class IcariAPI:
 
     # ── 9. System Stats ───────────────────────────────────────────────────────
 
-    def system_stats(self) -> Dict:
+    def system_stats(self) -> dict:
         return {
             "capital": self._capital,
             "database": self._db.stats(),

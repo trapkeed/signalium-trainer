@@ -11,13 +11,13 @@ from trainer.framework.contracts.model_output import (
 from trainer.framework.contracts.model_spec import FeatureSchema, ModelSpec, OutputSchema
 
 __all__ = [
+    "CLASS_BUY",
+    "CLASS_LABELS",
+    "CLASS_NO_TRADE",
+    "CLASS_SELL",
+    "FeatureSchema",
     "ModelInput",
     "ModelOutput",
     "ModelSpec",
-    "FeatureSchema",
     "OutputSchema",
-    "CLASS_BUY",
-    "CLASS_SELL",
-    "CLASS_NO_TRADE",
-    "CLASS_LABELS",
 ]

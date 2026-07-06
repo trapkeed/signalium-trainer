@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import Any, Dict, List
 
 try:
     from loguru import logger
@@ -39,7 +38,7 @@ class ValidationSuite:
     """
 
     # Thresholds: (pass, warning)
-    _THRESHOLDS: Dict[str, tuple] = {
+    _THRESHOLDS: dict[str, tuple] = {
         ValidationCheck.WALK_FORWARD.value: (60.0, 40.0),
         ValidationCheck.OUT_OF_SAMPLE.value: (65.0, 45.0),
         ValidationCheck.CROSS_REGIME.value: (55.0, 35.0),
@@ -50,7 +49,7 @@ class ValidationSuite:
         ValidationCheck.STABILITY.value: (55.0, 35.0),
     }
 
-    def run_all(self, inp: CertificationInput) -> List[ValidationResult]:
+    def run_all(self, inp: CertificationInput) -> list[ValidationResult]:
         results = [
             self._walk_forward(inp),
             self._out_of_sample(inp),

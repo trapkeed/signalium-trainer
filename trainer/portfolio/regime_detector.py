@@ -12,7 +12,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 
 class MarketRegime(str, Enum):
@@ -28,7 +27,7 @@ class MarketRegime(str, Enum):
 
 
 # Regime → portfolio adjustment multipliers
-REGIME_ADJUSTMENTS: Dict[MarketRegime, Dict[str, float]] = {
+REGIME_ADJUSTMENTS: dict[MarketRegime, dict[str, float]] = {
     MarketRegime.TRENDING: {
         "momentum_boost": 1.3,
         "position_size": 1.1,
@@ -69,7 +68,7 @@ REGIME_ADJUSTMENTS: Dict[MarketRegime, Dict[str, float]] = {
 class RegimeSignal:
     regime: MarketRegime
     confidence: float
-    evidence: List[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -82,9 +81,9 @@ class RegimeSignal:
 @dataclass
 class RegimeAssessment:
     primary_regime: MarketRegime
-    secondary_regimes: List[RegimeSignal]
+    secondary_regimes: list[RegimeSignal]
     confidence: float
-    adjustment_factors: Dict[str, float]
+    adjustment_factors: dict[str, float]
     timestamp: str = ""
 
     def adjustment(self, key: str, default: float = 1.0) -> float:
@@ -114,11 +113,11 @@ class RegimeDetector:
         self._trend_window = trend_window
         self._high_vol_pct = high_vol_percentile
         self._low_vol_pct = low_vol_percentile
-        self._return_series: Dict[str, List[float]] = {}
-        self._vol_history: List[float] = []
-        self._regime_history: List[RegimeAssessment] = []
+        self._return_series: dict[str, list[float]] = {}
+        self._vol_history: list[float] = []
+        self._regime_history: list[RegimeAssessment] = []
 
-    def add_returns(self, instrument: str, returns: List[float]) -> None:
+    def add_returns(self, instrument: str, returns: list[float]) -> None:
         series = self._return_series.setdefault(instrument, [])
         series.extend(returns)
         if len(series) > 500:
@@ -127,7 +126,7 @@ class RegimeDetector:
     def add_return(self, instrument: str, ret: float) -> None:
         self.add_returns(instrument, [ret])
 
-    def _portfolio_returns(self, window: int) -> List[float]:
+    def _portfolio_returns(self, window: int) -> list[float]:
         all_series = list(self._return_series.values())
         if not all_series:
             return []
@@ -143,7 +142,7 @@ class RegimeDetector:
         return avg
 
     @staticmethod
-    def _rolling_vol(series: List[float], window: int) -> float:
+    def _rolling_vol(series: list[float], window: int) -> float:
         if len(series) < 2:
             return 0.0
         sub = series[-window:]
@@ -153,7 +152,7 @@ class RegimeDetector:
         return math.sqrt(var)
 
     @staticmethod
-    def _trend_strength(series: List[float]) -> float:
+    def _trend_strength(series: list[float]) -> float:
         n = len(series)
         if n < 4:
             return 0.0
@@ -173,10 +172,10 @@ class RegimeDetector:
     def detect(
         self,
         timestamp: str = "",
-        risk_on_instruments: Optional[List[str]] = None,
-        safe_haven_instruments: Optional[List[str]] = None,
+        risk_on_instruments: list[str] | None = None,
+        safe_haven_instruments: list[str] | None = None,
     ) -> RegimeAssessment:
-        signals: List[RegimeSignal] = []
+        signals: list[RegimeSignal] = []
 
         portfolio_rets = self._portfolio_returns(self._trend_window)
 
@@ -261,8 +260,8 @@ class RegimeDetector:
         return assessment
 
     def _risk_sentiment(
-        self, risk_on: Optional[List[str]], safe_haven: Optional[List[str]]
-    ) -> Optional[RegimeSignal]:
+        self, risk_on: list[str] | None, safe_haven: list[str] | None
+    ) -> RegimeSignal | None:
         risk_on = risk_on or ["NAS100", "SPX500", "BTCUSD", "AUDUSD", "NZDUSD"]
         safe_haven = safe_haven or ["XAUUSD", "USDJPY", "USDCHF"]
 
@@ -295,14 +294,14 @@ class RegimeDetector:
                 MarketRegime.RISK_OFF, max(conf, 0.4), [f"Risk-off spread = {spread:.4f}"]
             )
 
-    def regime_history(self, n: int = 20) -> List[dict]:
+    def regime_history(self, n: int = 20) -> list[dict]:
         return [a.to_dict() for a in self._regime_history[-n:]]
 
     def dominant_regime_last_n(self, n: int = 10) -> MarketRegime:
         recent = self._regime_history[-n:]
         if not recent:
             return MarketRegime.UNKNOWN
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for a in recent:
             k = a.primary_regime.value
             counts[k] = counts.get(k, 0) + 1

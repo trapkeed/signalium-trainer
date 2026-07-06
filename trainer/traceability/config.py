@@ -7,8 +7,7 @@ can be left ``None`` — they will appear as ``null`` in metadata records.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -50,27 +49,27 @@ class TraceabilityConfig:
     model_name: str = "signalium_quant_v1"
     model_version: str = "2.0.0"
     architecture: str = "QuantModelV1"
-    model_registry_id: Optional[str] = None
-    experiment_id: Optional[str] = None
-    mlflow_run_id: Optional[str] = None
-    training_timestamp: Optional[str] = None
-    model_export_timestamp: Optional[str] = None
+    model_registry_id: str | None = None
+    experiment_id: str | None = None
+    mlflow_run_id: str | None = None
+    training_timestamp: str | None = None
+    model_export_timestamp: str | None = None
 
     # ── Data and schema versions ──────────────────────────────────────────
-    dataset_version: Optional[str] = None
+    dataset_version: str | None = None
     feature_schema_version: str = "1.0.0"
     label_schema_version: str = "1.0.0"
     output_schema_version: str = "3.0.0"
     prediction_schema_version: str = "1.0.0"
-    normalization_version: Optional[str] = None
-    scaling_version: Optional[str] = None
-    configuration_version: Optional[str] = None
+    normalization_version: str | None = None
+    scaling_version: str | None = None
+    configuration_version: str | None = None
 
     # ── Reproducibility ───────────────────────────────────────────────────
-    random_seed: Optional[int] = None
-    training_config_hash: Optional[str] = None
-    inference_config_hash: Optional[str] = None
-    feature_config_version: Optional[str] = None
+    random_seed: int | None = None
+    training_config_hash: str | None = None
+    inference_config_hash: str | None = None
+    feature_config_version: str | None = None
 
     # ── Runtime ──────────────────────────────────────────────────────────
     trainer_version: str = "0.1.0"

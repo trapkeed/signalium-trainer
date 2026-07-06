@@ -15,8 +15,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import torch
 
@@ -41,13 +39,13 @@ class IsotonicCalibration:
 
     def __init__(self, num_classes: int) -> None:
         self._num_classes = num_classes
-        self._calibrators: Optional[list] = None
+        self._calibrators: list | None = None
 
     def fit(
         self,
         probs: torch.Tensor,
         labels: torch.Tensor,
-    ) -> "IsotonicCalibration":
+    ) -> IsotonicCalibration:
         """Fit isotonic regression calibrators for each class.
 
         Args:

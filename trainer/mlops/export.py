@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -48,10 +48,10 @@ class MLOpsExporter:
         registry: ModelRegistry,
         audit: AuditSystem,
         alerting: AlertingSystem,
-        governance: Optional[DeploymentGovernance] = None,
-        health: Optional[ModelHealthMonitor] = None,
-        monitor: Optional[ProductionMonitor] = None,
-        retraining: Optional[RetrainingPolicyManager] = None,
+        governance: DeploymentGovernance | None = None,
+        health: ModelHealthMonitor | None = None,
+        monitor: ProductionMonitor | None = None,
+        retraining: RetrainingPolicyManager | None = None,
     ) -> None:
         self.db = db
         self.registry = registry
@@ -62,7 +62,7 @@ class MLOpsExporter:
         self.monitor = monitor
         self.retraining = retraining
 
-    def export_registry(self) -> Dict[str, Any]:
+    def export_registry(self) -> dict[str, Any]:
         """Export full model registry snapshot."""
         models = [m.to_dict() for m in self.registry.all_models()]
         return {
@@ -71,10 +71,10 @@ class MLOpsExporter:
             "total_models": len(models),
             "registry_summary": self.registry.summary(),
             "models": models,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    def export_audit_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+    def export_audit_report(self, model_id: str | None = None) -> dict[str, Any]:
         """Export full audit trail."""
         events = self.db.list_audit_events(model_id=model_id, limit=10_000)
         summary = self.audit.get_report(model_id=model_id)
@@ -85,10 +85,10 @@ class MLOpsExporter:
             "total_events": len(events),
             "summary": summary,
             "events": events,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    def export_deployment_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+    def export_deployment_report(self, model_id: str | None = None) -> dict[str, Any]:
         """Export deployment history and governance report."""
         deployments = self.db.list_deployments(model_id=model_id, limit=10_000)
         stats = self.governance.stats() if self.governance else {}
@@ -101,10 +101,10 @@ class MLOpsExporter:
             "deployment_stats": stats,
             "active_deployments": active,
             "history": deployments,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    def export_health_report(self) -> Dict[str, Any]:
+    def export_health_report(self) -> dict[str, Any]:
         """Export health/drift reports for all models."""
         health_data = {}
         if self.health:
@@ -125,12 +125,12 @@ class MLOpsExporter:
             "n_unhealthy": len(unhealthy),
             "health_reports": health_data,
             "monitoring_snapshots": monitoring_data,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
     def export_alert_history(
-        self, model_id: Optional[str] = None, limit: int = 10_000
-    ) -> Dict[str, Any]:
+        self, model_id: str | None = None, limit: int = 10_000
+    ) -> dict[str, Any]:
         """Export alert history."""
         alerts = self.alerting.all_alerts(limit=limit, model_id=model_id)
         stats = self.alerting.stats()
@@ -141,13 +141,13 @@ class MLOpsExporter:
             "total_alerts": len(alerts),
             "alert_stats": stats,
             "alerts": alerts,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
     def export_retraining_recommendations(
         self,
-        model_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        model_id: str | None = None,
+    ) -> dict[str, Any]:
         """Export all retraining recommendations."""
         if self.retraining:
             recs = self.retraining.all_recommendations(model_id=model_id)
@@ -162,10 +162,10 @@ class MLOpsExporter:
             "stats": stats,
             "recommendations": recs,
             "note": "ADVISORY ONLY — no automatic retraining.",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    def export_mlops_readiness_report(self) -> Dict[str, Any]:
+    def export_mlops_readiness_report(self) -> dict[str, Any]:
         """Generate the full institutional MLOps readiness report."""
         db_stats = self.db.stats()
         registry_summary = self.registry.summary()
@@ -210,7 +210,7 @@ class MLOpsExporter:
             "report_type": "mlops_readiness_report",
             "report_id": str(uuid.uuid4()),
             "phase": "18 — Institutional MLOps, Model Governance, Continuous Monitoring",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "institutional_readiness": institutional_readiness,
             "readiness_checks": readiness_checks,
             "registry": {
@@ -274,7 +274,7 @@ class MLOpsExporter:
             },
         }
 
-    def save(self, data: Dict[str, Any], path: str) -> str:
+    def save(self, data: dict[str, Any], path: str) -> str:
         """Save an export dict to a JSON file. Returns absolute path."""
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -284,7 +284,7 @@ class MLOpsExporter:
         return str(out.absolute())
 
     @staticmethod
-    def load(path: str) -> Dict[str, Any]:
+    def load(path: str) -> dict[str, Any]:
         """Load a previously saved export from JSON."""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)

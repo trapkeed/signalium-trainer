@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 import collections
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -27,9 +27,6 @@ from trainer.memory.decision_models import DecisionRecord
 from trainer.memory.decision_types import (
     NEGATIVE_OUTCOMES,
     POSITIVE_OUTCOMES,
-    DecisionGrade,
-    DecisionType,
-    OutcomeType,
 )
 
 
@@ -51,10 +48,10 @@ class MemoryDashboard:
 
     def decision_timeline(
         self,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         granularity: str = "day",
-    ) -> Dict:
-        buckets: Dict[str, Dict] = {}
+    ) -> dict:
+        buckets: dict[str, dict] = {}
         for r in sorted(records, key=lambda r: r.timestamp):
             b = _bucket(r.timestamp, granularity)
             if b not in buckets:
@@ -75,9 +72,9 @@ class MemoryDashboard:
 
     # ── 2. Decision Tree ──────────────────────────────────────────────────────
 
-    def decision_tree(self, records: List[DecisionRecord]) -> Dict:
+    def decision_tree(self, records: list[DecisionRecord]) -> dict:
         """Build a tree showing decision flow per instrument."""
-        tree: Dict[str, Any] = {}
+        tree: dict[str, Any] = {}
         for r in records:
             instr = r.instrument
             dtype = r.decision_type.value
@@ -99,9 +96,9 @@ class MemoryDashboard:
 
     # ── 3. Decision Quality Distribution ─────────────────────────────────────
 
-    def quality_distribution(self, records: List[DecisionRecord]) -> Dict:
+    def quality_distribution(self, records: list[DecisionRecord]) -> dict:
         scored = [r for r in records if r.has_score]
-        grade_dist: Dict[str, int] = collections.Counter(r.score.grade.value for r in scored)
+        grade_dist: dict[str, int] = collections.Counter(r.score.grade.value for r in scored)
         bins = [0.0, 0.2, 0.4, 0.55, 0.70, 0.85, 1.0]
         bin_labels = ["0-0.20", "0.20-0.40", "0.40-0.55", "0.55-0.70", "0.70-0.85", "0.85-1.0"]
         bin_counts = [0] * (len(bins) - 1)
@@ -127,7 +124,7 @@ class MemoryDashboard:
 
     # ── 4. Failure Analysis ───────────────────────────────────────────────────
 
-    def failure_analysis(self, records: List[DecisionRecord]) -> Dict:
+    def failure_analysis(self, records: list[DecisionRecord]) -> dict:
         completed = [r for r in records if r.has_outcome]
         failures = [r for r in completed if r.outcome.outcome_type in NEGATIVE_OUTCOMES]
 
@@ -155,12 +152,12 @@ class MemoryDashboard:
 
     # ── 5. Counterfactual Explorer ────────────────────────────────────────────
 
-    def counterfactual_explorer(self, records: List[DecisionRecord]) -> Dict:
+    def counterfactual_explorer(self, records: list[DecisionRecord]) -> dict:
         with_cf = [r for r in records if r.counterfactuals]
         if not with_cf:
             return {"view": "COUNTERFACTUAL_EXPLORER", "total": 0, "scenarios": []}
 
-        scenario_stats: Dict[str, Dict] = {}
+        scenario_stats: dict[str, dict] = {}
         for r in with_cf:
             for cf in r.counterfactuals:
                 name = cf.alternative_action
@@ -190,11 +187,11 @@ class MemoryDashboard:
 
     # ── 6. Knowledge Graph ────────────────────────────────────────────────────
 
-    def knowledge_graph(self, records: List[DecisionRecord]) -> Dict:
+    def knowledge_graph(self, records: list[DecisionRecord]) -> dict:
         nodes = []
         edges = []
-        seen_instruments: Dict[str, int] = {}
-        seen_regimes: Dict[str, int] = {}
+        seen_instruments: dict[str, int] = {}
+        seen_regimes: dict[str, int] = {}
 
         for r in records:
             nodes.append(
@@ -237,9 +234,9 @@ class MemoryDashboard:
 
     def learning_timeline(
         self,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         granularity: str = "month",
-    ) -> Dict:
+    ) -> dict:
         scored_records = sorted(
             [r for r in records if r.has_score],
             key=lambda r: r.timestamp,
@@ -247,7 +244,7 @@ class MemoryDashboard:
         if not scored_records:
             return {"view": "LEARNING_TIMELINE", "periods": [], "data": {}}
 
-        periods: Dict[str, Dict] = {}
+        periods: dict[str, dict] = {}
         for r in scored_records:
             b = _bucket(r.timestamp, granularity)
             if b not in periods:
@@ -275,10 +272,10 @@ class MemoryDashboard:
 
     # ── 8. Decision Heatmaps ──────────────────────────────────────────────────
 
-    def decision_heatmaps(self, records: List[DecisionRecord]) -> Dict:
+    def decision_heatmaps(self, records: list[DecisionRecord]) -> dict:
         """Win rate heatmap: session × market_regime."""
         completed = [r for r in records if r.has_outcome]
-        grid: Dict[str, Dict[str, Dict]] = {}
+        grid: dict[str, dict[str, dict]] = {}
 
         for r in completed:
             sess = r.snapshot.session
@@ -309,7 +306,7 @@ class MemoryDashboard:
             "total": len(completed),
         }
 
-    def all_dashboards(self, records: List[DecisionRecord]) -> Dict:
+    def all_dashboards(self, records: list[DecisionRecord]) -> dict:
         return {
             "decision_timeline": self.decision_timeline(records),
             "decision_tree": self.decision_tree(records),

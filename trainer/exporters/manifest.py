@@ -6,7 +6,7 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -41,7 +41,7 @@ class ManifestBuilder:
         self._files: list[dict[str, Any]] = []
         self._metadata: dict[str, Any] = {}
         self._metrics: dict[str, float] = {}
-        self._training_summary: Optional[dict[str, Any]] = None
+        self._training_summary: dict[str, Any] | None = None
 
     def add_file(self, path: Path, content_type: str = "application/octet-stream") -> None:
         """Register an artifact file.

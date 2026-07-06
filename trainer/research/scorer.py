@@ -34,8 +34,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -74,7 +74,7 @@ class ResearchScoreInputs:
     experiment_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     name: str = ""
-    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    scored_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Category inputs
     validation: ValidationQualityInputs = field(default_factory=ValidationQualityInputs)
@@ -97,7 +97,7 @@ class ResearchScoreInputs:
     dataset_version: str = ""
     feature_version: str = ""
     model_family: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -113,9 +113,9 @@ class CategoryScore:
     score: float  # 0–100
     weight: float  # fraction, e.g. 0.25
     weighted_score: float  # score * weight (0–100)
-    sub_scores: Dict[str, float] = field(default_factory=dict)
+    sub_scores: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "score": round(self.score, 2),
@@ -138,7 +138,7 @@ class ResearchScore:
     experiment_id: str = ""
     model_id: str = ""
     name: str = ""
-    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    scored_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Composite score
     composite: float = 0.0  # 0–100
@@ -150,13 +150,13 @@ class ResearchScore:
     deployment_eligible: bool = False
 
     # Category breakdown
-    category_scores: List[CategoryScore] = field(default_factory=list)
+    category_scores: list[CategoryScore] = field(default_factory=list)
 
     # Confidence in the score
-    confidence: Optional[ConfidenceResult] = None
+    confidence: ConfidenceResult | None = None
 
     # Weights used
-    weights_used: Dict[str, float] = field(default_factory=dict)
+    weights_used: dict[str, float] = field(default_factory=dict)
 
     # Metadata
     instrument: str = ""
@@ -166,9 +166,9 @@ class ResearchScore:
     dataset_version: str = ""
     feature_version: str = ""
     model_family: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    def category_score(self, category: str) -> Optional[CategoryScore]:
+    def category_score(self, category: str) -> CategoryScore | None:
         for cs in self.category_scores:
             if cs.category == category:
                 return cs
@@ -181,7 +181,7 @@ class ResearchScore:
     def confidence_score(self) -> float:
         return self.confidence.score if self.confidence else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score_id": self.score_id,
             "experiment_id": self.experiment_id,
@@ -208,7 +208,7 @@ class ResearchScore:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "ResearchScore":
+    def from_dict(cls, d: dict[str, Any]) -> ResearchScore:
         cat_scores = [
             CategoryScore(
                 category=cs["category"],
@@ -224,7 +224,7 @@ class ResearchScore:
             experiment_id=d.get("experiment_id", ""),
             model_id=d.get("model_id", ""),
             name=d.get("name", ""),
-            scored_at=d.get("scored_at", datetime.now(timezone.utc).isoformat()),
+            scored_at=d.get("scored_at", datetime.now(UTC).isoformat()),
             composite=d.get("composite", 0.0),
             grade_label=d.get("grade_label", ""),
             grade_description=d.get("grade_description", ""),
@@ -272,8 +272,8 @@ class ResearchScorer:
 
     def __init__(
         self,
-        weights: Optional[ScoringWeights] = None,
-        grade_system: Optional[GradeSystem] = None,
+        weights: ScoringWeights | None = None,
+        grade_system: GradeSystem | None = None,
     ) -> None:
         self._weights = weights or ScoringWeights.default()
         self._weights.validate()
@@ -308,7 +308,7 @@ class ResearchScorer:
 
     def score(self, inputs: ResearchScoreInputs) -> ResearchScore:
         """Compute a full Research Score from the provided inputs."""
-        category_scores: List[CategoryScore] = []
+        category_scores: list[CategoryScore] = []
         composite = 0.0
         weights_dict = self._weights.as_dict()
 
@@ -366,7 +366,7 @@ class ResearchScorer:
         )
         return result
 
-    def score_breakdown(self, inputs: ResearchScoreInputs) -> Dict[str, Any]:
+    def score_breakdown(self, inputs: ResearchScoreInputs) -> dict[str, Any]:
         """Return detailed breakdown dict (JSON-serialisable)."""
         result = self.score(inputs)
         return {
@@ -384,10 +384,10 @@ class ResearchScorer:
 
     def sensitivity_analysis(
         self, inputs: ResearchScoreInputs, delta: float = 0.05
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Return the score impact of a ±delta change in each weight."""
         base = self.score(inputs).composite
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
         base_weights = self._weights.as_dict()
         for cat in ALL_CATEGORIES:
             perturbed = dict(base_weights)

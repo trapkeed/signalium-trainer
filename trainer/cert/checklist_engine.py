@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -16,7 +16,7 @@ from trainer.cert.cert_models import (
     ChecklistItem,
     ChecklistReport,
 )
-from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
+from trainer.cert.cert_types import CheckStatus, RiskLevel
 
 
 def _item(
@@ -25,7 +25,7 @@ def _item(
     description: str,
     status: CheckStatus,
     value: Any = None,
-    threshold: Optional[float] = None,
+    threshold: float | None = None,
     rationale: str = "",
     mandatory: bool = True,
     risk_level: RiskLevel = RiskLevel.MEDIUM,
@@ -52,7 +52,7 @@ class ChecklistEngine:
     """
 
     def build(self, inp: CertificationInput) -> ChecklistReport:
-        items: List[ChecklistItem] = []
+        items: list[ChecklistItem] = []
         items.extend(self._research_checks(inp))
         items.extend(self._validation_checks(inp))
         items.extend(self._calibration_checks(inp))
@@ -85,7 +85,7 @@ class ChecklistEngine:
 
     # ── Check groups ───────────────────────────────────────────────────────
 
-    def _research_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _research_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         rq = inp.research_quality_score
         return [
             _item(
@@ -125,7 +125,7 @@ class ChecklistEngine:
             ),
         ]
 
-    def _validation_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _validation_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         sharpe = inp.oos_sharpe
         wr = inp.oos_win_rate
         dd = inp.oos_max_drawdown
@@ -183,7 +183,7 @@ class ChecklistEngine:
             ),
         ]
 
-    def _calibration_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _calibration_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         cs = inp.calibration_score
         bs = inp.brier_score
         ece = inp.ece
@@ -235,7 +235,7 @@ class ChecklistEngine:
             ),
         ]
 
-    def _stress_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _stress_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         sr = inp.stress_results
         mandatory_scenarios = ["FLASH_CRASH", "HIGH_VOLATILITY", "LIQUIDITY_REDUCTION"]
         items = []
@@ -265,7 +265,7 @@ class ChecklistEngine:
             )
         return items
 
-    def _reproducibility_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _reproducibility_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         checks = [
             ("RP-001", "Dataset version pinned", bool(inp.dataset_version), True, RiskLevel.HIGH),
             ("RP-002", "Feature version pinned", bool(inp.feature_version), True, RiskLevel.HIGH),
@@ -291,7 +291,7 @@ class ChecklistEngine:
             for cid, desc, ok, mand, rl in checks
         ]
 
-    def _security_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _security_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         sc = inp.security_checks
         critical = ["AUTHENTICATION", "AUTHORIZATION", "SECRETS_MANAGEMENT"]
         items = []
@@ -318,7 +318,7 @@ class ChecklistEngine:
             )
         return items
 
-    def _operational_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _operational_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         oc = inp.operational_checks
         mandatory = [
             "MONITORING_ENABLED",
@@ -356,7 +356,7 @@ class ChecklistEngine:
             )
         return items
 
-    def _benchmark_checks(self, inp: CertificationInput) -> List[ChecklistItem]:
+    def _benchmark_checks(self, inp: CertificationInput) -> list[ChecklistItem]:
         bv = inp.benchmark_values
         lat = bv.get("INFERENCE_LATENCY", None)
         status = (

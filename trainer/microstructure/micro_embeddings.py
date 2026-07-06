@@ -14,8 +14,6 @@ of the current microstructure environment.
 from __future__ import annotations
 
 import math
-import time
-from typing import List
 
 try:
     from loguru import logger
@@ -32,7 +30,7 @@ def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, v))
 
 
-def _normalise(values: List[float]) -> List[float]:
+def _normalise(values: list[float]) -> list[float]:
     """Clamp all values to [0, 1]."""
     return [_clamp(v) for v in values]
 
@@ -148,10 +146,10 @@ class MicrostructureEmbedder:
 
     def batch_embed(
         self,
-        feature_list: List[MicrostructureFeatures],
+        feature_list: list[MicrostructureFeatures],
         instrument: str = "",
         timeframe: str = "H1",
-    ) -> List[MicrostructureEmbedding]:
+    ) -> list[MicrostructureEmbedding]:
         return [self.embed(f, instrument, timeframe) for f in feature_list]
 
     @staticmethod

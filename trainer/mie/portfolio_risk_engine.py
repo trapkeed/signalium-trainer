@@ -11,10 +11,6 @@ Tradeability Engine.
 
 from __future__ import annotations
 
-import math
-import statistics
-from typing import List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -84,8 +80,8 @@ class MIEPortfolioRiskEngine:
     def evaluate(
         self,
         inp: MarketInput,
-        risk: Optional[RiskIntelligenceResult] = None,
-        tradeability: Optional[TradeabilityResult] = None,
+        risk: RiskIntelligenceResult | None = None,
+        tradeability: TradeabilityResult | None = None,
     ) -> MIEPortfolioRisk:
 
         regime = risk.regime if risk is not None else RiskRegime.NORMAL
@@ -99,7 +95,7 @@ class MIEPortfolioRiskEngine:
         risk_used = self._risk_budget_used(inp)
         allocation_usd = pos_frac * inp.capital
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         if inp.portfolio_exposure > max_exposure:
             warnings.append(
                 f"Current exposure {inp.portfolio_exposure:.0%} exceeds "
@@ -155,7 +151,7 @@ class MIEPortfolioRiskEngine:
         self,
         mult: float,
         inp: MarketInput,
-        tradeability: Optional[TradeabilityResult],
+        tradeability: TradeabilityResult | None,
     ) -> float:
         """Scale _BASE_POSITION_FRAC by risk multiplier and tradeability."""
         t_scale = 1.0

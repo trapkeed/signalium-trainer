@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -31,9 +30,9 @@ class BenchmarkBaseline:
     avg_pnl: float
     sample_size: int
     period: str = ""
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "name": self.name,
             "win_rate": round(self.win_rate, 4),
@@ -57,9 +56,9 @@ class BenchmarkResult:
     quality_delta: float
     pnl_delta: float
     verdict: str  # BETTER | WORSE | SIMILAR
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "current_win_rate": round(self.current_win_rate, 4),
             "current_avg_quality": round(self.current_avg_quality, 4),
@@ -79,11 +78,11 @@ class BenchmarkReport:
     """Full benchmarking report across all baselines."""
 
     total_decisions: int
-    comparisons: List[BenchmarkResult] = field(default_factory=list)
+    comparisons: list[BenchmarkResult] = field(default_factory=list)
     overall_verdict: str = "INCONCLUSIVE"
     summary: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total_decisions": self.total_decisions,
             "comparisons": [c.to_dict() for c in self.comparisons],
@@ -96,7 +95,7 @@ class DecisionBenchmarking:
     """Benchmarks current decision performance against stored baselines."""
 
     def __init__(self):
-        self._baselines: Dict[str, BenchmarkBaseline] = {}
+        self._baselines: dict[str, BenchmarkBaseline] = {}
         self._populate_defaults()
 
     def _populate_defaults(self) -> None:
@@ -133,7 +132,7 @@ class DecisionBenchmarking:
     def create_baseline_from_records(
         self,
         name: str,
-        records: List[DecisionRecord],
+        records: list[DecisionRecord],
         period: str = "",
     ) -> BenchmarkBaseline:
         """Create a baseline from a set of historical records."""
@@ -166,8 +165,8 @@ class DecisionBenchmarking:
 
     def benchmark(
         self,
-        records: List[DecisionRecord],
-        baselines: Optional[List[str]] = None,
+        records: list[DecisionRecord],
+        baselines: list[str] | None = None,
     ) -> BenchmarkReport:
         """Benchmark current records against specified (or all) baselines."""
 
@@ -192,7 +191,7 @@ class DecisionBenchmarking:
 
         # Which baselines to compare against
         targets = baselines or list(self._baselines.keys())
-        comparisons: List[BenchmarkResult] = []
+        comparisons: list[BenchmarkResult] = []
 
         for bl_name in targets:
             bl = self._baselines.get(bl_name)
@@ -259,5 +258,5 @@ class DecisionBenchmarking:
         )
         return report
 
-    def list_baselines(self) -> List[Dict]:
+    def list_baselines(self) -> list[dict]:
         return [b.to_dict() for b in self._baselines.values()]

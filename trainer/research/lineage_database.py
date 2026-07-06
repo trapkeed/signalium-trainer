@@ -32,9 +32,9 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -176,7 +176,7 @@ class LineageDatabase:
     # Lineage nodes
     # ------------------------------------------------------------------
 
-    def save_node(self, d: Dict[str, Any]) -> None:
+    def save_node(self, d: dict[str, Any]) -> None:
         sql = """
         INSERT OR REPLACE INTO lineage_nodes
           (node_id, name, researcher, purpose, parent_id, child_ids_json,
@@ -210,7 +210,7 @@ class LineageDatabase:
                 ),
             )
 
-    def load_all_nodes(self) -> List[Dict[str, Any]]:
+    def load_all_nodes(self) -> list[dict[str, Any]]:
         rows = self._conn().execute("SELECT * FROM lineage_nodes ORDER BY created_at").fetchall()
         result = []
         for row in rows:
@@ -220,7 +220,7 @@ class LineageDatabase:
             result.append(d)
         return result
 
-    def get_node(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def get_node(self, node_id: str) -> dict[str, Any] | None:
         row = (
             self._conn()
             .execute("SELECT * FROM lineage_nodes WHERE node_id=?", (node_id,))
@@ -238,7 +238,7 @@ class LineageDatabase:
     # ------------------------------------------------------------------
 
     def _save_snapshot(
-        self, table: str, snapshot_id: str, node_id: str, data: Dict[str, Any]
+        self, table: str, snapshot_id: str, node_id: str, data: dict[str, Any]
     ) -> None:
         sql = f"""
         INSERT OR REPLACE INTO {table}
@@ -252,11 +252,11 @@ class LineageDatabase:
                     snapshot_id,
                     node_id,
                     json.dumps(data),
-                    data.get("captured_at", datetime.now(timezone.utc).isoformat()),
+                    data.get("captured_at", datetime.now(UTC).isoformat()),
                 ),
             )
 
-    def _load_snapshot(self, table: str, node_id: str) -> Optional[Dict[str, Any]]:
+    def _load_snapshot(self, table: str, node_id: str) -> dict[str, Any] | None:
         row = (
             self._conn()
             .execute(
@@ -269,41 +269,41 @@ class LineageDatabase:
             return None
         return json.loads(row[0])
 
-    def save_environment(self, node_id: str, data: Dict[str, Any]) -> None:
+    def save_environment(self, node_id: str, data: dict[str, Any]) -> None:
         self._save_snapshot("environment_snapshots", data["snapshot_id"], node_id, data)
 
-    def load_environment(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def load_environment(self, node_id: str) -> dict[str, Any] | None:
         return self._load_snapshot("environment_snapshots", node_id)
 
-    def save_dataset_snapshot(self, node_id: str, data: Dict[str, Any]) -> None:
+    def save_dataset_snapshot(self, node_id: str, data: dict[str, Any]) -> None:
         self._save_snapshot("dataset_snapshots", data["snapshot_id"], node_id, data)
 
-    def load_dataset_snapshot(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def load_dataset_snapshot(self, node_id: str) -> dict[str, Any] | None:
         return self._load_snapshot("dataset_snapshots", node_id)
 
-    def save_feature_snapshot(self, node_id: str, data: Dict[str, Any]) -> None:
+    def save_feature_snapshot(self, node_id: str, data: dict[str, Any]) -> None:
         self._save_snapshot("feature_snapshots", data["snapshot_id"], node_id, data)
 
-    def load_feature_snapshot(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def load_feature_snapshot(self, node_id: str) -> dict[str, Any] | None:
         return self._load_snapshot("feature_snapshots", node_id)
 
-    def save_model_snapshot(self, node_id: str, data: Dict[str, Any]) -> None:
+    def save_model_snapshot(self, node_id: str, data: dict[str, Any]) -> None:
         self._save_snapshot("model_snapshots", data["snapshot_id"], node_id, data)
 
-    def load_model_snapshot(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def load_model_snapshot(self, node_id: str) -> dict[str, Any] | None:
         return self._load_snapshot("model_snapshots", node_id)
 
-    def save_validation_snapshot(self, node_id: str, data: Dict[str, Any]) -> None:
+    def save_validation_snapshot(self, node_id: str, data: dict[str, Any]) -> None:
         self._save_snapshot("validation_snapshots", data["snapshot_id"], node_id, data)
 
-    def load_validation_snapshot(self, node_id: str) -> Optional[Dict[str, Any]]:
+    def load_validation_snapshot(self, node_id: str) -> dict[str, Any] | None:
         return self._load_snapshot("validation_snapshots", node_id)
 
     # ------------------------------------------------------------------
     # Cost records
     # ------------------------------------------------------------------
 
-    def save_cost(self, data: Dict[str, Any]) -> None:
+    def save_cost(self, data: dict[str, Any]) -> None:
         sql = """
         INSERT OR REPLACE INTO cost_records
           (cost_id, entity_id, entity_type, project, branch, researcher,
@@ -320,12 +320,12 @@ class LineageDatabase:
                     data.get("project", ""),
                     data.get("branch", ""),
                     data.get("researcher", "system"),
-                    data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+                    data.get("recorded_at", datetime.now(UTC).isoformat()),
                     json.dumps(data),
                 ),
             )
 
-    def load_all_costs(self) -> List[Dict[str, Any]]:
+    def load_all_costs(self) -> list[dict[str, Any]]:
         rows = (
             self._conn()
             .execute("SELECT data_json FROM cost_records ORDER BY recorded_at")
@@ -333,7 +333,7 @@ class LineageDatabase:
         )
         return [json.loads(r[0]) for r in rows]
 
-    def load_cost_by_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
+    def load_cost_by_entity(self, entity_id: str) -> dict[str, Any] | None:
         row = (
             self._conn()
             .execute(
@@ -350,7 +350,7 @@ class LineageDatabase:
     # Timeline events
     # ------------------------------------------------------------------
 
-    def save_timeline_event(self, data: Dict[str, Any]) -> None:
+    def save_timeline_event(self, data: dict[str, Any]) -> None:
         sql = """
         INSERT OR REPLACE INTO timeline_events
           (event_id, event_type, entity_id, entity_type, description,
@@ -367,12 +367,12 @@ class LineageDatabase:
                     data.get("entity_type", ""),
                     data.get("description", ""),
                     data.get("researcher", "system"),
-                    data.get("recorded_at", datetime.now(timezone.utc).isoformat()),
+                    data.get("recorded_at", datetime.now(UTC).isoformat()),
                     json.dumps(data.get("attributes", {})),
                 ),
             )
 
-    def load_all_timeline_events(self) -> List[Dict[str, Any]]:
+    def load_all_timeline_events(self) -> list[dict[str, Any]]:
         rows = self._conn().execute("SELECT * FROM timeline_events ORDER BY recorded_at").fetchall()
         result = []
         for row in rows:
@@ -385,7 +385,7 @@ class LineageDatabase:
     # Knowledge graph blob
     # ------------------------------------------------------------------
 
-    def save_knowledge_graph(self, data: Dict[str, Any]) -> None:
+    def save_knowledge_graph(self, data: dict[str, Any]) -> None:
         sql = """
         INSERT OR REPLACE INTO knowledge_graph_blobs (id, data_json, saved_at)
         VALUES (1, ?, ?)
@@ -395,11 +395,11 @@ class LineageDatabase:
                 sql,
                 (
                     json.dumps(data),
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
-    def load_knowledge_graph(self) -> Optional[Dict[str, Any]]:
+    def load_knowledge_graph(self) -> dict[str, Any] | None:
         row = (
             self._conn()
             .execute("SELECT data_json FROM knowledge_graph_blobs WHERE id=1")
@@ -413,7 +413,7 @@ class LineageDatabase:
     # Stats
     # ------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         conn = self._conn()
         return {
             "lineage_nodes": conn.execute("SELECT COUNT(*) FROM lineage_nodes").fetchone()[0],

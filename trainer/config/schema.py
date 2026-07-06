@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class Environment(str, Enum):
@@ -48,8 +47,8 @@ class APIConfig:
     timeout: int = 60
     max_retries: int = 5
     retry_backoff_factor: float = 2.0
-    api_key: Optional[str] = None
-    token: Optional[str] = None
+    api_key: str | None = None
+    token: str | None = None
 
 
 @dataclass
@@ -59,7 +58,7 @@ class DataConfig:
     dataset_dir: str = "data/datasets"
     output_dir: str = "data/outputs"
     cache_dir: str = "data/cache"
-    dataset_version: Optional[str] = None
+    dataset_version: str | None = None
     validate_checksums: bool = True
     fail_on_validation_error: bool = True
 
@@ -109,7 +108,7 @@ class SchedulerConfig:
     pct_start: float = 0.3
     div_factor: float = 25.0
     final_div_factor: float = 1e4
-    total_steps: Optional[int] = None
+    total_steps: int | None = None
 
 
 @dataclass
@@ -135,9 +134,9 @@ class ReproducibilityConfig:
 
     enabled: bool = True
     fingerprint_dir: str = "checkpoints/fingerprints"
-    dataset_version: Optional[str] = None
-    feature_version: Optional[str] = None
-    label_version: Optional[str] = None
+    dataset_version: str | None = None
+    feature_version: str | None = None
+    label_version: str | None = None
     verify_on_resume: bool = True
 
 
@@ -175,7 +174,7 @@ class MLflowConfig:
     enabled: bool = True
     tracking_uri: str = "mlruns"
     experiment_name: str = "signalium-trainer"
-    run_name: Optional[str] = None
+    run_name: str | None = None
     log_artifacts: bool = True
     log_models: bool = True
     tags: dict[str, str] = field(default_factory=dict)

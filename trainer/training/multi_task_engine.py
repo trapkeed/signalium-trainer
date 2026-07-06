@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -99,7 +99,7 @@ class MultiTaskTrainingEngine:
         self,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        resume_checkpoint: Optional[Path] = None,
+        resume_checkpoint: Path | None = None,
     ) -> dict[str, Any]:
         """Execute the full multi-task training loop.
 

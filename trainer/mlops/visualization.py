@@ -19,7 +19,7 @@ Charts:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class MLOpsVisualizationBuilder:
@@ -31,10 +31,10 @@ class MLOpsVisualizationBuilder:
 
     def registry_status_chart(
         self,
-        models: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        models: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Pie/bar chart of model counts per lifecycle state."""
-        state_counts: Dict[str, int] = {}
+        state_counts: dict[str, int] = {}
         for m in models:
             state = m.get("lifecycle_state", "unknown")
             state_counts[state] = state_counts.get(state, 0) + 1
@@ -55,8 +55,8 @@ class MLOpsVisualizationBuilder:
 
     def model_health_chart(
         self,
-        health_reports: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        health_reports: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Grouped bar chart of drift scores per model."""
         drift_keys = [
             "confidence_drift",
@@ -91,12 +91,12 @@ class MLOpsVisualizationBuilder:
 
     def deployment_history_chart(
         self,
-        deployments: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        deployments: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Line/bar chart of deployment events over time."""
-        by_type: Dict[str, int] = {}
-        by_target: Dict[str, int] = {}
-        by_status: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        by_target: dict[str, int] = {}
+        by_status: dict[str, int] = {}
         timeline = []
         for d in deployments:
             t = d.get("deploy_type", "manual")
@@ -130,8 +130,8 @@ class MLOpsVisualizationBuilder:
 
     def champion_comparison_chart(
         self,
-        comparison: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        comparison: dict[str, Any],
+    ) -> dict[str, Any]:
         """Grouped bar chart comparing champion vs challenger metrics."""
         metrics = comparison.get("metrics", {})
         model_a = comparison.get("model_a", {})
@@ -172,11 +172,11 @@ class MLOpsVisualizationBuilder:
 
     def alert_distribution_chart(
         self,
-        alerts: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        alerts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Stacked bar chart of alert counts by category and level."""
-        by_category: Dict[str, int] = {}
-        by_level: Dict[str, int] = {}
+        by_category: dict[str, int] = {}
+        by_level: dict[str, int] = {}
         for a in alerts:
             cat = a.get("category", "unknown")
             lvl = a.get("level", "WARNING")
@@ -203,9 +203,9 @@ class MLOpsVisualizationBuilder:
     def confidence_trend_chart(
         self,
         model_id: str,
-        confidence_history: List[float],
+        confidence_history: list[float],
         window: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Rolling confidence line chart for a single model."""
         data = []
         for i, conf in enumerate(confidence_history):
@@ -237,8 +237,8 @@ class MLOpsVisualizationBuilder:
 
     def drift_heatmap(
         self,
-        health_reports: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        health_reports: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Heatmap of drift scores: models × drift types."""
         drift_types = [
             "confidence_drift",
@@ -268,8 +268,8 @@ class MLOpsVisualizationBuilder:
 
     def latency_chart(
         self,
-        monitoring_snapshots: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        monitoring_snapshots: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Bar chart of avg/p95/p99 latency per model."""
         data = [
             {
@@ -315,15 +315,15 @@ class MLOpsVisualizationBuilder:
 
     def full_dashboard(
         self,
-        models: List[Dict[str, Any]],
-        health_reports: Dict[str, Dict[str, Any]],
-        deployments: List[Dict[str, Any]],
-        comparison: Optional[Dict[str, Any]],
-        alerts: List[Dict[str, Any]],
-        monitoring_snapshots: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        models: list[dict[str, Any]],
+        health_reports: dict[str, dict[str, Any]],
+        deployments: list[dict[str, Any]],
+        comparison: dict[str, Any] | None,
+        alerts: list[dict[str, Any]],
+        monitoring_snapshots: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Build all dashboard charts in one call."""
-        charts: Dict[str, Any] = {}
+        charts: dict[str, Any] = {}
         charts["registry_status"] = self.registry_status_chart(models)
         charts["model_health"] = self.model_health_chart(health_reports)
         charts["deployment_history"] = self.deployment_history_chart(deployments)

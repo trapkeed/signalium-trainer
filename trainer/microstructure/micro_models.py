@@ -5,10 +5,8 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 from trainer.microstructure.micro_types import (
-    EMBEDDING_TOTAL,
     DataGranularity,
     LiquidityState,
     MarketState,
@@ -49,7 +47,7 @@ class OHLCBar:
     def mid(self) -> float:
         return (self.high + self.low) / 2.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
             "open": round(self.open, 5),
@@ -126,19 +124,19 @@ class MicrostructureFeatures:
     noise_level: float = 0.5
 
     # ── Tick features (optional, always None if not available) ────────────────
-    tick_velocity: Optional[float] = None
-    tick_density: Optional[float] = None
-    tick_imbalance: Optional[float] = None
-    tick_momentum: Optional[float] = None
-    tick_volatility: Optional[float] = None
-    tick_acceleration: Optional[float] = None
-    tick_entropy: Optional[float] = None
+    tick_velocity: float | None = None
+    tick_density: float | None = None
+    tick_imbalance: float | None = None
+    tick_momentum: float | None = None
+    tick_volatility: float | None = None
+    tick_acceleration: float | None = None
+    tick_entropy: float | None = None
 
     @property
     def has_tick_features(self) -> bool:
         return self.tick_velocity is not None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         d = {
             "bar_id": self.bar_id,
             "timestamp": round(self.timestamp, 3),
@@ -205,7 +203,7 @@ class MicrostructureFeatures:
             )
         return d
 
-    def price_action_vector(self) -> List[float]:
+    def price_action_vector(self) -> list[float]:
         return [
             self.body_ratio,
             self.upper_wick_ratio,
@@ -217,7 +215,7 @@ class MicrostructureFeatures:
             self.continuation_probability,
         ]
 
-    def liquidity_vector(self) -> List[float]:
+    def liquidity_vector(self) -> list[float]:
         return [
             self.spread_proxy,
             self.gap_frequency,
@@ -227,7 +225,7 @@ class MicrostructureFeatures:
             self.large_candle_frequency,
         ]
 
-    def momentum_vector(self) -> List[float]:
+    def momentum_vector(self) -> list[float]:
         return [
             self.trend_energy,
             self.momentum_acceleration,
@@ -237,7 +235,7 @@ class MicrostructureFeatures:
             self.directional_efficiency,
         ]
 
-    def volatility_vector(self) -> List[float]:
+    def volatility_vector(self) -> list[float]:
         return [
             self.atr_expansion,
             self.atr_compression,
@@ -247,7 +245,7 @@ class MicrostructureFeatures:
             self.volatility_shock,
         ]
 
-    def efficiency_vector(self) -> List[float]:
+    def efficiency_vector(self) -> list[float]:
         return [
             self.trend_efficiency,
             self.mean_reversion_probability,
@@ -274,7 +272,7 @@ class MicrostructureScore:
     expansion_score: float = 0.0
     overall_score: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: round(v, 4) for k, v in self.__dict__.items()}
 
 
@@ -291,9 +289,9 @@ class MarketStateRecord:
     trend_strength: TrendStrength
     score: MicrostructureScore
     timestamp: float = field(default_factory=time.time)
-    reasoning: List[str] = field(default_factory=list)
+    reasoning: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "confidence": round(self.confidence, 4),
@@ -317,18 +315,18 @@ class MicrostructureEmbedding:
     timestamp: float
     instrument: str = ""
     timeframe: str = "H1"
-    embedding: List[float] = field(default_factory=list)
-    price_action_state: List[float] = field(default_factory=list)  # 8 dims
-    liquidity_state: List[float] = field(default_factory=list)  # 6 dims
-    momentum_state: List[float] = field(default_factory=list)  # 6 dims
-    volatility_state: List[float] = field(default_factory=list)  # 6 dims
-    efficiency_state: List[float] = field(default_factory=list)  # 6 dims
+    embedding: list[float] = field(default_factory=list)
+    price_action_state: list[float] = field(default_factory=list)  # 8 dims
+    liquidity_state: list[float] = field(default_factory=list)  # 6 dims
+    momentum_state: list[float] = field(default_factory=list)  # 6 dims
+    volatility_state: list[float] = field(default_factory=list)  # 6 dims
+    efficiency_state: list[float] = field(default_factory=list)  # 6 dims
 
     @property
     def dim(self) -> int:
         return len(self.embedding)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "timestamp": round(self.timestamp, 3),
             "instrument": self.instrument,

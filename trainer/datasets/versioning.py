@@ -6,7 +6,6 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -24,13 +23,13 @@ class DatasetVersion:
 
     dataset_id: str
     version: str
-    feature_version: Optional[str] = None
-    label_version: Optional[str] = None
+    feature_version: str | None = None
+    label_version: str | None = None
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     metadata: dict = field(default_factory=dict)
 
     @classmethod
-    def from_manifest(cls, manifest_path: Path) -> "DatasetVersion":
+    def from_manifest(cls, manifest_path: Path) -> DatasetVersion:
         """Load a DatasetVersion from a manifest.json file.
 
         Args:

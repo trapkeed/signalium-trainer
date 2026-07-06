@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict
 
 
 class MarketRegime(str, Enum):
@@ -136,7 +135,7 @@ def clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 
 # ── Lookup tables ──────────────────────────────────────────────────────────────
 
-RISK_REGIME_MULTIPLIERS: Dict[str, float] = {
+RISK_REGIME_MULTIPLIERS: dict[str, float] = {
     RiskRegime.OPTIMAL: 1.20,
     RiskRegime.LOW_RISK: 1.10,
     RiskRegime.NORMAL: 1.00,
@@ -151,7 +150,7 @@ RISK_REGIME_MULTIPLIERS: Dict[str, float] = {
     RiskRegime.UNKNOWN: 0.50,
 }
 
-REGIME_TRADEABILITY_BASE: Dict[str, float] = {
+REGIME_TRADEABILITY_BASE: dict[str, float] = {
     MarketRegime.TRENDING: 80.0,
     MarketRegime.STRONG_TREND: 85.0,
     MarketRegime.WEAK_TREND: 65.0,
@@ -170,7 +169,7 @@ REGIME_TRADEABILITY_BASE: Dict[str, float] = {
     MarketRegime.UNKNOWN: 35.0,
 }
 
-SESSION_QUALITY_SCORES: Dict[str, float] = {
+SESSION_QUALITY_SCORES: dict[str, float] = {
     SessionType.ASIAN: 55.0,
     SessionType.LONDON: 85.0,
     SessionType.NEW_YORK: 80.0,
@@ -178,7 +177,7 @@ SESSION_QUALITY_SCORES: Dict[str, float] = {
     SessionType.OFF_HOURS: 25.0,
 }
 
-NEWS_IMPACT_PENALTY: Dict[str, float] = {
+NEWS_IMPACT_PENALTY: dict[str, float] = {
     NewsImpact.HIGH: 30.0,
     NewsImpact.MEDIUM: 15.0,
     NewsImpact.LOW: 5.0,

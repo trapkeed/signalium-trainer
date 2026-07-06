@@ -47,7 +47,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -59,7 +59,7 @@ from trainer.validation.calibration_validator import CalibrationValidator
 from trainer.validation.database import ValidationDatabase, ValidationRunRecord
 from trainer.validation.drift import DriftAnalyzer
 from trainer.validation.export import ExportConfig, ReportExporter
-from trainer.validation.failure_analysis import FailureAnalyzer, FailureReport
+from trainer.validation.failure_analysis import FailureAnalyzer
 from trainer.validation.head_validator import PredictionHeadValidator
 from trainer.validation.leaderboard import InstitutionalLeaderboard, LeaderboardEntry
 from trainer.validation.leakage import LeakageDetector, LeakageReport
@@ -102,12 +102,12 @@ class ValidationResult:
     run_id: str
     model_id: str
     model_version: str
-    statistical: Optional[StatisticalMetrics] = None
-    trading: Optional[TradingMetrics] = None
+    statistical: StatisticalMetrics | None = None
+    trading: TradingMetrics | None = None
     n_folds: int = 0
-    promotion_decision: Optional[PromotionDecision] = None
-    leaderboard_entry: Optional[LeaderboardEntry] = None
-    leakage_report: Optional[LeakageReport] = None
+    promotion_decision: PromotionDecision | None = None
+    leaderboard_entry: LeaderboardEntry | None = None
+    leakage_report: LeakageReport | None = None
     run_duration_seconds: float = 0.0
     status: str = "completed"
     error: str = ""
@@ -115,7 +115,7 @@ class ValidationResult:
 
     def summary(self) -> str:
         lines = [
-            f"=== Institutional Validation Result ===",
+            "=== Institutional Validation Result ===",
             f"  Model       : {self.model_id} v{self.model_version}",
             f"  Run ID      : {self.run_id}",
             f"  Status      : {self.status.upper()}",
@@ -241,10 +241,10 @@ class InstitutionalValidationEngine:
     def __init__(
         self,
         db_path: str | Path = "experiments/validation.db",
-        leaderboard_path: Optional[str | Path] = None,
-        policy: Optional[PromotionPolicy] = None,
-        export_dir: Optional[Path] = None,
-        config: Optional[EngineConfig] = None,
+        leaderboard_path: str | Path | None = None,
+        policy: PromotionPolicy | None = None,
+        export_dir: Path | None = None,
+        config: EngineConfig | None = None,
     ) -> None:
         self._cfg = config or EngineConfig()
         self._db = ValidationDatabase(db_path)
@@ -302,10 +302,10 @@ class InstitutionalValidationEngine:
         y: torch.Tensor,
         model_id: str,
         model_version: str = "1.0.0",
-        ohlcv: Optional[torch.Tensor] = None,
-        timestamps: Optional[torch.Tensor] = None,
-        feature_names: Optional[list[str]] = None,
-        extra_metadata: Optional[dict[str, Any]] = None,
+        ohlcv: torch.Tensor | None = None,
+        timestamps: torch.Tensor | None = None,
+        feature_names: list[str] | None = None,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> ValidationResult:
         """Run the complete institutional validation pipeline.
 

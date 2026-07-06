@@ -17,8 +17,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import torch
@@ -120,7 +120,7 @@ class PermutationImportance:
         self,
         metric: str = "accuracy",
         n_repeats: int = 5,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> None:
         if metric not in self._VALID_METRICS:
             raise ValueError(f"metric must be one of {sorted(self._VALID_METRICS)}, got {metric!r}")
@@ -133,7 +133,7 @@ class PermutationImportance:
         model: nn.Module,
         inputs: torch.Tensor,
         labels: torch.Tensor,
-        feature_names: Optional[list[str]] = None,
+        feature_names: list[str] | None = None,
     ) -> FeatureImportanceResult:
         """Compute permutation importance for all input features.
 

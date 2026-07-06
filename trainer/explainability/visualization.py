@@ -14,8 +14,8 @@ Classes:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from loguru import logger
 
@@ -48,7 +48,7 @@ class FeatureImportanceChartData:
         result: Any,
         top_k: int = 20,
         sample_idx: int = 0,
-    ) -> "FeatureImportanceChartData":
+    ) -> FeatureImportanceChartData:
         """Build chart data from an ``AttributionResult``.
 
         Args:
@@ -96,7 +96,7 @@ class FusionContributionChartData:
     title: str = "Hybrid Encoder Stream Contributions"
 
     @classmethod
-    def from_contribution(cls, contribution: Any) -> "FusionContributionChartData":
+    def from_contribution(cls, contribution: Any) -> FusionContributionChartData:
         """Build chart data from a ``StreamContribution``.
 
         Args:
@@ -142,7 +142,7 @@ class AttentionMapChartData:
     title: str = "Attention Map (Mean over Layers and Heads)"
 
     @classmethod
-    def from_attention_map(cls, attn_map: Any) -> "AttentionMapChartData":
+    def from_attention_map(cls, attn_map: Any) -> AttentionMapChartData:
         """Build chart data from an ``AttentionMap``.
 
         Args:
@@ -191,7 +191,7 @@ class EncoderContributionChartData:
     title: str = "Encoder Parameter Norms"
 
     @classmethod
-    def from_contribution(cls, contribution: Any) -> "EncoderContributionChartData":
+    def from_contribution(cls, contribution: Any) -> EncoderContributionChartData:
         """Build chart data from a ``StreamContribution``.
 
         Args:
@@ -253,7 +253,6 @@ class AttentionMapVisualizer:
             return "[No attention map available — " "model uses a non-Transformer backbone]"
 
         try:
-            import torch
             import torch.nn.functional as F
 
             mean = attn_map.mean_attention()[sample_idx]  # (seq, seq)

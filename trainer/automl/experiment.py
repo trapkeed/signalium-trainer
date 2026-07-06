@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -88,11 +88,11 @@ class Trial:
     trial_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     job_id: str = ""
     experiment_id: str = ""
-    parent_trial_id: Optional[str] = None
+    parent_trial_id: str | None = None
 
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
     backbone: str = ""
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
     dataset_version: str = ""
     feature_version: str = ""
     label_version: str = ""
@@ -101,10 +101,10 @@ class Trial:
     hardware: str = ""
 
     status: str = TrialStatus.PENDING
-    score: Optional[float] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    score: float | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
-    pruning_step: Optional[int] = None
+    pruning_step: int | None = None
     pruning_reason: str = ""
 
     start_time: str = ""
@@ -114,22 +114,22 @@ class Trial:
     error_message: str = ""
     retry_count: int = 0
 
-    resource_usage: Dict[str, Any] = field(default_factory=dict)
-    intermediate_scores: List[tuple] = field(default_factory=list)
+    resource_usage: dict[str, Any] = field(default_factory=dict)
+    intermediate_scores: list[tuple] = field(default_factory=list)
 
     promotion_eligible: bool = False
-    leaderboard_rank: Optional[int] = None
+    leaderboard_rank: int | None = None
     notes: str = ""
 
     def start(self) -> None:
         """Mark trial as running."""
         self.status = TrialStatus.RUNNING
-        self.start_time = datetime.now(timezone.utc).isoformat()
+        self.start_time = datetime.now(UTC).isoformat()
 
     def complete(
         self,
         score: float,
-        metrics: Optional[Dict[str, Any]] = None,
+        metrics: dict[str, Any] | None = None,
         training_duration: float = 0.0,
         validation_duration: float = 0.0,
     ) -> None:
@@ -139,21 +139,21 @@ class Trial:
         self.metrics = metrics or {}
         self.training_duration_seconds = training_duration
         self.validation_duration_seconds = validation_duration
-        self.end_time = datetime.now(timezone.utc).isoformat()
+        self.end_time = datetime.now(UTC).isoformat()
 
     def prune(self, step: int, reason: str = "") -> None:
         """Mark trial as pruned."""
         self.status = TrialStatus.PRUNED
         self.pruning_step = step
         self.pruning_reason = reason
-        self.end_time = datetime.now(timezone.utc).isoformat()
+        self.end_time = datetime.now(UTC).isoformat()
         logger.info(f"Trial {self.trial_id} pruned at step {step}: {reason}")
 
     def fail(self, error: str, retry: bool = False) -> None:
         """Mark trial as failed."""
         self.status = TrialStatus.RETRYING if retry else TrialStatus.FAILED
         self.error_message = error
-        self.end_time = datetime.now(timezone.utc).isoformat()
+        self.end_time = datetime.now(UTC).isoformat()
         logger.warning(f"Trial {self.trial_id} {'retrying' if retry else 'failed'}: {error}")
 
     def add_intermediate(self, step: int, score: float) -> None:
@@ -168,7 +168,7 @@ class Trial:
     def is_terminal(self) -> bool:
         return self.status in (TrialStatus.COMPLETED, TrialStatus.PRUNED, TrialStatus.FAILED)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trial_id": self.trial_id,
             "job_id": self.job_id,
@@ -202,7 +202,7 @@ class Trial:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Trial":
+    def from_dict(d: dict[str, Any]) -> Trial:
         t = Trial(**{k: v for k, v in d.items() if k in Trial.__dataclass_fields__})
         t.intermediate_scores = [tuple(x) for x in d.get("intermediate_scores", [])]
         return t
@@ -246,7 +246,7 @@ class SearchJob:
     strategy: str = "random"
     n_trials: int = 20
     objective: str = "composite_research_score"
-    objectives: List[str] = field(default_factory=list)
+    objectives: list[str] = field(default_factory=list)
     search_space_name: str = "signalium_standard"
     status: str = "pending"
     budget_type: str = "trials"
@@ -255,13 +255,13 @@ class SearchJob:
     parallel_workers: int = 1
     checkpoint_frequency: int = 5
     max_retries: int = 2
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     started_at: str = ""
     completed_at: str = ""
-    trials: List[Trial] = field(default_factory=list)
-    champion_trial_id: Optional[str] = None
-    best_score: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    trials: list[Trial] = field(default_factory=list)
+    champion_trial_id: str | None = None
+    best_score: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def add_trial(self, trial: Trial) -> None:
         trial.job_id = self.job_id
@@ -272,15 +272,15 @@ class SearchJob:
 
     def start(self) -> None:
         self.status = "running"
-        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.started_at = datetime.now(UTC).isoformat()
 
     def complete(self) -> None:
         self.status = "completed"
-        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.completed_at = datetime.now(UTC).isoformat()
 
     def fail(self) -> None:
         self.status = "failed"
-        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.completed_at = datetime.now(UTC).isoformat()
 
     def pause(self) -> None:
         self.status = "paused"
@@ -298,11 +298,11 @@ class SearchJob:
         return sum(1 for t in self.trials if t.status == TrialStatus.FAILED)
 
     @property
-    def completed_trials(self) -> List[Trial]:
+    def completed_trials(self) -> list[Trial]:
         return [t for t in self.trials if t.status == TrialStatus.COMPLETED]
 
     @property
-    def champion_trial(self) -> Optional[Trial]:
+    def champion_trial(self) -> Trial | None:
         if self.champion_trial_id is None:
             return None
         for t in self.trials:
@@ -310,7 +310,7 @@ class SearchJob:
                 return t
         return None
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "job_id": self.job_id,
             "name": self.name,
@@ -328,7 +328,7 @@ class SearchJob:
             "objective": self.objective,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = self.summary()
         d.update(
             {
@@ -347,7 +347,7 @@ class SearchJob:
         return d
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "SearchJob":
+    def from_dict(d: dict[str, Any]) -> SearchJob:
         trials_data = d.pop("trials", [])
         job = SearchJob(
             **{k: v for k, v in d.items() if k in SearchJob.__dataclass_fields__ and k != "trials"}
@@ -375,9 +375,9 @@ class ExperimentRecord:
     job_name: str = ""
     strategy: str = ""
 
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
     backbone: str = ""
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
     dataset_version: str = ""
     feature_version: str = ""
     label_version: str = ""
@@ -386,37 +386,37 @@ class ExperimentRecord:
     hardware: str = ""
 
     status: str = TrialStatus.PENDING
-    primary_score: Optional[float] = None
-    per_objective_scores: Dict[str, float] = field(default_factory=dict)
+    primary_score: float | None = None
+    per_objective_scores: dict[str, float] = field(default_factory=dict)
     composite_research_score: float = 0.0
 
-    validation_results: Dict[str, Any] = field(default_factory=dict)
+    validation_results: dict[str, Any] = field(default_factory=dict)
     promotion_eligible: bool = False
-    promotion_decision: Dict[str, Any] = field(default_factory=dict)
+    promotion_decision: dict[str, Any] = field(default_factory=dict)
 
-    overall_rank: Optional[int] = None
-    per_instrument_ranks: Dict[str, int] = field(default_factory=dict)
-    per_timeframe_ranks: Dict[str, int] = field(default_factory=dict)
-    per_regime_ranks: Dict[str, int] = field(default_factory=dict)
+    overall_rank: int | None = None
+    per_instrument_ranks: dict[str, int] = field(default_factory=dict)
+    per_timeframe_ranks: dict[str, int] = field(default_factory=dict)
+    per_regime_ranks: dict[str, int] = field(default_factory=dict)
 
     training_duration_seconds: float = 0.0
     validation_duration_seconds: float = 0.0
-    resource_usage: Dict[str, Any] = field(default_factory=dict)
-    intermediate_scores: List[tuple] = field(default_factory=list)
+    resource_usage: dict[str, Any] = field(default_factory=dict)
+    intermediate_scores: list[tuple] = field(default_factory=list)
 
     pruned: bool = False
-    pruning_step: Optional[int] = None
+    pruning_step: int | None = None
     pruning_reason: str = ""
     error_message: str = ""
     retry_count: int = 0
 
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     notes: str = ""
 
     @staticmethod
     def from_trial(
-        trial: Trial, job: SearchJob, validation_results: Optional[Dict[str, Any]] = None
-    ) -> "ExperimentRecord":
+        trial: Trial, job: SearchJob, validation_results: dict[str, Any] | None = None
+    ) -> ExperimentRecord:
         return ExperimentRecord(
             trial_id=trial.trial_id,
             job_id=trial.job_id,
@@ -446,7 +446,7 @@ class ExperimentRecord:
             retry_count=trial.retry_count,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "record_id": self.record_id,
             "trial_id": self.trial_id,

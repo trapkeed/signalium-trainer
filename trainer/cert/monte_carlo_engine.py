@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import random
 import statistics
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 try:
     from loguru import logger
@@ -15,7 +15,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.cert.cert_models import CertificationInput, MonteCarloResult
-from trainer.cert.cert_types import CheckStatus, clamp
+from trainer.cert.cert_types import CheckStatus
 
 _TECHNIQUES = [
     "RANDOMIZED_TRADE_ORDER",
@@ -48,7 +48,7 @@ class MonteCarloEngine:
         self._iterations = iterations
         self._seed = seed
 
-    def run_all(self, inp: CertificationInput) -> List[MonteCarloResult]:
+    def run_all(self, inp: CertificationInput) -> list[MonteCarloResult]:
         provided = inp.monte_carlo_results
         results = [
             self._randomized_order(inp, provided),
@@ -66,11 +66,11 @@ class MonteCarloEngine:
 
     def _extract_or_simulate(
         self,
-        provided: Dict[str, Any],
+        provided: dict[str, Any],
         key: str,
         inp: CertificationInput,
         noise_std_mult: float = 0.05,
-    ) -> Tuple[float, float, float, float, float]:
+    ) -> tuple[float, float, float, float, float]:
         """Return (mean_r, std_r, ci_low, ci_high, prob_profitable)."""
         if key in provided:
             d = provided[key]
@@ -85,7 +85,7 @@ class MonteCarloEngine:
 
     def _simulate_returns(
         self, inp: CertificationInput, noise_std_mult: float
-    ) -> Tuple[float, float, float, float, float]:
+    ) -> tuple[float, float, float, float, float]:
         rng = random.Random(self._seed)
         base_r = inp.oos_sharpe * 0.05  # approximate daily return from Sharpe
         std = max(abs(base_r) * noise_std_mult + 0.01, 0.005)
@@ -127,7 +127,7 @@ class MonteCarloEngine:
     # ── 6 Techniques ──────────────────────────────────────────────────────
 
     def _randomized_order(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "RANDOMIZED_TRADE_ORDER", inp, 0.08
@@ -135,7 +135,7 @@ class MonteCarloEngine:
         return self._make_result("RANDOMIZED_TRADE_ORDER", mean_r, std_r, ci_low, ci_high, prob_p)
 
     def _bootstrap_sampling(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "BOOTSTRAP_SAMPLING", inp, 0.06
@@ -143,7 +143,7 @@ class MonteCarloEngine:
         return self._make_result("BOOTSTRAP_SAMPLING", mean_r, std_r, ci_low, ci_high, prob_p)
 
     def _sequence_perturbation(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "SEQUENCE_PERTURBATION", inp, 0.07
@@ -151,7 +151,7 @@ class MonteCarloEngine:
         return self._make_result("SEQUENCE_PERTURBATION", mean_r, std_r, ci_low, ci_high, prob_p)
 
     def _noise_injection(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "NOISE_INJECTION", inp, 0.10
@@ -159,7 +159,7 @@ class MonteCarloEngine:
         return self._make_result("NOISE_INJECTION", mean_r, std_r, ci_low, ci_high, prob_p)
 
     def _parameter_sensitivity(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "PARAMETER_SENSITIVITY", inp, 0.12
@@ -167,7 +167,7 @@ class MonteCarloEngine:
         return self._make_result("PARAMETER_SENSITIVITY", mean_r, std_r, ci_low, ci_high, prob_p)
 
     def _confidence_interval(
-        self, inp: CertificationInput, provided: Dict[str, Any]
+        self, inp: CertificationInput, provided: dict[str, Any]
     ) -> MonteCarloResult:
         mean_r, std_r, ci_low, ci_high, prob_p = self._extract_or_simulate(
             provided, "CONFIDENCE_INTERVAL_ESTIMATION", inp, 0.05

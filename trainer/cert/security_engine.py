@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
-
 try:
     from loguru import logger
 except ImportError:
@@ -25,7 +23,7 @@ _SECURITY_CHECKS = [
     "ENCRYPTION",
 ]
 
-_RISK_MAP: Dict[str, RiskLevel] = {
+_RISK_MAP: dict[str, RiskLevel] = {
     "AUTHENTICATION": RiskLevel.CRITICAL,
     "AUTHORIZATION": RiskLevel.CRITICAL,
     "AUDIT_LOGGING": RiskLevel.HIGH,
@@ -45,13 +43,13 @@ class SecurityEngine:
     If the key is absent, the check is marked WARNING.
     """
 
-    def run_all(self, inp: CertificationInput) -> List[SecurityResult]:
+    def run_all(self, inp: CertificationInput) -> list[SecurityResult]:
         results = [self._check(inp, name) for name in _SECURITY_CHECKS]
         passed = sum(1 for r in results if r.status == CheckStatus.PASS)
         logger.debug(f"[SecE] Security: {passed}/{len(results)} checks passed")
         return results
 
-    def overall_score(self, results: List[SecurityResult]) -> float:
+    def overall_score(self, results: list[SecurityResult]) -> float:
         weights = {
             CheckStatus.PASS: 100.0,
             CheckStatus.WARNING: 50.0,

@@ -12,9 +12,7 @@
 
 from __future__ import annotations
 
-import collections
 import time
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -48,14 +46,14 @@ class MicrostructureDashboard:
 
     def microstructure_timeline(
         self,
-        feature_list: List[MicrostructureFeatures],
-        scores: List[MicrostructureScore],
+        feature_list: list[MicrostructureFeatures],
+        scores: list[MicrostructureScore],
         granularity: str = "day",
-    ) -> Dict:
+    ) -> dict:
         if not feature_list:
             return {"view": "MICROSTRUCTURE_TIMELINE", "periods": [], "data": {}}
 
-        data: Dict[str, Dict] = {}
+        data: dict[str, dict] = {}
         for f, s in zip(feature_list, scores):
             b = _bucket(f.timestamp, granularity)
             if b not in data:
@@ -88,13 +86,13 @@ class MicrostructureDashboard:
 
     def market_state_timeline(
         self,
-        state_records: List[MarketStateRecord],
+        state_records: list[MarketStateRecord],
         granularity: str = "day",
-    ) -> Dict:
+    ) -> dict:
         if not state_records:
             return {"view": "MARKET_STATE_TIMELINE", "periods": [], "data": {}}
 
-        data: Dict[str, Dict] = {}
+        data: dict[str, dict] = {}
         for r in state_records:
             b = _bucket(r.timestamp, granularity)
             if b not in data:
@@ -115,8 +113,8 @@ class MicrostructureDashboard:
 
     def momentum_evolution(
         self,
-        feature_list: List[MicrostructureFeatures],
-    ) -> Dict:
+        feature_list: list[MicrostructureFeatures],
+    ) -> dict:
         if not feature_list:
             return {"view": "MOMENTUM_EVOLUTION", "series": {}}
 
@@ -146,8 +144,8 @@ class MicrostructureDashboard:
 
     def volatility_evolution(
         self,
-        feature_list: List[MicrostructureFeatures],
-    ) -> Dict:
+        feature_list: list[MicrostructureFeatures],
+    ) -> dict:
         if not feature_list:
             return {"view": "VOLATILITY_EVOLUTION", "series": {}}
 
@@ -177,9 +175,9 @@ class MicrostructureDashboard:
 
     def liquidity_estimates(
         self,
-        feature_list: List[MicrostructureFeatures],
-        state_records: Optional[List[MarketStateRecord]] = None,
-    ) -> Dict:
+        feature_list: list[MicrostructureFeatures],
+        state_records: list[MarketStateRecord] | None = None,
+    ) -> dict:
         if not feature_list:
             return {"view": "LIQUIDITY_ESTIMATES", "series": {}}
 
@@ -216,20 +214,20 @@ class MicrostructureDashboard:
 
     def microstructure_heatmaps(
         self,
-        feature_list: List[MicrostructureFeatures],
-        state_records: List[MarketStateRecord],
-    ) -> Dict:
+        feature_list: list[MicrostructureFeatures],
+        state_records: list[MarketStateRecord],
+    ) -> dict:
         """Score heatmap: market state × score dimension."""
 
         if not state_records:
             return {"view": "MICROSTRUCTURE_HEATMAPS", "grid": {}}
 
         # Map timestamp → state for fast lookup
-        state_by_ts: Dict[float, str] = {
+        state_by_ts: dict[float, str] = {
             round(r.timestamp, 0): r.state.value for r in state_records
         }
 
-        grid: Dict[str, Dict[str, list]] = {}
+        grid: dict[str, dict[str, list]] = {}
         score_dims = [
             "trend_score",
             "momentum_score",
@@ -256,7 +254,7 @@ class MicrostructureDashboard:
             grid[state]["volatility_score"].append(f.atr_expansion)
             grid[state]["liquidity_score"].append(1.0 - f.spread_proxy)
 
-        avg_grid: Dict[str, Dict[str, float]] = {}
+        avg_grid: dict[str, dict[str, float]] = {}
         for state, dims in grid.items():
             avg_grid[state] = {d: round(sum(v) / len(v), 4) if v else 0.0 for d, v in dims.items()}
 
@@ -272,8 +270,8 @@ class MicrostructureDashboard:
 
     def embedding_explorer(
         self,
-        embeddings: List[MicrostructureEmbedding],
-    ) -> Dict:
+        embeddings: list[MicrostructureEmbedding],
+    ) -> dict:
         """Summarise embedding vectors for exploration."""
         if not embeddings:
             return {"view": "EMBEDDING_EXPLORER", "total": 0}
@@ -324,11 +322,11 @@ class MicrostructureDashboard:
 
     def all_dashboards(
         self,
-        feature_list: List[MicrostructureFeatures],
-        scores: List[MicrostructureScore],
-        state_records: List[MarketStateRecord],
-        embeddings: List[MicrostructureEmbedding],
-    ) -> Dict:
+        feature_list: list[MicrostructureFeatures],
+        scores: list[MicrostructureScore],
+        state_records: list[MarketStateRecord],
+        embeddings: list[MicrostructureEmbedding],
+    ) -> dict:
         return {
             "microstructure_timeline": self.microstructure_timeline(feature_list, scores),
             "market_state_timeline": self.market_state_timeline(state_records),

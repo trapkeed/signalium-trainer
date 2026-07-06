@@ -27,8 +27,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Grade
@@ -50,7 +50,7 @@ class Grade:
     def contains(self, score: float) -> bool:
         return self.min_score <= score <= self.max_score
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "label": self.label,
             "min_score": self.min_score,
@@ -73,7 +73,7 @@ class GradeResult:
 
     score: float
     grade: Grade
-    percentile: Optional[float] = None
+    percentile: float | None = None
 
     @property
     def label(self) -> str:
@@ -87,7 +87,7 @@ class GradeResult:
     def deployment_eligible(self) -> bool:
         return self.grade.deployment_eligible
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": self.score,
             "grade_label": self.grade.label,
@@ -106,7 +106,7 @@ class GradeResult:
 # ---------------------------------------------------------------------------
 
 
-_DEFAULT_GRADES: List[Dict[str, Any]] = [
+_DEFAULT_GRADES: list[dict[str, Any]] = [
     {
         "label": "Institutional Elite",
         "min_score": 95.0,
@@ -187,22 +187,22 @@ _DEFAULT_GRADES: List[Dict[str, Any]] = [
 class GradeSystem:
     """Assigns grades to Research Scores based on configurable thresholds."""
 
-    def __init__(self, grades: List[Grade]) -> None:
+    def __init__(self, grades: list[Grade]) -> None:
         # Sort descending by min_score so we check highest thresholds first
         self._grades = sorted(grades, key=lambda g: g.min_score, reverse=True)
 
     @classmethod
-    def default(cls) -> "GradeSystem":
+    def default(cls) -> GradeSystem:
         """Return the default IRSE grade system."""
         return cls._from_dicts(_DEFAULT_GRADES)
 
     @classmethod
-    def from_dict(cls, grade_dicts: List[Dict[str, Any]]) -> "GradeSystem":
+    def from_dict(cls, grade_dicts: list[dict[str, Any]]) -> GradeSystem:
         """Build from a list of grade definition dicts."""
         return cls._from_dicts(grade_dicts)
 
     @classmethod
-    def _from_dicts(cls, dicts: List[Dict[str, Any]]) -> "GradeSystem":
+    def _from_dicts(cls, dicts: list[dict[str, Any]]) -> GradeSystem:
         grades = [
             Grade(
                 label=d["label"],
@@ -241,10 +241,10 @@ class GradeSystem:
                 return grade.min_score
         return 100.0
 
-    def all_grades(self) -> List[Dict[str, Any]]:
+    def all_grades(self) -> list[dict[str, Any]]:
         return [g.to_dict() for g in sorted(self._grades, key=lambda g: g.min_score)]
 
-    def grade_for_label(self, label: str) -> Optional[Grade]:
+    def grade_for_label(self, label: str) -> Grade | None:
         for g in self._grades:
             if g.label == label:
                 return g

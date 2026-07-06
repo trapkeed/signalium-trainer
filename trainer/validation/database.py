@@ -33,9 +33,9 @@ import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -76,7 +76,7 @@ class ValidationRunRecord:
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     model_id: str = ""
     model_version: str = ""
-    run_timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    run_timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     configuration: dict[str, Any] = field(default_factory=dict)
     statistical_metrics: dict[str, Any] = field(default_factory=dict)
     trading_metrics: dict[str, Any] = field(default_factory=dict)
@@ -222,7 +222,7 @@ class ValidationDatabase:
 
     # ── Read operations ───────────────────────────────────────────────────
 
-    def get_run(self, run_id: str) -> Optional[ValidationRunRecord]:
+    def get_run(self, run_id: str) -> ValidationRunRecord | None:
         """Retrieve a single run by ID."""
         cursor = self._conn.execute("SELECT * FROM validation_runs WHERE run_id=?", (run_id,))
         row = cursor.fetchone()
@@ -230,9 +230,9 @@ class ValidationDatabase:
 
     def list_runs(
         self,
-        model_id: Optional[str] = None,
-        status: Optional[str] = None,
-        experiment_id: Optional[str] = None,
+        model_id: str | None = None,
+        status: str | None = None,
+        experiment_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
         order_by: str = "run_timestamp",
@@ -281,7 +281,7 @@ class ValidationDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [self._row_to_record(dict(r)) for r in rows]
 
-    def count_runs(self, model_id: Optional[str] = None) -> int:
+    def count_runs(self, model_id: str | None = None) -> int:
         """Count total runs, optionally filtered by model."""
         if model_id:
             cursor = self._conn.execute(
@@ -291,7 +291,7 @@ class ValidationDatabase:
             cursor = self._conn.execute("SELECT COUNT(*) FROM validation_runs")
         return int(cursor.fetchone()[0])
 
-    def get_best_run(self, model_id: str) -> Optional[ValidationRunRecord]:
+    def get_best_run(self, model_id: str) -> ValidationRunRecord | None:
         """Return the run with the highest leaderboard score for a model."""
         cursor = self._conn.execute(
             "SELECT * FROM validation_runs WHERE model_id=? "
@@ -301,7 +301,7 @@ class ValidationDatabase:
         row = cursor.fetchone()
         return self._row_to_record(dict(row)) if row else None
 
-    def get_latest_run(self, model_id: str) -> Optional[ValidationRunRecord]:
+    def get_latest_run(self, model_id: str) -> ValidationRunRecord | None:
         """Return the most recent run for a model."""
         cursor = self._conn.execute(
             "SELECT * FROM validation_runs WHERE model_id=? " "ORDER BY run_timestamp DESC LIMIT 1",

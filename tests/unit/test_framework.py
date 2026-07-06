@@ -190,7 +190,6 @@ class TestModelSpec:
 
 class TestModelFactory:
     def test_list_available_includes_quant_v1(self) -> None:
-        from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
 
         assert "quant_v1" in ModelFactory.list_available()
 
@@ -255,7 +254,6 @@ class TestEnhancedModelRegistry:
     def test_register_with_spec(self) -> None:
         import torch
 
-        from trainer.config.schema import TrainerConfig
         from trainer.models.base import BaseQuantModel
         from trainer.registry.registry import ModelRegistry
 
@@ -290,7 +288,6 @@ class TestEnhancedModelRegistry:
         del ModelRegistry._specs[test_name]
 
     def test_summary_includes_all_models(self) -> None:
-        from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
         from trainer.registry.registry import ModelRegistry
 
         rows = ModelRegistry.summary()
@@ -298,7 +295,6 @@ class TestEnhancedModelRegistry:
         assert "quant_v1" in names
 
     def test_summary_row_has_expected_keys(self) -> None:
-        from trainer.models.quant_v1.model import QuantModelV1  # ensure registered
         from trainer.registry.registry import ModelRegistry
 
         rows = ModelRegistry.summary()

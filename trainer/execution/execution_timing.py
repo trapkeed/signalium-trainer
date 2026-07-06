@@ -10,7 +10,6 @@ Factors: Spread, Session, Volatility, Liquidity, News Risk,
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -38,7 +37,7 @@ class TimingFactor:
     score: float  # 0-1
     detail: str
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {"name": self.name, "score": round(self.score, 4), "detail": self.detail}
 
 
@@ -50,7 +49,7 @@ class TimingAssessment:
     recommendation: TimingRecommendation
     overall_score: float
 
-    factors: List[TimingFactor] = field(default_factory=list)
+    factors: list[TimingFactor] = field(default_factory=list)
 
     # Individual flags
     spread_ok: bool = True
@@ -63,7 +62,7 @@ class TimingAssessment:
     expected_slippage: float = 0.0  # price units
     expected_spread: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "recommendation": self.recommendation.value,
@@ -101,11 +100,11 @@ class ExecutionTiming:
         "news": 0.15,
     }
 
-    def __init__(self, broker: Optional[BrokerConstraints] = None):
+    def __init__(self, broker: BrokerConstraints | None = None):
         self._broker = broker or default_broker()
 
     def evaluate(self, forecast: ExecutionForecast) -> TimingAssessment:
-        factors: List[TimingFactor] = []
+        factors: list[TimingFactor] = []
 
         # 1. Spread ───────────────────────────────────────────────────────────
         spread_ok = self._broker.spread_ok(forecast.spread)

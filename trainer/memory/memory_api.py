@@ -21,8 +21,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -31,8 +29,8 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.memory.counterfactual_engine import CounterfactualEngine
-from trainer.memory.decision_benchmarking import BenchmarkReport, DecisionBenchmarking
-from trainer.memory.decision_lineage import DecisionLineage, LineageRecord
+from trainer.memory.decision_benchmarking import DecisionBenchmarking
+from trainer.memory.decision_lineage import DecisionLineage
 from trainer.memory.decision_memory import DecisionMemory
 from trainer.memory.decision_models import (
     DecisionReasoning,
@@ -40,14 +38,14 @@ from trainer.memory.decision_models import (
     DecisionSnapshot,
 )
 from trainer.memory.decision_types import DecisionType, OutcomeType
-from trainer.memory.knowledge_base import KnowledgeBase, KnowledgeEntry
+from trainer.memory.knowledge_base import KnowledgeBase
 from trainer.memory.memory_dashboard import MemoryDashboard
 from trainer.memory.memory_database import MemoryDatabase
-from trainer.memory.memory_search import MemorySearch, SearchQuery, SearchResult
+from trainer.memory.memory_search import MemorySearch, SearchQuery
 from trainer.memory.outcome_tracker import OutcomeTracker
-from trainer.memory.pattern_discovery import PatternDiscovery, PatternReport
+from trainer.memory.pattern_discovery import PatternDiscovery
 from trainer.memory.quality_engine import QualityEngine
-from trainer.memory.self_evaluation import SelfAssessment, SelfEvaluationEngine
+from trainer.memory.self_evaluation import SelfEvaluationEngine
 
 
 class MemoryAPI:
@@ -75,7 +73,7 @@ class MemoryAPI:
         instrument: str,
         snapshot: DecisionSnapshot,
         reasoning: DecisionReasoning,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         trade_id: str = "",
         lineage_id: str = "",
         persist: bool = True,
@@ -95,7 +93,7 @@ class MemoryAPI:
 
     # ── 2. Get decision ───────────────────────────────────────────────────────
 
-    def get_decision(self, decision_id: str) -> Optional[Dict]:
+    def get_decision(self, decision_id: str) -> dict | None:
         record = self.memory.get(decision_id)
         return record.to_dict() if record else None
 
@@ -110,7 +108,7 @@ class MemoryAPI:
         hit_tp: bool = False,
         hit_sl: bool = False,
         holding_time_h: float = 0.0,
-        direction_correct: Optional[bool] = None,
+        direction_correct: bool | None = None,
         market_event: str = "",
         notes: str = "",
         persist: bool = True,
@@ -135,7 +133,7 @@ class MemoryAPI:
 
     # ── 4. Score decision ─────────────────────────────────────────────────────
 
-    def score_decision(self, decision_id: str) -> Optional[Dict]:
+    def score_decision(self, decision_id: str) -> dict | None:
         record = self.memory.get(decision_id)
         if not record:
             return None
@@ -145,7 +143,7 @@ class MemoryAPI:
 
     # ── 5. Score all ──────────────────────────────────────────────────────────
 
-    def score_all(self) -> Dict:
+    def score_all(self) -> dict:
         records = self.memory.all_records()
         scores = self.quality.batch_score(records)
         return {
@@ -157,7 +155,7 @@ class MemoryAPI:
 
     # ── 6. Analyse counterfactuals ────────────────────────────────────────────
 
-    def analyse_counterfactuals(self, decision_id: str) -> List[Dict]:
+    def analyse_counterfactuals(self, decision_id: str) -> list[dict]:
         record = self.memory.get(decision_id)
         if not record:
             return []
@@ -169,30 +167,30 @@ class MemoryAPI:
 
     def summarise_outcomes(
         self,
-        instrument: Optional[str] = None,
-        decision_type: Optional[DecisionType] = None,
-    ) -> Dict:
+        instrument: str | None = None,
+        decision_type: DecisionType | None = None,
+    ) -> dict:
         records = self.memory.filter(instrument=instrument, decision_type=decision_type)
         summary = self.tracker.summarise(records, decision_type=decision_type)
         return summary.to_dict()
 
     # ── 8. Discover patterns ──────────────────────────────────────────────────
 
-    def discover_patterns(self) -> Dict:
+    def discover_patterns(self) -> dict:
         records = self.memory.all_records()
         report = self.patterns.discover(records)
         return report.to_dict()
 
     # ── 9. Self-evaluate ──────────────────────────────────────────────────────
 
-    def self_evaluate(self, period: str = "CURRENT") -> Dict:
+    def self_evaluate(self, period: str = "CURRENT") -> dict:
         records = self.memory.all_records()
         assessment = self.evaluator.evaluate(records, period=period)
         return assessment.to_dict()
 
     # ── 10. Search decisions ──────────────────────────────────────────────────
 
-    def search_decisions(self, query: SearchQuery) -> Dict:
+    def search_decisions(self, query: SearchQuery) -> dict:
         records = self.memory.all_records()
         result = self.search.search(records, query)
         return result.to_dict()
@@ -202,16 +200,16 @@ class MemoryAPI:
     def knowledge_search(
         self,
         query: str = "",
-        entry_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        entry_type: str | None = None,
+        tags: list[str] | None = None,
         limit: int = 50,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         entries = self.knowledge.search(query=query, entry_type=entry_type, tags=tags, limit=limit)
         return [e.to_dict() for e in entries]
 
     # ── 12. Index in knowledge base ───────────────────────────────────────────
 
-    def index_decision_in_knowledge_base(self, decision_id: str) -> Optional[Dict]:
+    def index_decision_in_knowledge_base(self, decision_id: str) -> dict | None:
         record = self.memory.get(decision_id)
         if not record:
             return None
@@ -229,7 +227,7 @@ class MemoryAPI:
         training_run: str = "",
         experiment: str = "",
         git_commit: str = "",
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         record = self.memory.get(decision_id)
         if not record:
             return None
@@ -247,14 +245,14 @@ class MemoryAPI:
 
     # ── 14. Benchmark ─────────────────────────────────────────────────────────
 
-    def benchmark(self, baselines: Optional[List[str]] = None) -> Dict:
+    def benchmark(self, baselines: list[str] | None = None) -> dict:
         records = self.memory.all_records()
         report = self.benchmarking.benchmark(records, baselines=baselines)
         return report.to_dict()
 
     # ── 15. Get dashboard ─────────────────────────────────────────────────────
 
-    def get_dashboard(self, name: str = "all") -> Dict:
+    def get_dashboard(self, name: str = "all") -> dict:
         records = self.memory.all_records()
         fns = {
             "decision_timeline": self.dashboard.decision_timeline,
@@ -275,7 +273,7 @@ class MemoryAPI:
 
     # ── 16. System stats ──────────────────────────────────────────────────────
 
-    def system_stats(self) -> Dict:
+    def system_stats(self) -> dict:
         mem_stats = self.memory.stats()
         db_stats = self.db.stats()
         kb_stats = self.knowledge.stats()

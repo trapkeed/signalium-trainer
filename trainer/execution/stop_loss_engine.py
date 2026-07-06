@@ -6,8 +6,7 @@ Recommends a full suite of stop loss levels for every execution plan:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -57,7 +56,7 @@ class StopLossRecommendation:
     def widest(self) -> float:
         return self.emergency_stop
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -95,7 +94,7 @@ class StopLossEngine:
     def recommend(
         self,
         forecast: ExecutionForecast,
-        zones: Optional[EntryZones] = None,
+        zones: EntryZones | None = None,
     ) -> StopLossRecommendation:
 
         entry = zones.primary_entry if zones else forecast.current_price

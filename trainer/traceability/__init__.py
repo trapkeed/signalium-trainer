@@ -25,12 +25,12 @@ from trainer.traceability.metadata import (
 from trainer.traceability.traced_output import TracedPrediction
 
 __all__ = [
-    "PredictionMetadata",
-    "ModelInfo",
+    "InferenceContext",
     "InferenceInfo",
+    "ModelInfo",
+    "PredictionMetadata",
     "ReproducibilityInfo",
     "SchemaVersions",
-    "InferenceContext",
     "TracedPrediction",
     "hash_config",
     "hash_schema",

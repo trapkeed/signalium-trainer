@@ -45,12 +45,10 @@ Usage::
 from __future__ import annotations
 
 import heapq
-import json
 import shutil
-from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -103,7 +101,7 @@ class CheckpointManager:
         # Min-heap when mode=="max" (negate scores), max-heap proxy otherwise.
         # Each entry: (score, path_str) — lower score = worse when mode=="min".
         self._top_k_heap: list[tuple[float, str]] = []
-        self._best_score: Optional[float] = None
+        self._best_score: float | None = None
         self._best_metrics: dict[str, float] = {}
 
     # ------------------------------------------------------------------
@@ -188,8 +186,8 @@ class CheckpointManager:
         self,
         checkpoint_path: Path,
         model: nn.Module,
-        optimizer: Optional[torch.optim.Optimizer] = None,
-        scheduler: Optional[Any] = None,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: Any | None = None,
     ) -> dict[str, Any]:
         """Load a checkpoint and restore all states in-place.
 
@@ -228,7 +226,7 @@ class CheckpointManager:
                 except Exception as exc:
                     logger.warning("Could not restore scheduler state: {}", exc)
 
-        if "rng_state" in state and state["rng_state"]:
+        if state.get("rng_state"):
             try:
                 from trainer.training.reproducibility import ReproducibilityManager
 
@@ -264,7 +262,7 @@ class CheckpointManager:
         state: dict[str, Any] = {
             "version": _CHECKPOINT_VERSION,
             "epoch": epoch,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "monitor_metric": self._monitor_metric,
             "monitor_mode": self._monitor_mode,
             "metrics": dict(metrics),
@@ -321,7 +319,7 @@ class CheckpointManager:
             shutil.copy2(src, dst)
 
     @staticmethod
-    def _resolve_link(link: Path) -> Optional[Path]:
+    def _resolve_link(link: Path) -> Path | None:
         """Resolve a symlink to its target, or return None."""
         try:
             if link.is_symlink():

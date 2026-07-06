@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -44,7 +43,7 @@ class IcariDashboard:
 
     # ── 1. Capital Allocation ─────────────────────────────────────────────────
 
-    def capital_allocation(self, results: List[AllocationResult]) -> Dict:
+    def capital_allocation(self, results: list[AllocationResult]) -> dict:
         if not results:
             return {"view": "CAPITAL_ALLOCATION", "total": 0, "approved": 0, "denied": 0}
         approved = [r for r in results if r.status == AllocationStatus.APPROVED]
@@ -53,7 +52,7 @@ class IcariDashboard:
         total_usd = sum(r.allocation_usd for r in approved + reduced)
         avg_conf = sum(r.confidence for r in results) / len(results)
 
-        by_instrument: Dict[str, float] = {}
+        by_instrument: dict[str, float] = {}
         for r in results:
             by_instrument[r.instrument] = by_instrument.get(r.instrument, 0.0) + r.allocation_usd
 
@@ -76,8 +75,8 @@ class IcariDashboard:
     def risk_dashboard(
         self,
         portfolio_risk: PortfolioRisk,
-        budgets: List[RiskBudget],
-    ) -> Dict:
+        budgets: list[RiskBudget],
+    ) -> dict:
         breached = [b for b in budgets if b.is_breached]
         near_limit = [b for b in budgets if b.utilisation >= 0.80 and not b.is_breached]
         return {
@@ -99,10 +98,10 @@ class IcariDashboard:
 
     def exposure_dashboard(
         self,
-        weights: Dict[str, float],
-        risk_contrib: Dict[str, float],
-        correlations: Optional[Dict[str, float]] = None,
-    ) -> Dict:
+        weights: dict[str, float],
+        risk_contrib: dict[str, float],
+        correlations: dict[str, float] | None = None,
+    ) -> dict:
         return {
             "view": "EXPOSURE_DASHBOARD",
             "instruments": len(weights),
@@ -124,11 +123,11 @@ class IcariDashboard:
 
     def drawdown_dashboard(
         self,
-        events: List[DrawdownEvent],
+        events: list[DrawdownEvent],
         current_dd: float,
         dd_mode: DrawdownMode,
         risk_multiplier: float,
-    ) -> Dict:
+    ) -> dict:
         recovered = [e for e in events if e.recovered]
         active = [e for e in events if not e.recovered]
         max_dd = max((e.drawdown for e in events), default=current_dd)
@@ -148,7 +147,7 @@ class IcariDashboard:
 
     # ── 5. Capital Health Dashboard ───────────────────────────────────────────
 
-    def capital_health_dashboard(self, health: CapitalHealth) -> Dict:
+    def capital_health_dashboard(self, health: CapitalHealth) -> dict:
         return {
             "view": "CAPITAL_HEALTH",
             "grade": health.grade.value,
@@ -162,7 +161,7 @@ class IcariDashboard:
             "alerts": self._health_alerts(health),
         }
 
-    def _health_alerts(self, h: CapitalHealth) -> List[str]:
+    def _health_alerts(self, h: CapitalHealth) -> list[str]:
         alerts = []
         if h.overall_score < 0.40:
             alerts.append("CRITICAL: Overall health below 40%")
@@ -178,7 +177,7 @@ class IcariDashboard:
 
     # ── 6. Optimization Dashboard ─────────────────────────────────────────────
 
-    def optimization_dashboard(self, results: List[OptimizationResult]) -> Dict:
+    def optimization_dashboard(self, results: list[OptimizationResult]) -> dict:
         if not results:
             return {"view": "OPTIMIZATION", "runs": 0}
         latest = results[-1]
@@ -196,7 +195,7 @@ class IcariDashboard:
 
     # ── 7. Scenario Analysis Dashboard ───────────────────────────────────────
 
-    def scenario_dashboard(self, results: List[ScenarioResult]) -> Dict:
+    def scenario_dashboard(self, results: list[ScenarioResult]) -> dict:
         if not results:
             return {"view": "SCENARIO_ANALYSIS", "scenarios": 0}
         worst = min(results, key=lambda r: r.resilience_score)
@@ -223,19 +222,19 @@ class IcariDashboard:
 
     def all_dashboards(
         self,
-        results: List[AllocationResult],
+        results: list[AllocationResult],
         portfolio_risk: PortfolioRisk,
-        budgets: List[RiskBudget],
-        weights: Dict[str, float],
-        risk_contrib: Dict[str, float],
-        dd_events: List[DrawdownEvent],
+        budgets: list[RiskBudget],
+        weights: dict[str, float],
+        risk_contrib: dict[str, float],
+        dd_events: list[DrawdownEvent],
         current_dd: float,
         dd_mode: DrawdownMode,
         risk_mult: float,
         health: CapitalHealth,
-        opt_results: List[OptimizationResult],
-        scenario_results: List[ScenarioResult],
-    ) -> Dict:
+        opt_results: list[OptimizationResult],
+        scenario_results: list[ScenarioResult],
+    ) -> dict:
         return {
             "capital_allocation": self.capital_allocation(results),
             "risk_dashboard": self.risk_dashboard(portfolio_risk, budgets),

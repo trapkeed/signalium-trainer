@@ -26,8 +26,8 @@ Usage::
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Category names (used as dict keys and DB column names)
@@ -87,7 +87,7 @@ class ScoringWeights:
                 f"Weights must sum to 1.0 but sum to {total:.8f}. " f"Adjust: {weights}"
             )
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         return {
             CATEGORY_VALIDATION_QUALITY: self.validation_quality,
             CATEGORY_TRADING_PERFORMANCE: self.trading_performance,
@@ -103,12 +103,12 @@ class ScoringWeights:
         return self.as_dict().get(category, 0.0)
 
     @classmethod
-    def default(cls) -> "ScoringWeights":
+    def default(cls) -> ScoringWeights:
         """Return the default IRSE weight configuration."""
         return cls()
 
     @classmethod
-    def from_dict(cls, d: Dict[str, float]) -> "ScoringWeights":
+    def from_dict(cls, d: dict[str, float]) -> ScoringWeights:
         """Create weights from a dict. Missing keys use default values."""
         defaults = cls()
         return cls(
@@ -125,7 +125,7 @@ class ScoringWeights:
         )
 
     @classmethod
-    def from_yaml_section(cls, section: Dict[str, Any]) -> "ScoringWeights":
+    def from_yaml_section(cls, section: dict[str, Any]) -> ScoringWeights:
         """Create from a parsed YAML section.
 
         Expected format::
@@ -140,7 +140,7 @@ class ScoringWeights:
     def to_json(self) -> str:
         return json.dumps(self.as_dict(), indent=2)
 
-    def normalise(self) -> "ScoringWeights":
+    def normalise(self) -> ScoringWeights:
         """Return a copy where weights are normalised to sum exactly to 1.0."""
         d = self.as_dict()
         total = sum(d.values())

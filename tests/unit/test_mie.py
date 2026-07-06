@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import math
 import os
 import sys
 import unittest
@@ -59,7 +58,7 @@ _api = _preload("trainer/mie/mie_api.py")
 _worker = _preload("trainer/mie/mie_worker.py")
 
 
-def _inp(**kw) -> "_models.MarketInput":
+def _inp(**kw) -> _models.MarketInput:
     """Build a MarketInput with sensible defaults."""
     defaults = dict(
         symbol="EURUSD",

@@ -37,9 +37,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from loguru import logger
 
@@ -48,7 +47,7 @@ from trainer.research.database import ResearchDatabase
 from trainer.research.dataset_evolution import DatasetEvolutionTracker, DatasetRecord
 from trainer.research.experiment_engine import ExperimentRecommendationEngine
 from trainer.research.feature_lifecycle import FeatureLifecycleManager, FeatureRecord
-from trainer.research.knowledge_base import KnowledgeBase, KnowledgeEntry, KnowledgeEntryType
+from trainer.research.knowledge_base import KnowledgeBase, KnowledgeEntryType
 from trainer.research.label_quality import LabelQualityMonitor
 from trainer.research.market_evolution import MarketEvolutionMonitor
 from trainer.research.model_health_evolution import ModelHealthEvolutionTracker
@@ -97,11 +96,11 @@ class ResearchConfig:
     label_batch_window: int = 50
     enable_default_advisor: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items()}
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ResearchConfig":
+    def from_dict(d: dict[str, Any]) -> ResearchConfig:
         cfg = ResearchConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -124,7 +123,7 @@ class ResearchEngine:
         config: ResearchConfig.
     """
 
-    def __init__(self, config: Optional[ResearchConfig] = None) -> None:
+    def __init__(self, config: ResearchConfig | None = None) -> None:
         self.config = config or ResearchConfig()
         self.db = ResearchDatabase(self.config.db_path)
         self.observatory = ResearchObservatory(window=self.config.observatory_window)
@@ -215,7 +214,7 @@ class ResearchEngine:
         snap = self.market_monitor.record_regime_snapshot(instrument, timeframe, **kwargs)
         self.db.save_market_snapshot(snap.to_dict())
 
-    def detect_market_evolution(self, instrument: str, timeframe: str) -> List[Dict[str, Any]]:
+    def detect_market_evolution(self, instrument: str, timeframe: str) -> list[dict[str, Any]]:
         """Detect market structural changes."""
         detections = self.market_monitor.detect_evolution(instrument, timeframe)
         return [d.to_dict() for d in detections]
@@ -237,10 +236,10 @@ class ResearchEngine:
         obs = self.feature_manager.record_observation(name, **kwargs)
         self.db.save_feature_observation(obs.to_dict())
 
-    def evaluate_feature(self, name: str) -> Dict[str, Any]:
+    def evaluate_feature(self, name: str) -> dict[str, Any]:
         return self.feature_manager.evaluate(name).to_dict()
 
-    def evaluate_all_features(self) -> List[Dict[str, Any]]:
+    def evaluate_all_features(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self.feature_manager.evaluate_all()]
 
     # -----------------------------------------------------------------------
@@ -252,7 +251,7 @@ class ResearchEngine:
         batch = self.label_monitor.record_batch(label_version, **kwargs)
         self.db.save_label_batch(batch.to_dict())
 
-    def get_label_quality(self, label_version: str) -> Dict[str, Any]:
+    def get_label_quality(self, label_version: str) -> dict[str, Any]:
         return self.label_monitor.get_quality_report(label_version).to_dict()
 
     # -----------------------------------------------------------------------
@@ -264,7 +263,7 @@ class ResearchEngine:
         self.db.save_dataset(record.to_dict())
         return did
 
-    def get_dataset_evolution(self) -> Dict[str, Any]:
+    def get_dataset_evolution(self) -> dict[str, Any]:
         return self.dataset_tracker.evolution_report()
 
     # -----------------------------------------------------------------------
@@ -276,7 +275,7 @@ class ResearchEngine:
         pt = self.health_tracker.record_health_point(model_id, **kwargs)
         self.db.save_health_point(pt.to_dict())
 
-    def get_health_trend(self, model_id: str) -> Dict[str, Any]:
+    def get_health_trend(self, model_id: str) -> dict[str, Any]:
         return self.health_tracker.get_trend(model_id).to_dict()
 
     # -----------------------------------------------------------------------
@@ -284,8 +283,8 @@ class ResearchEngine:
     # -----------------------------------------------------------------------
 
     def evaluate_retraining(
-        self, model_id: str, context: Dict[str, Any], force_manual: bool = False
-    ) -> Dict[str, Any]:
+        self, model_id: str, context: dict[str, Any], force_manual: bool = False
+    ) -> dict[str, Any]:
         """Evaluate retraining policies — advisory only."""
         return self.api.evaluate_retraining(model_id, context, force_manual=force_manual)
 
@@ -293,7 +292,7 @@ class ResearchEngine:
     # Experiments
     # -----------------------------------------------------------------------
 
-    def generate_experiments(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_experiments(self, context: dict[str, Any]) -> dict[str, Any]:
         """Generate experiment suggestions — advisory only."""
         return self.api.generate_experiments(context)
 
@@ -305,9 +304,9 @@ class ResearchEngine:
         self,
         title: str,
         body: str = "",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         impact_level: str = "medium",
-        model_id: Optional[str] = None,
+        model_id: str | None = None,
         author: str = "researcher",
     ) -> str:
         """Add a research finding to the knowledge base."""
@@ -328,26 +327,26 @@ class ResearchEngine:
         self.db.save_knowledge_entry(entry.to_dict())
         return entry.entry_id
 
-    def search_knowledge(self, query: str) -> List[Dict[str, Any]]:
+    def search_knowledge(self, query: str) -> list[dict[str, Any]]:
         return self.knowledge_base.search(query)
 
     # -----------------------------------------------------------------------
     # Reports
     # -----------------------------------------------------------------------
 
-    def weekly_report(self) -> Dict[str, Any]:
+    def weekly_report(self) -> dict[str, Any]:
         return self.api.weekly_report()
 
-    def monthly_health_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+    def monthly_health_report(self, model_id: str | None = None) -> dict[str, Any]:
         return self.api.monthly_health_report(model_id)
 
-    def research_roadmap(self, horizon_months: int = 3) -> Dict[str, Any]:
+    def research_roadmap(self, horizon_months: int = 3) -> dict[str, Any]:
         return self.api.research_roadmap(horizon_months)
 
-    def full_intelligence_report(self) -> Dict[str, Any]:
+    def full_intelligence_report(self) -> dict[str, Any]:
         return self.api.full_intelligence_report()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         return self.api.get_stats()
 
     def summary(self) -> str:
@@ -373,14 +372,14 @@ class ResearchEngine:
     # -----------------------------------------------------------------------
 
     @staticmethod
-    def from_config(config_dict: Dict[str, Any]) -> "ResearchEngine":
+    def from_config(config_dict: dict[str, Any]) -> ResearchEngine:
         return ResearchEngine(config=ResearchConfig.from_dict(config_dict))
 
     @staticmethod
-    def from_yaml(yaml_path: str) -> "ResearchEngine":
+    def from_yaml(yaml_path: str) -> ResearchEngine:
         import yaml
 
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("research", data)
         return ResearchEngine.from_config(cfg_data)

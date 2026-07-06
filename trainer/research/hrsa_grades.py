@@ -31,8 +31,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # GradeThreshold
@@ -51,7 +51,7 @@ class GradeThreshold:
     def contains(self, score: float) -> bool:
         return self.min_score <= score <= self.max_score
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "label": self.label,
             "min_score": self.min_score,
@@ -156,7 +156,7 @@ class GradeAssessment:
     institutional_description: str = ""
     research_description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "composite": self.composite,
             "confidence": self.confidence,
@@ -180,8 +180,8 @@ class HRSAGradeEngine:
 
     def __init__(
         self,
-        institutional_grades: Optional[List[GradeThreshold]] = None,
-        research_grades: Optional[List[GradeThreshold]] = None,
+        institutional_grades: list[GradeThreshold] | None = None,
+        research_grades: list[GradeThreshold] | None = None,
     ) -> None:
         self._inst = sorted(
             institutional_grades or _INSTITUTIONAL_GRADES, key=lambda g: g.min_score, reverse=True
@@ -189,10 +189,10 @@ class HRSAGradeEngine:
         self._res = sorted(
             research_grades or _RESEARCH_GRADES, key=lambda g: g.min_score, reverse=True
         )
-        self._custom_grades: List[GradeThreshold] = []
+        self._custom_grades: list[GradeThreshold] = []
 
     @classmethod
-    def default(cls) -> "HRSAGradeEngine":
+    def default(cls) -> HRSAGradeEngine:
         return cls()
 
     def define_custom_grade(
@@ -241,7 +241,7 @@ class HRSAGradeEngine:
         self,
         score: float,
         institutional: GradeThreshold,
-        category_scores: Optional[Dict[str, float]] = None,
+        category_scores: dict[str, float] | None = None,
     ) -> str:
         """Determine promotion recommendation."""
         if score >= 85.0 and institutional.rank <= 2:
@@ -261,7 +261,7 @@ class HRSAGradeEngine:
             return PromotionRecommendation.HOLD
         return PromotionRecommendation.NO
 
-    def assign_risk(self, category_scores: Optional[Dict[str, float]] = None) -> str:
+    def assign_risk(self, category_scores: dict[str, float] | None = None) -> str:
         """Compute risk rating from risk-sensitive category scores."""
         if not category_scores:
             return RiskRating.MEDIUM
@@ -303,7 +303,7 @@ class HRSAGradeEngine:
         self,
         composite: float,
         confidence: float = 0.5,
-        category_scores: Optional[Dict[str, float]] = None,
+        category_scores: dict[str, float] | None = None,
         trend_slope: float = 0.0,
     ) -> GradeAssessment:
         inst = self.assign_institutional(composite)
@@ -324,8 +324,8 @@ class HRSAGradeEngine:
             research_description=res.description,
         )
 
-    def all_institutional_grades(self) -> List[Dict[str, Any]]:
+    def all_institutional_grades(self) -> list[dict[str, Any]]:
         return [g.to_dict() for g in sorted(self._inst, key=lambda g: g.min_score)]
 
-    def all_research_grades(self) -> List[Dict[str, Any]]:
+    def all_research_grades(self) -> list[dict[str, Any]]:
         return [g.to_dict() for g in sorted(self._res, key=lambda g: g.min_score)]

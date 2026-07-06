@@ -18,7 +18,6 @@ def clear_registry() -> None:
 def test_register_and_retrieve() -> None:
     import torch
 
-    from trainer.config.schema import TrainerConfig
     from trainer.models.base import BaseQuantModel
 
     class _DummyModel(BaseQuantModel):

@@ -19,8 +19,8 @@ Endpoints:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from trainer.portfolio.conflict_resolver import ConflictResolver
 from trainer.portfolio.correlation_engine import (
@@ -67,14 +67,14 @@ except ImportError:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _ok(data: Any) -> dict:
     return {"status": "ok", "data": data}
 
 
-def _err(message: str, exc: Optional[Exception] = None) -> dict:
+def _err(message: str, exc: Exception | None = None) -> dict:
     logger.error(f"PortfolioAPI error: {message}" + (f" — {exc}" if exc else ""))
     return {"status": "error", "message": message}
 
@@ -85,8 +85,8 @@ class PortfolioApi:
     def __init__(
         self,
         db_path: str = ":memory:",
-        registry: Optional[InstrumentRegistry] = None,
-        budget_config: Optional[RiskBudgetConfig] = None,
+        registry: InstrumentRegistry | None = None,
+        budget_config: RiskBudgetConfig | None = None,
         risk_free_rate: float = 0.045,
         correlation_window: int = 60,
     ) -> None:
@@ -112,18 +112,18 @@ class PortfolioApi:
         self._dashboard = PortfolioDashboard(db=self._db)
 
         # Cache: last scored state
-        self._last_forecasts: List[ModelForecast] = []
+        self._last_forecasts: list[ModelForecast] = []
         self._last_correlation_matrix = None
 
     # ── Core Recommend ─────────────────────────────────────────────────────
 
     def recommend(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         method: str = "hybrid",
         run_conflict_check: bool = True,
         run_budget_check: bool = True,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -229,9 +229,9 @@ class PortfolioApi:
 
     def exposure(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        timestamp: Optional[str] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -261,10 +261,10 @@ class PortfolioApi:
 
     def correlation(
         self,
-        observations: Dict[str, float],
+        observations: dict[str, float],
         method: str = "rolling",
-        instruments: Optional[List[str]] = None,
-        timestamp: Optional[str] = None,
+        instruments: list[str] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -297,10 +297,10 @@ class PortfolioApi:
 
     def optimize(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         objective: str = "max_sharpe",
         compare_all: bool = False,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -355,10 +355,10 @@ class PortfolioApi:
 
     def scenario(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        scenarios: Optional[List[str]] = None,
-        timestamp: Optional[str] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        scenarios: list[str] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -394,7 +394,7 @@ class PortfolioApi:
 
     # ── Conflict Check ─────────────────────────────────────────────────────
 
-    def conflict_check(self, forecasts: List[ModelForecast]) -> dict:
+    def conflict_check(self, forecasts: list[ModelForecast]) -> dict:
         try:
             report = self._conflict_resolver.resolve(forecasts)
             return _ok(report.to_dict())
@@ -405,8 +405,8 @@ class PortfolioApi:
 
     def regime(
         self,
-        observations: Optional[Dict[str, float]] = None,
-        timestamp: Optional[str] = None,
+        observations: dict[str, float] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -422,8 +422,8 @@ class PortfolioApi:
 
     def risk_budget_check(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
     ) -> dict:
         try:
             engine = RiskBudgetEngine(self._budget_config)
@@ -446,7 +446,7 @@ class PortfolioApi:
         except Exception as exc:
             return _err(f"recommendations_history failed: {exc}", exc)
 
-    def scenario_history(self, scenario_type: Optional[str] = None, limit: int = 20) -> dict:
+    def scenario_history(self, scenario_type: str | None = None, limit: int = 20) -> dict:
         try:
             return _ok({"history": self._db.scenario_history(scenario_type, limit)})
         except Exception as exc:
@@ -456,8 +456,8 @@ class PortfolioApi:
 
     def dashboard_data(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
         correlation_matrix=None,
     ) -> dict:
         try:

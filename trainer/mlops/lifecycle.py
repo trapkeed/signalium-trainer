@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -57,10 +57,10 @@ class LifecycleTransition:
     to_state: str = ""
     actor: str = "system"
     reason: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "transition_id": self.transition_id,
             "model_id": self.model_id,
@@ -89,7 +89,7 @@ class LifecycleError(Exception):
 # ---------------------------------------------------------------------------
 
 # Maps from_state → set of valid to_states
-_VALID_TRANSITIONS: Dict[str, Set[str]] = {
+_VALID_TRANSITIONS: dict[str, set[str]] = {
     LifecycleState.DRAFT: {LifecycleState.TRAINING, LifecycleState.ARCHIVED},
     LifecycleState.TRAINING: {
         LifecycleState.VALIDATING,
@@ -155,7 +155,7 @@ class LifecycleManager:
                     If False, log a warning but allow the transition.
         """
         self.strict = strict
-        self._history: Dict[str, List[LifecycleTransition]] = {}
+        self._history: dict[str, list[LifecycleTransition]] = {}
 
     def can_transition(self, from_state: str, to_state: str) -> bool:
         """Return True if the transition is valid."""
@@ -167,7 +167,7 @@ class LifecycleManager:
         to_state: str,
         actor: str = "system",
         reason: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> LifecycleTransition:
         """Execute a lifecycle state transition on a model record.
 
@@ -205,7 +205,7 @@ class LifecycleManager:
             logger.warning(msg)
 
         record.lifecycle_state = to_state
-        record.updated_at = datetime.now(timezone.utc).isoformat()
+        record.updated_at = datetime.now(UTC).isoformat()
 
         if to_state == LifecycleState.RETIRED:
             record.retirement_status = "retired"
@@ -233,14 +233,14 @@ class LifecycleManager:
         )
         return t
 
-    def history(self, model_id: str) -> List[LifecycleTransition]:
+    def history(self, model_id: str) -> list[LifecycleTransition]:
         """Return full transition history for a model (oldest first)."""
         return self._history.get(model_id, [])
 
-    def history_dicts(self, model_id: str) -> List[Dict[str, Any]]:
+    def history_dicts(self, model_id: str) -> list[dict[str, Any]]:
         return [t.to_dict() for t in self.history(model_id)]
 
-    def all_history(self) -> List[LifecycleTransition]:
+    def all_history(self) -> list[LifecycleTransition]:
         """Return all transitions across all models, sorted by timestamp."""
         all_t = []
         for transitions in self._history.values():
@@ -312,7 +312,7 @@ class LifecycleManager:
 
     def retire(
         self, record: ModelRecord, actor: str = "system", reason: str = ""
-    ) -> List[LifecycleTransition]:
+    ) -> list[LifecycleTransition]:
         """Retire a model — transitions to ARCHIVED then RETIRED."""
         transitions = []
         if record.lifecycle_state not in (LifecycleState.ARCHIVED, LifecycleState.RETIRED):
@@ -332,9 +332,9 @@ class LifecycleManager:
         record.retirement_status = "retired"
         return transitions
 
-    def state_summary(self) -> Dict[str, Any]:
+    def state_summary(self) -> dict[str, Any]:
         """Return counts of models per lifecycle state."""
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for transitions in self._history.values():
             if transitions:
                 final_state = transitions[-1].to_state

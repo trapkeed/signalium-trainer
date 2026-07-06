@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -16,11 +15,11 @@ from trainer.mie.mie_models import MarketInput, TrendResult
 from trainer.mie.mie_types import TrendState, clamp
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _ema(values: List[float], period: int) -> float:
+def _ema(values: list[float], period: int) -> float:
     if not values:
         return 0.0
     k = 2.0 / (period + 1)
@@ -83,9 +82,9 @@ class TrendIntelligenceEngine:
 
     def _detect_direction(
         self,
-        closes: List[float],
-        highs: List[float],
-        lows: List[float],
+        closes: list[float],
+        highs: list[float],
+        lows: list[float],
         rsi: float,
     ) -> str:
         if not closes:
@@ -121,7 +120,7 @@ class TrendIntelligenceEngine:
             return TrendState.SIDEWAYS
         return TrendState.REVERSING
 
-    def _has_hh_hl(self, highs: List[float], lows: List[float], n: int = 5) -> bool:
+    def _has_hh_hl(self, highs: list[float], lows: list[float], n: int = 5) -> bool:
         if len(highs) < n or len(lows) < n:
             return False
         hs = highs[-n:]
@@ -130,7 +129,7 @@ class TrendIntelligenceEngine:
         hl = all(ls[i] >= ls[i - 1] for i in range(1, n))
         return hh and hl
 
-    def _has_ll_lh(self, highs: List[float], lows: List[float], n: int = 5) -> bool:
+    def _has_ll_lh(self, highs: list[float], lows: list[float], n: int = 5) -> bool:
         if len(highs) < n or len(lows) < n:
             return False
         hs = highs[-n:]
@@ -143,17 +142,17 @@ class TrendIntelligenceEngine:
         self,
         adx: float,
         direction: str,
-        closes: List[float],
-        highs: List[float],
-        lows: List[float],
+        closes: list[float],
+        highs: list[float],
+        lows: list[float],
     ) -> float:
         score = 0.0
         # ADX contribution (0-60)
         score += clamp(adx / self._adx_strong * 60.0, 0.0, 60.0)
         # Structure confirmation (0-30)
-        if direction == "UP" and self._has_hh_hl(highs, lows):
-            score += 30.0
-        elif direction == "DOWN" and self._has_ll_lh(highs, lows):
+        if (direction == "UP" and self._has_hh_hl(highs, lows)) or (
+            direction == "DOWN" and self._has_ll_lh(highs, lows)
+        ):
             score += 30.0
         elif direction != "NEUTRAL":
             score += 10.0

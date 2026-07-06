@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import torch
 
@@ -29,9 +29,9 @@ class ModelInput:
     """
 
     features: torch.Tensor
-    mask: Optional[torch.Tensor] = None
-    metadata: Optional[dict[str, Any]] = None
-    auxiliary: Optional[dict[str, torch.Tensor]] = None
+    mask: torch.Tensor | None = None
+    metadata: dict[str, Any] | None = None
+    auxiliary: dict[str, torch.Tensor] | None = None
 
     def validate(self) -> None:
         """Validate tensor shapes and dtypes.
@@ -71,7 +71,7 @@ class ModelInput:
         """Feature dimensionality per timestep."""
         return self.features.shape[2]
 
-    def to(self, device: torch.device) -> "ModelInput":
+    def to(self, device: torch.device) -> ModelInput:
         """Move all tensors to the specified device.
 
         Args:

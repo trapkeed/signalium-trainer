@@ -28,7 +28,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -127,7 +127,7 @@ class StreamContributionAnalyzer:
 
         # Activation norms per stream (proxy for learned representation size)
         norms: dict[str, float] = {}
-        stream_map: dict[str, Optional[nn.Module]] = {
+        stream_map: dict[str, nn.Module | None] = {
             "raw_market": getattr(hybrid_enc, "raw_market", None),
             "multi_timeframe": getattr(hybrid_enc, "multi_timeframe", None),
             "engineered_features": getattr(hybrid_enc, "engineered_features", None),

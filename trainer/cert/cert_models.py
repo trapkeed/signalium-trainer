@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.cert.cert_types import (
     BenchmarkMetric,
@@ -32,7 +32,7 @@ class CertificationInput:
     training_completed_at: float = field(default_factory=time.time)
     requester: str = ""
     notes: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # Research quality
     research_quality_score: float = 0.0  # 0-100
@@ -41,10 +41,10 @@ class CertificationInput:
     oos_sharpe: float = 0.0
     oos_win_rate: float = 0.5
     oos_max_drawdown: float = 0.5  # fraction (0-1)
-    walk_forward_results: List[Dict] = field(default_factory=list)
-    cross_regime_results: List[Dict] = field(default_factory=list)
-    cross_instrument_results: List[Dict] = field(default_factory=list)
-    cross_timeframe_results: List[Dict] = field(default_factory=list)
+    walk_forward_results: list[dict] = field(default_factory=list)
+    cross_regime_results: list[dict] = field(default_factory=list)
+    cross_instrument_results: list[dict] = field(default_factory=list)
+    cross_timeframe_results: list[dict] = field(default_factory=list)
     generalization_score: float = 0.0  # 0-100
     stability_score: float = 0.0  # 0-100
 
@@ -54,33 +54,33 @@ class CertificationInput:
     ece: float = 0.10
 
     # Stress testing  (scenario name -> pass/fail/degradation dict)
-    stress_results: Dict[str, Dict] = field(default_factory=dict)
+    stress_results: dict[str, dict] = field(default_factory=dict)
 
     # Monte Carlo
-    monte_carlo_results: Dict[str, Any] = field(default_factory=dict)
+    monte_carlo_results: dict[str, Any] = field(default_factory=dict)
 
     # Benchmark (metric name -> value)
-    benchmark_values: Dict[str, float] = field(default_factory=dict)
+    benchmark_values: dict[str, float] = field(default_factory=dict)
 
     # Reproducibility (check name -> bool)
-    reproducibility_checks: Dict[str, bool] = field(default_factory=dict)
+    reproducibility_checks: dict[str, bool] = field(default_factory=dict)
     dataset_version: str = ""
     feature_version: str = ""
     label_version: str = ""
-    training_config: Dict[str, Any] = field(default_factory=dict)
-    random_seed: Optional[int] = None
+    training_config: dict[str, Any] = field(default_factory=dict)
+    random_seed: int | None = None
     environment: str = ""
-    package_versions: Dict[str, str] = field(default_factory=dict)
+    package_versions: dict[str, str] = field(default_factory=dict)
     checkpoint_hash: str = ""
     model_hash: str = ""
 
     # Security (check name -> bool)
-    security_checks: Dict[str, bool] = field(default_factory=dict)
+    security_checks: dict[str, bool] = field(default_factory=dict)
 
     # Operational (check name -> bool)
-    operational_checks: Dict[str, bool] = field(default_factory=dict)
+    operational_checks: dict[str, bool] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if not isinstance(v, (list, dict))}
 
 
@@ -92,13 +92,13 @@ class StageResult:
     stage: CertificationStage = CertificationStage.RESEARCH
     status: CheckStatus = CheckStatus.PASS
     score: float = 100.0  # 0-100
-    findings: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    failures: List[str] = field(default_factory=list)
+    findings: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    failures: list[str] = field(default_factory=list)
     duration_ms: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "stage": self.stage.value,
             "status": self.status.value,
@@ -120,12 +120,12 @@ class ChecklistItem:
     description: str = ""
     mandatory: bool = True
     status: CheckStatus = CheckStatus.NOT_APPLICABLE
-    value: Optional[Any] = None
-    threshold: Optional[float] = None
+    value: Any | None = None
+    threshold: float | None = None
     rationale: str = ""
     risk_level: RiskLevel = RiskLevel.MEDIUM
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "check_id": self.check_id,
             "category": self.category,
@@ -141,7 +141,7 @@ class ChecklistItem:
 
 @dataclass
 class ChecklistReport:
-    items: List[ChecklistItem] = field(default_factory=list)
+    items: list[ChecklistItem] = field(default_factory=list)
     pass_count: int = 0
     warning_count: int = 0
     fail_count: int = 0
@@ -150,7 +150,7 @@ class ChecklistReport:
     can_proceed: bool = True
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "items": [i.to_dict() for i in self.items],
             "pass_count": self.pass_count,
@@ -170,10 +170,10 @@ class ValidationResult:
     check: ValidationCheck = ValidationCheck.OUT_OF_SAMPLE
     status: CheckStatus = CheckStatus.PASS
     score: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "check": self.check.value,
             "status": self.status.value,
@@ -192,10 +192,10 @@ class StressTestResult:
     degradation_pct: float = 0.0  # % performance drop vs baseline
     max_drawdown: float = 0.0
     sharpe_under_stress: float = 0.0
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "scenario": self.scenario.value,
             "status": self.status.value,
@@ -221,7 +221,7 @@ class MonteCarloResult:
     status: CheckStatus = CheckStatus.PASS
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "technique": self.technique,
             "iterations": self.iterations,
@@ -242,11 +242,11 @@ class BenchmarkResult:
     metric: BenchmarkMetric = BenchmarkMetric.INFERENCE_LATENCY
     value: float = 0.0
     unit: str = ""
-    threshold: Optional[float] = None
+    threshold: float | None = None
     status: CheckStatus = CheckStatus.PASS
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "metric": self.metric.value,
             "value": round(self.value, 4),
@@ -268,7 +268,7 @@ class ReproducibilityResult:
     details: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "check_name": self.check_name,
             "status": self.status.value,
@@ -290,7 +290,7 @@ class SecurityResult:
     remediation: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "check_name": self.check_name,
             "status": self.status.value,
@@ -311,7 +311,7 @@ class OperationalResult:
     action: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "check_name": self.check_name,
             "status": self.status.value,
@@ -338,7 +338,7 @@ class ScorecardResult:
     grade: str = "F"
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "research_quality": round(self.research_quality, 2),
             "validation": round(self.validation, 2),
@@ -353,7 +353,7 @@ class ScorecardResult:
             "grade": self.grade,
         }
 
-    def category_scores(self) -> Dict[str, float]:
+    def category_scores(self) -> dict[str, float]:
         return {
             ScorecardCategory.RESEARCH_QUALITY.value: self.research_quality,
             ScorecardCategory.VALIDATION.value: self.validation,
@@ -374,13 +374,13 @@ class ScorecardResult:
 class CertificationDecision:
     status: CertificationStatus = CertificationStatus.REJECTED
     rationale: str = ""
-    conditions: List[str] = field(default_factory=list)
-    restrictions: List[str] = field(default_factory=list)
-    expires_at: Optional[float] = None
+    conditions: list[str] = field(default_factory=list)
+    restrictions: list[str] = field(default_factory=list)
+    expires_at: float | None = None
     approved_by: str = "AUTOMATED"
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "status": self.status.value,
             "rationale": self.rationale,
@@ -406,7 +406,7 @@ class AuditPackage:
     executive_summary: str = ""
     generated_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
             "certification_report": self.certification_report,
@@ -432,21 +432,21 @@ class CertificationRun:
     model_name: str = ""
     model_version: str = "1.0.0"
     started_at: float = field(default_factory=time.time)
-    completed_at: Optional[float] = None
-    stages: List[StageResult] = field(default_factory=list)
-    checklist: Optional[ChecklistReport] = None
-    validations: List[ValidationResult] = field(default_factory=list)
-    stress_tests: List[StressTestResult] = field(default_factory=list)
-    monte_carlos: List[MonteCarloResult] = field(default_factory=list)
-    benchmarks: List[BenchmarkResult] = field(default_factory=list)
-    reproducibility: List[ReproducibilityResult] = field(default_factory=list)
-    security: List[SecurityResult] = field(default_factory=list)
-    operational: List[OperationalResult] = field(default_factory=list)
-    scorecard: Optional[ScorecardResult] = None
-    decision: Optional[CertificationDecision] = None
-    audit: Optional[AuditPackage] = None
+    completed_at: float | None = None
+    stages: list[StageResult] = field(default_factory=list)
+    checklist: ChecklistReport | None = None
+    validations: list[ValidationResult] = field(default_factory=list)
+    stress_tests: list[StressTestResult] = field(default_factory=list)
+    monte_carlos: list[MonteCarloResult] = field(default_factory=list)
+    benchmarks: list[BenchmarkResult] = field(default_factory=list)
+    reproducibility: list[ReproducibilityResult] = field(default_factory=list)
+    security: list[SecurityResult] = field(default_factory=list)
+    operational: list[OperationalResult] = field(default_factory=list)
+    scorecard: ScorecardResult | None = None
+    decision: CertificationDecision | None = None
+    audit: AuditPackage | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
             "model_id": self.model_id,

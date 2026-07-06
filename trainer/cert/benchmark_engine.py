@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -15,7 +13,7 @@ from trainer.cert.cert_models import BenchmarkResult, CertificationInput
 from trainer.cert.cert_types import BenchmarkMetric, CheckStatus, clamp
 
 # (threshold, unit, higher_is_better)
-_METRIC_CONFIG: Dict[str, tuple] = {
+_METRIC_CONFIG: dict[str, tuple] = {
     BenchmarkMetric.INFERENCE_LATENCY.value: (50.0, "ms", False),  # < 50ms
     BenchmarkMetric.TRAINING_TIME.value: (3600.0, "s", False),  # < 1 hour
     BenchmarkMetric.GPU_USAGE.value: (95.0, "%", False),  # < 95%
@@ -55,7 +53,7 @@ class BenchmarkEngine:
     """
 
     # Default simulated values (good-enough baseline)
-    _DEFAULTS: Dict[str, float] = {
+    _DEFAULTS: dict[str, float] = {
         BenchmarkMetric.INFERENCE_LATENCY.value: 25.0,
         BenchmarkMetric.TRAINING_TIME.value: 1800.0,
         BenchmarkMetric.GPU_USAGE.value: 75.0,
@@ -67,7 +65,7 @@ class BenchmarkEngine:
         BenchmarkMetric.RESPONSE_TIME.value: 80.0,
     }
 
-    def run_all(self, inp: CertificationInput) -> List[BenchmarkResult]:
+    def run_all(self, inp: CertificationInput) -> list[BenchmarkResult]:
         results = []
         for metric in BenchmarkMetric:
             threshold, unit, higher = _METRIC_CONFIG[metric.value]
@@ -86,7 +84,7 @@ class BenchmarkEngine:
         logger.debug(f"[BE] Benchmark: {passed}/{len(results)} metrics passing")
         return results
 
-    def overall_score(self, results: List[BenchmarkResult]) -> float:
+    def overall_score(self, results: list[BenchmarkResult]) -> float:
         """Convert benchmark results to a 0-100 score."""
         if not results:
             return 50.0

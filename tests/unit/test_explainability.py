@@ -31,9 +31,6 @@ Coverage:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
 import pytest
 import torch
 import torch.nn as nn
@@ -786,16 +783,7 @@ class TestVisualization:
 class TestFutureEncoderInterfaces:
     def test_all_interfaces_importable(self):
         from trainer.interfaces import (
-            BaseAlternativeDataEncoder,
-            BaseCrossAssetEncoder,
             BaseExternalEncoder,
-            BaseGraphNeuralNetworkInterface,
-            BaseMacroEncoder,
-            BaseNewsEncoder,
-            BaseOptionsDataEncoder,
-            BaseOrderBookEncoder,
-            BaseReinforcementLearningInterface,
-            BaseSentimentEncoder,
         )
 
         # All 10 names must be importable

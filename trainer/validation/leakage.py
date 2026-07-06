@@ -25,7 +25,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -144,8 +144,8 @@ class LeakageDetector:
         y_train: torch.Tensor,
         x_val: torch.Tensor,
         y_val: torch.Tensor,
-        timestamps: Optional[torch.Tensor] = None,
-        feature_names: Optional[list[str]] = None,
+        timestamps: torch.Tensor | None = None,
+        feature_names: list[str] | None = None,
     ) -> LeakageReport:
         """Run all leakage checks.
 
@@ -258,7 +258,7 @@ class LeakageDetector:
         self,
         x_train: torch.Tensor,
         y_train: torch.Tensor,
-        feature_names: Optional[list[str]],
+        feature_names: list[str] | None,
         report: LeakageReport,
     ) -> None:
         """Flag features with very high correlation to the target label."""
@@ -282,7 +282,7 @@ class LeakageDetector:
             if leaky_features:
                 report.target_leakage = True
                 report.errors.append(
-                    f"Target leakage — features trivially correlated with label: "
+                    "Target leakage — features trivially correlated with label: "
                     + ", ".join(leaky_features[:5])
                 )
         except Exception as exc:

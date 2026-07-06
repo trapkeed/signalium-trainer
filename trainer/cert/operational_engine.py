@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
-
 try:
     from loguru import logger
 except ImportError:
@@ -26,7 +24,7 @@ _OPERATIONAL_CHECKS = [
 ]
 
 # mandatory vs advisory
-_MANDATORY: Dict[str, bool] = {
+_MANDATORY: dict[str, bool] = {
     "MONITORING_ENABLED": True,
     "ALERTS_CONFIGURED": True,
     "HEALTH_CHECKS_PASSING": True,
@@ -47,13 +45,13 @@ class OperationalEngine:
     whether the check is mandatory.
     """
 
-    def run_all(self, inp: CertificationInput) -> List[OperationalResult]:
+    def run_all(self, inp: CertificationInput) -> list[OperationalResult]:
         results = [self._check(inp, name) for name in _OPERATIONAL_CHECKS]
         passed = sum(1 for r in results if r.status == CheckStatus.PASS)
         logger.debug(f"[OE] Operational: {passed}/{len(results)} checks confirmed")
         return results
 
-    def overall_score(self, results: List[OperationalResult]) -> float:
+    def overall_score(self, results: list[OperationalResult]) -> float:
         weights = {
             CheckStatus.PASS: 100.0,
             CheckStatus.WARNING: 55.0,

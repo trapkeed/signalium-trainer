@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
 
 try:
     from loguru import logger
@@ -13,18 +12,11 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.cert.cert_models import (
-    BenchmarkResult,
     CertificationRun,
-    ChecklistReport,
-    ScorecardResult,
-    StressTestResult,
-    ValidationResult,
 )
 from trainer.cert.cert_types import (
-    CertificationStatus,
     CheckStatus,
     DashboardType,
-    clamp,
 )
 
 
@@ -36,7 +28,7 @@ class CertDashboard:
     API responses, or front-end rendering.
     """
 
-    def generate_all(self, run: CertificationRun) -> Dict[str, Dict]:
+    def generate_all(self, run: CertificationRun) -> dict[str, dict]:
         return {
             DashboardType.CERTIFICATION.value: self.certification(run),
             DashboardType.READINESS.value: self.readiness(run),
@@ -47,7 +39,7 @@ class CertDashboard:
 
     # ── 1. Certification Dashboard ─────────────────────────────────────────
 
-    def certification(self, run: CertificationRun) -> Dict:
+    def certification(self, run: CertificationRun) -> dict:
         sc = run.scorecard
         dec = run.decision
         return {
@@ -70,7 +62,7 @@ class CertDashboard:
 
     # ── 2. Readiness Dashboard ────────────────────────────────────────────
 
-    def readiness(self, run: CertificationRun) -> Dict:
+    def readiness(self, run: CertificationRun) -> dict:
         cl = run.checklist
         op = run.operational
         return {
@@ -88,7 +80,7 @@ class CertDashboard:
 
     # ── 3. Validation Dashboard ───────────────────────────────────────────
 
-    def validation(self, run: CertificationRun) -> Dict:
+    def validation(self, run: CertificationRun) -> dict:
         val = run.validations or []
         mc = run.monte_carlos or []
         return {
@@ -114,7 +106,7 @@ class CertDashboard:
 
     # ── 4. Benchmark Dashboard ────────────────────────────────────────────
 
-    def benchmark(self, run: CertificationRun) -> Dict:
+    def benchmark(self, run: CertificationRun) -> dict:
         bm = run.benchmarks or []
         st = run.stress_tests or []
         return {
@@ -140,7 +132,7 @@ class CertDashboard:
 
     # ── 5. Audit Dashboard ────────────────────────────────────────────────
 
-    def audit(self, run: CertificationRun) -> Dict:
+    def audit(self, run: CertificationRun) -> dict:
         audit_pkg = run.audit
         repro = run.reproducibility or []
         return {

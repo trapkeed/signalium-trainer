@@ -7,7 +7,6 @@ without placing any real orders.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
@@ -37,7 +36,7 @@ class ScenarioOutcome:
     pnl_pct: float  # gain/loss as fraction of account
     description: str
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "label": self.label,
             "probability": round(self.probability, 4),
@@ -57,11 +56,11 @@ class SimulationResult:
     expected_slippage: float  # in price units
     fill_quality: str  # "EXCELLENT", "GOOD", "FAIR", "POOR"
 
-    alternative_entries: List[float] = field(default_factory=list)
-    alternative_stops: List[float] = field(default_factory=list)
-    alternative_targets: List[float] = field(default_factory=list)
+    alternative_entries: list[float] = field(default_factory=list)
+    alternative_stops: list[float] = field(default_factory=list)
+    alternative_targets: list[float] = field(default_factory=list)
 
-    expected_outcomes: List[ScenarioOutcome] = field(default_factory=list)
+    expected_outcomes: list[ScenarioOutcome] = field(default_factory=list)
 
     # Summary statistics
     expected_pnl_pct: float = 0.0
@@ -69,7 +68,7 @@ class SimulationResult:
     max_adverse_excursion: float = 0.0
     max_favourable_excursion: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -96,15 +95,15 @@ class ExecutionSimulator:
       slippage = spread × (1.0 + session_penalty) × (1.0 + vol_factor)
     """
 
-    def __init__(self, broker: Optional[BrokerConstraints] = None):
+    def __init__(self, broker: BrokerConstraints | None = None):
         self._broker = broker or default_broker()
 
     def simulate(
         self,
         forecast: ExecutionForecast,
-        zones: Optional[EntryZones] = None,
-        stop_loss: Optional[StopLossRecommendation] = None,
-        take_profit: Optional[TakeProfitRecommendation] = None,
+        zones: EntryZones | None = None,
+        stop_loss: StopLossRecommendation | None = None,
+        take_profit: TakeProfitRecommendation | None = None,
     ) -> SimulationResult:
 
         entry = zones.primary_entry if zones else forecast.current_price

@@ -31,7 +31,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any
 
 from trainer.research.categories import _clamp, _linear, _weighted_avg
 
@@ -73,7 +73,7 @@ class ConfidenceInputs:
 @dataclass
 class ConfidenceResult:
     score: float  # 0.0–1.0
-    sub_scores: Dict[str, float] = field(default_factory=dict)
+    sub_scores: dict[str, float] = field(default_factory=dict)
 
     @property
     def level(self) -> str:
@@ -91,7 +91,7 @@ class ConfidenceResult:
     def percentage(self) -> float:
         return round(self.score * 100.0, 1)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": self.score,
             "percentage": self.percentage,
@@ -109,7 +109,7 @@ class ConfidenceCalculator:
     """Compute an independent confidence score for the Research Score."""
 
     def compute(self, inputs: ConfidenceInputs) -> ConfidenceResult:
-        sub: Dict[str, float] = {}
+        sub: dict[str, float] = {}
 
         # Sample size: 6 folds → 50, 12+ → 100
         sub["fold_coverage"] = _clamp(inputs.n_validation_folds / 12.0 * 100.0)

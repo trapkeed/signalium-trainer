@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
@@ -21,7 +20,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.memory.decision_models import DecisionRecord
-from trainer.memory.decision_types import NEGATIVE_OUTCOMES, POSITIVE_OUTCOMES, DecisionType
+from trainer.memory.decision_types import POSITIVE_OUTCOMES
 
 
 @dataclass
@@ -36,7 +35,7 @@ class DiscoveredPattern:
     strength: str  # STRONG | MODERATE | WEAK
     direction: str  # POSITIVE | NEGATIVE
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "pattern_id": self.pattern_id,
             "category": self.category,
@@ -53,12 +52,12 @@ class DiscoveredPattern:
 @dataclass
 class PatternReport:
     total_decisions: int
-    patterns: List[DiscoveredPattern] = field(default_factory=list)
-    top_positive: List[str] = field(default_factory=list)  # pattern_ids
-    top_negative: List[str] = field(default_factory=list)
+    patterns: list[DiscoveredPattern] = field(default_factory=list)
+    top_positive: list[str] = field(default_factory=list)  # pattern_ids
+    top_negative: list[str] = field(default_factory=list)
     summary: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total_decisions": self.total_decisions,
             "patterns": [p.to_dict() for p in self.patterns],
@@ -73,7 +72,7 @@ class PatternDiscovery:
 
     _MIN_SAMPLE = 3  # minimum decisions to call a pattern
 
-    def discover(self, records: List[DecisionRecord]) -> PatternReport:
+    def discover(self, records: list[DecisionRecord]) -> PatternReport:
         """Discover all patterns across the provided decision records."""
         completed = [r for r in records if r.has_outcome]
         report = PatternReport(total_decisions=len(records))
@@ -83,7 +82,7 @@ class PatternDiscovery:
             return report
 
         pid = 1
-        patterns: List[DiscoveredPattern] = []
+        patterns: list[DiscoveredPattern] = []
 
         # ── 1. By market regime ───────────────────────────────────────────────
         for reg, group in self._group_by(completed, lambda r: r.snapshot.market_regime):
@@ -207,8 +206,8 @@ class PatternDiscovery:
         return report
 
     @staticmethod
-    def _group_by(records, key_fn) -> List[Tuple[str, List[DecisionRecord]]]:
-        groups: Dict[str, List[DecisionRecord]] = collections.defaultdict(list)
+    def _group_by(records, key_fn) -> list[tuple[str, list[DecisionRecord]]]:
+        groups: dict[str, list[DecisionRecord]] = collections.defaultdict(list)
         for r in records:
             groups[key_fn(r)].append(r)
         return list(groups.items())
@@ -218,7 +217,7 @@ class PatternDiscovery:
         pid: str,
         category: str,
         description: str,
-        group: List[DecisionRecord],
+        group: list[DecisionRecord],
     ) -> DiscoveredPattern:
         n = len(group)
         wins = sum(1 for r in group if r.outcome.outcome_type in POSITIVE_OUTCOMES)

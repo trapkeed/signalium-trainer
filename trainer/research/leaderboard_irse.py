@@ -34,10 +34,9 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # LeaderboardEntry
@@ -77,11 +76,11 @@ class IRSELeaderboardEntry:
     dataset_version: str = ""
     feature_version: str = ""
     model_family: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    scored_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rank": self.rank,
             "score_id": self.score_id,
@@ -113,7 +112,7 @@ class IRSELeaderboardEntry:
         }
 
     @classmethod
-    def from_research_score(cls, rs: Any) -> "IRSELeaderboardEntry":
+    def from_research_score(cls, rs: Any) -> IRSELeaderboardEntry:
         """Build from a ResearchScore object."""
 
         def _cat_score(cat: str) -> float:
@@ -156,7 +155,7 @@ class IRSELeaderboardEntry:
 # Ranking keys
 # ---------------------------------------------------------------------------
 
-_RANKING_KEYS: Dict[str, str] = {
+_RANKING_KEYS: dict[str, str] = {
     "research_score": "composite",
     "validation_score": "validation_quality_score",
     "trading_score": "trading_performance_score",
@@ -181,7 +180,7 @@ class IRSELeaderboard:
     """Research Score leaderboard with multi-axis ranking and filtering."""
 
     def __init__(self) -> None:
-        self._entries: List[IRSELeaderboardEntry] = []
+        self._entries: list[IRSELeaderboardEntry] = []
 
     # ------------------------------------------------------------------
     # Adding entries
@@ -206,7 +205,7 @@ class IRSELeaderboard:
 
     def _sorted(
         self, axis: str = "research_score", descending: bool = True
-    ) -> List[IRSELeaderboardEntry]:
+    ) -> list[IRSELeaderboardEntry]:
         attr = _RANKING_KEYS.get(axis, "composite")
         ranked = sorted(
             self._entries,
@@ -217,11 +216,11 @@ class IRSELeaderboard:
             entry.rank = i
         return ranked
 
-    def top(self, n: int = 10, axis: str = "research_score") -> List[Dict[str, Any]]:
+    def top(self, n: int = 10, axis: str = "research_score") -> list[dict[str, Any]]:
         """Return top-n entries ranked by axis."""
         return [e.to_dict() for e in self._sorted(axis)[:n]]
 
-    def rank_by(self, axis: str) -> List[Dict[str, Any]]:
+    def rank_by(self, axis: str) -> list[dict[str, Any]]:
         """Return all entries ranked by the given axis."""
         if axis not in _RANKING_KEYS:
             raise ValueError(f"Unknown ranking axis: {axis!r}. " f"Available: {VALID_RANKING_AXES}")
@@ -234,18 +233,18 @@ class IRSELeaderboard:
     def filter(
         self,
         *,
-        instrument: Optional[str] = None,
-        timeframe: Optional[str] = None,
-        backbone: Optional[str] = None,
-        architecture: Optional[str] = None,
-        dataset_version: Optional[str] = None,
-        feature_version: Optional[str] = None,
-        model_family: Optional[str] = None,
-        grade_label: Optional[str] = None,
-        promotion_eligible: Optional[bool] = None,
-        min_score: Optional[float] = None,
-        max_score: Optional[float] = None,
-    ) -> "IRSELeaderboard":
+        instrument: str | None = None,
+        timeframe: str | None = None,
+        backbone: str | None = None,
+        architecture: str | None = None,
+        dataset_version: str | None = None,
+        feature_version: str | None = None,
+        model_family: str | None = None,
+        grade_label: str | None = None,
+        promotion_eligible: bool | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
+    ) -> IRSELeaderboard:
         """Return a new leaderboard containing only matching entries."""
         entries = list(self._entries)
         if instrument:
@@ -280,28 +279,28 @@ class IRSELeaderboard:
     # Queries
     # ------------------------------------------------------------------
 
-    def best(self, axis: str = "research_score") -> Optional[Dict[str, Any]]:
+    def best(self, axis: str = "research_score") -> dict[str, Any] | None:
         ranked = self._sorted(axis)
         return ranked[0].to_dict() if ranked else None
 
-    def get_by_experiment(self, experiment_id: str) -> Optional[Dict[str, Any]]:
+    def get_by_experiment(self, experiment_id: str) -> dict[str, Any] | None:
         for e in self._entries:
             if e.experiment_id == experiment_id:
                 return e.to_dict()
         return None
 
-    def promotion_candidates(self) -> List[Dict[str, Any]]:
+    def promotion_candidates(self) -> list[dict[str, Any]]:
         return [e.to_dict() for e in self._sorted("research_score") if e.promotion_eligible]
 
-    def grade_distribution(self) -> Dict[str, int]:
-        counts: Dict[str, int] = {}
+    def grade_distribution(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
         for e in self._entries:
             counts[e.grade_label] = counts.get(e.grade_label, 0) + 1
         return counts
 
-    def category_leaders(self) -> Dict[str, Optional[str]]:
+    def category_leaders(self) -> dict[str, str | None]:
         """Return the experiment_id of the leader in each category."""
-        leaders: Dict[str, Optional[str]] = {}
+        leaders: dict[str, str | None] = {}
         for axis in VALID_RANKING_AXES:
             ranked = self._sorted(axis)
             leaders[axis] = ranked[0].experiment_id if ranked else None
@@ -311,7 +310,7 @@ class IRSELeaderboard:
     # Report
     # ------------------------------------------------------------------
 
-    def leaderboard_report(self, top_n: int = 20, axis: str = "research_score") -> Dict[str, Any]:
+    def leaderboard_report(self, top_n: int = 20, axis: str = "research_score") -> dict[str, Any]:
         ranked = self._sorted(axis)
         scores = [e.composite for e in ranked]
         return {
@@ -329,5 +328,5 @@ class IRSELeaderboard:
             "category_leaders": self.category_leaders(),
         }
 
-    def all_entries(self) -> List[IRSELeaderboardEntry]:
+    def all_entries(self) -> list[IRSELeaderboardEntry]:
         return list(self._entries)

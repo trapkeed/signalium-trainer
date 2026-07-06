@@ -12,7 +12,7 @@ import contextlib
 import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -24,15 +24,8 @@ except ImportError:
 from trainer.memory.decision_models import (
     CounterfactualResult,
     DecisionOutcome,
-    DecisionReasoning,
     DecisionRecord,
     DecisionScore,
-    DecisionSnapshot,
-)
-from trainer.memory.decision_types import (
-    DecisionGrade,
-    DecisionType,
-    OutcomeType,
 )
 
 _CREATE_TABLES = """
@@ -167,7 +160,7 @@ class MemoryDatabase:
 
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -340,12 +333,12 @@ class MemoryDatabase:
 
     def load_decisions(
         self,
-        instrument: Optional[str] = None,
-        decision_type: Optional[str] = None,
+        instrument: str | None = None,
+        decision_type: str | None = None,
         limit: int = 1000,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         clauses = []
-        params: List[Any] = []
+        params: list[Any] = []
         if instrument:
             clauses.append("instrument = ?")
             params.append(instrument)
@@ -376,12 +369,12 @@ class MemoryDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM counterfactual_analysis").fetchone()[0]
 
-    def decision_ids(self) -> List[str]:
+    def decision_ids(self) -> list[str]:
         with self._conn() as conn:
             rows = conn.execute("SELECT decision_id FROM decision_memory").fetchall()
         return [r[0] for r in rows]
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "decisions": self.count_decisions(),
             "outcomes": self.count_outcomes(),

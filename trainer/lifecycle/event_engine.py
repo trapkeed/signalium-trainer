@@ -6,8 +6,6 @@ are detected or state transitions occur.
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -42,15 +40,15 @@ class EventEngine:
         self,
         trade_id: str,
         state: LifecycleState,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        prev_context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_context: MarketContext | None = None,
         prev_confidence: float = 0.65,
         curr_confidence: float = 0.65,
-    ) -> List[LifecycleEvent]:
+    ) -> list[LifecycleEvent]:
         """Detect events by comparing current vs previous conditions."""
 
-        events: List[LifecycleEvent] = []
+        events: list[LifecycleEvent] = []
 
         if context is None:
             return events

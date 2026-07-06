@@ -18,8 +18,7 @@ Endpoints simulated:
 
 from __future__ import annotations
 
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -178,7 +177,7 @@ class MIEAPI:
 
     # ── GET endpoint handlers ──────────────────────────────────────────────
 
-    def current(self, symbol: str) -> Dict[str, Any]:
+    def current(self, symbol: str) -> dict[str, Any]:
         """GET /api/v1/intelligence/current"""
         rows = self._db.get_latest_intelligence(symbol, limit=1)
         if not rows:
@@ -190,7 +189,7 @@ class MIEAPI:
         symbol: str,
         since: float = 0.0,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """GET /api/v1/intelligence/history"""
         rows = self._db.get_regime_history(symbol, since=since, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
@@ -200,7 +199,7 @@ class MIEAPI:
         symbol: str,
         since: float = 0.0,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """GET /api/v1/intelligence/tradeability"""
         rows = self._db.get_tradeability_history(symbol, since=since, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
@@ -210,7 +209,7 @@ class MIEAPI:
         symbol: str,
         since: float = 0.0,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """GET /api/v1/intelligence/risk"""
         rows = self._db.get_risk_history(symbol, since=since, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
@@ -220,12 +219,12 @@ class MIEAPI:
         symbol: str,
         since: float = 0.0,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """GET /api/v1/intelligence/regime"""
         rows = self._db.get_regime_history(symbol, since=since, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
 
-    def execution_endpoint(self, symbol: str, limit: int = 10) -> Dict[str, Any]:
+    def execution_endpoint(self, symbol: str, limit: int = 10) -> dict[str, Any]:
         """GET /api/v1/intelligence/execution"""
         rows = self._db.get_scores_history(symbol, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
@@ -235,12 +234,12 @@ class MIEAPI:
         symbol: str,
         since: float = 0.0,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """GET /api/v1/intelligence/quality"""
         rows = self._db.get_quality_history(symbol, since=since, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}
 
-    def commentary_endpoint(self, symbol: str, limit: int = 10) -> Dict[str, Any]:
+    def commentary_endpoint(self, symbol: str, limit: int = 10) -> dict[str, Any]:
         """GET /api/v1/intelligence/commentary"""
         rows = self._db.get_commentary_history(symbol, limit=limit)
         return {"ok": True, "symbol": symbol, "count": len(rows), "data": rows}

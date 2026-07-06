@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict
 
 
 class CertificationStatus(str, Enum):
@@ -103,7 +102,7 @@ class DashboardType(str, Enum):
 
 # ── Thresholds for automated certification decisions ──────────────────────────
 
-CERT_THRESHOLDS: Dict[str, float] = {
+CERT_THRESHOLDS: dict[str, float] = {
     "min_overall_score": 75.0,  # minimum scorecard overall to certify
     "min_research_quality": 60.0,
     "min_validation": 65.0,
@@ -119,7 +118,7 @@ CERT_THRESHOLDS: Dict[str, float] = {
     "conditions_gap": 10.0,  # gap below cert threshold for WITH_CONDITIONS
 }
 
-STAGE_WEIGHTS: Dict[str, float] = {
+STAGE_WEIGHTS: dict[str, float] = {
     CertificationStage.RESEARCH: 0.08,
     CertificationStage.TRAINING: 0.06,
     CertificationStage.VALIDATION: 0.15,
@@ -135,7 +134,7 @@ STAGE_WEIGHTS: Dict[str, float] = {
     CertificationStage.CERTIFICATION_DECISION: 0.00,
 }
 
-SCORECARD_WEIGHTS: Dict[str, float] = {
+SCORECARD_WEIGHTS: dict[str, float] = {
     ScorecardCategory.RESEARCH_QUALITY: 0.08,
     ScorecardCategory.VALIDATION: 0.20,
     ScorecardCategory.PERFORMANCE: 0.12,

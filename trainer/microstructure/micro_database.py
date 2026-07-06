@@ -12,7 +12,7 @@ import contextlib
 import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -124,7 +124,7 @@ class MicrostructureDatabase:
 
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -326,10 +326,10 @@ class MicrostructureDatabase:
 
     def recent_states(
         self,
-        instrument: Optional[str] = None,
+        instrument: str | None = None,
         limit: int = 50,
-    ) -> List[Dict]:
-        params: List[Any] = []
+    ) -> list[dict]:
+        params: list[Any] = []
         where = ""
         if instrument:
             where = "WHERE instrument = ?"
@@ -341,8 +341,8 @@ class MicrostructureDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def state_distribution(self, instrument: Optional[str] = None) -> Dict[str, int]:
-        params: List[Any] = []
+    def state_distribution(self, instrument: str | None = None) -> dict[str, int]:
+        params: list[Any] = []
         where = ""
         if instrument:
             where = "WHERE instrument = ?"
@@ -354,7 +354,7 @@ class MicrostructureDatabase:
             ).fetchall()
         return {r["state"]: r["cnt"] for r in rows}
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "features": self.count_features(),
             "embeddings": self.count_embeddings(),

@@ -10,7 +10,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -30,10 +29,10 @@ class LineageNode:
     label: str
     version: str = ""
     created_at: float = field(default_factory=time.time)
-    metadata: Dict = field(default_factory=dict)
-    parent_ids: List[str] = field(default_factory=list)  # upstream nodes
+    metadata: dict = field(default_factory=dict)
+    parent_ids: list[str] = field(default_factory=list)  # upstream nodes
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "node_id": self.node_id,
             "node_type": self.node_type,
@@ -51,7 +50,7 @@ class LineageRecord:
 
     lineage_id: str
     decision_id: str
-    nodes: List[LineageNode] = field(default_factory=list)
+    nodes: list[LineageNode] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
 
     @property
@@ -59,16 +58,16 @@ class LineageRecord:
         return len(self.nodes)
 
     @property
-    def root(self) -> Optional[LineageNode]:
+    def root(self) -> LineageNode | None:
         """The oldest node (git commit or experiment)."""
         return self.nodes[-1] if self.nodes else None
 
     @property
-    def leaf(self) -> Optional[LineageNode]:
+    def leaf(self) -> LineageNode | None:
         """The newest node (the decision itself)."""
         return self.nodes[0] if self.nodes else None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "lineage_id": self.lineage_id,
             "decision_id": self.decision_id,
@@ -82,8 +81,8 @@ class DecisionLineage:
     """Builds and queries decision lineage graphs."""
 
     def __init__(self):
-        self._lineages: Dict[str, LineageRecord] = {}  # lineage_id → record
-        self._by_decision: Dict[str, str] = {}  # decision_id → lineage_id
+        self._lineages: dict[str, LineageRecord] = {}  # lineage_id → record
+        self._by_decision: dict[str, str] = {}  # decision_id → lineage_id
 
     def create_lineage(
         self,
@@ -99,7 +98,7 @@ class DecisionLineage:
         """Build a full lineage record for a decision."""
 
         lid = str(uuid.uuid4())[:12]
-        nodes: List[LineageNode] = []
+        nodes: list[LineageNode] = []
 
         # Build nodes from decision (leaf) → git commit (root)
         # 1. Decision
@@ -197,17 +196,17 @@ class DecisionLineage:
         )
         return record
 
-    def get_by_decision(self, decision_id: str) -> Optional[LineageRecord]:
+    def get_by_decision(self, decision_id: str) -> LineageRecord | None:
         lid = self._by_decision.get(decision_id)
         return self._lineages.get(lid) if lid else None
 
-    def get(self, lineage_id: str) -> Optional[LineageRecord]:
+    def get(self, lineage_id: str) -> LineageRecord | None:
         return self._lineages.get(lineage_id)
 
-    def all_lineages(self) -> List[LineageRecord]:
+    def all_lineages(self) -> list[LineageRecord]:
         return list(self._lineages.values())
 
-    def decisions_by_model(self, model_version: str) -> List[str]:
+    def decisions_by_model(self, model_version: str) -> list[str]:
         """Return decision_ids that used a specific model version."""
         result = []
         for record in self._lineages.values():
@@ -217,7 +216,7 @@ class DecisionLineage:
                     break
         return result
 
-    def decisions_by_experiment(self, experiment: str) -> List[str]:
+    def decisions_by_experiment(self, experiment: str) -> list[str]:
         result = []
         for record in self._lineages.values():
             for node in record.nodes:
@@ -226,7 +225,7 @@ class DecisionLineage:
                     break
         return result
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         n = len(self._lineages)
         avg_depth = sum(r.depth for r in self._lineages.values()) / n if n else 0.0
         return {

@@ -7,7 +7,6 @@ Every SAQRA response must reference actual research artifacts.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -35,7 +34,7 @@ _CITATION_PATTERNS = [
 class CitationEngine:
     """Extracts and validates citations in SAQRA responses."""
 
-    def extract(self, text: str) -> List[Citation]:
+    def extract(self, text: str) -> list[Citation]:
         """Extract all [TYPE:ID] citations from response text."""
         citations = []
         seen = set()
@@ -64,9 +63,9 @@ class CitationEngine:
 
     def validate(
         self,
-        citations: List[Citation],
-        chunks: List[KnowledgeChunk],
-    ) -> List[Citation]:
+        citations: list[Citation],
+        chunks: list[KnowledgeChunk],
+    ) -> list[Citation]:
         """Validate citations against retrieved chunks.
 
         Validated citations have relevance boosted; unvalidated citations are
@@ -100,9 +99,9 @@ class CitationEngine:
 
     def add_from_chunks(
         self,
-        citations: List[Citation],
-        chunks: List[KnowledgeChunk],
-    ) -> List[Citation]:
+        citations: list[Citation],
+        chunks: list[KnowledgeChunk],
+    ) -> list[Citation]:
         """Supplement citations with references from retrieved chunks.
 
         Ensures that all retrieved chunks are cited even if the LLM
@@ -127,7 +126,7 @@ class CitationEngine:
 
         return citations + extra
 
-    def format_bibliography(self, citations: List[Citation]) -> str:
+    def format_bibliography(self, citations: list[Citation]) -> str:
         """Format a bibliography section from a list of citations."""
         if not citations:
             return "No citations."
@@ -139,7 +138,7 @@ class CitationEngine:
             )
         return "\n".join(lines)
 
-    def is_grounded(self, citations: List[Citation], min_citations: int = 1) -> bool:
+    def is_grounded(self, citations: list[Citation], min_citations: int = 1) -> bool:
         """Return True if the response has sufficient citations."""
         return len(citations) >= min_citations
 

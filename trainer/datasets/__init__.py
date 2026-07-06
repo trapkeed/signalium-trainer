@@ -8,9 +8,9 @@ from trainer.datasets.versioning import DatasetVersion
 
 __all__ = [
     "BaseDataset",
-    "ParquetDataset",
     "DatasetValidator",
     "DatasetVersion",
     "MultiTaskParquetDataset",
+    "ParquetDataset",
     "collate_multi_task",
 ]

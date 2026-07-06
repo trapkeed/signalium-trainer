@@ -7,7 +7,6 @@ Recommends active trade management actions based on current trade state:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -16,7 +15,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.execution.execution_types import ExecutionForecast, ManagementAction, _clamp
+from trainer.execution.execution_types import ExecutionForecast, ManagementAction
 from trainer.execution.position_sizer import SizingResult
 from trainer.execution.stop_loss_engine import StopLossRecommendation
 from trainer.execution.take_profit_engine import TakeProfitRecommendation
@@ -31,7 +30,7 @@ class ManagementRule:
     detail: str  # specific level / quantity
     priority: int  # 1 = highest
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "action": self.action.value,
             "trigger": self.trigger,
@@ -48,7 +47,7 @@ class ManagementPlan:
     direction: str
 
     primary_action: ManagementAction
-    rules: List[ManagementRule] = field(default_factory=list)
+    rules: list[ManagementRule] = field(default_factory=list)
 
     # Breakeven
     breakeven_trigger_price: float = 0.0  # price at which to move stop to BE
@@ -67,7 +66,7 @@ class ManagementPlan:
     scale_in_price: float = 0.0
     scale_in_lots_pct: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -107,16 +106,16 @@ class TradeManager:
     def plan(
         self,
         forecast: ExecutionForecast,
-        sizing: Optional[SizingResult] = None,
-        stop_loss: Optional[StopLossRecommendation] = None,
-        take_profit: Optional[TakeProfitRecommendation] = None,
+        sizing: SizingResult | None = None,
+        stop_loss: StopLossRecommendation | None = None,
+        take_profit: TakeProfitRecommendation | None = None,
     ) -> ManagementPlan:
 
         entry = forecast.current_price
         sign = 1.0 if forecast.is_buy else -1.0
         atr = forecast.atr
 
-        rules: List[ManagementRule] = []
+        rules: list[ManagementRule] = []
 
         # Breakeven trigger: when price reaches TP1
         be_trigger = take_profit.tp1 if take_profit else round(entry + sign * atr, 5)
@@ -157,7 +156,7 @@ class TradeManager:
                 ManagementRule(
                     ManagementAction.SCALE_IN,
                     "High confidence + aligned momentum — add on pullback",
-                    f"Add 50% at conservative entry, total risk still within limits",
+                    "Add 50% at conservative entry, total risk still within limits",
                     priority=1,
                 )
             )
@@ -177,7 +176,7 @@ class TradeManager:
             rules.append(
                 ManagementRule(
                     ManagementAction.PARTIAL_CLOSE,
-                    f"Partial close 50% at TP1",
+                    "Partial close 50% at TP1",
                     f"TP1 = {round(take_profit.tp1, 5)}",
                     priority=2,
                 )
@@ -185,7 +184,7 @@ class TradeManager:
             rules.append(
                 ManagementRule(
                     ManagementAction.PARTIAL_CLOSE,
-                    f"Partial close 30% at TP2",
+                    "Partial close 30% at TP2",
                     f"TP2 = {round(take_profit.tp2, 5)}",
                     priority=3,
                 )

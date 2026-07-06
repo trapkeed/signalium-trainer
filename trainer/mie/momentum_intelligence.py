@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -16,11 +15,11 @@ from trainer.mie.mie_models import MarketInput, MomentumResult
 from trainer.mie.mie_types import MomentumState, clamp
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _stdev(vals: List[float]) -> float:
+def _stdev(vals: list[float]) -> float:
     return statistics.stdev(vals) if len(vals) >= 2 else 0.0
 
 
@@ -74,7 +73,7 @@ class MomentumIntelligenceEngine:
 
     # ── Internal ───────────────────────────────────────────────────────────
 
-    def _momentum_strength(self, returns: List[float]) -> float:
+    def _momentum_strength(self, returns: list[float]) -> float:
         """Exponentially-weighted return over fast period."""
         window = returns[-self._fast :] if len(returns) >= self._fast else returns
         if not window:
@@ -83,7 +82,7 @@ class MomentumIntelligenceEngine:
         total_w = sum(weights)
         return sum(r * w for r, w in zip(window, weights)) / total_w
 
-    def _momentum_acceleration(self, returns: List[float]) -> float:
+    def _momentum_acceleration(self, returns: list[float]) -> float:
         """Difference of two fast-period momentum windows (second derivative)."""
         if len(returns) < self._fast * 2:
             return 0.0

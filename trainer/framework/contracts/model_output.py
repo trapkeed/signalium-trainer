@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import torch
 
@@ -39,7 +39,7 @@ class ModelOutput:
     probabilities: torch.Tensor
     confidence: torch.Tensor
     predicted_class: torch.Tensor
-    auxiliary: Optional[dict[str, Any]] = None
+    auxiliary: dict[str, Any] | None = None
 
     @property
     def buy_prob(self) -> torch.Tensor:
@@ -80,7 +80,7 @@ class ModelOutput:
             result.update(self.auxiliary)
         return result
 
-    def gate_by_confidence(self, threshold: float) -> "ModelOutput":
+    def gate_by_confidence(self, threshold: float) -> ModelOutput:
         """Return a new ModelOutput containing only samples above the threshold.
 
         Samples below the threshold are replaced with NO_TRADE predictions.

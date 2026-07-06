@@ -29,7 +29,7 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Colour scale helper
@@ -65,17 +65,17 @@ class HRSADashboard:
 
     def __init__(
         self,
-        api: Optional[Any] = None,
-        db: Optional[Any] = None,
+        api: Any | None = None,
+        db: Any | None = None,
     ) -> None:
         self._api = api
         self._db = db
 
     # 1. Hierarchical Score Tree ─────────────────────────────────────────────
 
-    def hierarchical_tree(self, hs: Any) -> Dict[str, Any]:
+    def hierarchical_tree(self, hs: Any) -> dict[str, Any]:
         """3-level score tree suitable for a tree/sunburst visualisation."""
-        l2_nodes: List[Dict[str, Any]] = []
+        l2_nodes: list[dict[str, Any]] = []
         for cat, result in sorted(
             hs.level2_categories.items(), key=lambda x: x[1].score, reverse=True
         ):
@@ -129,14 +129,14 @@ class HRSADashboard:
     def radar_chart(
         self,
         hs: Any,
-        reference: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        reference: Any | None = None,
+    ) -> dict[str, Any]:
         """Category radar/spider chart data."""
-        axes: List[Dict[str, Any]] = []
+        axes: list[dict[str, Any]] = []
         for cat, result in hs.level2_categories.items():
             if result.metric_count == 0:
                 continue
-            entry: Dict[str, Any] = {
+            entry: dict[str, Any] = {
                 "axis": result.display_name,
                 "value": round(result.score, 1),
                 "max": 100.0,
@@ -159,9 +159,9 @@ class HRSADashboard:
 
     # 3. Category Heatmap ────────────────────────────────────────────────────
 
-    def category_heatmap(self, hs: Any) -> Dict[str, Any]:
+    def category_heatmap(self, hs: Any) -> dict[str, Any]:
         """Colour-coded 5×3 category grid."""
-        cells: List[Dict[str, Any]] = []
+        cells: list[dict[str, Any]] = []
         for cat, result in hs.level2_categories.items():
             cells.append(
                 {
@@ -194,9 +194,9 @@ class HRSADashboard:
 
     # 4. Metric Heatmap ──────────────────────────────────────────────────────
 
-    def metric_heatmap(self, hs: Any, category: Optional[str] = None) -> Dict[str, Any]:
+    def metric_heatmap(self, hs: Any, category: str | None = None) -> dict[str, Any]:
         """Metric-level heatmap, optionally filtered to one category."""
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         cats = hs.level2_categories
         if category:
             cats = {k: v for k, v in cats.items() if k == category}
@@ -227,7 +227,7 @@ class HRSADashboard:
 
     # 5. Score Timeline ──────────────────────────────────────────────────────
 
-    def score_timeline(self, experiment_id: str) -> Dict[str, Any]:
+    def score_timeline(self, experiment_id: str) -> dict[str, Any]:
         """Composite score history from DB."""
         if self._db is None:
             return {"type": "score_timeline", "error": "No database configured"}
@@ -259,7 +259,7 @@ class HRSADashboard:
 
     # 6. Improvement Timeline ────────────────────────────────────────────────
 
-    def improvement_timeline(self, experiment_id: str) -> Dict[str, Any]:
+    def improvement_timeline(self, experiment_id: str) -> dict[str, Any]:
         """Period-over-period composite deltas."""
         if self._db is None:
             return {"type": "improvement_timeline", "error": "No database configured"}
@@ -294,10 +294,10 @@ class HRSADashboard:
     def benchmark_comparison(
         self,
         subject_hs: Any,
-        benchmark_records: List[Any],
-    ) -> Dict[str, Any]:
+        benchmark_records: list[Any],
+    ) -> dict[str, Any]:
         """Side-by-side bar chart data for subject vs benchmarks."""
-        bars: List[Dict[str, Any]] = []
+        bars: list[dict[str, Any]] = []
 
         # Subject bar
         bars.append(
@@ -335,9 +335,9 @@ class HRSADashboard:
 
     # 8. Score Breakdown (waterfall) ─────────────────────────────────────────
 
-    def score_breakdown(self, hs: Any) -> Dict[str, Any]:
+    def score_breakdown(self, hs: Any) -> dict[str, Any]:
         """Weighted contribution waterfall from 0 to composite."""
-        segments: List[Dict[str, Any]] = []
+        segments: list[dict[str, Any]] = []
         running = 0.0
 
         sorted_cats = sorted(
@@ -377,10 +377,10 @@ class HRSADashboard:
     def build_all(
         self,
         hs: Any,
-        experiment_id: Optional[str] = None,
-        reference: Optional[Any] = None,
-        benchmark_records: Optional[List[Any]] = None,
-    ) -> Dict[str, Any]:
+        experiment_id: str | None = None,
+        reference: Any | None = None,
+        benchmark_records: list[Any] | None = None,
+    ) -> dict[str, Any]:
         exp_id = experiment_id or hs.experiment_id
         return {
             "hierarchical_tree": self.hierarchical_tree(hs),

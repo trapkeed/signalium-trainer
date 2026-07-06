@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -30,7 +28,7 @@ from trainer.mie.mie_types import (
 
 # ── Template fragments ────────────────────────────────────────────────────────
 
-_REGIME_SUMMARIES: Dict[str, str] = {
+_REGIME_SUMMARIES: dict[str, str] = {
     MarketRegime.TRENDING: "The market is in a clear trending regime with sustained directional pressure.",
     MarketRegime.STRONG_TREND: "A strong, high-conviction trend is underway — momentum is dominant.",
     MarketRegime.WEAK_TREND: "A weak trend is present but lacks the strength for high-confidence entries.",
@@ -49,7 +47,7 @@ _REGIME_SUMMARIES: Dict[str, str] = {
     MarketRegime.UNKNOWN: "Regime cannot be classified — insufficient signal clarity.",
 }
 
-_RISK_SUMMARIES: Dict[str, str] = {
+_RISK_SUMMARIES: dict[str, str] = {
     RiskRegime.OPTIMAL: "Risk conditions are optimal — size normally.",
     RiskRegime.LOW_RISK: "Below-average risk environment — slight position size increase acceptable.",
     RiskRegime.NORMAL: "Risk is within normal parameters.",
@@ -64,7 +62,7 @@ _RISK_SUMMARIES: Dict[str, str] = {
     RiskRegime.UNKNOWN: "Risk regime uncertain — default to conservative sizing.",
 }
 
-_GRADE_RECOMMENDATIONS: Dict[str, str] = {
+_GRADE_RECOMMENDATIONS: dict[str, str] = {
     TradeabilityGrade.A_PLUS: "Excellent setup — full allocation recommended.",
     TradeabilityGrade.A: "High-quality setup — standard allocation.",
     TradeabilityGrade.B: "Above-average setup — consider 75% allocation.",
@@ -73,7 +71,7 @@ _GRADE_RECOMMENDATIONS: Dict[str, str] = {
     TradeabilityGrade.AVOID: "Avoid trading this setup — conditions are unfavourable.",
 }
 
-_MODE_NOTES: Dict[str, str] = {
+_MODE_NOTES: dict[str, str] = {
     ExecutionMode.MARKET_ORDER: "Conditions support immediate execution — use a market order.",
     ExecutionMode.LIMIT_ORDER: "Wide spread detected — use a limit order for better fill.",
     ExecutionMode.WAIT: "Wait for conditions to improve before entering.",
@@ -92,11 +90,11 @@ class AICommentaryGenerator:
     def generate(
         self,
         inp: MarketInput,
-        regime: Optional[MarketRegimeResult] = None,
-        risk: Optional[RiskIntelligenceResult] = None,
-        tradeability: Optional[TradeabilityResult] = None,
-        quality: Optional[MarketQualityResult] = None,
-        execution: Optional[ExecutionResult] = None,
+        regime: MarketRegimeResult | None = None,
+        risk: RiskIntelligenceResult | None = None,
+        tradeability: TradeabilityResult | None = None,
+        quality: MarketQualityResult | None = None,
+        execution: ExecutionResult | None = None,
     ) -> AICommentaryResult:
 
         regime_key = regime.regime.value if regime else MarketRegime.UNKNOWN.value
@@ -145,7 +143,7 @@ class AICommentaryGenerator:
         risk_key: str,
         t_score: float,
         t_grade: TradeabilityGrade,
-        quality: Optional[MarketQualityResult],
+        quality: MarketQualityResult | None,
     ) -> str:
         mq = f"{quality.market_quality:.0f}/100" if quality else "N/A"
         return (
@@ -161,8 +159,8 @@ class AICommentaryGenerator:
         regime_key: str,
         risk_key: str,
         t_grade: TradeabilityGrade,
-    ) -> List[str]:
-        tags: List[str] = [regime_key, risk_key, f"GRADE_{t_grade.value}"]
+    ) -> list[str]:
+        tags: list[str] = [regime_key, risk_key, f"GRADE_{t_grade.value}"]
         if t_grade in (TradeabilityGrade.A_PLUS, TradeabilityGrade.A):
             tags.append("HIGH_QUALITY")
         if risk_key in (RiskRegime.EXTREME.value, RiskRegime.BLACK_SWAN.value):

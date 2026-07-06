@@ -21,8 +21,6 @@ Feature vector (12 dimensions, all normalised 0-1):
 
 from __future__ import annotations
 
-from typing import Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -61,16 +59,16 @@ class FeatureStoreExporter:
     def export(
         self,
         inp: MarketInput,
-        regime: Optional[MarketRegimeResult] = None,
-        risk: Optional[RiskIntelligenceResult] = None,
-        tradeability: Optional[TradeabilityResult] = None,
-        quality: Optional[MarketQualityResult] = None,
-        reliability: Optional[PredictionReliabilityResult] = None,
-        similarity: Optional[BehaviorSimilarityResult] = None,
-        calibration: Optional[CalibrationResult] = None,
-        trend: Optional[TrendResult] = None,
-        momentum: Optional[MomentumResult] = None,
-        liquidity: Optional[LiquidityResult] = None,
+        regime: MarketRegimeResult | None = None,
+        risk: RiskIntelligenceResult | None = None,
+        tradeability: TradeabilityResult | None = None,
+        quality: MarketQualityResult | None = None,
+        reliability: PredictionReliabilityResult | None = None,
+        similarity: BehaviorSimilarityResult | None = None,
+        calibration: CalibrationResult | None = None,
+        trend: TrendResult | None = None,
+        momentum: MomentumResult | None = None,
+        liquidity: LiquidityResult | None = None,
     ) -> FeatureStoreExport:
 
         regime_enc = _REGIME_ORDINALS.get(

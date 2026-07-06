@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 try:
     from loguru import logger
 except ImportError:
@@ -12,7 +10,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.mie.mie_models import MarketInput, NewsIntelligenceResult
-from trainer.mie.mie_types import NEWS_IMPACT_PENALTY, NewsImpact, clamp
+from trainer.mie.mie_types import NewsImpact, clamp
 
 # Expected dict keys from news_events list items
 _IMPACT_KEY = "impact"  # HIGH | MEDIUM | LOW | NONE
@@ -42,7 +40,7 @@ class NewsIntelligenceEngine:
     - LOW any         : 2 pts each
     """
 
-    _WEIGHTS: Dict[str, float] = {
+    _WEIGHTS: dict[str, float] = {
         "HIGH_upcoming": 25.0,
         "HIGH_recent": 15.0,
         "HIGH_past": 8.0,
@@ -61,7 +59,7 @@ class NewsIntelligenceEngine:
         score = 0.0
         upcoming_high = 0
         recent_high = 0
-        details: List[str] = []
+        details: list[str] = []
 
         for event in events:
             impact_str = str(event.get(_IMPACT_KEY, "NONE")).upper()

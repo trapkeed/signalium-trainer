@@ -70,7 +70,7 @@ class PlattScaling(nn.Module):
         max_iter: int = 1000,
         lr: float = 0.01,
         verbose: bool = False,
-    ) -> "PlattScaling":
+    ) -> PlattScaling:
         """Optimise scale and bias on a held-out calibration set.
 
         Args:

@@ -8,8 +8,7 @@ Kelly Criterion, Fractional Kelly, Custom Formula.
 
 from __future__ import annotations
 
-import math
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 try:
     from loguru import logger
@@ -34,7 +33,7 @@ class PositionSizingEngine:
         risk_frac: float = 0.01,  # default 1% risk
         kelly_frac: float = 0.5,  # fractional kelly multiplier
         atr_mult: float = 2.0,  # stop = atr * atr_mult
-        custom_fn: Optional[Callable] = None,
+        custom_fn: Callable | None = None,
     ):
         self._method = method
         self._risk_frac = min(risk_frac, _MAX_RISK_FRAC)
@@ -45,7 +44,7 @@ class PositionSizingEngine:
     def size(
         self,
         req: AllocationRequest,
-        method: Optional[SizingMethod] = None,
+        method: SizingMethod | None = None,
     ) -> PositionSize:
         """Calculate position size using the configured or specified method."""
         m = method or self._method
@@ -220,7 +219,7 @@ class PositionSizingEngine:
 
     # ── Comparison ────────────────────────────────────────────────────────────
 
-    def compare_methods(self, req: AllocationRequest) -> Dict[str, PositionSize]:
+    def compare_methods(self, req: AllocationRequest) -> dict[str, PositionSize]:
         """Run all methods and return a comparison dict."""
         results = {}
         for m in SizingMethod:

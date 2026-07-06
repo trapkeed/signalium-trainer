@@ -17,7 +17,6 @@ from __future__ import annotations
 import abc
 import re
 import time
-from typing import Any, Dict, List, Optional
 
 try:
     from loguru import logger
@@ -26,7 +25,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import Citation, KnowledgeChunk, LLMResponse
+from trainer.analyst.analyst_models import Citation, LLMResponse
 from trainer.analyst.analyst_types import CitationType, LLMProviderType, is_safe_response
 
 # ── Abstract base ──────────────────────────────────────────────────────────────
@@ -53,7 +52,7 @@ class LLMProvider(abc.ABC):
         """Return True if the provider is currently available."""
         return False
 
-    def health_check(self) -> Dict:
+    def health_check(self) -> dict:
         return {
             "provider": self.provider_type().value,
             "available": self.is_available(),
@@ -228,13 +227,13 @@ class MockLLMProvider(LLMProvider):
                 )
 
         lines.append("")
-        lines.append(f"---")
+        lines.append("---")
         lines.append(self._SAFETY_DISCLAIMER)
 
         return "\n".join(lines)
 
     @staticmethod
-    def _extract_citations(context: str) -> List[Citation]:
+    def _extract_citations(context: str) -> list[Citation]:
         """Extract artifact IDs from context to form citations."""
         citations = []
         seen = set()
@@ -258,7 +257,7 @@ class MockLLMProvider(LLMProvider):
                         Citation(
                             citation_type=ctype,
                             artifact_id=artifact_id,
-                            description=f"Referenced in retrieved context",
+                            description="Referenced in retrieved context",
                             relevance=0.80,
                         )
                     )
@@ -281,7 +280,7 @@ class OpenAIProvider(LLMProvider):
 
     def is_available(self) -> bool:
         try:
-            import openai  # type: ignore
+            import openai  # type: ignore  # noqa: F401
 
             return bool(self._api_key)
         except ImportError:
@@ -311,7 +310,7 @@ class AnthropicProvider(LLMProvider):
 
     def is_available(self) -> bool:
         try:
-            import anthropic  # type: ignore
+            import anthropic  # type: ignore  # noqa: F401
 
             return bool(self._api_key)
         except ImportError:
@@ -341,7 +340,7 @@ class GeminiProvider(LLMProvider):
 
     def is_available(self) -> bool:
         try:
-            import google.generativeai  # type: ignore
+            import google.generativeai  # type: ignore  # noqa: F401
 
             return bool(self._api_key)
         except ImportError:
@@ -393,7 +392,7 @@ class AzureOpenAIProvider(LLMProvider):
 
     def is_available(self) -> bool:
         try:
-            import openai  # type: ignore
+            import openai  # type: ignore  # noqa: F401
 
             return bool(self._endpoint and self._api_key)
         except ImportError:

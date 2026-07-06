@@ -22,13 +22,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
-from trainer.mlops.lifecycle import LifecycleManager, LifecycleTransition
-from trainer.mlops.registry import LifecycleState, ModelRecord, ModelRegistry
+from trainer.mlops.lifecycle import LifecycleManager
+from trainer.mlops.registry import LifecycleState, ModelRegistry
 
 # ---------------------------------------------------------------------------
 # Deployment record
@@ -66,12 +66,12 @@ class DeploymentRecord:
     status: str = "active"
     from_state: str = ""
     to_state: str = ""
-    deployed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    rolled_back_at: Optional[str] = None
-    rollback_reason: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    deployed_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    rolled_back_at: str | None = None
+    rollback_reason: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "deployment_id": self.deployment_id,
             "model_id": self.model_id,
@@ -117,7 +117,7 @@ class GovernanceConfig:
     max_candidates: int = 5
     rollback_on_alert: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "auto_promote_enabled": self.auto_promote_enabled,
             "auto_promote_min_validation_score": self.auto_promote_min_validation_score,
@@ -129,7 +129,7 @@ class GovernanceConfig:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "GovernanceConfig":
+    def from_dict(d: dict[str, Any]) -> GovernanceConfig:
         cfg = GovernanceConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -158,13 +158,13 @@ class DeploymentGovernance:
         self,
         registry: ModelRegistry,
         lifecycle: LifecycleManager,
-        config: Optional[GovernanceConfig] = None,
+        config: GovernanceConfig | None = None,
     ) -> None:
         self.registry = registry
         self.lifecycle = lifecycle
         self.config = config or GovernanceConfig()
-        self._deployments: Dict[str, DeploymentRecord] = {}
-        self._deployment_order: List[str] = []
+        self._deployments: dict[str, DeploymentRecord] = {}
+        self._deployment_order: list[str] = []
 
     def deploy(
         self,
@@ -174,7 +174,7 @@ class DeploymentGovernance:
         actor: str = "system",
         reason: str = "",
         deploy_type: str = "manual",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> DeploymentRecord:
         """Deploy a model to the specified target.
 
@@ -271,7 +271,7 @@ class DeploymentGovernance:
         for d in self._deployments.values():
             if d.model_id == model_id and d.status == "active":
                 d.status = "rolled_back"
-                d.rolled_back_at = datetime.now(timezone.utc).isoformat()
+                d.rolled_back_at = datetime.now(UTC).isoformat()
                 d.rollback_reason = reason
 
         rec = DeploymentRecord(
@@ -292,7 +292,7 @@ class DeploymentGovernance:
 
     def auto_promote_if_eligible(
         self, model_id: str, actor: str = "system"
-    ) -> Optional[DeploymentRecord]:
+    ) -> DeploymentRecord | None:
         """Auto-promote a model if governance config allows and thresholds are met."""
         if not self.config.auto_promote_enabled:
             return None
@@ -319,7 +319,7 @@ class DeploymentGovernance:
             )
         return None
 
-    def history(self, model_id: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def history(self, model_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """Return deployment history, optionally filtered by model."""
         records = [
             self._deployments[did]
@@ -330,14 +330,14 @@ class DeploymentGovernance:
             records = [r for r in records if r.model_id == model_id]
         return [r.to_dict() for r in records[:limit]]
 
-    def active_deployments(self) -> List[Dict[str, Any]]:
+    def active_deployments(self) -> list[dict[str, Any]]:
         return [r.to_dict() for r in self._deployments.values() if r.status == "active"]
 
-    def audit_log(self) -> List[Dict[str, Any]]:
+    def audit_log(self) -> list[dict[str, Any]]:
         """Return all deployment records as an audit log."""
         return [self._deployments[did].to_dict() for did in self._deployment_order]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         all_d = list(self._deployments.values())
         return {
             "total_deployments": len(all_d),

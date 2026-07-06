@@ -28,7 +28,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Metric Direction
@@ -56,9 +56,9 @@ class MetricDefinition:
     normalisation_lo: float = 0.0  # target range lo (used in min-max norm)
     normalisation_hi: float = 1.0  # target range hi
     is_core: bool = True  # core metrics are required; others are optional
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "direction": self.direction,
@@ -76,7 +76,7 @@ class MetricDefinition:
 # Standard metric definitions (40+ metrics across 15 categories)
 # ---------------------------------------------------------------------------
 
-_DEFAULT_METRICS: List[Dict[str, Any]] = [
+_DEFAULT_METRICS: list[dict[str, Any]] = [
     # ── validation_quality ──────────────────────────────────────────────
     dict(
         name="walk_forward_accuracy",
@@ -860,10 +860,10 @@ class RawMetricsRegistry:
     """Central registry of all known raw metric definitions."""
 
     def __init__(self) -> None:
-        self._definitions: Dict[str, MetricDefinition] = {}
+        self._definitions: dict[str, MetricDefinition] = {}
 
     @classmethod
-    def default(cls) -> "RawMetricsRegistry":
+    def default(cls) -> RawMetricsRegistry:
         """Build registry from all 80+ standard metric definitions."""
         registry = cls()
         for m in _DEFAULT_METRICS:
@@ -890,7 +890,7 @@ class RawMetricsRegistry:
         """Register or overwrite a metric definition."""
         self._definitions[defn.name] = defn
 
-    def get(self, name: str) -> Optional[MetricDefinition]:
+    def get(self, name: str) -> MetricDefinition | None:
         return self._definitions.get(name)
 
     def get_required(self, name: str) -> MetricDefinition:
@@ -899,20 +899,20 @@ class RawMetricsRegistry:
             raise KeyError(f"Metric not registered: {name!r}")
         return defn
 
-    def for_category(self, category: str) -> List[MetricDefinition]:
+    def for_category(self, category: str) -> list[MetricDefinition]:
         return [d for d in self._definitions.values() if d.category == category]
 
-    def all_categories(self) -> List[str]:
+    def all_categories(self) -> list[str]:
         cats = {d.category for d in self._definitions.values()}
         return sorted(cats)
 
-    def all_names(self) -> List[str]:
+    def all_names(self) -> list[str]:
         return sorted(self._definitions.keys())
 
     def total(self) -> int:
         return len(self._definitions)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {name: defn.to_dict() for name, defn in self._definitions.items()}
 
 
@@ -927,12 +927,12 @@ class RawMetricsBundle:
     def __init__(
         self,
         experiment_id: str = "",
-        registry: Optional[RawMetricsRegistry] = None,
+        registry: RawMetricsRegistry | None = None,
     ) -> None:
         self.experiment_id = experiment_id
         self._registry = registry or RawMetricsRegistry.default()
-        self._values: Dict[str, float] = {}
-        self._sample_counts: Dict[str, int] = {}
+        self._values: dict[str, float] = {}
+        self._sample_counts: dict[str, int] = {}
 
     def set(self, name: str, value: float, sample_count: int = 0) -> None:
         """Set a raw metric value."""
@@ -940,7 +940,7 @@ class RawMetricsBundle:
         if sample_count > 0:
             self._sample_counts[name] = sample_count
 
-    def get(self, name: str) -> Optional[float]:
+    def get(self, name: str) -> float | None:
         return self._values.get(name)
 
     def get_with_default(self, name: str, default: float = 0.0) -> float:
@@ -949,7 +949,7 @@ class RawMetricsBundle:
     def has(self, name: str) -> bool:
         return name in self._values
 
-    def for_category(self, category: str) -> Dict[str, float]:
+    def for_category(self, category: str) -> dict[str, float]:
         """Return all metric values belonging to a category."""
         cat_metrics = self._registry.for_category(category)
         return {m.name: self._values[m.name] for m in cat_metrics if m.name in self._values}
@@ -962,14 +962,14 @@ class RawMetricsBundle:
         present = sum(1 for m in cat_metrics if m.name in self._values)
         return present / len(cat_metrics)
 
-    def set_many(self, values: Dict[str, float]) -> None:
+    def set_many(self, values: dict[str, float]) -> None:
         for name, value in values.items():
             self.set(name, value)
 
-    def all_values(self) -> Dict[str, float]:
+    def all_values(self) -> dict[str, float]:
         return dict(self._values)
 
-    def all_categories_covered(self) -> List[str]:
+    def all_categories_covered(self) -> list[str]:
         covered = set()
         for name in self._values:
             defn = self._registry.get(name)
@@ -980,7 +980,7 @@ class RawMetricsBundle:
     def total_metrics(self) -> int:
         return len(self._values)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "metrics": dict(self._values),
@@ -992,9 +992,9 @@ class RawMetricsBundle:
     @classmethod
     def from_dict(
         cls,
-        d: Dict[str, Any],
-        registry: Optional[RawMetricsRegistry] = None,
-    ) -> "RawMetricsBundle":
+        d: dict[str, Any],
+        registry: RawMetricsRegistry | None = None,
+    ) -> RawMetricsBundle:
         bundle = cls(
             experiment_id=d.get("experiment_id", ""),
             registry=registry,

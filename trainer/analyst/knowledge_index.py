@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -28,9 +27,9 @@ class KnowledgeIndex:
     """
 
     def __init__(self):
-        self._chunks: Dict[str, KnowledgeChunk] = {}  # chunk_id → chunk
-        self._by_source: Dict[str, List[str]] = {}  # source_type → [chunk_ids]
-        self._by_artifact: Dict[str, List[str]] = {}  # artifact_id → [chunk_ids]
+        self._chunks: dict[str, KnowledgeChunk] = {}  # chunk_id → chunk
+        self._by_source: dict[str, list[str]] = {}  # source_type → [chunk_ids]
+        self._by_artifact: dict[str, list[str]] = {}  # artifact_id → [chunk_ids]
 
     # ── Indexing ─────────────────────────────────────────────────────────────
 
@@ -56,8 +55,8 @@ class KnowledgeIndex:
         artifact_id: str,
         title: str,
         content: str,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[dict] = None,
+        tags: list[str] | None = None,
+        metadata: dict | None = None,
     ) -> KnowledgeChunk:
         """Create and index a KnowledgeChunk from raw document fields."""
         chunk = KnowledgeChunk(
@@ -73,24 +72,24 @@ class KnowledgeIndex:
         self.index(chunk)
         return chunk
 
-    def index_batch(self, chunks: List[KnowledgeChunk]) -> List[str]:
+    def index_batch(self, chunks: list[KnowledgeChunk]) -> list[str]:
         """Index a batch of chunks. Returns list of chunk_ids."""
         return [self.index(c) for c in chunks]
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
 
-    def get(self, chunk_id: str) -> Optional[KnowledgeChunk]:
+    def get(self, chunk_id: str) -> KnowledgeChunk | None:
         return self._chunks.get(chunk_id)
 
-    def get_by_artifact(self, artifact_id: str) -> List[KnowledgeChunk]:
+    def get_by_artifact(self, artifact_id: str) -> list[KnowledgeChunk]:
         ids = self._by_artifact.get(artifact_id, [])
         return [self._chunks[i] for i in ids if i in self._chunks]
 
-    def get_by_source(self, source_type: KnowledgeSourceType) -> List[KnowledgeChunk]:
+    def get_by_source(self, source_type: KnowledgeSourceType) -> list[KnowledgeChunk]:
         ids = self._by_source.get(source_type.value, [])
         return [self._chunks[i] for i in ids if i in self._chunks]
 
-    def all_chunks(self) -> List[KnowledgeChunk]:
+    def all_chunks(self) -> list[KnowledgeChunk]:
         return list(self._chunks.values())
 
     # ── Search ────────────────────────────────────────────────────────────────
@@ -99,9 +98,9 @@ class KnowledgeIndex:
         self,
         query: str,
         top_k: int = 5,
-        source_type: Optional[KnowledgeSourceType] = None,
-        tags: Optional[List[str]] = None,
-    ) -> List[KnowledgeChunk]:
+        source_type: KnowledgeSourceType | None = None,
+        tags: list[str] | None = None,
+    ) -> list[KnowledgeChunk]:
         """Keyword-based search across the knowledge index.
 
         Scores each chunk by term overlap with the query.

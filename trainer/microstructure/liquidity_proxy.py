@@ -9,7 +9,6 @@ Reversal Strength, Liquidity Vacuum Probability.
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -39,7 +38,7 @@ class LiquidityProxy:
 
     def analyse_window(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         if not bars:

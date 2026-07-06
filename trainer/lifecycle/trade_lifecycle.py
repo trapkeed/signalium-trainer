@@ -11,7 +11,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -24,17 +23,14 @@ from trainer.lifecycle.ai_reasoning import AiReasoningEngine, ReasoningReport
 from trainer.lifecycle.event_engine import EventEngine
 from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
 from trainer.lifecycle.lifecycle_models import (
-    EventType,
     LifecycleConfidence,
     LifecycleEvent,
     MarketContext,
     PositionMetrics,
     StateRecord,
-    TransitionResult,
 )
 from trainer.lifecycle.lifecycle_states import (
     POSITION_OPEN_STATES,
-    STATE_EXPECTED_DURATION_HOURS,
     LifecycleState,
     can_transition,
     is_terminal,
@@ -64,15 +60,15 @@ class TradeLifecycle:
     confidence: float = 0.50
 
     # History and events
-    state_history: List[StateRecord] = field(default_factory=list)
-    events: List[LifecycleEvent] = field(default_factory=list)
+    state_history: list[StateRecord] = field(default_factory=list)
+    events: list[LifecycleEvent] = field(default_factory=list)
 
     # Latest context
-    last_context: Optional[MarketContext] = None
-    last_metrics: Optional[PositionMetrics] = None
+    last_context: MarketContext | None = None
+    last_metrics: PositionMetrics | None = None
 
     # Metadata
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     notes: str = ""
     updated_at: float = field(default_factory=time.time)
 
@@ -82,9 +78,9 @@ class TradeLifecycle:
         instrument: str,
         direction: str,
         confidence: float = 0.50,
-        context: Optional[MarketContext] = None,
-        tags: Optional[List[str]] = None,
-    ) -> "TradeLifecycle":
+        context: MarketContext | None = None,
+        tags: list[str] | None = None,
+    ) -> TradeLifecycle:
         trade_id = str(uuid.uuid4())[:12]
         tl = cls(
             trade_id=trade_id,
@@ -114,10 +110,10 @@ class TradeLifecycle:
         self,
         new_state: LifecycleState,
         reason: str,
-        confidence: Optional[float] = None,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        sm: Optional[StateMachine] = None,
+        confidence: float | None = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        sm: StateMachine | None = None,
     ) -> bool:
         """Attempt a state transition. Returns True if successful."""
 
@@ -194,8 +190,8 @@ class TradeLifecycle:
 
     def recommend_transition(
         self,
-        context: Optional[MarketContext] = None,
-        te: Optional[TransitionEngine] = None,
+        context: MarketContext | None = None,
+        te: TransitionEngine | None = None,
     ) -> TransitionRecommendation:
         """Ask the transition engine for the best next state."""
         engine = te or TransitionEngine()
@@ -207,9 +203,9 @@ class TradeLifecycle:
 
     def position_management(
         self,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        pm: Optional[PositionMonitor] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        pm: PositionMonitor | None = None,
     ) -> PositionManagementPlan:
         """Get position management recommendation for current state."""
         monitor = pm or PositionMonitor()
@@ -223,8 +219,8 @@ class TradeLifecycle:
 
     def lifecycle_confidence(
         self,
-        context: Optional[MarketContext] = None,
-        lce: Optional[LifecycleConfidenceEngine] = None,
+        context: MarketContext | None = None,
+        lce: LifecycleConfidenceEngine | None = None,
     ) -> LifecycleConfidence:
         """Get confidence assessment for current state."""
         engine = lce or LifecycleConfidenceEngine()
@@ -236,12 +232,12 @@ class TradeLifecycle:
 
     def detect_events(
         self,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        prev_context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_context: MarketContext | None = None,
         prev_conf: float = 0.65,
-        ee: Optional[EventEngine] = None,
-    ) -> List[LifecycleEvent]:
+        ee: EventEngine | None = None,
+    ) -> list[LifecycleEvent]:
         """Detect events and add to history."""
         engine = ee or EventEngine()
         new_events = engine.detect_events(
@@ -258,11 +254,11 @@ class TradeLifecycle:
 
     def reasoning(
         self,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
         prev_conf: float = 0.65,
-        are: Optional[AiReasoningEngine] = None,
-        lce: Optional[LifecycleConfidenceEngine] = None,
+        are: AiReasoningEngine | None = None,
+        lce: LifecycleConfidenceEngine | None = None,
     ) -> ReasoningReport:
         """Generate institutional explanation for current state."""
         engine = are or AiReasoningEngine()
@@ -313,10 +309,10 @@ class TradeLifecycle:
         return len(self.events)
 
     @property
-    def critical_events(self) -> List[LifecycleEvent]:
+    def critical_events(self) -> list[LifecycleEvent]:
         return [e for e in self.events if e.severity == "CRITICAL"]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "trade_id": self.trade_id,
             "instrument": self.instrument,
@@ -337,7 +333,7 @@ class TradeLifecycle:
             "events": [e.to_dict() for e in self.events],
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Compact summary for dashboard display."""
         return {
             "trade_id": self.trade_id,

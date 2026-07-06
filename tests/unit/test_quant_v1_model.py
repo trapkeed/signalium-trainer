@@ -16,7 +16,6 @@ from trainer.models.quant_v1.config import (
     QuantV1Config,
 )
 from trainer.models.quant_v1.model import QuantModelV1
-from trainer.models.quant_v1.output import QuantModelOutput
 
 # ---------------------------------------------------------------------------
 # Fixtures

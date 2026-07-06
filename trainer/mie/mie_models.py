@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.mie.mie_types import (
     ExecutionMode,
@@ -45,11 +45,11 @@ class MarketInput:
     adx: float = 25.0
     rsi: float = 50.0
     # Historical series (most-recent-last)
-    closes: List[float] = field(default_factory=list)
-    highs: List[float] = field(default_factory=list)
-    lows: List[float] = field(default_factory=list)
-    volumes: List[float] = field(default_factory=list)
-    returns: List[float] = field(default_factory=list)
+    closes: list[float] = field(default_factory=list)
+    highs: list[float] = field(default_factory=list)
+    lows: list[float] = field(default_factory=list)
+    volumes: list[float] = field(default_factory=list)
+    returns: list[float] = field(default_factory=list)
     # Prediction context
     prediction_confidence: float = 0.5
     expected_rr: float = 1.5
@@ -61,16 +61,16 @@ class MarketInput:
     capital: float = 100_000.0
     open_trades: int = 0
     # News & events
-    news_events: List[Dict] = field(default_factory=list)
+    news_events: list[dict] = field(default_factory=list)
     session_hour: int = 12  # UTC hour 0-23
     # Historical similarity context
-    historical_similar: List[Dict] = field(default_factory=list)
+    historical_similar: list[dict] = field(default_factory=list)
     # Calibration / model quality
     calibration_score: float = 0.5
     historical_win_rate: float = 0.5
     model_health: float = 0.8
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if not isinstance(v, list)}
 
 
@@ -81,11 +81,11 @@ class MarketInput:
 class MarketRegimeResult:
     regime: MarketRegime = MarketRegime.UNKNOWN
     confidence: float = 0.5
-    sub_regime: Optional[str] = None
-    signals: Dict[str, Any] = field(default_factory=dict)
+    sub_regime: str | None = None
+    signals: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "regime": self.regime.value,
             "confidence": round(self.confidence, 4),
@@ -99,11 +99,11 @@ class RiskIntelligenceResult:
     regime: RiskRegime = RiskRegime.NORMAL
     risk_score: float = 50.0  # 0=safe, 100=extreme risk
     multiplier: float = 1.0
-    factors: Dict[str, float] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
+    factors: dict[str, float] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "regime": self.regime.value,
             "risk_score": round(self.risk_score, 2),
@@ -123,7 +123,7 @@ class VolatilityResult:
     atr_percentile: float = 50.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "quality": round(self.quality, 2),
@@ -143,7 +143,7 @@ class MomentumResult:
     rsi_signal: float = 50.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "quality": round(self.quality, 2),
@@ -162,7 +162,7 @@ class TrendResult:
     adx_value: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "quality": round(self.quality, 2),
@@ -181,7 +181,7 @@ class LiquidityResult:
     depth_estimate: float = 50.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "quality": round(self.quality, 2),
@@ -199,7 +199,7 @@ class SessionResult:
     is_high_volume: bool = False
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "session": self.session.value,
             "quality": round(self.quality, 2),
@@ -215,10 +215,10 @@ class NewsIntelligenceResult:
     event_count: int = 0
     upcoming_high: int = 0
     recent_high: int = 0
-    details: List[str] = field(default_factory=list)
+    details: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "impact": self.impact.value,
             "impact_score": round(self.impact_score, 2),
@@ -234,10 +234,10 @@ class BehaviorSimilarityResult:
     historical_success: float = 0.5  # 0-1 historical win rate on similar
     match_count: int = 0
     best_match_score: float = 0.0
-    features_used: List[str] = field(default_factory=list)
+    features_used: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "similarity_score": round(self.similarity_score, 2),
             "historical_success": round(self.historical_success, 4),
@@ -254,10 +254,10 @@ class PredictionReliabilityResult:
     consistency_score: float = 50.0
     model_health: float = 80.0
     win_rate_adj: float = 50.0
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "reliability_score": round(self.reliability_score, 2),
             "confidence_score": round(self.confidence_score, 2),
@@ -277,7 +277,7 @@ class CalibrationResult:
     reliability: float = 0.5
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "calibration_score": round(self.calibration_score, 2),
             "brier_score": round(self.brier_score, 4),
@@ -291,12 +291,12 @@ class CalibrationResult:
 class TradeabilityResult:
     score: float = 0.0
     grade: TradeabilityGrade = TradeabilityGrade.AVOID
-    factors: Dict[str, float] = field(default_factory=dict)
-    reasons: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    factors: dict[str, float] = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "score": round(self.score, 2),
             "grade": self.grade.value,
@@ -320,7 +320,7 @@ class ExecutionResult:
     rationale: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "mode": self.mode.value,
             "entry_zone_low": round(self.entry_zone_low, 6),
@@ -348,7 +348,7 @@ class MarketQualityResult:
     news_impact_score: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "market_quality": round(self.market_quality, 2),
             "execution_quality": round(self.execution_quality, 2),
@@ -371,10 +371,10 @@ class MIEPortfolioRisk:
     max_open_trades: int = 5
     position_size_frac: float = 0.02
     capital_allocation: float = 0.0
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "risk_budget_used": round(self.risk_budget_used, 4),
             "max_exposure": round(self.max_exposure, 4),
@@ -395,10 +395,10 @@ class AICommentaryResult:
     trade_note: str = ""
     recommendation: str = ""
     confidence: float = 0.5
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "summary": self.summary,
             "regime_note": self.regime_note,
@@ -429,10 +429,10 @@ class FeatureStoreExport:
     momentum_quality: float = 0.0  # 0-100
     liquidity_quality: float = 0.0  # 0-100
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
 
-    def to_feature_vector(self) -> List[float]:
+    def to_feature_vector(self) -> list[float]:
         return [
             self.market_regime_enc / 15.0,
             self.risk_regime_enc / 11.0,
@@ -456,26 +456,26 @@ class MarketIntelligenceReport:
     report_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     symbol: str = ""
     timestamp: float = field(default_factory=time.time)
-    regime: Optional[MarketRegimeResult] = None
-    risk: Optional[RiskIntelligenceResult] = None
-    volatility: Optional[VolatilityResult] = None
-    momentum: Optional[MomentumResult] = None
-    trend: Optional[TrendResult] = None
-    liquidity: Optional[LiquidityResult] = None
-    session: Optional[SessionResult] = None
-    news: Optional[NewsIntelligenceResult] = None
-    similarity: Optional[BehaviorSimilarityResult] = None
-    reliability: Optional[PredictionReliabilityResult] = None
-    calibration: Optional[CalibrationResult] = None
-    tradeability: Optional[TradeabilityResult] = None
-    execution: Optional[ExecutionResult] = None
-    quality: Optional[MarketQualityResult] = None
-    portfolio_risk: Optional[MIEPortfolioRisk] = None
-    commentary: Optional[AICommentaryResult] = None
-    features: Optional[FeatureStoreExport] = None
+    regime: MarketRegimeResult | None = None
+    risk: RiskIntelligenceResult | None = None
+    volatility: VolatilityResult | None = None
+    momentum: MomentumResult | None = None
+    trend: TrendResult | None = None
+    liquidity: LiquidityResult | None = None
+    session: SessionResult | None = None
+    news: NewsIntelligenceResult | None = None
+    similarity: BehaviorSimilarityResult | None = None
+    reliability: PredictionReliabilityResult | None = None
+    calibration: CalibrationResult | None = None
+    tradeability: TradeabilityResult | None = None
+    execution: ExecutionResult | None = None
+    quality: MarketQualityResult | None = None
+    portfolio_risk: MIEPortfolioRisk | None = None
+    commentary: AICommentaryResult | None = None
+    features: FeatureStoreExport | None = None
 
-    def to_dict(self) -> Dict:
-        out: Dict = {
+    def to_dict(self) -> dict:
+        out: dict = {
             "report_id": self.report_id,
             "symbol": self.symbol,
             "timestamp": self.timestamp,
@@ -509,7 +509,7 @@ class WorkerJob:
     job_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     trigger: WorkerTrigger = WorkerTrigger.MANUAL_REFRESH
     symbol: str = ""
-    payload: Dict = field(default_factory=dict)
+    payload: dict = field(default_factory=dict)
     created: float = field(default_factory=time.time)
     status: str = "PENDING"  # PENDING | RUNNING | DONE | FAILED
-    result: Optional[MarketIntelligenceReport] = None
+    result: MarketIntelligenceReport | None = None

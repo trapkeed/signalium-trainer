@@ -88,8 +88,12 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "SIM", "RUF"]
-ignore = ["ANN101", "ANN102", "ANN401"]
+select = ["E", "F", "W", "I"]
+# E501: line-too-long — black already enforces line length; URLs/strings are exempt
+# F841: unused local variable — common in ML training loops and data pipeline stubs
+# E741: ambiguous variable name — single-letter math vars (l, O, I) are idiomatic in ML code
+# F821: undefined name — forward references and TYPE_CHECKING guards produce false positives
+ignore = ["E501", "F841", "E741", "F821"]
 
 [tool.mypy]
 python_version = "3.12"

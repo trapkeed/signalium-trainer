@@ -28,8 +28,8 @@ Usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -43,22 +43,22 @@ from trainer.automl.visualization import AutoMLVisualizationBuilder
 # ---------------------------------------------------------------------------
 
 
-def _ok(data: Any, message: str = "") -> Dict[str, Any]:
+def _ok(data: Any, message: str = "") -> dict[str, Any]:
     return {
         "status": "ok",
         "message": message,
         "data": data,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-def _error(message: str, code: str = "ERROR") -> Dict[str, Any]:
+def _error(message: str, code: str = "ERROR") -> dict[str, Any]:
     return {
         "status": "error",
         "code": code,
         "message": message,
         "data": None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -82,9 +82,9 @@ class AutoMLAPI:
     def __init__(
         self,
         database: AutoMLDatabase,
-        ranker: Optional[ExperimentRanker] = None,
-        scorer: Optional[ObjectiveScorer] = None,
-        viz: Optional[AutoMLVisualizationBuilder] = None,
+        ranker: ExperimentRanker | None = None,
+        scorer: ObjectiveScorer | None = None,
+        viz: AutoMLVisualizationBuilder | None = None,
     ) -> None:
         self.db = database
         self.ranker = ranker or ExperimentRanker()
@@ -95,7 +95,7 @@ class AutoMLAPI:
     # Search jobs
     # -----------------------------------------------------------------------
 
-    def create_job(self, job_config: Dict[str, Any]) -> Dict[str, Any]:
+    def create_job(self, job_config: dict[str, Any]) -> dict[str, Any]:
         """Create and persist a new search job from a config dict."""
         try:
             from trainer.automl.experiment import SearchJob
@@ -121,7 +121,7 @@ class AutoMLAPI:
             logger.error(f"create_job failed: {e}")
             return _error(str(e), "CREATE_JOB_ERROR")
 
-    def get_job(self, job_id: str) -> Dict[str, Any]:
+    def get_job(self, job_id: str) -> dict[str, Any]:
         """Get full job status and summary."""
         try:
             job = self.db.get_job(job_id)
@@ -136,7 +136,7 @@ class AutoMLAPI:
             logger.error(f"get_job failed: {e}")
             return _error(str(e), "GET_JOB_ERROR")
 
-    def list_jobs(self, status: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
+    def list_jobs(self, status: str | None = None, limit: int = 50) -> dict[str, Any]:
         """List all search jobs."""
         try:
             jobs = self.db.list_jobs(status=status, limit=limit)
@@ -145,7 +145,7 @@ class AutoMLAPI:
             logger.error(f"list_jobs failed: {e}")
             return _error(str(e), "LIST_JOBS_ERROR")
 
-    def pause_job(self, job_id: str) -> Dict[str, Any]:
+    def pause_job(self, job_id: str) -> dict[str, Any]:
         """Pause a running job."""
         try:
             self.db.update_job_status(job_id, "paused")
@@ -153,7 +153,7 @@ class AutoMLAPI:
         except Exception as e:
             return _error(str(e), "PAUSE_JOB_ERROR")
 
-    def resume_job(self, job_id: str) -> Dict[str, Any]:
+    def resume_job(self, job_id: str) -> dict[str, Any]:
         """Resume a paused job."""
         try:
             self.db.update_job_status(job_id, "running")
@@ -165,7 +165,7 @@ class AutoMLAPI:
     # Trials
     # -----------------------------------------------------------------------
 
-    def get_trial(self, record_id: str) -> Dict[str, Any]:
+    def get_trial(self, record_id: str) -> dict[str, Any]:
         """Get a single experiment record."""
         try:
             record = self.db.get_record(record_id)
@@ -177,12 +177,12 @@ class AutoMLAPI:
 
     def list_trials(
         self,
-        job_id: Optional[str] = None,
-        status: Optional[str] = None,
-        backbone: Optional[str] = None,
+        job_id: str | None = None,
+        status: str | None = None,
+        backbone: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """List experiment records with optional filters."""
         try:
             records = self.db.list_records(
@@ -196,7 +196,7 @@ class AutoMLAPI:
     # Optimization history
     # -----------------------------------------------------------------------
 
-    def get_optimization_history(self, job_id: str) -> Dict[str, Any]:
+    def get_optimization_history(self, job_id: str) -> dict[str, Any]:
         """Return score history for a job."""
         try:
             history = self.db.score_history(job_id)
@@ -212,8 +212,8 @@ class AutoMLAPI:
     # -----------------------------------------------------------------------
 
     def get_leaderboard(
-        self, job_id: Optional[str] = None, limit: int = 20, sort_by: str = "primary_score"
-    ) -> Dict[str, Any]:
+        self, job_id: str | None = None, limit: int = 20, sort_by: str = "primary_score"
+    ) -> dict[str, Any]:
         """Return ranked experiment leaderboard."""
         try:
             if job_id:
@@ -236,7 +236,7 @@ class AutoMLAPI:
     # Pareto front
     # -----------------------------------------------------------------------
 
-    def get_pareto_front(self, job_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_pareto_front(self, job_id: str | None = None) -> dict[str, Any]:
         """Return Pareto-optimal trials across all objectives."""
         try:
             if job_id:
@@ -264,8 +264,8 @@ class AutoMLAPI:
     # -----------------------------------------------------------------------
 
     def get_promotion_candidates(
-        self, job_id: Optional[str] = None, limit: int = 20
-    ) -> Dict[str, Any]:
+        self, job_id: str | None = None, limit: int = 20
+    ) -> dict[str, Any]:
         """Return trials that passed promotion criteria."""
         try:
             if job_id:
@@ -288,7 +288,7 @@ class AutoMLAPI:
 
     def approve_promotion(
         self, trial_id: str, job_id: str, model_version: str = "", notes: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Manually approve a trial for promotion to champion."""
         try:
             self.db.save_promotion_decision(
@@ -319,7 +319,7 @@ class AutoMLAPI:
     # Dashboard
     # -----------------------------------------------------------------------
 
-    def get_dashboard(self, job_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_dashboard(self, job_id: str | None = None) -> dict[str, Any]:
         """Return full visualization dashboard data."""
         try:
             if job_id:
@@ -346,7 +346,7 @@ class AutoMLAPI:
     # Platform stats
     # -----------------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return overall AutoML platform statistics."""
         try:
             stats = self.db.stats()
@@ -362,7 +362,7 @@ class AutoMLAPI:
 
     def champion_challenger_compare(
         self, champion_trial_id: str, challenger_trial_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare champion and challenger side-by-side."""
         try:
             champion = self.db.get_record(champion_trial_id)

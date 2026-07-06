@@ -28,7 +28,7 @@ Interfaces defined here:
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -67,7 +67,7 @@ class BaseReinforcementLearningInterface(BaseExternalEncoder):
     def get_policy_embedding(
         self,
         state_tensor: torch.Tensor,
-        reward_history: Optional[torch.Tensor] = None,
+        reward_history: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Extract a policy embedding from the RL agent state.
 
@@ -118,7 +118,7 @@ class BaseCrossAssetEncoder(BaseExternalEncoder):
     def encode_assets(
         self,
         asset_sequences: dict[str, torch.Tensor],
-        correlation_matrix: Optional[torch.Tensor] = None,
+        correlation_matrix: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode multi-asset data into a single latent vector.
 
@@ -157,8 +157,8 @@ class BaseNewsEncoder(BaseExternalEncoder):
     def encode_articles(
         self,
         token_ids: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        timestamps: Optional[torch.Tensor] = None,
+        attention_mask: torch.Tensor | None = None,
+        timestamps: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode financial news articles into a latent representation.
 
@@ -198,7 +198,7 @@ class BaseMacroEncoder(BaseExternalEncoder):
     def encode_indicators(
         self,
         macro_indicators: torch.Tensor,
-        indicator_names: Optional[list[str]] = None,
+        indicator_names: list[str] | None = None,
     ) -> torch.Tensor:
         """Encode macroeconomic indicators into a latent vector.
 
@@ -237,7 +237,7 @@ class BaseAlternativeDataEncoder(BaseExternalEncoder):
     def encode_signals(
         self,
         alt_data: torch.Tensor,
-        source_ids: Optional[torch.Tensor] = None,
+        source_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode alternative data signals.
 
@@ -281,7 +281,7 @@ class BaseOrderBookEncoder(BaseExternalEncoder):
         bid_sizes: torch.Tensor,
         ask_prices: torch.Tensor,
         ask_sizes: torch.Tensor,
-        timestamps: Optional[torch.Tensor] = None,
+        timestamps: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode order book depth into a microstructure embedding.
 
@@ -325,8 +325,8 @@ class BaseOptionsDataEncoder(BaseExternalEncoder):
         strikes: torch.Tensor,
         expiries: torch.Tensor,
         ivs: torch.Tensor,
-        greeks: Optional[torch.Tensor] = None,
-        open_interest: Optional[torch.Tensor] = None,
+        greeks: torch.Tensor | None = None,
+        open_interest: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode the options volatility surface.
 
@@ -366,8 +366,8 @@ class BaseSentimentEncoder(BaseExternalEncoder):
     def encode_sentiment(
         self,
         sentiment_scores: torch.Tensor,
-        source_weights: Optional[torch.Tensor] = None,
-        timestamps: Optional[torch.Tensor] = None,
+        source_weights: torch.Tensor | None = None,
+        timestamps: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode multi-source sentiment into a latent representation.
 
@@ -415,7 +415,7 @@ class BaseGraphNeuralNetworkInterface(BaseExternalEncoder):
         self,
         node_features: torch.Tensor,
         edge_index: torch.Tensor,
-        edge_weights: Optional[torch.Tensor] = None,
+        edge_weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Encode a market relationship graph into a latent representation.
 

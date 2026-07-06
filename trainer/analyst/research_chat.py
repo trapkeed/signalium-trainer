@@ -7,9 +7,6 @@ Never generates trading signals.
 
 from __future__ import annotations
 
-import time
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -18,7 +15,6 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_models import (
-    ChatMessage,
     ChatSession,
     LLMResponse,
     ResearchQuery,
@@ -50,7 +46,7 @@ class ResearchChat:
     def __init__(
         self,
         index: KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         top_k: int = 5,
     ):
         self._index = index
@@ -58,7 +54,7 @@ class ResearchChat:
         self._retriever = RetrievalEngine(index, top_k=top_k)
         self._prompt = PromptEngine()
         self._citation = CitationEngine()
-        self._sessions: Dict[str, ChatSession] = {}
+        self._sessions: dict[str, ChatSession] = {}
 
     # ── Session management ─────────────────────────────────────────────────────
 
@@ -68,7 +64,7 @@ class ResearchChat:
         logger.debug(f"ResearchChat: new session {session.session_id} for {researcher}")
         return session
 
-    def get_session(self, session_id: str) -> Optional[ChatSession]:
+    def get_session(self, session_id: str) -> ChatSession | None:
         return self._sessions.get(session_id)
 
     def end_session(self, session_id: str) -> bool:
@@ -78,7 +74,7 @@ class ResearchChat:
             return True
         return False
 
-    def active_sessions(self) -> List[ChatSession]:
+    def active_sessions(self) -> list[ChatSession]:
         return [s for s in self._sessions.values() if s.active]
 
     # ── Chat ───────────────────────────────────────────────────────────────────
@@ -156,7 +152,7 @@ class ResearchChat:
 
     # ── Stats ───────────────────────────────────────────────────────────────────
 
-    def session_stats(self) -> Dict:
+    def session_stats(self) -> dict:
         sessions = list(self._sessions.values())
         return {
             "total": len(sessions),

@@ -9,7 +9,6 @@ Factors: Forecast Quality, Entry Quality, Risk, Liquidity,
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -50,9 +49,9 @@ class TradeScore:
     grade: ExecutionGrade
     rank_percentile: float = 50.0  # placeholder; relative ranking
 
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "overall_score": round(self.overall_score, 4),
@@ -101,13 +100,13 @@ class TradeScorer:
     def score(
         self,
         forecast: ExecutionForecast,
-        entry_quality: Optional[EntryQualityResult] = None,
-        risk_profile: Optional[RiskProfile] = None,
-        timing: Optional[TimingAssessment] = None,
+        entry_quality: EntryQualityResult | None = None,
+        risk_profile: RiskProfile | None = None,
+        timing: TimingAssessment | None = None,
         portfolio_impact_score: float = 0.70,
     ) -> TradeScore:
 
-        notes: List[str] = []
+        notes: list[str] = []
 
         # 1. Forecast quality: confidence + expected return scaled
         forecast_q = _clamp(

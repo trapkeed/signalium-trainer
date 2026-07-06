@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from trainer.validation.trading import TradeResult, TradingMetrics, TradingMetricsEngine
+from trainer.validation.trading import TradeResult
 
 # ---------------------------------------------------------------------------
 # Monte Carlo result

@@ -13,9 +13,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Dict, Generator, List, Optional
 
 
 class PortfolioDatabase:
@@ -109,7 +108,7 @@ class PortfolioDatabase:
     def __init__(self, db_path: str = ":memory:") -> None:
         self._path = db_path
         self._is_memory = db_path == ":memory:"
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         if self._is_memory:
             self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)
             self._persistent_conn.execute("PRAGMA journal_mode=WAL")
@@ -164,7 +163,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def get_recommendation(self, rec_id: str) -> Optional[dict]:
+    def get_recommendation(self, rec_id: str) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM portfolio_recommendations WHERE rec_id = ?", (rec_id,)
@@ -176,7 +175,7 @@ class PortfolioDatabase:
         d["metrics"] = json.loads(d.pop("metrics_json", "{}"))
         return d
 
-    def recommendations_history(self, limit: int = 20) -> List[dict]:
+    def recommendations_history(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM portfolio_recommendations ORDER BY timestamp DESC LIMIT ?",
@@ -193,7 +192,7 @@ class PortfolioDatabase:
     # ── Correlation Matrices ───────────────────────────────────────────────
 
     def save_correlation_matrix(
-        self, matrix_id: str, timestamp: str, method: str, instruments: List[str], pairs: dict
+        self, matrix_id: str, timestamp: str, method: str, instruments: list[str], pairs: dict
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -203,7 +202,7 @@ class PortfolioDatabase:
                 (matrix_id, timestamp, method, json.dumps(instruments), json.dumps(pairs)),
             )
 
-    def get_correlation_matrix(self, matrix_id: str) -> Optional[dict]:
+    def get_correlation_matrix(self, matrix_id: str) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM correlation_matrices WHERE matrix_id = ?", (matrix_id,)
@@ -215,7 +214,7 @@ class PortfolioDatabase:
         d["pairs"] = json.loads(d.pop("pairs_json", "{}"))
         return d
 
-    def latest_correlation_matrix(self) -> Optional[dict]:
+    def latest_correlation_matrix(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM correlation_matrices ORDER BY timestamp DESC LIMIT 1"
@@ -254,7 +253,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def exposure_history(self, limit: int = 20) -> List[dict]:
+    def exposure_history(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM exposure_history ORDER BY timestamp DESC LIMIT ?",
@@ -295,7 +294,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def optimization_history(self, objective: Optional[str] = None, limit: int = 20) -> List[dict]:
+    def optimization_history(self, objective: str | None = None, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             if objective:
                 rows = conn.execute(
@@ -338,7 +337,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def scenario_history(self, scenario_type: Optional[str] = None, limit: int = 20) -> List[dict]:
+    def scenario_history(self, scenario_type: str | None = None, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             if scenario_type:
                 rows = conn.execute(
@@ -379,7 +378,7 @@ class PortfolioDatabase:
                 ),
             )
 
-    def allocation_history(self, limit: int = 20) -> List[dict]:
+    def allocation_history(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM allocation_history ORDER BY timestamp DESC LIMIT ?",

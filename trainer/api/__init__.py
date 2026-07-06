@@ -16,14 +16,14 @@ from trainer.api.models import (
 )
 
 __all__ = [
-    "SignaliumClient",
-    "APIError",
     "APIAuthenticationError",
+    "APIError",
     "APINotFoundError",
     "APIRateLimitError",
     "APITimeoutError",
     "DatasetManifest",
     "ModelManifest",
+    "SignaliumClient",
     "UploadMetricsRequest",
     "UploadModelRequest",
 ]

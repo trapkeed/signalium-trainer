@@ -28,8 +28,8 @@ Endpoint groups:
 from __future__ import annotations
 
 import traceback
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -46,14 +46,14 @@ from trainer.mlops.retraining import RetrainingPolicyManager
 
 
 def _ts() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _ok(data: Any, message: str = "ok") -> Dict[str, Any]:
+def _ok(data: Any, message: str = "ok") -> dict[str, Any]:
     return {"status": "ok", "message": message, "data": data, "timestamp": _ts()}
 
 
-def _err(code: str, message: str) -> Dict[str, Any]:
+def _err(code: str, message: str) -> dict[str, Any]:
     return {"status": "error", "code": code, "message": message, "data": None, "timestamp": _ts()}
 
 
@@ -91,7 +91,7 @@ class MLOpsAPI:
     # Registry endpoints
     # -----------------------------------------------------------------------
 
-    def register_model(self, model_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def register_model(self, model_dict: dict[str, Any]) -> dict[str, Any]:
         try:
             record = ModelRecord.from_dict(model_dict)
             self.registry.register(record)
@@ -108,7 +108,7 @@ class MLOpsAPI:
             logger.error(f"register_model: {e}")
             return _err("REGISTER_ERROR", str(e))
 
-    def get_model(self, model_id: str) -> Dict[str, Any]:
+    def get_model(self, model_id: str) -> dict[str, Any]:
         try:
             model = self.registry.get(model_id)
             if model is None:
@@ -120,9 +120,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("GET_MODEL_ERROR", str(e))
 
-    def list_models(
-        self, lifecycle_state: Optional[str] = None, limit: int = 100
-    ) -> Dict[str, Any]:
+    def list_models(self, lifecycle_state: str | None = None, limit: int = 100) -> dict[str, Any]:
         try:
             if lifecycle_state:
                 models = [m.to_dict() for m in self.registry.by_state(lifecycle_state)]
@@ -134,7 +132,7 @@ class MLOpsAPI:
 
     def update_model_notes(
         self, model_id: str, notes: str, actor: str = "system"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             model = self.registry.get_or_raise(model_id)
             model.notes = notes
@@ -159,8 +157,8 @@ class MLOpsAPI:
         to_state: str,
         actor: str = "system",
         reason: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             model = self.registry.get_or_raise(model_id)
             t = self.lifecycle.transition(
@@ -179,7 +177,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("TRANSITION_ERROR", str(e))
 
-    def approve_model(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
+    def approve_model(self, model_id: str, approver: str, reason: str = "") -> dict[str, Any]:
         try:
             model = self.registry.get_or_raise(model_id)
             t = self.lifecycle.approve(model, approver=approver, reason=reason)
@@ -195,7 +193,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("APPROVE_ERROR", str(e))
 
-    def reject_model(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
+    def reject_model(self, model_id: str, approver: str, reason: str = "") -> dict[str, Any]:
         try:
             model = self.registry.get_or_raise(model_id)
             self.lifecycle.reject(model, approver=approver, reason=reason)
@@ -210,7 +208,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("REJECT_ERROR", str(e))
 
-    def get_lifecycle_history(self, model_id: str) -> Dict[str, Any]:
+    def get_lifecycle_history(self, model_id: str) -> dict[str, Any]:
         try:
             history = self.db.get_lifecycle_history(model_id)
             return _ok({"model_id": model_id, "history": history, "count": len(history)})
@@ -229,8 +227,8 @@ class MLOpsAPI:
         actor: str = "system",
         reason: str = "",
         deploy_type: str = "manual",
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             rec = self.governance.deploy(
                 model_id,
@@ -263,7 +261,7 @@ class MLOpsAPI:
 
     def rollback(
         self, model_id: str, actor: str = "ops", reason: str = "", emergency: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             rec = self.governance.rollback(
                 model_id, actor=actor, reason=reason, emergency=emergency
@@ -284,14 +282,14 @@ class MLOpsAPI:
             logger.error(f"rollback: {e}")
             return _err("ROLLBACK_ERROR", str(e))
 
-    def list_deployments(self, model_id: Optional[str] = None, limit: int = 50) -> Dict[str, Any]:
+    def list_deployments(self, model_id: str | None = None, limit: int = 50) -> dict[str, Any]:
         try:
             deployments = self.db.list_deployments(model_id=model_id, limit=limit)
             return _ok({"deployments": deployments, "count": len(deployments)})
         except Exception as e:
             return _err("LIST_DEPLOYMENTS_ERROR", str(e))
 
-    def active_deployments(self) -> Dict[str, Any]:
+    def active_deployments(self) -> dict[str, Any]:
         try:
             active = self.governance.active_deployments()
             return _ok({"active": active, "count": len(active)})
@@ -302,7 +300,7 @@ class MLOpsAPI:
     # Health endpoints
     # -----------------------------------------------------------------------
 
-    def get_health_report(self, model_id: str, save_to_db: bool = True) -> Dict[str, Any]:
+    def get_health_report(self, model_id: str, save_to_db: bool = True) -> dict[str, Any]:
         try:
             report = self.health.get_health_report(model_id)
             if save_to_db:
@@ -314,21 +312,21 @@ class MLOpsAPI:
         except Exception as e:
             return _err("HEALTH_REPORT_ERROR", str(e))
 
-    def list_health_history(self, model_id: str, limit: int = 20) -> Dict[str, Any]:
+    def list_health_history(self, model_id: str, limit: int = 20) -> dict[str, Any]:
         try:
             history = self.db.list_health_history(model_id, limit=limit)
             return _ok({"model_id": model_id, "history": history, "count": len(history)})
         except Exception as e:
             return _err("HEALTH_HISTORY_ERROR", str(e))
 
-    def unhealthy_models(self) -> Dict[str, Any]:
+    def unhealthy_models(self) -> dict[str, Any]:
         try:
             models = self.health.unhealthy_models()
             return _ok({"unhealthy": models, "count": len(models)})
         except Exception as e:
             return _err("UNHEALTHY_MODELS_ERROR", str(e))
 
-    def get_monitoring_snapshot(self, model_id: str) -> Dict[str, Any]:
+    def get_monitoring_snapshot(self, model_id: str) -> dict[str, Any]:
         try:
             snap = self.monitor.get_snapshot(model_id)
             alerts = self.alerting.emit_from_monitoring_snapshot(snap)
@@ -344,11 +342,11 @@ class MLOpsAPI:
 
     def get_alerts(
         self,
-        model_id: Optional[str] = None,
-        level: Optional[str] = None,
+        model_id: str | None = None,
+        level: str | None = None,
         active_only: bool = True,
         limit: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             if active_only:
                 alerts = self.alerting.active_alerts(model_id=model_id, level=level)
@@ -358,7 +356,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("GET_ALERTS_ERROR", str(e))
 
-    def acknowledge_alert(self, alert_id: str, ack_by: str = "ops") -> Dict[str, Any]:
+    def acknowledge_alert(self, alert_id: str, ack_by: str = "ops") -> dict[str, Any]:
         try:
             ok = self.alerting.acknowledge(alert_id, ack_by=ack_by)
             if not ok:
@@ -372,7 +370,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("ACK_ALERT_ERROR", str(e))
 
-    def resolve_alert(self, alert_id: str) -> Dict[str, Any]:
+    def resolve_alert(self, alert_id: str) -> dict[str, Any]:
         try:
             ok = self.alerting.resolve(alert_id)
             if not ok:
@@ -387,8 +385,8 @@ class MLOpsAPI:
         model_id: str,
         category: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             alert = self.alerting.emit(level, model_id, category, message, metadata=metadata)
             self.db.save_alert(alert.to_dict())
@@ -401,8 +399,8 @@ class MLOpsAPI:
     # -----------------------------------------------------------------------
 
     def get_audit_events(
-        self, event_type: Optional[str] = None, model_id: Optional[str] = None, limit: int = 100
-    ) -> Dict[str, Any]:
+        self, event_type: str | None = None, model_id: str | None = None, limit: int = 100
+    ) -> dict[str, Any]:
         try:
             events = self.db.list_audit_events(
                 event_type=event_type, model_id=model_id, limit=limit
@@ -411,7 +409,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("AUDIT_EVENTS_ERROR", str(e))
 
-    def get_audit_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_audit_report(self, model_id: str | None = None) -> dict[str, Any]:
         try:
             report = self.audit.get_report(model_id=model_id)
             return _ok(report)
@@ -422,7 +420,7 @@ class MLOpsAPI:
     # Champion endpoints
     # -----------------------------------------------------------------------
 
-    def get_champion(self) -> Dict[str, Any]:
+    def get_champion(self) -> dict[str, Any]:
         try:
             return _ok(
                 {
@@ -435,7 +433,7 @@ class MLOpsAPI:
 
     def set_champion(
         self, model_id: str, approver: str = "head_quant", reason: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             event = self.champion.set_champion(model_id, approver=approver, reason=reason)
             model = self.registry.get(model_id)
@@ -454,7 +452,7 @@ class MLOpsAPI:
             logger.error(f"set_champion: {e}")
             return _err("SET_CHAMPION_ERROR", str(e))
 
-    def add_challenger(self, model_id: str, reason: str = "") -> Dict[str, Any]:
+    def add_challenger(self, model_id: str, reason: str = "") -> dict[str, Any]:
         try:
             self.champion.add_challenger(model_id, reason=reason)
             model = self.registry.get(model_id)
@@ -464,7 +462,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("ADD_CHALLENGER_ERROR", str(e))
 
-    def promote_challenger(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
+    def promote_challenger(self, model_id: str, approver: str, reason: str = "") -> dict[str, Any]:
         try:
             event = self.champion.promote_challenger(model_id, approver=approver, reason=reason)
             model = self.registry.get(model_id)
@@ -478,9 +476,9 @@ class MLOpsAPI:
         self,
         model_a_id: str,
         model_b_id: str,
-        metrics_a: Optional[Dict[str, float]] = None,
-        metrics_b: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        metrics_a: dict[str, float] | None = None,
+        metrics_b: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
         try:
             comparison = self.champion.compare(
                 model_a_id, model_b_id, metrics_a=metrics_a, metrics_b=metrics_b
@@ -489,7 +487,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("COMPARE_MODELS_ERROR", str(e))
 
-    def rollback_champion(self, actor: str = "ops", reason: str = "") -> Dict[str, Any]:
+    def rollback_champion(self, actor: str = "ops", reason: str = "") -> dict[str, Any]:
         try:
             event = self.champion.rollback_champion(actor=actor, reason=reason)
             if event is None:
@@ -498,7 +496,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("ROLLBACK_CHAMPION_ERROR", str(e))
 
-    def champion_history(self, limit: int = 20) -> Dict[str, Any]:
+    def champion_history(self, limit: int = 20) -> dict[str, Any]:
         try:
             return _ok(
                 {
@@ -515,8 +513,8 @@ class MLOpsAPI:
     # -----------------------------------------------------------------------
 
     def evaluate_retraining(
-        self, model_id: str, metrics: Dict[str, float], force_manual: bool = False
-    ) -> Dict[str, Any]:
+        self, model_id: str, metrics: dict[str, float], force_manual: bool = False
+    ) -> dict[str, Any]:
         try:
             recs = self.retraining.evaluate(model_id, metrics, force_manual=force_manual)
             for r in recs:
@@ -539,15 +537,15 @@ class MLOpsAPI:
             return _err("EVALUATE_RETRAINING_ERROR", str(e))
 
     def list_retraining_recommendations(
-        self, model_id: Optional[str] = None, limit: int = 50
-    ) -> Dict[str, Any]:
+        self, model_id: str | None = None, limit: int = 50
+    ) -> dict[str, Any]:
         try:
             pending = self.retraining.pending_recommendations(model_id=model_id)
             return _ok({"pending": pending, "count": len(pending)})
         except Exception as e:
             return _err("LIST_RECOMMENDATIONS_ERROR", str(e))
 
-    def dismiss_recommendation(self, recommendation_id: str) -> Dict[str, Any]:
+    def dismiss_recommendation(self, recommendation_id: str) -> dict[str, Any]:
         try:
             ok = self.retraining.dismiss(recommendation_id)
             if not ok:
@@ -560,7 +558,7 @@ class MLOpsAPI:
     # Stats and dashboard
     # -----------------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         try:
             return _ok(
                 {
@@ -575,7 +573,7 @@ class MLOpsAPI:
         except Exception as e:
             return _err("STATS_ERROR", str(e))
 
-    def get_dashboard(self) -> Dict[str, Any]:
+    def get_dashboard(self) -> dict[str, Any]:
         try:
             models = self.registry.all_models()
             snapshots = {

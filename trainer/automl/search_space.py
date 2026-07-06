@@ -26,7 +26,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Union
 
 # ---------------------------------------------------------------------------
 # Base parameter
@@ -39,14 +39,14 @@ class BaseParameter:
 
     name: str
 
-    def sample(self, rng: Optional[random.Random] = None) -> Any:
+    def sample(self, rng: random.Random | None = None) -> Any:
         raise NotImplementedError
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         raise NotImplementedError
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "BaseParameter":
+    def from_dict(d: dict[str, Any]) -> BaseParameter:
         kind = d.get("type")
         if kind == "float":
             return FloatParameter.from_dict(d)
@@ -79,9 +79,9 @@ class FloatParameter(BaseParameter):
     low: float = 0.0
     high: float = 1.0
     log: bool = False
-    step: Optional[float] = None
+    step: float | None = None
 
-    def sample(self, rng: Optional[random.Random] = None) -> float:
+    def sample(self, rng: random.Random | None = None) -> float:
         r = rng or random
         if self.log:
             log_low = math.log(self.low)
@@ -93,7 +93,7 @@ class FloatParameter(BaseParameter):
             val = round(val / self.step) * self.step
         return float(val)
 
-    def grid_values(self, n: int = 5) -> List[float]:
+    def grid_values(self, n: int = 5) -> list[float]:
         """Return n evenly spaced values across the range."""
         if self.log:
             low = math.log(self.low)
@@ -101,7 +101,7 @@ class FloatParameter(BaseParameter):
             return [math.exp(low + i * (high - low) / max(n - 1, 1)) for i in range(n)]
         return [self.low + i * (self.high - self.low) / max(n - 1, 1) for i in range(n)]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "float",
             "name": self.name,
@@ -112,7 +112,7 @@ class FloatParameter(BaseParameter):
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "FloatParameter":
+    def from_dict(d: dict[str, Any]) -> FloatParameter:
         return FloatParameter(
             name=d["name"],
             low=d["low"],
@@ -144,7 +144,7 @@ class IntParameter(BaseParameter):
     step: int = 1
     log: bool = False
 
-    def sample(self, rng: Optional[random.Random] = None) -> int:
+    def sample(self, rng: random.Random | None = None) -> int:
         r = rng or random
         if self.log:
             log_low = math.log(max(self.low, 1))
@@ -155,14 +155,14 @@ class IntParameter(BaseParameter):
             val = r.choice(choices)
         return int(val)
 
-    def grid_values(self, n: Optional[int] = None) -> List[int]:
+    def grid_values(self, n: int | None = None) -> list[int]:
         values = list(range(self.low, self.high + 1, self.step))
         if n is not None and len(values) > n:
             step = max(1, len(values) // n)
             values = values[::step][:n]
         return values
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "int",
             "name": self.name,
@@ -173,7 +173,7 @@ class IntParameter(BaseParameter):
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "IntParameter":
+    def from_dict(d: dict[str, Any]) -> IntParameter:
         return IntParameter(
             name=d["name"],
             low=d["low"],
@@ -198,10 +198,10 @@ class CategoricalParameter(BaseParameter):
         weights: Optional sampling weights (same length as choices).
     """
 
-    choices: List[Any] = field(default_factory=list)
-    weights: Optional[List[float]] = None
+    choices: list[Any] = field(default_factory=list)
+    weights: list[float] | None = None
 
-    def sample(self, rng: Optional[random.Random] = None) -> Any:
+    def sample(self, rng: random.Random | None = None) -> Any:
         r = rng or random
         if self.weights:
             total = sum(self.weights)
@@ -213,10 +213,10 @@ class CategoricalParameter(BaseParameter):
                     return choice
         return r.choice(self.choices)
 
-    def grid_values(self) -> List[Any]:
+    def grid_values(self) -> list[Any]:
         return list(self.choices)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "categorical",
             "name": self.name,
@@ -225,7 +225,7 @@ class CategoricalParameter(BaseParameter):
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "CategoricalParameter":
+    def from_dict(d: dict[str, Any]) -> CategoricalParameter:
         return CategoricalParameter(
             name=d["name"],
             choices=d["choices"],
@@ -252,18 +252,18 @@ class ConditionalParameter(BaseParameter):
 
     parent: str = ""
     parent_value: Any = None
-    parameter: Optional[BaseParameter] = None
+    parameter: BaseParameter | None = None
     default: Any = None
 
-    def is_active(self, params: Dict[str, Any]) -> bool:
+    def is_active(self, params: dict[str, Any]) -> bool:
         return params.get(self.parent) == self.parent_value
 
-    def sample(self, rng: Optional[random.Random] = None) -> Any:
+    def sample(self, rng: random.Random | None = None) -> Any:
         if self.parameter is None:
             return self.default
         return self.parameter.sample(rng)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": "conditional",
             "name": self.name,
@@ -274,7 +274,7 @@ class ConditionalParameter(BaseParameter):
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ConditionalParameter":
+    def from_dict(d: dict[str, Any]) -> ConditionalParameter:
         param = None
         if d.get("parameter"):
             param = BaseParameter.from_dict(d["parameter"])
@@ -305,10 +305,10 @@ class SearchSpace:
 
     def __init__(self, name: str = "default") -> None:
         self.name = name
-        self._params: Dict[str, ParameterType] = {}
-        self._conditionals: List[ConditionalParameter] = []
+        self._params: dict[str, ParameterType] = {}
+        self._conditionals: list[ConditionalParameter] = []
 
-    def add(self, param: ParameterType) -> "SearchSpace":
+    def add(self, param: ParameterType) -> SearchSpace:
         """Add a parameter to the space. Returns self for chaining."""
         if isinstance(param, ConditionalParameter):
             self._conditionals.append(param)
@@ -316,10 +316,10 @@ class SearchSpace:
             self._params[param.name] = param
         return self
 
-    def sample(self, rng: Optional[random.Random] = None) -> Dict[str, Any]:
+    def sample(self, rng: random.Random | None = None) -> dict[str, Any]:
         """Sample one configuration from the search space."""
         r = rng or random
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         for name, param in self._params.items():
             result[name] = param.sample(r)
         for cond in self._conditionals:
@@ -329,7 +329,7 @@ class SearchSpace:
                 result[cond.name] = cond.default
         return result
 
-    def grid(self, max_per_param: int = 5) -> List[Dict[str, Any]]:
+    def grid(self, max_per_param: int = 5) -> list[dict[str, Any]]:
         """Enumerate a grid of configurations.
 
         Only non-conditional parameters are enumerated. Returns up to
@@ -337,13 +337,11 @@ class SearchSpace:
         """
         import itertools
 
-        param_values: List[List[Any]] = []
-        param_names: List[str] = []
+        param_values: list[list[Any]] = []
+        param_names: list[str] = []
         for name, param in self._params.items():
             param_names.append(name)
-            if isinstance(param, FloatParameter):
-                param_values.append(param.grid_values(max_per_param))
-            elif isinstance(param, IntParameter):
+            if isinstance(param, FloatParameter) or isinstance(param, IntParameter):
                 param_values.append(param.grid_values(max_per_param))
             elif isinstance(param, CategoricalParameter):
                 param_values.append(param.grid_values())
@@ -354,12 +352,12 @@ class SearchSpace:
             configs.append(dict(zip(param_names, combo)))
         return configs
 
-    def param_names(self) -> List[str]:
+    def param_names(self) -> list[str]:
         names = list(self._params.keys())
         names += [c.name for c in self._conditionals]
         return names
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "parameters": [p.to_dict() for p in self._params.values()],
@@ -367,7 +365,7 @@ class SearchSpace:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "SearchSpace":
+    def from_dict(d: dict[str, Any]) -> SearchSpace:
         space = SearchSpace(name=d.get("name", "default"))
         for pd in d.get("parameters", []):
             space.add(BaseParameter.from_dict(pd))

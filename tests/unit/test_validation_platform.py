@@ -27,11 +27,7 @@ Coverage targets:
 from __future__ import annotations
 
 import json
-import math
-import tempfile
 import uuid
-from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pytest
@@ -46,21 +42,18 @@ from trainer.validation.comparison import (
     ModelSnapshot,
 )
 from trainer.validation.database import ValidationDatabase, ValidationRunRecord
-from trainer.validation.drift import DriftAnalyzer, DriftReport
+from trainer.validation.drift import DriftAnalyzer
 from trainer.validation.engine import (
     EngineConfig,
     InstitutionalValidationEngine,
     ValidationResult,
 )
 from trainer.validation.export import ExportConfig, ReportExporter
-from trainer.validation.failure_analysis import FailureAnalyzer, FailureReport, WorstPerformer
-from trainer.validation.head_validator import HeadResult, PredictionHeadValidator
+from trainer.validation.failure_analysis import FailureAnalyzer
+from trainer.validation.head_validator import PredictionHeadValidator
 from trainer.validation.instrument import (
     INSTRUMENTS,
     TIMEFRAMES,
-    InstrumentResult,
-    MultiAssetValidationResult,
-    MultiAssetValidator,
     get_all_instruments,
     get_all_timeframes,
     register_instrument,
@@ -69,14 +62,13 @@ from trainer.validation.instrument import (
 from trainer.validation.leaderboard import InstitutionalLeaderboard, LeaderboardEntry
 from trainer.validation.leakage import LeakageDetected, LeakageDetector, LeakageReport
 from trainer.validation.monte_carlo import MonteCarloResult, MonteCarloValidator
-from trainer.validation.promotion import PromotionDecision, PromotionPolicy, PromotionRule
+from trainer.validation.promotion import PromotionPolicy, PromotionRule
 from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
 from trainer.validation.robustness import RobustnessReport, RobustnessTester
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
 from trainer.validation.trading import (
     TradeResult,
     TradeSimulator,
-    TradingMetrics,
     TradingMetricsEngine,
 )
 from trainer.validation.visualization import VisualizationDataBuilder
@@ -85,7 +77,6 @@ from trainer.validation.windows import (
     ExpandingWindowValidator,
     NestedValidator,
     SlidingWindowValidator,
-    WindowFold,
 )
 
 # ── Imports under test ────────────────────────────────────────────────────

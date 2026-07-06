@@ -26,8 +26,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Objective definition
@@ -50,8 +50,8 @@ class Objective:
     name: str
     direction: str = "maximize"
     weight: float = 1.0
-    clip_min: Optional[float] = None
-    clip_max: Optional[float] = None
+    clip_min: float | None = None
+    clip_max: float | None = None
     label: str = ""
 
     def __post_init__(self) -> None:
@@ -80,7 +80,7 @@ class Objective:
             norm = 1.0 - norm
         return max(0.0, min(1.0, norm))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "direction": self.direction,
@@ -91,7 +91,7 @@ class Objective:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Objective":
+    def from_dict(d: dict[str, Any]) -> Objective:
         return Objective(
             name=d["name"],
             direction=d.get("direction", "maximize"),
@@ -107,7 +107,7 @@ class Objective:
 # ---------------------------------------------------------------------------
 
 
-STANDARD_OBJECTIVES: Dict[str, Objective] = {
+STANDARD_OBJECTIVES: dict[str, Objective] = {
     "profit_factor": Objective("profit_factor", "maximize", clip_min=0.0, clip_max=5.0),
     "sharpe_ratio": Objective("sharpe_ratio", "maximize", clip_min=-3.0, clip_max=5.0),
     "sortino_ratio": Objective("sortino_ratio", "maximize", clip_min=-3.0, clip_max=5.0),
@@ -150,14 +150,14 @@ class ObjectiveScorer:
         objectives: List of Objective definitions. Weights are normalized.
     """
 
-    def __init__(self, objectives: List[Objective]) -> None:
+    def __init__(self, objectives: list[Objective]) -> None:
         if not objectives:
             raise ValueError("At least one objective is required.")
         self.objectives = objectives
         total_weight = sum(o.weight for o in objectives)
         self._normalized_weights = [o.weight / total_weight for o in objectives]
 
-    def extract(self, metrics: Dict[str, Any], obj: Objective) -> Optional[float]:
+    def extract(self, metrics: dict[str, Any], obj: Objective) -> float | None:
         """Extract objective metric from a results dict (supports nested keys)."""
         val = metrics.get(obj.name)
         if val is None:
@@ -174,7 +174,7 @@ class ObjectiveScorer:
             return None
 
     def score_single(
-        self, metrics: Dict[str, Any], obj: Objective, low: float = 0.0, high: float = 1.0
+        self, metrics: dict[str, Any], obj: Objective, low: float = 0.0, high: float = 1.0
     ) -> float:
         """Return normalized [0, 1] score for a single objective."""
         val = self.extract(metrics, obj)
@@ -183,7 +183,7 @@ class ObjectiveScorer:
         return obj.normalize(val, low, high)
 
     def composite_score(
-        self, metrics: Dict[str, Any], reference_sets: Optional[List[Dict[str, Any]]] = None
+        self, metrics: dict[str, Any], reference_sets: list[dict[str, Any]] | None = None
     ) -> float:
         """Return weighted composite score in [0, 1].
 
@@ -208,11 +208,11 @@ class ObjectiveScorer:
             total += w * norm
         return round(total, 6)
 
-    def per_objective_scores(self, metrics: Dict[str, Any]) -> Dict[str, float]:
+    def per_objective_scores(self, metrics: dict[str, Any]) -> dict[str, float]:
         """Return dict of {objective_name: raw_value} for all objectives."""
         return {obj.name: self.extract(metrics, obj) or 0.0 for obj in self.objectives}
 
-    def dominates(self, a: Dict[str, Any], b: Dict[str, Any]) -> bool:
+    def dominates(self, a: dict[str, Any], b: dict[str, Any]) -> bool:
         """Return True if solution A dominates B in Pareto sense."""
         a_better_any = False
         for obj in self.objectives:
@@ -224,7 +224,7 @@ class ObjectiveScorer:
                 a_better_any = True
         return a_better_any
 
-    def pareto_front(self, solutions: List[Dict[str, Any]]) -> List[int]:
+    def pareto_front(self, solutions: list[dict[str, Any]]) -> list[int]:
         """Return indices of Pareto-optimal solutions in the input list."""
         n = len(solutions)
         dominated = [False] * n
@@ -239,15 +239,15 @@ class ObjectiveScorer:
 
     def rank(
         self,
-        metrics_list: List[Dict[str, Any]],
-        reference_sets: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[Tuple[int, float]]:
+        metrics_list: list[dict[str, Any]],
+        reference_sets: list[dict[str, Any]] | None = None,
+    ) -> list[tuple[int, float]]:
         """Return sorted list of (original_index, composite_score) desc."""
         ref = reference_sets or metrics_list
         scored = [(i, self.composite_score(m, ref)) for i, m in enumerate(metrics_list)]
         return sorted(scored, key=lambda x: x[1], reverse=True)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"objectives": [o.to_dict() for o in self.objectives]}
 
 
@@ -256,7 +256,7 @@ class ObjectiveScorer:
 # ---------------------------------------------------------------------------
 
 
-def compute_composite_research_score(metrics: Dict[str, Any]) -> float:
+def compute_composite_research_score(metrics: dict[str, Any]) -> float:
     """Compute the Signalium composite research score from a metrics dict.
 
     Weights:

@@ -16,9 +16,6 @@ Endpoints:
 
 from __future__ import annotations
 
-import time
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -39,7 +36,7 @@ from trainer.analyst.analyst_types import (
     has_permission,
 )
 from trainer.analyst.knowledge_index import KnowledgeIndex
-from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider, create_provider
+from trainer.analyst.llm_provider import LLMProvider, create_provider
 from trainer.analyst.model_comparator import ModelComparator
 from trainer.analyst.recommendation_engine import RecommendationEngine
 from trainer.analyst.report_generator import ReportGenerator
@@ -73,11 +70,11 @@ class AnalystAPI:
     def chat(
         self,
         text: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         researcher: str = "",
         role: Role = Role.RESEARCHER,
-        filters: Dict = None,
-    ) -> Dict:
+        filters: dict = None,
+    ) -> dict:
         """Start or continue a research chat session."""
         # Ensure session exists
         if session_id is None or self._chat.get_session(session_id) is None:
@@ -129,11 +126,11 @@ class AnalystAPI:
     def search(
         self,
         text: str,
-        source_type: Optional[KnowledgeSourceType] = None,
-        tags: Optional[List[str]] = None,
+        source_type: KnowledgeSourceType | None = None,
+        tags: list[str] | None = None,
         top_k: int = 10,
         role: Role = Role.RESEARCHER,
-    ) -> Dict:
+    ) -> dict:
         """Natural language search over the knowledge base."""
         query = ResearchQuery(text=text, query_type=QueryType.SEARCH, role=role)
         result = self._search.search(query, source_type=source_type, tags=tags, top_k=top_k)
@@ -147,9 +144,9 @@ class AnalystAPI:
         artifact_a: str,
         artifact_b: str,
         question: str = "",
-        metrics: Optional[List[str]] = None,
+        metrics: list[str] | None = None,
         role: Role = Role.RESEARCHER,
-    ) -> Dict:
+    ) -> dict:
         """Compare two research artifacts."""
         query = ResearchQuery(
             text=question or f"Compare {artifact_a} vs {artifact_b}",
@@ -162,10 +159,10 @@ class AnalystAPI:
 
     def rank(
         self,
-        artifacts: List[str],
+        artifacts: list[str],
         metric: str = "sharpe",
         role: Role = Role.RESEARCHER,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Rank multiple artifacts by a metric."""
         query = ResearchQuery(
             text=f"rank by {metric}",
@@ -182,7 +179,7 @@ class AnalystAPI:
         question: str = "",
         period: str = "",
         role: Role = Role.RESEARCHER,
-    ) -> Dict:
+    ) -> dict:
         """Generate a research report."""
         query = ResearchQuery(
             text=question or f"Generate {report_type.value}",
@@ -200,7 +197,7 @@ class AnalystAPI:
         self,
         question: str = "What research improvements should we prioritise?",
         role: Role = Role.RESEARCHER,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """Generate evidence-based research recommendations."""
         query = ResearchQuery(text=question, query_type=QueryType.RECOMMENDATION, role=role)
         recs = self._recommender.recommend(query)
@@ -209,26 +206,26 @@ class AnalystAPI:
         self._db.save_query(query)
         return [r.to_dict() for r in recs]
 
-    def auto_recommend(self) -> List[Dict]:
+    def auto_recommend(self) -> list[dict]:
         """Scan knowledge base and auto-generate recommendations."""
         recs = self._recommender.auto_recommend()
         for r in recs:
             self._db.save_recommendation(r)
         return [r.to_dict() for r in recs]
 
-    def pending_recommendations(self) -> List[Dict]:
+    def pending_recommendations(self) -> list[dict]:
         return [r.to_dict() for r in self._recommender.pending()]
 
     # ── 6. Knowledge search ───────────────────────────────────────────────────
 
-    def knowledge_search(self, keyword: str, top_k: int = 10) -> List[Dict]:
+    def knowledge_search(self, keyword: str, top_k: int = 10) -> list[dict]:
         """Direct keyword search over the knowledge index."""
         chunks = self._search.keyword_search(keyword, top_k=top_k)
         return [c.to_dict() for c in chunks]
 
     # ── 7. Dashboard ──────────────────────────────────────────────────────────
 
-    def get_dashboard(self, name: str = "all") -> Dict:
+    def get_dashboard(self, name: str = "all") -> dict:
         sessions = self._chat.active_sessions()
         reports = self._reporter.list_reports()
         report_objs = [
@@ -259,7 +256,7 @@ class AnalystAPI:
 
     # ── 8. System stats ───────────────────────────────────────────────────────
 
-    def system_stats(self) -> Dict:
+    def system_stats(self) -> dict:
         return {
             "knowledge_index": self._index.stats(),
             "database": self._db.stats(),
@@ -278,10 +275,10 @@ class AnalystAPI:
         artifact_id: str,
         title: str,
         content: str,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None,
+        tags: list[str] | None = None,
+        metadata: dict | None = None,
         role: Role = Role.ADMIN,
-    ) -> Dict:
+    ) -> dict:
         """Add a document to the knowledge base."""
         if not has_permission(role, Permission.READ):
             return {"error": "Access denied"}
@@ -304,7 +301,7 @@ class AnalystAPI:
         self,
         provider_type: LLMProviderType,
         **kwargs,
-    ) -> Dict:
+    ) -> dict:
         """Switch the LLM provider without restarting the system."""
         new_provider = create_provider(provider_type, **kwargs)
         self._provider = new_provider

@@ -8,9 +8,6 @@ Retracement Quality, Continuation Probability.
 
 from __future__ import annotations
 
-import math
-from typing import List
-
 try:
     from loguru import logger
 except ImportError:
@@ -65,7 +62,7 @@ class PriceActionAnalyzer:
             "impulse_strength": round(impulse_strength, 4),
         }
 
-    def retracement_quality(self, bars: List[OHLCBar]) -> float:
+    def retracement_quality(self, bars: list[OHLCBar]) -> float:
         """Measure quality of a retracement within a sequence of bars.
 
         High value = clean, shallow pullback (good quality).
@@ -86,7 +83,7 @@ class PriceActionAnalyzer:
         quality = _clamp(1.0 - retracement_depth)
         return round(quality, 4)
 
-    def continuation_probability(self, bars: List[OHLCBar]) -> float:
+    def continuation_probability(self, bars: list[OHLCBar]) -> float:
         """Estimate probability of trend continuation.
 
         Based on: close position in recent bars, directional persistence,
@@ -111,7 +108,7 @@ class PriceActionAnalyzer:
 
     def analyse_window(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         """Compute all price-action features and write into the features object."""

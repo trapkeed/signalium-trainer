@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from trainer.config.schema import ExportConfig, TrainerConfig
+from trainer.config.schema import TrainerConfig
 from trainer.exporters.manifest import ManifestBuilder
 from trainer.exporters.onnx import ONNXExporter
 from trainer.exporters.torchscript import TorchScriptExporter

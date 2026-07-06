@@ -26,7 +26,7 @@ history         — stored plan history
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 try:
     from loguru import logger
@@ -58,18 +58,18 @@ from trainer.execution.trade_manager import TradeManager
 from trainer.execution.trade_scorer import TradeScorer
 
 
-def _ok(data: Any, meta: Optional[Dict] = None) -> Dict:
-    r: Dict = {"status": "ok", "data": data, "timestamp": round(time.time(), 3)}
+def _ok(data: Any, meta: dict | None = None) -> dict:
+    r: dict = {"status": "ok", "data": data, "timestamp": round(time.time(), 3)}
     if meta:
         r["meta"] = meta
     return r
 
 
-def _err(msg: str, code: str = "ERROR") -> Dict:
+def _err(msg: str, code: str = "ERROR") -> dict:
     return {"status": "error", "code": code, "message": msg, "timestamp": round(time.time(), 3)}
 
 
-def _fc(d: Dict) -> ExecutionForecast:
+def _fc(d: dict) -> ExecutionForecast:
     """Deserialise a forecast dict → ExecutionForecast."""
     try:
         sess = Session(d.get("session", "LONDON"))
@@ -102,8 +102,8 @@ class ExecutionApi:
     def __init__(
         self,
         db_path: str = ":memory:",
-        broker: Optional[BrokerConstraints] = None,
-        risk_limits: Optional[RiskLimits] = None,
+        broker: BrokerConstraints | None = None,
+        risk_limits: RiskLimits | None = None,
         sizing_method: str = "FIXED_RISK",
     ):
         self._broker = broker or default_broker()
@@ -131,7 +131,7 @@ class ExecutionApi:
 
     # ── 1. plan ───────────────────────────────────────────────────────────────
 
-    def plan(self, forecast_dict: Dict) -> Dict:
+    def plan(self, forecast_dict: dict) -> dict:
         """Generate a full execution plan for one forecast."""
         try:
             fc = _fc(forecast_dict)
@@ -144,7 +144,7 @@ class ExecutionApi:
 
     # ── 2. plan_batch ─────────────────────────────────────────────────────────
 
-    def plan_batch(self, forecast_dicts: List[Dict]) -> Dict:
+    def plan_batch(self, forecast_dicts: list[dict]) -> dict:
         """Generate plans for multiple forecasts."""
         try:
             fcs = [_fc(d) for d in forecast_dicts]
@@ -161,7 +161,7 @@ class ExecutionApi:
 
     # ── 3. entry_zones ────────────────────────────────────────────────────────
 
-    def entry_zones(self, forecast_dict: Dict) -> Dict:
+    def entry_zones(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -171,7 +171,7 @@ class ExecutionApi:
 
     # ── 4. entry_quality ──────────────────────────────────────────────────────
 
-    def entry_quality(self, forecast_dict: Dict) -> Dict:
+    def entry_quality(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -182,7 +182,7 @@ class ExecutionApi:
 
     # ── 5. stop_loss ──────────────────────────────────────────────────────────
 
-    def stop_loss(self, forecast_dict: Dict) -> Dict:
+    def stop_loss(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -193,7 +193,7 @@ class ExecutionApi:
 
     # ── 6. take_profit ────────────────────────────────────────────────────────
 
-    def take_profit(self, forecast_dict: Dict) -> Dict:
+    def take_profit(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -205,7 +205,7 @@ class ExecutionApi:
 
     # ── 7. sizing ─────────────────────────────────────────────────────────────
 
-    def sizing(self, forecast_dict: Dict, method: str = "FIXED_RISK") -> Dict:
+    def sizing(self, forecast_dict: dict, method: str = "FIXED_RISK") -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -221,7 +221,7 @@ class ExecutionApi:
 
     # ── 8. management ─────────────────────────────────────────────────────────
 
-    def management(self, forecast_dict: Dict) -> Dict:
+    def management(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -235,7 +235,7 @@ class ExecutionApi:
 
     # ── 9. timing ─────────────────────────────────────────────────────────────
 
-    def timing(self, forecast_dict: Dict) -> Dict:
+    def timing(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             t = self._timer.evaluate(fc)
@@ -245,7 +245,7 @@ class ExecutionApi:
 
     # ── 10. risk ──────────────────────────────────────────────────────────────
 
-    def risk(self, forecast_dict: Dict) -> Dict:
+    def risk(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -258,7 +258,7 @@ class ExecutionApi:
 
     # ── 11. order ─────────────────────────────────────────────────────────────
 
-    def order(self, forecast_dict: Dict) -> Dict:
+    def order(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -270,7 +270,7 @@ class ExecutionApi:
 
     # ── 12. score ─────────────────────────────────────────────────────────────
 
-    def score(self, forecast_dict: Dict) -> Dict:
+    def score(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -286,7 +286,7 @@ class ExecutionApi:
 
     # ── 13. simulation ────────────────────────────────────────────────────────
 
-    def simulation(self, forecast_dict: Dict) -> Dict:
+    def simulation(self, forecast_dict: dict) -> dict:
         try:
             fc = _fc(forecast_dict)
             z = self._zones.calculate(fc)
@@ -299,7 +299,7 @@ class ExecutionApi:
 
     # ── 14. dashboard ─────────────────────────────────────────────────────────
 
-    def dashboard(self, forecast_dicts: List[Dict]) -> Dict:
+    def dashboard(self, forecast_dicts: list[dict]) -> dict:
         """Generate a full 8-view dashboard for multiple forecasts."""
         try:
             fcs = [_fc(d) for d in forecast_dicts]
@@ -312,7 +312,7 @@ class ExecutionApi:
 
     # ── 15. stats ─────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         """Database statistics."""
         try:
             return _ok(self._db.stats())
@@ -321,7 +321,7 @@ class ExecutionApi:
 
     # ── 16. history ───────────────────────────────────────────────────────────
 
-    def history(self, instrument: Optional[str] = None, limit: int = 10) -> Dict:
+    def history(self, instrument: str | None = None, limit: int = 10) -> dict:
         """Stored plan history, optionally filtered by instrument."""
         try:
             if instrument:

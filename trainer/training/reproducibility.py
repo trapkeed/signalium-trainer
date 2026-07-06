@@ -34,9 +34,9 @@ import platform
 import random
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -70,11 +70,11 @@ class RunFingerprint:
         warnings: Any reproducibility warnings detected at capture time.
     """
 
-    git_commit: Optional[str] = None
+    git_commit: str | None = None
     git_dirty: bool = False
-    dataset_version: Optional[str] = None
-    feature_version: Optional[str] = None
-    label_version: Optional[str] = None
+    dataset_version: str | None = None
+    feature_version: str | None = None
+    label_version: str | None = None
     config_hash: str = ""
     seed: int = 42
     timestamp: str = ""
@@ -121,9 +121,9 @@ class ReproducibilityManager:
 
     def capture(
         self,
-        dataset_version: Optional[str] = None,
-        feature_version: Optional[str] = None,
-        label_version: Optional[str] = None,
+        dataset_version: str | None = None,
+        feature_version: str | None = None,
+        label_version: str | None = None,
     ) -> RunFingerprint:
         """Build a ``RunFingerprint`` for the current run.
 
@@ -161,7 +161,7 @@ class ReproducibilityManager:
             label_version=label_version,
             config_hash=config_hash,
             seed=seed,
-            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            timestamp=datetime.now(tz=UTC).isoformat(),
             python_version=sys.version,
             torch_version=torch.__version__,
             numpy_version=np.__version__,

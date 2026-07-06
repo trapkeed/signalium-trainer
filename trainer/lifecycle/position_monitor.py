@@ -8,7 +8,6 @@ Move Target / Exit Immediately / Wait.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -42,7 +41,7 @@ class PositionAction:
     detail: str
     urgency: str = "NORMAL"  # LOW | NORMAL | HIGH | CRITICAL
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "action": self.action,
             "priority": self.priority,
@@ -59,11 +58,11 @@ class PositionManagementPlan:
     instrument: str
     state: LifecycleState
     primary: str  # ManagementRecommendation
-    actions: List[PositionAction] = field(default_factory=list)
+    actions: list[PositionAction] = field(default_factory=list)
     risk_level: str = "MEDIUM"
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "state": self.state.value,
@@ -81,13 +80,13 @@ class PositionMonitor:
         self,
         instrument: str,
         state: LifecycleState,
-        metrics: Optional[PositionMetrics] = None,
-        context: Optional[MarketContext] = None,
+        metrics: PositionMetrics | None = None,
+        context: MarketContext | None = None,
         confidence: float = 0.65,
     ) -> PositionManagementPlan:
 
-        actions: List[PositionAction] = []
-        notes: List[str] = []
+        actions: list[PositionAction] = []
+        notes: list[str] = []
         risk_level = "MEDIUM"
 
         # Default primary

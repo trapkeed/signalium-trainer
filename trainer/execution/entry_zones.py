@@ -7,8 +7,7 @@ Predicts structured entry zones for every execution forecast:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -46,7 +45,7 @@ class EntryZones:
         hi = max(self.primary_entry, self.conservative_entry)
         return lo <= price <= hi
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,

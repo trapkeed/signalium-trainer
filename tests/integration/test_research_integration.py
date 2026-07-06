@@ -30,7 +30,6 @@ from trainer.research import (
     BenchmarkConditions,
     BenchmarkRunner,
     ChampionRegistry,
-    ExperimentRecord,
     ExperimentTracker,
     Leaderboard,
     ModelStatus,

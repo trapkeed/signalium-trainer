@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -65,10 +63,10 @@ class ExecutionIntelligenceEngine:
     def recommend(
         self,
         inp: MarketInput,
-        risk: Optional[RiskIntelligenceResult] = None,
-        liquidity: Optional[LiquidityResult] = None,
-        tradeability: Optional[TradeabilityResult] = None,
-        volatility: Optional[VolatilityResult] = None,
+        risk: RiskIntelligenceResult | None = None,
+        liquidity: LiquidityResult | None = None,
+        tradeability: TradeabilityResult | None = None,
+        volatility: VolatilityResult | None = None,
     ) -> ExecutionResult:
 
         mode, rationale = self._decide_mode(risk, liquidity, tradeability)
@@ -106,9 +104,9 @@ class ExecutionIntelligenceEngine:
 
     def _decide_mode(
         self,
-        risk: Optional[RiskIntelligenceResult],
-        liquidity: Optional[LiquidityResult],
-        tradeability: Optional[TradeabilityResult],
+        risk: RiskIntelligenceResult | None,
+        liquidity: LiquidityResult | None,
+        tradeability: TradeabilityResult | None,
     ) -> tuple:
         # 1. Extreme risk
         if risk is not None and risk.regime in (
@@ -168,7 +166,7 @@ class ExecutionIntelligenceEngine:
         self,
         atr: float,
         price: float,
-        volatility: Optional[VolatilityResult],
+        volatility: VolatilityResult | None,
     ) -> float:
         base_dd = (atr * self._dd_mult) / max(price, 1e-9)
         if volatility is not None:
@@ -179,7 +177,7 @@ class ExecutionIntelligenceEngine:
     def _max_holding(
         self,
         inp: MarketInput,
-        volatility: Optional[VolatilityResult],
+        volatility: VolatilityResult | None,
     ) -> int:
         bars = inp.expected_holding_bars or self._max_hold
         if volatility is not None and volatility.vol_ratio > 2.0:

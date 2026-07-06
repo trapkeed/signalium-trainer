@@ -36,8 +36,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -57,14 +57,14 @@ class HierarchicalScore:
     score_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     experiment_id: str = ""
     name: str = ""
-    scored_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    scored_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Level 1
     level1_metric_count: int = 0
-    level1_categories_covered: List[str] = field(default_factory=list)
+    level1_categories_covered: list[str] = field(default_factory=list)
 
     # Level 2
-    level2_categories: Dict[str, CategoryResult] = field(default_factory=dict)
+    level2_categories: dict[str, CategoryResult] = field(default_factory=dict)
 
     # Level 3
     level3_composite: float = 0.0  # 0–100
@@ -72,7 +72,7 @@ class HierarchicalScore:
     total_weight_used: float = 0.0
 
     # Grades
-    grade_assessment: Optional[GradeAssessment] = None
+    grade_assessment: GradeAssessment | None = None
 
     # Metadata
     instrument: str = ""
@@ -112,18 +112,18 @@ class HierarchicalScore:
         r = self.level2_categories.get(cat)
         return r.confidence if r else 0.0
 
-    def strongest_categories(self, n: int = 3) -> List[str]:
+    def strongest_categories(self, n: int = 3) -> list[str]:
         scored = [(cat, r.score) for cat, r in self.level2_categories.items() if r.metric_count > 0]
         return [cat for cat, _ in sorted(scored, key=lambda x: x[1], reverse=True)[:n]]
 
-    def weakest_categories(self, n: int = 3) -> List[str]:
+    def weakest_categories(self, n: int = 3) -> list[str]:
         scored = [(cat, r.score) for cat, r in self.level2_categories.items() if r.metric_count > 0]
         return [cat for cat, _ in sorted(scored, key=lambda x: x[1])[:n]]
 
-    def category_scores_dict(self) -> Dict[str, float]:
+    def category_scores_dict(self) -> dict[str, float]:
         return {cat: r.score for cat, r in self.level2_categories.items()}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score_id": self.score_id,
             "experiment_id": self.experiment_id,
@@ -197,9 +197,9 @@ class HierarchicalResearchScorer:
 
     def __init__(
         self,
-        category_scorer: Optional[HRSACategoryScorer] = None,
-        grade_engine: Optional[HRSAGradeEngine] = None,
-        registry: Optional[RawMetricsRegistry] = None,
+        category_scorer: HRSACategoryScorer | None = None,
+        grade_engine: HRSAGradeEngine | None = None,
+        registry: RawMetricsRegistry | None = None,
     ) -> None:
         self._cat_scorer = category_scorer or HRSACategoryScorer.default()
         self._grade_engine = grade_engine or HRSAGradeEngine.default()
@@ -254,7 +254,7 @@ class HierarchicalResearchScorer:
         )
         return result
 
-    def _aggregate(self, cat_results: Dict[str, CategoryResult]) -> tuple:
+    def _aggregate(self, cat_results: dict[str, CategoryResult]) -> tuple:
         """Aggregate Level 2 category scores into Level 3 composite."""
         weighted_sum = 0.0
         weighted_conf = 0.0
@@ -277,7 +277,7 @@ class HierarchicalResearchScorer:
         confidence = max(0.0, min(1.0, weighted_conf / total_w))
         return composite, total_w, confidence
 
-    def score_breakdown(self, bundle: RawMetricsBundle, **kwargs) -> Dict[str, Any]:
+    def score_breakdown(self, bundle: RawMetricsBundle, **kwargs) -> dict[str, Any]:
         """Return a full breakdown dict from a bundle."""
         result = self.score(bundle, **kwargs)
         return {
@@ -298,7 +298,7 @@ class HierarchicalResearchScorer:
         category: str,
         delta_pct: float = 10.0,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Estimate score change if a category's score increased by delta_pct."""
         base = self.score(bundle, **kwargs)
         base_composite = base.level3_composite

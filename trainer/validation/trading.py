@@ -37,8 +37,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -377,8 +377,8 @@ class TradeSimulator:
         self,
         probs: np.ndarray,
         ohlcv: np.ndarray,
-        timestamps: Optional[np.ndarray] = None,
-        slippage_pips: Optional[np.ndarray] = None,
+        timestamps: np.ndarray | None = None,
+        slippage_pips: np.ndarray | None = None,
     ) -> list[TradeResult]:
         """Simulate trades from class probabilities and price data.
 

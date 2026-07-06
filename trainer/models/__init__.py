@@ -2,4 +2,4 @@
 
 from trainer.models.base import BaseEvaluator, BaseExporter, BaseQuantModel, BaseTrainer
 
-__all__ = ["BaseQuantModel", "BaseTrainer", "BaseEvaluator", "BaseExporter"]
+__all__ = ["BaseEvaluator", "BaseExporter", "BaseQuantModel", "BaseTrainer"]

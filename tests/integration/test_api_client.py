@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import responses as responses_lib
 
 from trainer.api.client import SignaliumClient
-from trainer.api.exceptions import APIAuthenticationError, APINotFoundError
+from trainer.api.exceptions import APINotFoundError
 from trainer.config.schema import APIConfig
 
 BASE_URL = "https://api.signalium.test"

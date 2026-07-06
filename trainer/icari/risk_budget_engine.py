@@ -6,8 +6,6 @@ Tracks usage and raises alerts on breach.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -24,7 +22,7 @@ class RiskBudgetEngine:
 
     def __init__(self, capital: float = 100_000.0):
         self._capital = capital
-        self._budgets: Dict[str, RiskBudget] = {}
+        self._budgets: dict[str, RiskBudget] = {}
         self._load_defaults()
 
     def _load_defaults(self) -> None:
@@ -55,15 +53,15 @@ class RiskBudgetEngine:
         logger.debug(f"RiskBudget: set {budget_type.value} limit={limit:.4f}")
         return budget
 
-    def get_budget(self, budget_type: RiskBudgetType) -> Optional[RiskBudget]:
+    def get_budget(self, budget_type: RiskBudgetType) -> RiskBudget | None:
         return self._budgets.get(budget_type.value)
 
-    def all_budgets(self) -> List[RiskBudget]:
+    def all_budgets(self) -> list[RiskBudget]:
         return list(self._budgets.values())
 
     # ── Usage tracking ────────────────────────────────────────────────────────
 
-    def consume(self, budget_type: RiskBudgetType, amount: float) -> Dict:
+    def consume(self, budget_type: RiskBudgetType, amount: float) -> dict:
         """Record risk consumption against a budget."""
         budget = self._budgets.get(budget_type.value)
         if not budget:
@@ -107,7 +105,7 @@ class RiskBudgetEngine:
 
     # ── Checks ────────────────────────────────────────────────────────────────
 
-    def check(self, budget_type: RiskBudgetType, amount: float) -> Dict:
+    def check(self, budget_type: RiskBudgetType, amount: float) -> dict:
         """Check if consuming `amount` would breach the budget (dry run)."""
         budget = self._budgets.get(budget_type.value)
         if not budget:
@@ -123,10 +121,10 @@ class RiskBudgetEngine:
             "remaining": round(budget.remaining, 4),
         }
 
-    def breached_budgets(self) -> List[RiskBudget]:
+    def breached_budgets(self) -> list[RiskBudget]:
         return [b for b in self._budgets.values() if b.is_breached]
 
-    def near_limit_budgets(self, threshold: float = 0.80) -> List[RiskBudget]:
+    def near_limit_budgets(self, threshold: float = 0.80) -> list[RiskBudget]:
         return [
             b for b in self._budgets.values() if b.utilisation >= threshold and not b.is_breached
         ]
@@ -143,7 +141,7 @@ class RiskBudgetEngine:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         budgets = self.all_budgets()
         return {
             "total_budgets": len(budgets),

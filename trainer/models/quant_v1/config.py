@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
 
 
-def _default_hybrid_encoder_config() -> "HybridEncoderConfig":
+def _default_hybrid_encoder_config() -> HybridEncoderConfig:
     from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
 
     return HybridEncoderConfig(enabled=False)
@@ -341,9 +341,9 @@ class LossConfig:
 
     type: LossType = LossType.CROSS_ENTROPY
     focal_gamma: float = 2.0
-    focal_alpha: Optional[list[float]] = None
+    focal_alpha: list[float] | None = None
     label_smoothing: float = 0.0
-    class_weights: Optional[list[float]] = None
+    class_weights: list[float] | None = None
 
 
 @dataclass
@@ -450,6 +450,6 @@ class QuantV1Config:
     # ------------------------------------------------------------------
     # Phase 14.9A — Hybrid Representation Learning (disabled by default)
     # ------------------------------------------------------------------
-    hybrid_encoder: "HybridEncoderConfig" = field(  # type: ignore[type-arg]
+    hybrid_encoder: HybridEncoderConfig = field(  # type: ignore[type-arg]
         default_factory=lambda: _default_hybrid_encoder_config()
     )

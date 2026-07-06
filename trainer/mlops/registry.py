@@ -28,8 +28,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -86,9 +86,9 @@ class ApprovalRecord:
     reason: str = ""
     from_state: str = ""
     to_state: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "approval_id": self.approval_id,
             "approver": self.approver,
@@ -141,7 +141,7 @@ class ModelRecord:
     model_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "model"
     version: str = "1.0.0"
-    training_date: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    training_date: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     architecture: str = ""
     backbone: str = ""
     parameter_count: int = 0
@@ -149,21 +149,21 @@ class ModelRecord:
     feature_version: str = ""
     label_version: str = ""
     git_commit: str = ""
-    training_config: Dict[str, Any] = field(default_factory=dict)
-    validation_report: Dict[str, Any] = field(default_factory=dict)
+    training_config: dict[str, Any] = field(default_factory=dict)
+    validation_report: dict[str, Any] = field(default_factory=dict)
     promotion_status: str = "pending"  # "pending" | "approved" | "rejected"
     deployment_status: str = "not_deployed"
     retirement_status: str = "active"  # "active" | "retired"
-    approval_history: List[ApprovalRecord] = field(default_factory=list)
+    approval_history: list[ApprovalRecord] = field(default_factory=list)
     hardware_used: str = ""
     training_duration_seconds: float = 0.0
-    parent_model_id: Optional[str] = None
-    child_model_ids: List[str] = field(default_factory=list)
+    parent_model_id: str | None = None
+    child_model_ids: list[str] = field(default_factory=list)
     lifecycle_state: str = LifecycleState.DRAFT
     notes: str = ""
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_active(self) -> bool:
@@ -192,15 +192,15 @@ class ModelRecord:
             to_state=to_state,
         )
         self.approval_history.append(record)
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
         return record
 
     def add_child(self, child_id: str) -> None:
         if child_id not in self.child_model_ids:
             self.child_model_ids.append(child_id)
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "name": self.name,
@@ -234,12 +234,12 @@ class ModelRecord:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ModelRecord":
+    def from_dict(d: dict[str, Any]) -> ModelRecord:
         r = ModelRecord(
             model_id=d.get("model_id", str(uuid.uuid4())),
             name=d.get("name", "model"),
             version=d.get("version", "1.0.0"),
-            training_date=d.get("training_date", datetime.now(timezone.utc).isoformat()),
+            training_date=d.get("training_date", datetime.now(UTC).isoformat()),
             architecture=d.get("architecture", ""),
             backbone=d.get("backbone", ""),
             parameter_count=d.get("parameter_count", 0),
@@ -258,8 +258,8 @@ class ModelRecord:
             child_model_ids=d.get("child_model_ids", []),
             lifecycle_state=d.get("lifecycle_state", LifecycleState.DRAFT),
             notes=d.get("notes", ""),
-            created_at=d.get("created_at", datetime.now(timezone.utc).isoformat()),
-            updated_at=d.get("updated_at", datetime.now(timezone.utc).isoformat()),
+            created_at=d.get("created_at", datetime.now(UTC).isoformat()),
+            updated_at=d.get("updated_at", datetime.now(UTC).isoformat()),
             metadata=d.get("metadata", {}),
         )
         r.approval_history = [ApprovalRecord(**a) for a in d.get("approval_history", [])]
@@ -279,8 +279,8 @@ class ModelRegistry:
     """
 
     def __init__(self) -> None:
-        self._models: Dict[str, ModelRecord] = {}
-        self._champion_id: Optional[str] = None
+        self._models: dict[str, ModelRecord] = {}
+        self._champion_id: str | None = None
 
     def register(self, record: ModelRecord) -> str:
         """Register a model. Returns model_id."""
@@ -288,7 +288,7 @@ class ModelRegistry:
         logger.info(f"Registered model {record.model_id} ({record.full_name})")
         return record.model_id
 
-    def get(self, model_id: str) -> Optional[ModelRecord]:
+    def get(self, model_id: str) -> ModelRecord | None:
         return self._models.get(model_id)
 
     def get_or_raise(self, model_id: str) -> ModelRecord:
@@ -303,16 +303,16 @@ class ModelRegistry:
             return True
         return False
 
-    def all_models(self) -> List[ModelRecord]:
+    def all_models(self) -> list[ModelRecord]:
         return list(self._models.values())
 
-    def by_state(self, state: str) -> List[ModelRecord]:
+    def by_state(self, state: str) -> list[ModelRecord]:
         return [m for m in self._models.values() if m.lifecycle_state == state]
 
-    def active(self) -> List[ModelRecord]:
+    def active(self) -> list[ModelRecord]:
         return [m for m in self._models.values() if m.is_active]
 
-    def champion(self) -> Optional[ModelRecord]:
+    def champion(self) -> ModelRecord | None:
         if self._champion_id:
             return self._models.get(self._champion_id)
         champions = [m for m in self._models.values() if m.is_champion]
@@ -322,7 +322,7 @@ class ModelRegistry:
         for m in self._models.values():
             if m.is_champion and m.model_id != model_id:
                 m.lifecycle_state = LifecycleState.ARCHIVED
-                m.updated_at = datetime.now(timezone.utc).isoformat()
+                m.updated_at = datetime.now(UTC).isoformat()
         model = self.get_or_raise(model_id)
         old_state = model.lifecycle_state
         model.lifecycle_state = LifecycleState.CHAMPION
@@ -330,14 +330,14 @@ class ModelRegistry:
         model.add_approval(
             approver, "approved", "promoted to champion", old_state, LifecycleState.CHAMPION
         )
-        model.updated_at = datetime.now(timezone.utc).isoformat()
+        model.updated_at = datetime.now(UTC).isoformat()
         self._champion_id = model_id
         logger.info(f"Champion set: {model_id} ({model.full_name})")
 
-    def by_name(self, name: str) -> List[ModelRecord]:
+    def by_name(self, name: str) -> list[ModelRecord]:
         return [m for m in self._models.values() if m.name == name]
 
-    def latest_version(self, name: str) -> Optional[ModelRecord]:
+    def latest_version(self, name: str) -> ModelRecord | None:
         candidates = self.by_name(name)
         if not candidates:
             return None
@@ -347,8 +347,8 @@ class ModelRegistry:
     def n_models(self) -> int:
         return len(self._models)
 
-    def summary(self) -> Dict[str, Any]:
-        states: Dict[str, int] = {}
+    def summary(self) -> dict[str, Any]:
+        states: dict[str, int] = {}
         for m in self._models.values():
             states[m.lifecycle_state] = states.get(m.lifecycle_state, 0) + 1
         champion = self.champion()
@@ -360,14 +360,14 @@ class ModelRegistry:
             "n_active": len(self.active()),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "models": {mid: m.to_dict() for mid, m in self._models.items()},
             "champion_id": self._champion_id,
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "ModelRegistry":
+    def from_dict(d: dict[str, Any]) -> ModelRegistry:
         registry = ModelRegistry()
         registry._champion_id = d.get("champion_id")
         for mid, mdata in d.get("models", {}).items():

@@ -29,9 +29,9 @@ import json
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -225,13 +225,13 @@ class EnsembleDatabase:
         self._conn.commit()
         return expert.expert_id
 
-    def get_expert(self, expert_id: str) -> Optional[Dict[str, Any]]:
+    def get_expert(self, expert_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM expert_models WHERE expert_id = ?", (expert_id,)
         ).fetchone()
         return self._expert_row(row) if row else None
 
-    def list_experts(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_experts(self, status: str | None = None) -> list[dict[str, Any]]:
         if status:
             rows = self._conn.execute(
                 "SELECT * FROM expert_models WHERE status = ? ORDER BY created_at", (status,)
@@ -240,7 +240,7 @@ class EnsembleDatabase:
             rows = self._conn.execute("SELECT * FROM expert_models ORDER BY created_at").fetchall()
         return [self._expert_row(r) for r in rows]
 
-    def _expert_row(self, row: sqlite3.Row) -> Dict[str, Any]:
+    def _expert_row(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
         for key in ("specializations", "instruments", "timeframes"):
             d[key] = json.loads(d.get(key, "[]") or "[]")
@@ -250,14 +250,14 @@ class EnsembleDatabase:
     def update_expert_status(self, expert_id: str, status: str) -> None:
         self._conn.execute(
             "UPDATE expert_models SET status = ?, updated_at = ? WHERE expert_id = ?",
-            (status, datetime.now(timezone.utc).isoformat(), expert_id),
+            (status, datetime.now(UTC).isoformat(), expert_id),
         )
         self._conn.commit()
 
     def update_expert_weight(self, expert_id: str, weight: float) -> None:
         self._conn.execute(
             "UPDATE expert_models SET weight = ?, updated_at = ? WHERE expert_id = ?",
-            (weight, datetime.now(timezone.utc).isoformat(), expert_id),
+            (weight, datetime.now(UTC).isoformat(), expert_id),
         )
         self._conn.commit()
 
@@ -267,11 +267,11 @@ class EnsembleDatabase:
 
     def save_ensemble_result(
         self,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         regime: str = "",
         instrument: str = "",
         timeframe: str = "",
-        true_class: Optional[str] = None,
+        true_class: str | None = None,
     ) -> str:
         result_id = result.get("result_id") or str(uuid.uuid4())
         is_correct = None
@@ -302,15 +302,15 @@ class EnsembleDatabase:
                 is_correct,
                 json.dumps(result.get("weight_map", {})),
                 json.dumps(result.get("metadata", {})),
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
         return result_id
 
     def list_ensemble_results(
-        self, strategy: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, strategy: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         if strategy:
             rows = self._conn.execute(
                 "SELECT * FROM ensemble_results WHERE strategy = ? "
@@ -334,7 +334,7 @@ class EnsembleDatabase:
     # Meta model state
     # -----------------------------------------------------------------------
 
-    def save_meta_model(self, meta_dict: Dict[str, Any]) -> str:
+    def save_meta_model(self, meta_dict: dict[str, Any]) -> str:
         state_id = str(uuid.uuid4())
         self._conn.execute(
             """INSERT INTO meta_model_state
@@ -346,13 +346,13 @@ class EnsembleDatabase:
                 meta_dict.get("meta_version", "1.0"),
                 meta_dict.get("n_training_samples", 0),
                 json.dumps(meta_dict),
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
         return state_id
 
-    def get_latest_meta_model(self) -> Optional[Dict[str, Any]]:
+    def get_latest_meta_model(self) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT state_json FROM meta_model_state ORDER BY saved_at DESC LIMIT 1"
         ).fetchone()
@@ -383,12 +383,12 @@ class EnsembleDatabase:
                 regime,
                 instrument,
                 timeframe,
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
 
-    def get_weight_history(self, expert_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+    def get_weight_history(self, expert_id: str, limit: int = 200) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM weight_history WHERE expert_id = ? " "ORDER BY recorded_at DESC LIMIT ?",
             (expert_id, limit),
@@ -399,7 +399,7 @@ class EnsembleDatabase:
     # Routing decisions
     # -----------------------------------------------------------------------
 
-    def save_routing_decision(self, decision_dict: Dict[str, Any]) -> str:
+    def save_routing_decision(self, decision_dict: dict[str, Any]) -> str:
         did = decision_dict.get("decision_id") or str(uuid.uuid4())
         self._conn.execute(
             """INSERT OR REPLACE INTO routing_decisions
@@ -415,15 +415,15 @@ class EnsembleDatabase:
                 json.dumps(decision_dict.get("weights", {})),
                 decision_dict.get("routing_reason", ""),
                 decision_dict.get("n_experts_selected", 0),
-                decision_dict.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                decision_dict.get("timestamp", datetime.now(UTC).isoformat()),
             ),
         )
         self._conn.commit()
         return did
 
     def list_routing_decisions(
-        self, regime: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, regime: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         if regime:
             rows = self._conn.execute(
                 "SELECT * FROM routing_decisions WHERE regime = ? "
@@ -450,7 +450,7 @@ class EnsembleDatabase:
         self,
         expert_id: str,
         predicted_class: str,
-        true_class: Optional[str] = None,
+        true_class: str | None = None,
         profit_pnl: float = 0.0,
         confidence: float = 0.5,
         uncertainty: float = 0.5,
@@ -480,13 +480,13 @@ class EnsembleDatabase:
                 instrument,
                 timeframe,
                 is_correct,
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
         return record_id
 
-    def get_performance_history(self, expert_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+    def get_performance_history(self, expert_id: str, limit: int = 200) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM performance_history WHERE expert_id = ? "
             "ORDER BY recorded_at DESC LIMIT ?",
@@ -512,12 +512,12 @@ class EnsembleDatabase:
                 voted_class,
                 confidence,
                 weight,
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
 
-    def get_voting_history(self, result_id: str) -> List[Dict[str, Any]]:
+    def get_voting_history(self, result_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM voting_history WHERE result_id = ? ORDER BY recorded_at", (result_id,)
         ).fetchall()
@@ -527,7 +527,7 @@ class EnsembleDatabase:
     # Statistics
     # -----------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         n_experts = self._conn.execute("SELECT COUNT(*) as n FROM expert_models").fetchone()["n"]
         n_active = self._conn.execute(
             "SELECT COUNT(*) as n FROM expert_models WHERE status IN ('active','champion','experimental')"

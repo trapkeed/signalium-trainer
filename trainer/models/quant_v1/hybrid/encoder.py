@@ -26,7 +26,7 @@ Architecture::
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -58,32 +58,32 @@ class HybridEncoder(nn.Module):
         self._config = config
 
         # ── Stream 1: Raw Market Sequence ────────────────────────────────
-        self.raw_market: Optional[RawMarketStream] = None
+        self.raw_market: RawMarketStream | None = None
         if config.raw_market.enabled:
             self.raw_market = RawMarketStream(config.raw_market)
 
         # ── Stream 2: Multi-Timeframe ─────────────────────────────────────
-        self.multi_timeframe: Optional[MultiTimeframeStream] = None
+        self.multi_timeframe: MultiTimeframeStream | None = None
         if config.multi_timeframe.enabled:
             self.multi_timeframe = MultiTimeframeStream(config.multi_timeframe)
 
         # ── Stream 3: Engineered Features ────────────────────────────────
-        self.engineered_features: Optional[EngineeredFeatureStream] = None
+        self.engineered_features: EngineeredFeatureStream | None = None
         if config.engineered_features.enabled:
             self.engineered_features = EngineeredFeatureStream(config.engineered_features)
 
         # ── Stream 4: Context Embeddings ─────────────────────────────────
-        self.context_embeddings: Optional[ContextEmbeddingStream] = None
+        self.context_embeddings: ContextEmbeddingStream | None = None
         if config.context_embeddings.enabled:
             self.context_embeddings = ContextEmbeddingStream(config.context_embeddings)
 
         # ── Stream 5: Market Memory ───────────────────────────────────────
-        self.market_memory: Optional[MarketMemoryStream] = None
+        self.market_memory: MarketMemoryStream | None = None
         if config.market_memory.enabled:
             self.market_memory = MarketMemoryStream(config.market_memory)
 
         # ── Stream 6: Dynamic Feature Gate ───────────────────────────────
-        self.feature_gate: Optional[DynamicFeatureGate] = None
+        self.feature_gate: DynamicFeatureGate | None = None
         if config.feature_gate.enabled and config.engineered_features.enabled:
             self.feature_gate = DynamicFeatureGate(
                 feature_dim=config.engineered_features.input_dim,
@@ -130,7 +130,7 @@ class HybridEncoder(nn.Module):
         """
         batch_size = hybrid_input.batch_size
         stream_outputs: list[torch.Tensor] = []
-        gate_context: Optional[torch.Tensor] = None
+        gate_context: torch.Tensor | None = None
 
         # Stream 1 — Raw Market
         if self.raw_market is not None and hybrid_input.raw_sequence is not None:

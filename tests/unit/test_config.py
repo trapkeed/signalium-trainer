@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from trainer.config.schema import (
     Environment,
     OptimizerType,

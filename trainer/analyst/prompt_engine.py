@@ -9,9 +9,7 @@ Builds structured prompts for the LLM including:
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
-from trainer.analyst.analyst_models import ChatMessage, KnowledgeChunk
+from trainer.analyst.analyst_models import ChatMessage
 from trainer.analyst.analyst_types import QueryType, ReportType
 
 _SYSTEM_PROMPT = """You are SAQRA — Signalium's AI Quant Research Analyst.
@@ -40,7 +38,7 @@ RESPONSE FORMAT:
 - End with a one-line disclaimer confirming no trading signals are implied.
 """
 
-_TEMPLATES: Dict[str, str] = {
+_TEMPLATES: dict[str, str] = {
     QueryType.CHAT.value: """{system}
 
 RESEARCH CONTEXT:
@@ -138,7 +136,7 @@ Generate a professional institutional research report. Structure:
 class PromptEngine:
     """Builds structured prompts for the LLM."""
 
-    def __init__(self, system_prompt: Optional[str] = None):
+    def __init__(self, system_prompt: str | None = None):
         self._system = system_prompt or _SYSTEM_PROMPT
 
     def build(
@@ -146,9 +144,9 @@ class PromptEngine:
         query_type: QueryType,
         query: str,
         context: str,
-        history: Optional[List[ChatMessage]] = None,
+        history: list[ChatMessage] | None = None,
         period: str = "",
-        report_type: Optional[ReportType] = None,
+        report_type: ReportType | None = None,
     ) -> str:
         """Build a complete prompt for the given query type."""
         template = _TEMPLATES.get(query_type.value, _TEMPLATES[QueryType.CHAT.value])
@@ -181,7 +179,7 @@ class PromptEngine:
     def get_template(self, query_type: QueryType) -> str:
         return _TEMPLATES.get(query_type.value, _TEMPLATES[QueryType.CHAT.value])
 
-    def list_templates(self) -> List[str]:
+    def list_templates(self) -> list[str]:
         return list(_TEMPLATES.keys())
 
     @property

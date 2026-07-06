@@ -27,8 +27,8 @@ from __future__ import annotations
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Regime snapshot
@@ -52,9 +52,9 @@ class RegimeSnapshot:
     spread_normalized: float = 1.0
     macro_indicator: str = ""
     notes: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "instrument": self.instrument,
@@ -93,10 +93,10 @@ class EvolutionDetection:
     change_magnitude: float = 0.0
     regime_before: str = ""
     regime_after: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "detection_id": self.detection_id,
             "instrument": self.instrument,
@@ -143,9 +143,9 @@ class MarketEvolutionMonitor:
         self.vol_threshold = volatility_shift_threshold
         self.trend_threshold = trend_shift_threshold
         self.liquidity_threshold = liquidity_shift_threshold
-        self._buffers: Dict[str, Deque[RegimeSnapshot]] = {}
-        self._all_snapshots: Dict[str, List[RegimeSnapshot]] = {}
-        self._detections: List[EvolutionDetection] = []
+        self._buffers: dict[str, deque[RegimeSnapshot]] = {}
+        self._all_snapshots: dict[str, list[RegimeSnapshot]] = {}
+        self._detections: list[EvolutionDetection] = []
 
     def _key(self, instrument: str, timeframe: str) -> str:
         return f"{instrument}:{timeframe}"
@@ -187,7 +187,7 @@ class MarketEvolutionMonitor:
         self._all_snapshots[key].append(snap)
         return snap
 
-    def detect_evolution(self, instrument: str, timeframe: str) -> List[EvolutionDetection]:
+    def detect_evolution(self, instrument: str, timeframe: str) -> list[EvolutionDetection]:
         """Detect structural changes for an instrument/timeframe pair.
 
         Returns a list of EvolutionDetection objects if changes are detected.
@@ -279,7 +279,7 @@ class MarketEvolutionMonitor:
 
         return detections
 
-    def detect_all(self) -> List[EvolutionDetection]:
+    def detect_all(self) -> list[EvolutionDetection]:
         """Run detection across all instrument/timeframe pairs."""
         all_detections = []
         for key in self._buffers:
@@ -287,7 +287,7 @@ class MarketEvolutionMonitor:
             all_detections.extend(self.detect_evolution(instrument, timeframe))
         return all_detections
 
-    def evolution_report(self, instrument: str, timeframe: Optional[str] = None) -> Dict[str, Any]:
+    def evolution_report(self, instrument: str, timeframe: str | None = None) -> dict[str, Any]:
         """Generate evolution report for an instrument."""
         keys = [k for k in self._buffers if k.startswith(f"{instrument}:")]
         if timeframe:
@@ -302,13 +302,13 @@ class MarketEvolutionMonitor:
             "total_snapshots": total_snaps,
             "n_detections": len(instrument_detections),
             "detections": instrument_detections,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def global_report(self) -> Dict[str, Any]:
+    def global_report(self) -> dict[str, Any]:
         """Generate a global market evolution report."""
-        by_type: Dict[str, int] = {}
-        by_severity: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        by_severity: dict[str, int] = {}
         for d in self._detections:
             by_type[d.change_type] = by_type.get(d.change_type, 0) + 1
             by_severity[d.severity] = by_severity.get(d.severity, 0) + 1
@@ -318,7 +318,7 @@ class MarketEvolutionMonitor:
             "by_type": by_type,
             "by_severity": by_severity,
             "recent_detections": [d.to_dict() for d in self._detections[-10:]],
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     @property

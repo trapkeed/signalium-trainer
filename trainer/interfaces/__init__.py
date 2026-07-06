@@ -35,14 +35,14 @@ from trainer.interfaces.future_encoders import (
 )
 
 __all__ = [
-    "BaseExternalEncoder",
-    "BaseReinforcementLearningInterface",
-    "BaseCrossAssetEncoder",
-    "BaseNewsEncoder",
-    "BaseMacroEncoder",
     "BaseAlternativeDataEncoder",
-    "BaseOrderBookEncoder",
-    "BaseOptionsDataEncoder",
-    "BaseSentimentEncoder",
+    "BaseCrossAssetEncoder",
+    "BaseExternalEncoder",
     "BaseGraphNeuralNetworkInterface",
+    "BaseMacroEncoder",
+    "BaseNewsEncoder",
+    "BaseOptionsDataEncoder",
+    "BaseOrderBookEncoder",
+    "BaseReinforcementLearningInterface",
+    "BaseSentimentEncoder",
 ]

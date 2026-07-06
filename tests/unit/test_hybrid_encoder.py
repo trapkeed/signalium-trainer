@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import pytest
 import torch
-import torch.nn as nn
 
 from trainer.models.quant_v1.hybrid import (
     AdaptiveFusionLayer,
@@ -739,4 +738,4 @@ class TestHybridConfig:
 
     def test_gate_min_ensures_non_zero(self) -> None:
         assert DynamicFeatureGate.GATE_MIN > 0
-        assert DynamicFeatureGate.GATE_MIN + DynamicFeatureGate.GATE_RANGE == pytest.approx(2.0)
+        assert pytest.approx(2.0) == DynamicFeatureGate.GATE_MIN + DynamicFeatureGate.GATE_RANGE

@@ -10,7 +10,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -31,13 +30,13 @@ class KnowledgeEntry:
     # REGIME | RESEARCH | LIFECYCLE_EVENT | PORTFOLIO_STATE
     title: str
     description: str
-    tags: List[str] = field(default_factory=list)
-    links: List[str] = field(default_factory=list)  # entry_ids of related entries
-    decision_ids: List[str] = field(default_factory=list)
-    metadata: Dict = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    links: list[str] = field(default_factory=list)  # entry_ids of related entries
+    decision_ids: list[str] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "entry_id": self.entry_id,
             "entry_type": self.entry_type,
@@ -55,8 +54,8 @@ class KnowledgeBase:
     """Searchable institutional knowledge base."""
 
     def __init__(self):
-        self._entries: Dict[str, KnowledgeEntry] = {}
-        self._decision_index: Dict[str, List[str]] = {}  # decision_id → [entry_ids]
+        self._entries: dict[str, KnowledgeEntry] = {}
+        self._decision_index: dict[str, list[str]] = {}  # decision_id → [entry_ids]
 
     # ── Add / Link ────────────────────────────────────────────────────────────
 
@@ -76,10 +75,10 @@ class KnowledgeBase:
         entry_type: str,
         title: str,
         description: str,
-        tags: Optional[List[str]] = None,
-        links: Optional[List[str]] = None,
-        decision_ids: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None,
+        tags: list[str] | None = None,
+        links: list[str] | None = None,
+        decision_ids: list[str] | None = None,
+        metadata: dict | None = None,
     ) -> KnowledgeEntry:
         entry = KnowledgeEntry(
             entry_id=str(uuid.uuid4())[:12],
@@ -141,10 +140,10 @@ class KnowledgeBase:
     def search(
         self,
         query: str = "",
-        entry_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        entry_type: str | None = None,
+        tags: list[str] | None = None,
         limit: int = 50,
-    ) -> List[KnowledgeEntry]:
+    ) -> list[KnowledgeEntry]:
         """Search the knowledge base by text query, type, and/or tags."""
         q = query.lower().strip()
         results = []
@@ -163,12 +162,12 @@ class KnowledgeBase:
         results.sort(key=lambda e: e.created_at, reverse=True)
         return results[:limit]
 
-    def entries_for_decision(self, decision_id: str) -> List[KnowledgeEntry]:
+    def entries_for_decision(self, decision_id: str) -> list[KnowledgeEntry]:
         """Return all knowledge entries linked to a decision."""
         entry_ids = self._decision_index.get(decision_id, [])
         return [self._entries[eid] for eid in entry_ids if eid in self._entries]
 
-    def get(self, entry_id: str) -> Optional[KnowledgeEntry]:
+    def get(self, entry_id: str) -> KnowledgeEntry | None:
         return self._entries.get(entry_id)
 
     # ── Stats ─────────────────────────────────────────────────────────────────
@@ -176,19 +175,19 @@ class KnowledgeBase:
     def total(self) -> int:
         return len(self._entries)
 
-    def by_type(self) -> Dict[str, int]:
-        dist: Dict[str, int] = {}
+    def by_type(self) -> dict[str, int]:
+        dist: dict[str, int] = {}
         for e in self._entries.values():
             dist[e.entry_type] = dist.get(e.entry_type, 0) + 1
         return dist
 
-    def all_tags(self) -> List[str]:
+    def all_tags(self) -> list[str]:
         tags = set()
         for e in self._entries.values():
             tags.update(e.tags)
         return sorted(tags)
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
             "total_entries": self.total(),
             "by_type": self.by_type(),

@@ -9,9 +9,7 @@ recommendations:
 
 from __future__ import annotations
 
-import collections
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -36,7 +34,7 @@ class OptimisationFinding:
     confidence: float  # 0-1
     priority: int  # 1 = highest
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "finding_id": self.finding_id,
             "category": self.category,
@@ -53,12 +51,12 @@ class OptimisationReport:
     """Complete optimisation report."""
 
     total_analysed: int
-    findings: List[OptimisationFinding] = field(default_factory=list)
+    findings: list[OptimisationFinding] = field(default_factory=list)
     summary: str = ""
     key_insight: str = ""
-    top_priority: Optional[str] = None
+    top_priority: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total_analysed": self.total_analysed,
             "findings": [f.to_dict() for f in self.findings],
@@ -73,8 +71,8 @@ class LifecycleOptimizer:
 
     def optimise(
         self,
-        histories: List[List[StateRecord]],
-        final_states: Optional[List[LifecycleState]] = None,
+        histories: list[list[StateRecord]],
+        final_states: list[LifecycleState] | None = None,
     ) -> OptimisationReport:
         """Analyse lifecycle paths and generate optimisation recommendations."""
 
@@ -82,7 +80,7 @@ class LifecycleOptimizer:
             return OptimisationReport(total_analysed=0, summary="No data")
 
         n = len(histories)
-        findings: List[OptimisationFinding] = []
+        findings: list[OptimisationFinding] = []
         fid = 1
 
         # ── 1. Breakeven timing analysis ──────────────────────────────────────

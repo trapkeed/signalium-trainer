@@ -27,8 +27,8 @@ from __future__ import annotations
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Node and Edge constants
@@ -93,10 +93,10 @@ class GraphNode:
     node_id: str
     node_type: str
     label: str
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    attributes: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
             "node_type": self.node_type,
@@ -117,10 +117,10 @@ class GraphEdge:
     source_id: str = ""
     target_id: str = ""
     edge_type: str = ""
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    attributes: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "edge_id": self.edge_id,
             "source_id": self.source_id,
@@ -140,12 +140,12 @@ class KnowledgeGraph:
     """Directed knowledge graph of all Signalium research entities."""
 
     def __init__(self) -> None:
-        self._nodes: Dict[str, GraphNode] = {}
-        self._edges: Dict[str, GraphEdge] = {}
+        self._nodes: dict[str, GraphNode] = {}
+        self._edges: dict[str, GraphEdge] = {}
         # adjacency: source → list[edge_id]
-        self._out_edges: Dict[str, List[str]] = {}
+        self._out_edges: dict[str, list[str]] = {}
         # reverse adjacency: target → list[edge_id]
-        self._in_edges: Dict[str, List[str]] = {}
+        self._in_edges: dict[str, list[str]] = {}
 
     # ------------------------------------------------------------------
     # Node management
@@ -155,8 +155,8 @@ class KnowledgeGraph:
         self,
         node_type: str,
         label: str,
-        attributes: Optional[Dict[str, Any]] = None,
-        node_id: Optional[str] = None,
+        attributes: dict[str, Any] | None = None,
+        node_id: str | None = None,
     ) -> str:
         """Add or update a node, returning its node_id."""
         nid = node_id or str(uuid.uuid4())
@@ -171,10 +171,10 @@ class KnowledgeGraph:
         self._in_edges.setdefault(nid, [])
         return nid
 
-    def get_node(self, node_id: str) -> Optional[GraphNode]:
+    def get_node(self, node_id: str) -> GraphNode | None:
         return self._nodes.get(node_id)
 
-    def update_node_attributes(self, node_id: str, attributes: Dict[str, Any]) -> None:
+    def update_node_attributes(self, node_id: str, attributes: dict[str, Any]) -> None:
         node = self._nodes.get(node_id)
         if node:
             node.attributes.update(attributes)
@@ -188,7 +188,7 @@ class KnowledgeGraph:
         source_id: str,
         target_id: str,
         edge_type: str,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> str:
         """Add a directed edge, returning its edge_id."""
         if source_id not in self._nodes:
@@ -206,7 +206,7 @@ class KnowledgeGraph:
         self._in_edges.setdefault(target_id, []).append(edge.edge_id)
         return edge.edge_id
 
-    def get_edge(self, edge_id: str) -> Optional[GraphEdge]:
+    def get_edge(self, edge_id: str) -> GraphEdge | None:
         return self._edges.get(edge_id)
 
     # ------------------------------------------------------------------
@@ -217,16 +217,16 @@ class KnowledgeGraph:
         self,
         node_id: str,
         direction: str = "out",
-        edge_type: Optional[str] = None,
-    ) -> List[GraphNode]:
+        edge_type: str | None = None,
+    ) -> list[GraphNode]:
         """Return adjacent nodes.  direction: 'out', 'in', or 'both'."""
-        results: List[GraphNode] = []
-        edge_ids: List[str] = []
+        results: list[GraphNode] = []
+        edge_ids: list[str] = []
         if direction in ("out", "both"):
             edge_ids.extend(self._out_edges.get(node_id, []))
         if direction in ("in", "both"):
             edge_ids.extend(self._in_edges.get(node_id, []))
-        seen: Set[str] = set()
+        seen: set[str] = set()
         for eid in edge_ids:
             edge = self._edges.get(eid)
             if edge is None:
@@ -241,11 +241,11 @@ class KnowledgeGraph:
                     results.append(node)
         return results
 
-    def reachable(self, start_id: str, direction: str = "out") -> List[GraphNode]:
+    def reachable(self, start_id: str, direction: str = "out") -> list[GraphNode]:
         """Return all reachable nodes from start_id via BFS."""
-        visited: Set[str] = {start_id}
+        visited: set[str] = {start_id}
         queue: deque = deque([start_id])
-        result: List[GraphNode] = []
+        result: list[GraphNode] = []
         while queue:
             nid = queue.popleft()
             for neighbour in self.neighbours(nid, direction=direction):
@@ -255,11 +255,11 @@ class KnowledgeGraph:
                     queue.append(neighbour.node_id)
         return result
 
-    def shortest_path(self, source_id: str, target_id: str) -> List[str]:
+    def shortest_path(self, source_id: str, target_id: str) -> list[str]:
         """Return the shortest path (node IDs) between two nodes; [] if none."""
         if source_id not in self._nodes or target_id not in self._nodes:
             return []
-        visited: Set[str] = {source_id}
+        visited: set[str] = {source_id}
         queue: deque = deque([[source_id]])
         while queue:
             path = queue.popleft()
@@ -277,10 +277,10 @@ class KnowledgeGraph:
     # Typed queries
     # ------------------------------------------------------------------
 
-    def nodes_by_type(self, node_type: str) -> List[GraphNode]:
+    def nodes_by_type(self, node_type: str) -> list[GraphNode]:
         return [n for n in self._nodes.values() if n.node_type == node_type]
 
-    def experiments_using_dataset(self, dataset_node_id: str) -> List[GraphNode]:
+    def experiments_using_dataset(self, dataset_node_id: str) -> list[GraphNode]:
         return [
             n
             for n in self.neighbours(
@@ -289,7 +289,7 @@ class KnowledgeGraph:
             if n.node_type == NodeType.EXPERIMENT
         ]
 
-    def experiments_using_feature(self, feature_node_id: str) -> List[GraphNode]:
+    def experiments_using_feature(self, feature_node_id: str) -> list[GraphNode]:
         return [
             n
             for n in self.neighbours(
@@ -298,7 +298,7 @@ class KnowledgeGraph:
             if n.node_type == NodeType.EXPERIMENT
         ]
 
-    def model_lineage(self, model_node_id: str) -> Dict[str, Any]:
+    def model_lineage(self, model_node_id: str) -> dict[str, Any]:
         """Return full lineage for a model: parents, experiments, validation."""
         parents = self.neighbours(model_node_id, direction="in", edge_type=EdgeType.PARENT_OF)
         experiments = [
@@ -322,11 +322,11 @@ class KnowledgeGraph:
     # From LineageTree / snapshots helpers
     # ------------------------------------------------------------------
 
-    def register_experiment_node(self, node_id: str, name: str, attributes: Dict[str, Any]) -> str:
+    def register_experiment_node(self, node_id: str, name: str, attributes: dict[str, Any]) -> str:
         return self.add_node(NodeType.EXPERIMENT, name, attributes, node_id=node_id)
 
     def register_dataset_node(
-        self, dataset_version: str, dataset_hash: str, attributes: Dict[str, Any]
+        self, dataset_version: str, dataset_hash: str, attributes: dict[str, Any]
     ) -> str:
         nid = f"ds:{dataset_version}:{dataset_hash[:8]}"
         if nid not in self._nodes:
@@ -339,7 +339,7 @@ class KnowledgeGraph:
         return nid
 
     def register_model_node(
-        self, model_id: str, checkpoint_hash: str, attributes: Dict[str, Any]
+        self, model_id: str, checkpoint_hash: str, attributes: dict[str, Any]
     ) -> str:
         nid = f"mdl:{model_id}:{checkpoint_hash[:8]}"
         if nid not in self._nodes:
@@ -361,7 +361,7 @@ class KnowledgeGraph:
     # Serialisation
     # ------------------------------------------------------------------
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_count": len(self._nodes),
             "edge_count": len(self._edges),
@@ -370,7 +370,7 @@ class KnowledgeGraph:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "KnowledgeGraph":
+    def from_dict(cls, d: dict[str, Any]) -> KnowledgeGraph:
         kg = cls()
         for nd in d.get("nodes", []):
             node = GraphNode(
@@ -378,7 +378,7 @@ class KnowledgeGraph:
                 node_type=nd["node_type"],
                 label=nd["label"],
                 attributes=nd.get("attributes", {}),
-                created_at=nd.get("created_at", datetime.now(timezone.utc).isoformat()),
+                created_at=nd.get("created_at", datetime.now(UTC).isoformat()),
             )
             kg._nodes[node.node_id] = node
             kg._out_edges.setdefault(node.node_id, [])
@@ -390,7 +390,7 @@ class KnowledgeGraph:
                 target_id=ed["target_id"],
                 edge_type=ed["edge_type"],
                 attributes=ed.get("attributes", {}),
-                created_at=ed.get("created_at", datetime.now(timezone.utc).isoformat()),
+                created_at=ed.get("created_at", datetime.now(UTC).isoformat()),
             )
             kg._edges[edge.edge_id] = edge
             kg._out_edges.setdefault(edge.source_id, []).append(edge.edge_id)
@@ -401,11 +401,11 @@ class KnowledgeGraph:
     # Report
     # ------------------------------------------------------------------
 
-    def graph_report(self) -> Dict[str, Any]:
-        type_counts: Dict[str, int] = {}
+    def graph_report(self) -> dict[str, Any]:
+        type_counts: dict[str, int] = {}
         for n in self._nodes.values():
             type_counts[n.node_type] = type_counts.get(n.node_type, 0) + 1
-        edge_type_counts: Dict[str, int] = {}
+        edge_type_counts: dict[str, int] = {}
         for e in self._edges.values():
             edge_type_counts[e.edge_type] = edge_type_counts.get(e.edge_type, 0) + 1
         return {

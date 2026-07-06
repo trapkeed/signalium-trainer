@@ -33,8 +33,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -59,7 +59,7 @@ from trainer.ensemble.strategies import (
     build_strategy,
 )
 from trainer.ensemble.visualization import EnsembleVisualizationBuilder
-from trainer.ensemble.weighting import DynamicWeightEngine, WeightFactorConfig
+from trainer.ensemble.weighting import DynamicWeightEngine
 
 # ---------------------------------------------------------------------------
 # Ensemble config
@@ -91,11 +91,11 @@ class EnsembleConfig:
     meta_learning_rate: float = 0.01
     persist_routing: bool = True
     persist_votes: bool = True
-    auto_retire_threshold: Optional[float] = None
+    auto_retire_threshold: float | None = None
     export_dir: str = "experiments/ensemble/exports"
     ensemble_version: str = "1.0.0"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "db_path": self.db_path,
             "strategy": self.strategy,
@@ -111,7 +111,7 @@ class EnsembleConfig:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "EnsembleConfig":
+    def from_dict(d: dict[str, Any]) -> EnsembleConfig:
         cfg = EnsembleConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -140,16 +140,16 @@ class PredictionBundle:
     """
 
     bundle_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    routing_decision: Optional[RoutingDecision] = None
-    expert_predictions: List[ExpertPrediction] = field(default_factory=list)
-    ensemble_result: Optional[EnsembleResult] = None
-    meta_prediction: Optional[MetaPrediction] = None
-    final_result: Optional[EnsembleResult] = None
-    features: Dict[str, Any] = field(default_factory=dict)
-    context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    routing_decision: RoutingDecision | None = None
+    expert_predictions: list[ExpertPrediction] = field(default_factory=list)
+    ensemble_result: EnsembleResult | None = None
+    meta_prediction: MetaPrediction | None = None
+    final_result: EnsembleResult | None = None
+    features: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         final = self.meta_prediction or self.ensemble_result
         return {
             "bundle_id": self.bundle_id,
@@ -186,8 +186,8 @@ class EnsembleEngine:
 
     def __init__(
         self,
-        config: Optional[EnsembleConfig] = None,
-        registry: Optional[ExpertRegistry] = None,
+        config: EnsembleConfig | None = None,
+        registry: ExpertRegistry | None = None,
     ) -> None:
         self.config = config or EnsembleConfig()
         self.registry = registry or build_default_registry()
@@ -254,8 +254,8 @@ class EnsembleEngine:
 
     def predict(
         self,
-        features: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None,
+        features: dict[str, Any],
+        context: dict[str, Any] | None = None,
     ) -> PredictionBundle:
         """Run a full ensemble prediction cycle.
 
@@ -363,7 +363,7 @@ class EnsembleEngine:
         result_id: str,
         true_class: str,
         profit_pnl: float = 0.0,
-        expert_id: Optional[str] = None,
+        expert_id: str | None = None,
     ) -> None:
         """Record the ground truth outcome for a prediction.
 
@@ -407,10 +407,10 @@ class EnsembleEngine:
 
     def update_meta_model(
         self,
-        expert_predictions: List[ExpertPrediction],
-        weights: Dict[str, float],
+        expert_predictions: list[ExpertPrediction],
+        weights: dict[str, float],
         true_class: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> float:
         """Manually provide a labeled example to update the meta model."""
         return self.meta_model.update(expert_predictions, weights, true_class, context)
@@ -419,7 +419,7 @@ class EnsembleEngine:
     # Weight updates
     # -----------------------------------------------------------------------
 
-    def update_weights(self, context: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
+    def update_weights(self, context: dict[str, Any] | None = None) -> dict[str, float]:
         """Recompute expert weights from recent performance and context."""
         metrics = {}
         for expert in self.registry.active_experts():
@@ -488,11 +488,11 @@ class EnsembleEngine:
     # Dashboard and export
     # -----------------------------------------------------------------------
 
-    def get_dashboard(self) -> Dict[str, Any]:
+    def get_dashboard(self) -> dict[str, Any]:
         """Return full dashboard via API."""
         return self.api.get_dashboard()
 
-    def export_bundle(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def export_bundle(self, path: str | None = None) -> dict[str, Any]:
         """Export the full ensemble bundle to JSON."""
         exporter = EnsembleExporter(
             registry=self.registry,
@@ -505,7 +505,7 @@ class EnsembleEngine:
             exporter.save_bundle(bundle, path)
         return bundle
 
-    def export_inference_contract(self) -> Dict[str, Any]:
+    def export_inference_contract(self) -> dict[str, Any]:
         """Export inference contract."""
         exporter = EnsembleExporter(
             registry=self.registry,
@@ -542,17 +542,17 @@ class EnsembleEngine:
     # -----------------------------------------------------------------------
 
     @staticmethod
-    def from_config(config_dict: Dict[str, Any]) -> "EnsembleEngine":
+    def from_config(config_dict: dict[str, Any]) -> EnsembleEngine:
         """Create EnsembleEngine from a config dict."""
         cfg = EnsembleConfig.from_dict(config_dict)
         return EnsembleEngine(config=cfg)
 
     @staticmethod
-    def from_yaml(yaml_path: str) -> "EnsembleEngine":
+    def from_yaml(yaml_path: str) -> EnsembleEngine:
         """Create EnsembleEngine from a YAML config file."""
         import yaml
 
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("ensemble", data)
         return EnsembleEngine.from_config(cfg_data)

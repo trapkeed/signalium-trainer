@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -78,7 +78,7 @@ class HyperparameterRecord:
         return base
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "HyperparameterRecord":
+    def from_dict(cls, d: dict[str, Any]) -> HyperparameterRecord:
         """Reconstruct from a dict.
 
         Known keys are mapped to structured fields; unknown keys go to ``extra``.
@@ -119,7 +119,7 @@ class HyperparameterRecord:
             kwargs["extra"] = extra
         return cls(**kwargs)
 
-    def diff(self, other: "HyperparameterRecord") -> dict[str, tuple[Any, Any]]:
+    def diff(self, other: HyperparameterRecord) -> dict[str, tuple[Any, Any]]:
         """Return hyperparameters that differ between self and other.
 
         Args:

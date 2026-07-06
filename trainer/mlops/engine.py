@@ -36,10 +36,8 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from loguru import logger
 
@@ -53,7 +51,7 @@ from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
 from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 from trainer.mlops.lifecycle import LifecycleManager
 from trainer.mlops.monitoring import ProductionMonitor
-from trainer.mlops.registry import LifecycleState, ModelRecord, ModelRegistry
+from trainer.mlops.registry import ModelRecord, ModelRegistry
 from trainer.mlops.retraining import (
     RetrainingPolicyManager,
     build_default_policies,
@@ -94,11 +92,11 @@ class MLOpsConfig:
     export_dir: str = "experiments/mlops/exports"
     enable_default_retraining_policies: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items()}
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "MLOpsConfig":
+    def from_dict(d: dict[str, Any]) -> MLOpsConfig:
         cfg = MLOpsConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -121,7 +119,7 @@ class MLOpsEngine:
         config: MLOpsConfig.
     """
 
-    def __init__(self, config: Optional[MLOpsConfig] = None) -> None:
+    def __init__(self, config: MLOpsConfig | None = None) -> None:
         self.config = config or MLOpsConfig()
         self.db = MLOpsDatabase(self.config.db_path)
         self.registry = ModelRegistry()
@@ -192,14 +190,14 @@ class MLOpsEngine:
     # Registration
     # -----------------------------------------------------------------------
 
-    def register_model(self, model_dict: Dict[str, Any]) -> str:
+    def register_model(self, model_dict: dict[str, Any]) -> str:
         """Register a model in the registry and database. Returns model_id."""
         resp = self.api.register_model(model_dict)
         if resp["status"] == "error":
             raise ValueError(resp["message"])
         return resp["data"]["model_id"]
 
-    def get_model(self, model_id: str) -> Optional[ModelRecord]:
+    def get_model(self, model_id: str) -> ModelRecord | None:
         return self.registry.get(model_id)
 
     # -----------------------------------------------------------------------
@@ -208,15 +206,15 @@ class MLOpsEngine:
 
     def transition(
         self, model_id: str, to_state: str, actor: str = "system", reason: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Transition a model to a new lifecycle state."""
         return self.api.transition(model_id, to_state, actor=actor, reason=reason)
 
-    def approve(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
+    def approve(self, model_id: str, approver: str, reason: str = "") -> dict[str, Any]:
         """Approve a candidate model."""
         return self.api.approve_model(model_id, approver=approver, reason=reason)
 
-    def reject(self, model_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
+    def reject(self, model_id: str, approver: str, reason: str = "") -> dict[str, Any]:
         """Reject a candidate model."""
         return self.api.reject_model(model_id, approver=approver, reason=reason)
 
@@ -238,7 +236,7 @@ class MLOpsEngine:
 
     def deploy(
         self, model_id: str, target: str = "production", approver: str = "system", reason: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Deploy a model to production/champion/shadow."""
         return self.api.deploy(
             model_id, target=target, approver=approver, actor=approver, reason=reason
@@ -246,7 +244,7 @@ class MLOpsEngine:
 
     def rollback(
         self, model_id: str, actor: str = "ops", reason: str = "", emergency: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Roll back a deployed model."""
         return self.api.rollback(model_id, actor=actor, reason=reason, emergency=emergency)
 
@@ -256,11 +254,11 @@ class MLOpsEngine:
 
     def set_champion(
         self, model_id: str, approver: str = "system", reason: str = ""
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Set a model as champion."""
         return self.api.set_champion(model_id, approver=approver, reason=reason)
 
-    def add_challenger(self, model_id: str, reason: str = "") -> Dict[str, Any]:
+    def add_challenger(self, model_id: str, reason: str = "") -> dict[str, Any]:
         """Add a model to the challenger queue."""
         return self.api.add_challenger(model_id, reason=reason)
 
@@ -268,9 +266,9 @@ class MLOpsEngine:
         self,
         model_a_id: str,
         model_b_id: str,
-        metrics_a: Optional[Dict[str, float]] = None,
-        metrics_b: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        metrics_a: dict[str, float] | None = None,
+        metrics_b: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
         """Compare two models."""
         return self.api.compare_models(
             model_a_id, model_b_id, metrics_a=metrics_a, metrics_b=metrics_b
@@ -292,7 +290,7 @@ class MLOpsEngine:
         cpu_pct: float = 0.0,
         gpu_pct: float = 0.0,
         memory_mb: float = 0.0,
-        true_class: Optional[str] = None,
+        true_class: str | None = None,
         regime: str = "",
     ) -> None:
         """Record one inference event for monitoring and health tracking."""
@@ -321,11 +319,11 @@ class MLOpsEngine:
             regime=regime,
         )
 
-    def check_health(self, model_id: str) -> Dict[str, Any]:
+    def check_health(self, model_id: str) -> dict[str, Any]:
         """Check model health and emit alerts if needed."""
         return self.api.get_health_report(model_id)
 
-    def check_all_health(self) -> Dict[str, Dict[str, Any]]:
+    def check_all_health(self) -> dict[str, dict[str, Any]]:
         """Check health for all registered models."""
         return {
             m.model_id: self.api.get_health_report(m.model_id) for m in self.registry.all_models()
@@ -341,12 +339,12 @@ class MLOpsEngine:
         model_id: str,
         category: str,
         message: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Emit a manual alert."""
         return self.api.emit_alert(level, model_id, category, message, metadata=metadata)
 
-    def active_alerts(self, model_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def active_alerts(self, model_id: str | None = None) -> list[dict[str, Any]]:
         """Return all active alerts."""
         return self.alerting.active_alerts(model_id=model_id)
 
@@ -354,7 +352,7 @@ class MLOpsEngine:
     # Retraining
     # -----------------------------------------------------------------------
 
-    def evaluate_retraining(self, model_id: str, metrics: Dict[str, float]) -> Dict[str, Any]:
+    def evaluate_retraining(self, model_id: str, metrics: dict[str, float]) -> dict[str, Any]:
         """Evaluate retraining policies. Returns recommendations only."""
         return self.api.evaluate_retraining(model_id, metrics)
 
@@ -362,35 +360,35 @@ class MLOpsEngine:
     # Exports and dashboard
     # -----------------------------------------------------------------------
 
-    def get_dashboard(self) -> Dict[str, Any]:
+    def get_dashboard(self) -> dict[str, Any]:
         """Return the full MLOps dashboard."""
         return self.api.get_dashboard()
 
-    def get_readiness_report(self) -> Dict[str, Any]:
+    def get_readiness_report(self) -> dict[str, Any]:
         """Generate the full institutional MLOps readiness report."""
         return self.exporter.export_mlops_readiness_report()
 
-    def export_registry(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def export_registry(self, path: str | None = None) -> dict[str, Any]:
         data = self.exporter.export_registry()
         if path:
             self.exporter.save(data, path)
         return data
 
     def export_audit_report(
-        self, model_id: Optional[str] = None, path: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, model_id: str | None = None, path: str | None = None
+    ) -> dict[str, Any]:
         data = self.exporter.export_audit_report(model_id=model_id)
         if path:
             self.exporter.save(data, path)
         return data
 
-    def export_deployment_report(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def export_deployment_report(self, path: str | None = None) -> dict[str, Any]:
         data = self.exporter.export_deployment_report()
         if path:
             self.exporter.save(data, path)
         return data
 
-    def export_health_report(self, path: Optional[str] = None) -> Dict[str, Any]:
+    def export_health_report(self, path: str | None = None) -> dict[str, Any]:
         data = self.exporter.export_health_report()
         if path:
             self.exporter.save(data, path)
@@ -420,16 +418,16 @@ class MLOpsEngine:
     # -----------------------------------------------------------------------
 
     @staticmethod
-    def from_config(config_dict: Dict[str, Any]) -> "MLOpsEngine":
+    def from_config(config_dict: dict[str, Any]) -> MLOpsEngine:
         """Create MLOpsEngine from a config dict."""
         return MLOpsEngine(config=MLOpsConfig.from_dict(config_dict))
 
     @staticmethod
-    def from_yaml(yaml_path: str) -> "MLOpsEngine":
+    def from_yaml(yaml_path: str) -> MLOpsEngine:
         """Create MLOpsEngine from a YAML config file."""
         import yaml
 
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             data = yaml.safe_load(f)
         cfg_data = data.get("mlops", data)
         return MLOpsEngine.from_config(cfg_data)

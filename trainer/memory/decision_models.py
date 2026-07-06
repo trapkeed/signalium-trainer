@@ -5,14 +5,12 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 from trainer.memory.decision_types import (
     DecisionGrade,
     DecisionType,
     MarketRegime,
     OutcomeType,
-    QualityFactor,
     VolatilityRegime,
 )
 
@@ -53,11 +51,11 @@ class DecisionSnapshot:
     correlation_risk: float = 0.0  # 0-1
 
     # Detailed dicts (stored as JSON)
-    risk_metrics: Dict = field(default_factory=dict)
-    feature_snapshot: Dict = field(default_factory=dict)
-    expert_weights: Dict = field(default_factory=dict)
+    risk_metrics: dict = field(default_factory=dict)
+    feature_snapshot: dict = field(default_factory=dict)
+    expert_weights: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "price": round(self.price, 5),
             "atr": round(self.atr, 5),
@@ -93,15 +91,15 @@ class DecisionSnapshot:
 class DecisionReasoning:
     """Structured decision reasoning — never free-form chain-of-thought."""
 
-    primary_reasons: List[str] = field(default_factory=list)
-    supporting_factors: List[str] = field(default_factory=list)
-    contradicting_factors: List[str] = field(default_factory=list)
-    risk_factors: List[str] = field(default_factory=list)
-    uncertainty_sources: List[str] = field(default_factory=list)
-    alternatives_considered: List[str] = field(default_factory=list)
+    primary_reasons: list[str] = field(default_factory=list)
+    supporting_factors: list[str] = field(default_factory=list)
+    contradicting_factors: list[str] = field(default_factory=list)
+    risk_factors: list[str] = field(default_factory=list)
+    uncertainty_sources: list[str] = field(default_factory=list)
+    alternatives_considered: list[str] = field(default_factory=list)
     final_rationale: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "primary_reasons": self.primary_reasons,
             "supporting_factors": self.supporting_factors,
@@ -121,7 +119,7 @@ class DecisionOutcome:
     """Recorded outcome for a completed decision."""
 
     outcome_type: OutcomeType
-    actual_direction_correct: Optional[bool] = None
+    actual_direction_correct: bool | None = None
     actual_pnl: float = 0.0  # price units
     actual_pnl_pct: float = 0.0  # fraction of account
     hit_tp: bool = False
@@ -131,7 +129,7 @@ class DecisionOutcome:
     notes: str = ""
     recorded_at: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "outcome_type": self.outcome_type.value,
             "actual_direction_correct": self.actual_direction_correct,
@@ -155,10 +153,10 @@ class DecisionScore:
 
     overall: float
     grade: DecisionGrade
-    sub_scores: Dict[str, float] = field(default_factory=dict)
-    notes: List[str] = field(default_factory=list)
+    sub_scores: dict[str, float] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "overall": round(self.overall, 4),
             "grade": self.grade.value,
@@ -183,7 +181,7 @@ class CounterfactualResult:
     delta_pnl: float = 0.0  # alternative - actual
     notes: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "scenario": self.scenario,
             "alternative_action": self.alternative_action,
@@ -209,10 +207,10 @@ class DecisionRecord:
     timestamp: float
     snapshot: DecisionSnapshot
     reasoning: DecisionReasoning
-    outcome: Optional[DecisionOutcome] = None
-    score: Optional[DecisionScore] = None
-    counterfactuals: List[CounterfactualResult] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    outcome: DecisionOutcome | None = None
+    score: DecisionScore | None = None
+    counterfactuals: list[CounterfactualResult] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     lineage_id: str = ""
     trade_id: str = ""  # link to TradeLifecycle
     notes: str = ""
@@ -224,10 +222,10 @@ class DecisionRecord:
         instrument: str,
         snapshot: DecisionSnapshot,
         reasoning: DecisionReasoning,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         trade_id: str = "",
         lineage_id: str = "",
-    ) -> "DecisionRecord":
+    ) -> DecisionRecord:
         return cls(
             decision_id=str(uuid.uuid4()),
             decision_type=decision_type,
@@ -253,10 +251,10 @@ class DecisionRecord:
         return self.decision_type in (DecisionType.BUY, DecisionType.SELL)
 
     @property
-    def grade(self) -> Optional[str]:
+    def grade(self) -> str | None:
         return self.score.grade.value if self.score else None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "decision_id": self.decision_id,
             "decision_type": self.decision_type.value,
@@ -276,7 +274,7 @@ class DecisionRecord:
             "counterfactuals": [c.to_dict() for c in self.counterfactuals],
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         return {
             "decision_id": self.decision_id,
             "decision_type": self.decision_type.value,

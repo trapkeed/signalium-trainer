@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 from loguru import logger
@@ -28,7 +28,7 @@ class StandardEvaluator(BaseEvaluator):
         self,
         model: BaseQuantModel,
         config: TrainerConfig,
-        num_classes: Optional[int] = None,
+        num_classes: int | None = None,
     ) -> None:
         super().__init__(model, config)
         self._device = resolve_device(config.gpu.device)

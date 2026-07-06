@@ -11,7 +11,6 @@ designed to be drop-in additions when higher-resolution data is available.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -41,13 +40,13 @@ class OrderFlowBar:
     sell_volume: float = 0.0
     bid_imbalance: float = 0.0  # -1 to +1
     ask_imbalance: float = 0.0
-    depth_levels: List[OrderBookLevel] = field(default_factory=list)
+    depth_levels: list[OrderBookLevel] = field(default_factory=list)
 
     @property
     def cumulative_delta(self) -> float:
         return self.volume_delta
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "timestamp": self.timestamp,
             "volume_delta": round(self.volume_delta, 2),
@@ -72,7 +71,7 @@ class OrderFlowInterface:
         """Returns False until order flow data integration is complete."""
         return False
 
-    def volume_delta(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
+    def volume_delta(self, bars: list[OrderFlowBar] | None) -> float | None:
         """Net directional volume pressure (+= buy pressure, -= sell pressure)."""
         if not bars:
             return None
@@ -82,7 +81,7 @@ class OrderFlowInterface:
             return None
         return round(total_delta / total_vol, 4)
 
-    def bid_ask_imbalance(self, levels: Optional[List[OrderBookLevel]]) -> Optional[float]:
+    def bid_ask_imbalance(self, levels: list[OrderBookLevel] | None) -> float | None:
         """Order book imbalance across all levels."""
         if not levels:
             return None
@@ -93,13 +92,13 @@ class OrderFlowInterface:
             return None
         return round((total_bid - total_ask) / total, 4)
 
-    def cumulative_delta(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
+    def cumulative_delta(self, bars: list[OrderFlowBar] | None) -> float | None:
         """Running sum of volume delta — measures persistent buy/sell pressure."""
         if not bars:
             return None
         return round(sum(b.volume_delta for b in bars), 2)
 
-    def footprint_imbalance(self, bar: Optional[OrderFlowBar]) -> Optional[float]:
+    def footprint_imbalance(self, bar: OrderFlowBar | None) -> float | None:
         """Price-level imbalance from footprint chart data."""
         if not bar or not bar.depth_levels:
             return None
@@ -107,15 +106,15 @@ class OrderFlowInterface:
         return round(sum(imbalances) / len(imbalances), 4) if imbalances else None
 
     def order_book_imbalance(
-        self, levels: Optional[List[OrderBookLevel]], top_n: int = 5
-    ) -> Optional[float]:
+        self, levels: list[OrderBookLevel] | None, top_n: int = 5
+    ) -> float | None:
         """Top-of-book imbalance (most relevant to price)."""
         if not levels:
             return None
         top = levels[:top_n]
         return self.bid_ask_imbalance(top)
 
-    def market_depth(self, levels: Optional[List[OrderBookLevel]]) -> Optional[Dict]:
+    def market_depth(self, levels: list[OrderBookLevel] | None) -> dict | None:
         """Total available liquidity on each side."""
         if not levels:
             return None
@@ -125,7 +124,7 @@ class OrderFlowInterface:
             "levels": len(levels),
         }
 
-    def absorption_score(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
+    def absorption_score(self, bars: list[OrderFlowBar] | None) -> float | None:
         """Detect absorption: high volume with small price change.
 
         High score = price is being absorbed (large player defending a level).
@@ -139,7 +138,7 @@ class OrderFlowInterface:
         # Will be computed from price + volume data when available
         return None  # Implementation pending tick + DOM data
 
-    def iceberg_probability(self, bars: Optional[List[OrderFlowBar]]) -> Optional[float]:
+    def iceberg_probability(self, bars: list[OrderFlowBar] | None) -> float | None:
         """Estimate probability of iceberg orders at current price.
 
         Icebergs leave a signature of repeated small fills at the same price.
@@ -149,7 +148,7 @@ class OrderFlowInterface:
             return None
         return None  # Implementation pending tick data
 
-    def data_quality_report(self) -> Dict:
+    def data_quality_report(self) -> dict:
         """Report on what order flow data is available."""
         return {
             "available": False,

@@ -11,8 +11,6 @@ Six dashboard views for the Trade Lifecycle Intelligence Engine:
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -34,9 +32,9 @@ class LifecycleDashboard:
         trade_id: str,
         instrument: str,
         direction: str,
-        state_history: List[StateRecord],
+        state_history: list[StateRecord],
         current_state: LifecycleState,
-    ) -> Dict:
+    ) -> dict:
         """Chronological state timeline for a single trade."""
 
         timeline = []
@@ -71,13 +69,13 @@ class LifecycleDashboard:
 
     def state_transition_graph(
         self,
-        state_history: List[StateRecord],
-        all_histories: Optional[List[List[StateRecord]]] = None,
-    ) -> Dict:
+        state_history: list[StateRecord],
+        all_histories: list[list[StateRecord]] | None = None,
+    ) -> dict:
         """Adjacency representation of all observed transitions."""
 
         # Count transitions in this trade
-        edges: Dict[str, Dict[str, int]] = {}
+        edges: dict[str, dict[str, int]] = {}
         history = state_history
 
         def add_edge(frm: str, to: str) -> None:
@@ -116,9 +114,9 @@ class LifecycleDashboard:
         trade_id: str,
         instrument: str,
         direction: str,
-        state_history: List[StateRecord],
-        events: List[LifecycleEvent],
-    ) -> Dict:
+        state_history: list[StateRecord],
+        events: list[LifecycleEvent],
+    ) -> dict:
         """Human-readable narrative journey of the trade."""
 
         steps = []
@@ -188,8 +186,8 @@ class LifecycleDashboard:
     def confidence_timeline(
         self,
         trade_id: str,
-        state_history: List[StateRecord],
-    ) -> Dict:
+        state_history: list[StateRecord],
+    ) -> dict:
         """Confidence evolution across all lifecycle states."""
 
         points = [
@@ -232,12 +230,12 @@ class LifecycleDashboard:
 
     def transition_matrix(
         self,
-        all_histories: List[List[StateRecord]],
-    ) -> Dict:
+        all_histories: list[list[StateRecord]],
+    ) -> dict:
         """Frequency matrix of all state transitions across a portfolio."""
 
         # Build raw counts
-        matrix: Dict[str, Dict[str, int]] = {}
+        matrix: dict[str, dict[str, int]] = {}
         all_states = set()
 
         for history in all_histories:
@@ -251,7 +249,7 @@ class LifecycleDashboard:
         states = sorted(all_states)
 
         # Normalise rows to probabilities
-        prob_matrix: Dict[str, Dict[str, float]] = {}
+        prob_matrix: dict[str, dict[str, float]] = {}
         for frm, tos in matrix.items():
             total = sum(tos.values())
             prob_matrix[frm] = {to: round(cnt / total, 4) for to, cnt in tos.items()}
@@ -269,9 +267,9 @@ class LifecycleDashboard:
 
     def lifecycle_statistics(
         self,
-        all_histories: List[List[StateRecord]],
-        final_states: Optional[List[LifecycleState]] = None,
-    ) -> Dict:
+        all_histories: list[list[StateRecord]],
+        final_states: list[LifecycleState] | None = None,
+    ) -> dict:
         """Aggregate statistics panel."""
 
         n = len(all_histories)
@@ -279,7 +277,7 @@ class LifecycleDashboard:
             return {"view": "lifecycle_statistics", "total_trades": 0}
 
         # State visit frequencies
-        state_visits: Dict[str, int] = {}
+        state_visits: dict[str, int] = {}
         for history in all_histories:
             for record in history:
                 k = record.state.value
@@ -290,7 +288,7 @@ class LifecycleDashboard:
         avg_length = sum(lengths) / len(lengths) if lengths else 0.0
 
         # Final state distribution
-        final_dist: Dict[str, int] = {}
+        final_dist: dict[str, int] = {}
         if final_states:
             for fs in final_states:
                 k = fs.value

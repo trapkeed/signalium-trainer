@@ -29,14 +29,13 @@ import json
 import sqlite3
 import threading
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
-from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial
+from trainer.automl.experiment import ExperimentRecord, SearchJob
 
 # ---------------------------------------------------------------------------
 # Schema DDL
@@ -214,14 +213,14 @@ class AutoMLDatabase:
         self._conn.commit()
         return job.job_id
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
         """Return a search job dict or None."""
         row = self._conn.execute("SELECT * FROM search_jobs WHERE job_id = ?", (job_id,)).fetchone()
         if not row:
             return None
         return self._job_row_to_dict(row)
 
-    def list_jobs(self, status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def list_jobs(self, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """List search jobs, optionally filtered by status."""
         if status:
             rows = self._conn.execute(
@@ -238,8 +237,8 @@ class AutoMLDatabase:
         self,
         job_id: str,
         status: str,
-        best_score: Optional[float] = None,
-        champion_trial_id: Optional[str] = None,
+        best_score: float | None = None,
+        champion_trial_id: str | None = None,
     ) -> None:
         """Update job status and optionally champion info."""
         self._conn.execute(
@@ -252,7 +251,7 @@ class AutoMLDatabase:
         )
         self._conn.commit()
 
-    def _job_row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
+    def _job_row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
         d["objectives"] = json.loads(d.pop("objectives_json", "[]"))
         d["metadata"] = json.loads(d.pop("metadata_json", "{}"))
@@ -322,7 +321,7 @@ class AutoMLDatabase:
         self._conn.commit()
         return record.record_id
 
-    def get_record(self, record_id: str) -> Optional[Dict[str, Any]]:
+    def get_record(self, record_id: str) -> dict[str, Any] | None:
         """Return an experiment record dict or None."""
         row = self._conn.execute(
             "SELECT * FROM experiment_records WHERE record_id = ?", (record_id,)
@@ -331,9 +330,7 @@ class AutoMLDatabase:
             return None
         return self._record_row_to_dict(row)
 
-    def get_records_for_job(
-        self, job_id: str, status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def get_records_for_job(self, job_id: str, status: str | None = None) -> list[dict[str, Any]]:
         """Return all experiment records for a job."""
         if status:
             rows = self._conn.execute(
@@ -351,15 +348,15 @@ class AutoMLDatabase:
 
     def list_records(
         self,
-        job_id: Optional[str] = None,
-        status: Optional[str] = None,
-        backbone: Optional[str] = None,
+        job_id: str | None = None,
+        status: str | None = None,
+        backbone: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List experiment records with optional filters."""
         clauses = []
-        params: List[Any] = []
+        params: list[Any] = []
         if job_id:
             clauses.append("job_id = ?")
             params.append(job_id)
@@ -384,7 +381,7 @@ class AutoMLDatabase:
         )
         self._conn.commit()
 
-    def _record_row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
+    def _record_row_to_dict(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
         for key in (
             "config_json",
@@ -432,13 +429,13 @@ class AutoMLDatabase:
                 threshold,
                 int(prune),
                 reason,
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
         return decision_id
 
-    def get_pruning_history(self, trial_id: str) -> List[Dict[str, Any]]:
+    def get_pruning_history(self, trial_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM pruning_decisions WHERE trial_id = ? ORDER BY step", (trial_id,)
         ).fetchall()
@@ -458,7 +455,7 @@ class AutoMLDatabase:
         manually_approved: bool,
         champion_status: bool,
         rollback_eligible: bool,
-        rules: List[Dict[str, Any]],
+        rules: list[dict[str, Any]],
         notes: str = "",
     ) -> str:
         decision_id = str(uuid.uuid4())
@@ -478,7 +475,7 @@ class AutoMLDatabase:
                 int(manually_approved),
                 int(champion_status),
                 int(rollback_eligible),
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
                 json.dumps(rules),
                 notes or None,
             ),
@@ -487,8 +484,8 @@ class AutoMLDatabase:
         return decision_id
 
     def get_promotion_history(
-        self, job_id: Optional[str] = None, limit: int = 50
-    ) -> List[Dict[str, Any]]:
+        self, job_id: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         if job_id:
             rows = self._conn.execute(
                 "SELECT * FROM promotion_decisions WHERE job_id = ? "
@@ -518,7 +515,7 @@ class AutoMLDatabase:
     # Analytics queries
     # -----------------------------------------------------------------------
 
-    def best_record(self, job_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def best_record(self, job_id: str | None = None) -> dict[str, Any] | None:
         """Return the record with the highest primary_score."""
         if job_id:
             row = self._conn.execute(
@@ -532,7 +529,7 @@ class AutoMLDatabase:
             ).fetchone()
         return self._record_row_to_dict(row) if row else None
 
-    def score_history(self, job_id: str) -> List[Dict[str, Any]]:
+    def score_history(self, job_id: str) -> list[dict[str, Any]]:
         """Return (created_at, primary_score) pairs for a job."""
         rows = self._conn.execute(
             "SELECT created_at, primary_score FROM experiment_records "
@@ -541,7 +538,7 @@ class AutoMLDatabase:
         ).fetchall()
         return [{"created_at": r["created_at"], "score": r["primary_score"]} for r in rows]
 
-    def backbone_summary(self, job_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def backbone_summary(self, job_id: str | None = None) -> list[dict[str, Any]]:
         """Return per-backbone avg/max scores."""
         if job_id:
             rows = self._conn.execute(
@@ -560,7 +557,7 @@ class AutoMLDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Return overall database statistics."""
         jobs = self._conn.execute("SELECT COUNT(*) as n FROM search_jobs").fetchone()["n"]
         records = self._conn.execute("SELECT COUNT(*) as n FROM experiment_records").fetchone()["n"]

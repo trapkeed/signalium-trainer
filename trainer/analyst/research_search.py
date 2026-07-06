@@ -12,7 +12,6 @@ Supports queries such as:
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -21,12 +20,11 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import Citation, KnowledgeChunk, LLMResponse, ResearchQuery
+from trainer.analyst.analyst_models import KnowledgeChunk, ResearchQuery
 from trainer.analyst.analyst_types import (
     KnowledgeSourceType,
     Permission,
     QueryType,
-    Role,
     has_permission,
 )
 from trainer.analyst.citation_engine import CitationEngine
@@ -42,7 +40,7 @@ class ResearchSearch:
     def __init__(
         self,
         index: KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         top_k: int = 10,
     ):
         self._index = index
@@ -54,10 +52,10 @@ class ResearchSearch:
     def search(
         self,
         query: ResearchQuery,
-        source_type: Optional[KnowledgeSourceType] = None,
-        tags: Optional[List[str]] = None,
+        source_type: KnowledgeSourceType | None = None,
+        tags: list[str] | None = None,
         top_k: int = 10,
-    ) -> Dict:
+    ) -> dict:
         """Run a natural language search and return structured results."""
         if not has_permission(query.role, Permission.READ):
             return {"error": "Access denied", "results": []}
@@ -95,7 +93,7 @@ class ResearchSearch:
             "citations": [c.to_dict() for c in citations],
         }
 
-    def _infer_source_type(self, query: str) -> Optional[KnowledgeSourceType]:
+    def _infer_source_type(self, query: str) -> KnowledgeSourceType | None:
         """Heuristically detect the likely source type from the query."""
         lower = query.lower()
         # Dataset must be checked before experiment (query may mention both)
@@ -117,7 +115,7 @@ class ResearchSearch:
             return KnowledgeSourceType.DRIFT_REPORT
         return None
 
-    def _apply_filters(self, chunks: List[KnowledgeChunk], query: str) -> List[KnowledgeChunk]:
+    def _apply_filters(self, chunks: list[KnowledgeChunk], query: str) -> list[KnowledgeChunk]:
         """Apply metric-based filters parsed from the query text."""
         # Detect "sharpe > X" or "sharpe exceeded X"
         sharpe_match = re.search(
@@ -154,16 +152,16 @@ class ResearchSearch:
 
         return chunks
 
-    def keyword_search(self, keyword: str, top_k: int = 10) -> List[KnowledgeChunk]:
+    def keyword_search(self, keyword: str, top_k: int = 10) -> list[KnowledgeChunk]:
         """Simple keyword search across the full index."""
         return self._index.search(keyword, top_k=top_k)
 
-    def search_by_artifact(self, artifact_id: str) -> List[KnowledgeChunk]:
+    def search_by_artifact(self, artifact_id: str) -> list[KnowledgeChunk]:
         """Find all chunks for a specific artifact ID."""
         return self._index.get_by_artifact(artifact_id)
 
     def search_by_source(
         self, source_type: KnowledgeSourceType, top_k: int = 20
-    ) -> List[KnowledgeChunk]:
+    ) -> list[KnowledgeChunk]:
         """Get all indexed chunks for a specific knowledge source type."""
         return self._index.get_by_source(source_type)[:top_k]

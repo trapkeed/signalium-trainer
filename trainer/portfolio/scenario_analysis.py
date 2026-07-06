@@ -12,10 +12,8 @@ Estimates portfolio resilience across each scenario.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from trainer.portfolio.correlation_engine import CorrelationMatrix
 from trainer.portfolio.portfolio_instruments import ModelForecast
@@ -41,7 +39,7 @@ class ScenarioType(str, Enum):
 
 
 # Scenario shocks: how each scenario modifies expected returns by instrument tag
-SCENARIO_RETURN_SHOCKS: Dict[str, Dict[str, float]] = {
+SCENARIO_RETURN_SHOCKS: dict[str, dict[str, float]] = {
     ScenarioType.RISK_ON.value: {
         "risk_on": +0.15,
         "safe_haven": -0.10,
@@ -157,7 +155,7 @@ SCENARIO_RETURN_SHOCKS: Dict[str, Dict[str, float]] = {
 }
 
 # Scenario vol multipliers
-SCENARIO_VOL_MULTIPLIERS: Dict[str, float] = {
+SCENARIO_VOL_MULTIPLIERS: dict[str, float] = {
     ScenarioType.RISK_ON.value: 0.9,
     ScenarioType.RISK_OFF.value: 1.5,
     ScenarioType.HIGH_INFLATION.value: 1.2,
@@ -175,7 +173,7 @@ SCENARIO_VOL_MULTIPLIERS: Dict[str, float] = {
 }
 
 # Instrument → tag mapping for scenario shocks
-INSTRUMENT_TAGS: Dict[str, List[str]] = {
+INSTRUMENT_TAGS: dict[str, list[str]] = {
     "EURUSD": ["eur", "major"],
     "GBPUSD": ["gbp", "major"],
     "USDJPY": ["usd", "jpy", "major", "safe_haven"],
@@ -209,7 +207,7 @@ class ScenarioResult:
     volatility_impact: float
     sharpe_impact: float
     resilience_score: float
-    instrument_impacts: Dict[str, float] = field(default_factory=dict)
+    instrument_impacts: dict[str, float] = field(default_factory=dict)
     description: str = ""
 
     def is_resilient(self, min_stressed_sharpe: float = 0.0) -> bool:
@@ -237,9 +235,9 @@ class ScenarioResult:
 @dataclass
 class ScenarioReport:
     base_metrics: PortfolioMetrics
-    results: List[ScenarioResult]
-    worst_scenario: Optional[ScenarioResult] = None
-    best_scenario: Optional[ScenarioResult] = None
+    results: list[ScenarioResult]
+    worst_scenario: ScenarioResult | None = None
+    best_scenario: ScenarioResult | None = None
     average_resilience: float = 0.0
 
     def __post_init__(self) -> None:
@@ -271,10 +269,10 @@ class ScenarioAnalyser:
 
     def run_scenario(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
         scenario: ScenarioType,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        correlation_matrix: CorrelationMatrix | None = None,
         description: str = "",
     ) -> ScenarioResult:
         base_metrics = self._scorer.score(forecasts, weights, correlation_matrix)
@@ -308,10 +306,10 @@ class ScenarioAnalyser:
 
     def run_all(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
-        scenarios: Optional[List[ScenarioType]] = None,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
+        scenarios: list[ScenarioType] | None = None,
+        correlation_matrix: CorrelationMatrix | None = None,
     ) -> ScenarioReport:
         base_metrics = self._scorer.score(forecasts, weights, correlation_matrix)
         scenarios = scenarios or [
@@ -333,9 +331,9 @@ class ScenarioAnalyser:
 
     def _apply_scenario(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         scenario: ScenarioType,
-    ) -> List[ModelForecast]:
+    ) -> list[ModelForecast]:
         shocks = SCENARIO_RETURN_SHOCKS.get(scenario.value, {})
         if not shocks:
             return forecasts
@@ -364,7 +362,7 @@ class ScenarioAnalyser:
         return stressed
 
     @staticmethod
-    def _scale_volatility(forecasts: List[ModelForecast], mult: float) -> List[ModelForecast]:
+    def _scale_volatility(forecasts: list[ModelForecast], mult: float) -> list[ModelForecast]:
         return [
             ModelForecast(
                 instrument=fc.instrument,
@@ -380,10 +378,10 @@ class ScenarioAnalyser:
 
     @staticmethod
     def _per_instrument_impact(
-        base: List[ModelForecast],
-        stressed: List[ModelForecast],
-        weights: Dict[str, float],
-    ) -> Dict[str, float]:
+        base: list[ModelForecast],
+        stressed: list[ModelForecast],
+        weights: dict[str, float],
+    ) -> dict[str, float]:
         base_map = {f.instrument: f for f in base}
         stressed_map = {f.instrument: f for f in stressed}
         impacts = {}

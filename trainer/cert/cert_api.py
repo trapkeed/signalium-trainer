@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
@@ -24,7 +24,6 @@ from trainer.cert.cert_models import (
 )
 from trainer.cert.cert_types import (
     CERT_THRESHOLDS,
-    STAGE_WEIGHTS,
     CertificationStage,
     CertificationStatus,
     CheckStatus,
@@ -43,9 +42,9 @@ from trainer.cert.validation_suite import ValidationSuite
 def _stage(
     stage: CertificationStage,
     score: float,
-    findings: List[str] = None,
-    warnings: List[str] = None,
-    failures: List[str] = None,
+    findings: list[str] = None,
+    warnings: list[str] = None,
+    failures: list[str] = None,
     duration_ms: float = 0.0,
 ) -> StageResult:
     findings = findings or []
@@ -81,7 +80,7 @@ class CertificationAPI:
     All results are persisted to the CertDatabase.
     """
 
-    def __init__(self, db: Optional[CertDatabase] = None) -> None:
+    def __init__(self, db: CertDatabase | None = None) -> None:
         self._db = db or CertDatabase()
         self._validation = ValidationSuite()
         self._stress = StressEngine()
@@ -295,7 +294,7 @@ class CertificationAPI:
 
         # ── Stage 12: Performance Review ──────────────────────────────────
         t0 = time.time()
-        perf_score = clamp((val_score * 0.5 + bm_score * 0.3 + st_score * 0.2))
+        perf_score = clamp(val_score * 0.5 + bm_score * 0.3 + st_score * 0.2)
         run.stages.append(
             _stage(
                 CertificationStage.PERFORMANCE_REVIEW,
@@ -379,7 +378,7 @@ class CertificationAPI:
 
     # ── API Endpoints ──────────────────────────────────────────────────────
 
-    def get_certification_status(self, run_id: str) -> Dict:
+    def get_certification_status(self, run_id: str) -> dict:
         """Endpoint: GET /certification/{run_id}/status"""
         rec = self._db.get_run(run_id)
         if not rec:
@@ -392,7 +391,7 @@ class CertificationAPI:
             "completed_at": rec.get("completed_at"),
         }
 
-    def get_certification_report(self, run_id: str) -> Dict:
+    def get_certification_report(self, run_id: str) -> dict:
         """Endpoint: GET /certification/{run_id}/report"""
         rec = self._db.get_run(run_id)
         stages = self._db.get_stage_results(run_id)
@@ -400,19 +399,19 @@ class CertificationAPI:
             return {"error": f"run_id {run_id!r} not found"}
         return {"run": rec, "stages": stages}
 
-    def get_audit_package(self, run_id: str) -> Dict:
+    def get_audit_package(self, run_id: str) -> dict:
         """Endpoint: GET /certification/{run_id}/audit"""
         pkg = self._db.get_audit_package(run_id)
         if not pkg:
             return {"error": f"audit package for {run_id!r} not found"}
         return pkg
 
-    def get_benchmark_results(self, run_id: str) -> Dict:
+    def get_benchmark_results(self, run_id: str) -> dict:
         """Endpoint: GET /certification/{run_id}/benchmarks"""
         bm = self._db.get_benchmarks(run_id)
         return {"run_id": run_id, "benchmarks": bm}
 
-    def get_validation_results(self, run_id: str) -> Dict:
+    def get_validation_results(self, run_id: str) -> dict:
         """Endpoint: GET /certification/{run_id}/validations"""
         stages = self._db.get_stage_results(run_id)
         val_stages = [
@@ -510,23 +509,23 @@ class CertificationAPI:
             f"{score_line}\n"
             f"Rationale:     {dec.rationale if dec else ''}\n"
         )
-        val_report = f"VALIDATION REPORT\n" + "\n".join(
+        val_report = "VALIDATION REPORT\n" + "\n".join(
             f"  {v.check.value}: {v.status.value} (score={v.score:.1f})"
             for v in (run.validations or [])
         )
-        bm_report = f"BENCHMARK REPORT\n" + "\n".join(
+        bm_report = "BENCHMARK REPORT\n" + "\n".join(
             f"  {b.metric.value}: {b.value:.2f}{b.unit} [{b.status.value}]"
             for b in (run.benchmarks or [])
         )
-        st_report = f"STRESS TEST REPORT\n" + "\n".join(
+        st_report = "STRESS TEST REPORT\n" + "\n".join(
             f"  {s.scenario.value}: degradation={s.degradation_pct:.1f}% [{s.status.value}]"
             for s in (run.stress_tests or [])
         )
-        sec_report = f"SECURITY REPORT\n" + "\n".join(
+        sec_report = "SECURITY REPORT\n" + "\n".join(
             f"  {s.check_name}: {s.status.value} risk={s.risk_level.value}"
             for s in (run.security or [])
         )
-        op_checklist = f"OPERATIONAL CHECKLIST\n" + "\n".join(
+        op_checklist = "OPERATIONAL CHECKLIST\n" + "\n".join(
             f"  [{o.status.value}] {o.check_name}" for o in (run.operational or [])
         )
         summary = (

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import statistics
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -74,13 +71,13 @@ class ScorecardEngine:
     def compute(
         self,
         inp: CertificationInput,
-        validations: List[ValidationResult],
-        stress_tests: List[StressTestResult],
-        monte_carlos: List[MonteCarloResult],
-        benchmarks: List[BenchmarkResult],
-        reproducibility: List[ReproducibilityResult],
-        security: List[SecurityResult],
-        operational: List[OperationalResult],
+        validations: list[ValidationResult],
+        stress_tests: list[StressTestResult],
+        monte_carlos: list[MonteCarloResult],
+        benchmarks: list[BenchmarkResult],
+        reproducibility: list[ReproducibilityResult],
+        security: list[SecurityResult],
+        operational: list[OperationalResult],
     ) -> ScorecardResult:
 
         research = self._research_score(inp)
@@ -138,7 +135,7 @@ class ScorecardEngine:
         return clamp(rq + bonus)
 
     def _performance_score(
-        self, inp: CertificationInput, benchmarks: List[BenchmarkResult]
+        self, inp: CertificationInput, benchmarks: list[BenchmarkResult]
     ) -> float:
         bench_s = _score_from_results(benchmarks)
         oos_s = clamp(inp.oos_sharpe * 25.0 + 50.0)  # map sharpe 0→50, 2→100
@@ -152,14 +149,14 @@ class ScorecardEngine:
 
     def _robustness_score(
         self,
-        stress_tests: List[StressTestResult],
-        monte_carlos: List[MonteCarloResult],
+        stress_tests: list[StressTestResult],
+        monte_carlos: list[MonteCarloResult],
     ) -> float:
         stress_s = _score_from_results(stress_tests, warn_w=50.0, fail_w=10.0)
         mc_s = _score_from_results(monte_carlos, warn_w=60.0, fail_w=20.0)
-        return clamp((stress_s * 0.6 + mc_s * 0.4))
+        return clamp(stress_s * 0.6 + mc_s * 0.4)
 
-    def _security_score(self, security: List[SecurityResult]) -> float:
+    def _security_score(self, security: list[SecurityResult]) -> float:
         if not security:
             return 50.0
         from trainer.cert.cert_types import RiskLevel

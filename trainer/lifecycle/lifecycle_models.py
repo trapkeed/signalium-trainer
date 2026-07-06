@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
 
 from trainer.lifecycle.lifecycle_states import LifecycleState
 
@@ -25,7 +24,7 @@ class MarketContext:
     session: str = "LONDON"
     trend_valid: bool = True
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "price": round(self.price, 5),
             "atr": round(self.atr, 5),
@@ -56,7 +55,7 @@ class PositionMetrics:
     highest_price: float = 0.0  # MFE tracking
     lowest_price: float = 0.0  # MAE tracking
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "lots": round(self.lots, 2),
             "entry_price": round(self.entry_price, 5),
@@ -82,11 +81,11 @@ class StateRecord:
     timestamp: float
     confidence: float  # 0-1
     reason: str
-    market_context: Optional[MarketContext] = None
-    position_metrics: Optional[PositionMetrics] = None
+    market_context: MarketContext | None = None
+    position_metrics: PositionMetrics | None = None
     duration_h: float = 0.0  # filled in when next state is entered
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "timestamp": round(self.timestamp, 3),
@@ -135,7 +134,7 @@ class LifecycleEvent:
     timestamp: float
     description: str
     severity: str = "INFO"  # INFO | WARN | CRITICAL
-    data: Dict = field(default_factory=dict)
+    data: dict = field(default_factory=dict)
 
     @classmethod
     def create(
@@ -145,8 +144,8 @@ class LifecycleEvent:
         state: LifecycleState,
         description: str,
         severity: str = "INFO",
-        data: Optional[Dict] = None,
-    ) -> "LifecycleEvent":
+        data: dict | None = None,
+    ) -> LifecycleEvent:
         return cls(
             event_id=str(uuid.uuid4())[:8],
             trade_id=trade_id,
@@ -158,7 +157,7 @@ class LifecycleEvent:
             data=data or {},
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "event_id": self.event_id,
             "trade_id": self.trade_id,
@@ -181,15 +180,15 @@ class TransitionResult:
     from_state: LifecycleState
     to_state: LifecycleState
     allowed: bool
-    conditions_met: List[str] = field(default_factory=list)
-    conditions_failed: List[str] = field(default_factory=list)
+    conditions_met: list[str] = field(default_factory=list)
+    conditions_failed: list[str] = field(default_factory=list)
     confidence: float = 0.0
     expected_benefit: float = 0.0  # 0-1
     risk_rating: str = "MEDIUM"  # LOW | MEDIUM | HIGH | CRITICAL
     reason: str = ""
     timeout_hours: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "from_state": self.from_state.value,
             "to_state": self.to_state.value,
@@ -218,9 +217,9 @@ class LifecycleConfidence:
     expected_risk: float  # fraction
     transition_prob: float  # P(advance to next state)
     failure_prob: float  # P(stop/cancel/expire)
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "confidence": round(self.confidence, 4),

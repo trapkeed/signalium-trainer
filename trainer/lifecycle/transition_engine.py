@@ -7,7 +7,6 @@ and recommends the best next state with rationale.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -30,14 +29,14 @@ class TransitionRecommendation:
     """The engine's best recommendation for next state."""
 
     current_state: LifecycleState
-    recommended: Optional[LifecycleState]  # None if stay
+    recommended: LifecycleState | None  # None if stay
     confidence: float
     reason: str
-    all_candidates: List[TransitionResult] = field(default_factory=list)
+    all_candidates: list[TransitionResult] = field(default_factory=list)
     should_stay: bool = False
     stay_reason: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "current_state": self.current_state.value,
             "recommended": self.recommended.value if self.recommended else None,
@@ -67,7 +66,7 @@ class TransitionEngine:
         self,
         current_state: LifecycleState,
         confidence: float = 0.65,
-        context: Optional[MarketContext] = None,
+        context: MarketContext | None = None,
     ) -> TransitionRecommendation:
 
         if is_terminal(current_state):
@@ -80,7 +79,7 @@ class TransitionEngine:
                 stay_reason="Terminal — no further transitions",
             )
 
-        candidates: List[TransitionResult] = []
+        candidates: list[TransitionResult] = []
 
         for next_state in VALID_TRANSITIONS.get(current_state, frozenset()):
             result = self._sm.validate_transition(current_state, next_state, context, confidence)
@@ -186,8 +185,8 @@ class TransitionEngine:
         self,
         current_state: LifecycleState,
         confidence: float = 0.65,
-        context: Optional[MarketContext] = None,
-    ) -> List[TransitionResult]:
+        context: MarketContext | None = None,
+    ) -> list[TransitionResult]:
         """Return all evaluated transitions (allowed and not) from current state."""
         results = []
         for next_state in VALID_TRANSITIONS.get(current_state, frozenset()):

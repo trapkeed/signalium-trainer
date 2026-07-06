@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -30,15 +28,12 @@ from trainer.mie.mie_types import (
     NEWS_IMPACT_PENALTY,
     REGIME_TRADEABILITY_BASE,
     RISK_REGIME_MULTIPLIERS,
-    MarketRegime,
-    RiskRegime,
-    TradeabilityGrade,
     clamp,
     tradeability_grade,
 )
 
 # ── Factor weights (must sum to 1.0) ──────────────────────────────────────────
-_FACTOR_WEIGHTS: Dict[str, float] = {
+_FACTOR_WEIGHTS: dict[str, float] = {
     "prediction_confidence": 0.12,
     "expected_rr": 0.10,
     "expected_move": 0.06,
@@ -145,17 +140,17 @@ class TradeabilityEngine:
     def score(
         self,
         inp: MarketInput,
-        regime: Optional[MarketRegimeResult] = None,
-        risk: Optional[RiskIntelligenceResult] = None,
-        liquidity: Optional[LiquidityResult] = None,
-        volatility: Optional[VolatilityResult] = None,
-        momentum: Optional[MomentumResult] = None,
-        trend: Optional[TrendResult] = None,
-        similarity: Optional[BehaviorSimilarityResult] = None,
-        reliability: Optional[PredictionReliabilityResult] = None,
-        calibration: Optional[CalibrationResult] = None,
-        session: Optional[SessionResult] = None,
-        news: Optional[NewsIntelligenceResult] = None,
+        regime: MarketRegimeResult | None = None,
+        risk: RiskIntelligenceResult | None = None,
+        liquidity: LiquidityResult | None = None,
+        volatility: VolatilityResult | None = None,
+        momentum: MomentumResult | None = None,
+        trend: TrendResult | None = None,
+        similarity: BehaviorSimilarityResult | None = None,
+        reliability: PredictionReliabilityResult | None = None,
+        calibration: CalibrationResult | None = None,
+        session: SessionResult | None = None,
+        news: NewsIntelligenceResult | None = None,
     ) -> TradeabilityResult:
 
         factors = self._compute_factors(
@@ -192,19 +187,19 @@ class TradeabilityEngine:
     def _compute_factors(
         self,
         inp: MarketInput,
-        regime: Optional[MarketRegimeResult],
-        risk: Optional[RiskIntelligenceResult],
-        liquidity: Optional[LiquidityResult],
-        volatility: Optional[VolatilityResult],
-        momentum: Optional[MomentumResult],
-        trend: Optional[TrendResult],
-        similarity: Optional[BehaviorSimilarityResult],
-        reliability: Optional[PredictionReliabilityResult],
-        calibration: Optional[CalibrationResult],
-        session: Optional[SessionResult],
-        news: Optional[NewsIntelligenceResult],
-    ) -> Dict[str, float]:
-        f: Dict[str, float] = {}
+        regime: MarketRegimeResult | None,
+        risk: RiskIntelligenceResult | None,
+        liquidity: LiquidityResult | None,
+        volatility: VolatilityResult | None,
+        momentum: MomentumResult | None,
+        trend: TrendResult | None,
+        similarity: BehaviorSimilarityResult | None,
+        reliability: PredictionReliabilityResult | None,
+        calibration: CalibrationResult | None,
+        session: SessionResult | None,
+        news: NewsIntelligenceResult | None,
+    ) -> dict[str, float]:
+        f: dict[str, float] = {}
 
         # 1. Prediction confidence (0-100)
         f["prediction_confidence"] = _score_confidence(inp.prediction_confidence)
@@ -287,12 +282,12 @@ class TradeabilityEngine:
 
     def _build_narrative(
         self,
-        factors: Dict[str, float],
+        factors: dict[str, float],
         score: float,
         inp: MarketInput,
     ) -> tuple:
-        reasons: List[str] = []
-        suggestions: List[str] = []
+        reasons: list[str] = []
+        suggestions: list[str] = []
 
         low_factors = {k: v for k, v in factors.items() if v < 40.0}
         for k, v in sorted(low_factors.items(), key=lambda x: x[1]):

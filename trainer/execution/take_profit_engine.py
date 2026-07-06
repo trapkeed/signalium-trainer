@@ -6,8 +6,7 @@ and an Adaptive Target with expected hit probabilities.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -55,7 +54,7 @@ class TakeProfitRecommendation:
         }
         return max(evs, key=evs.get)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
             "direction": self.direction,
@@ -94,8 +93,8 @@ class TakeProfitEngine:
     def recommend(
         self,
         forecast: ExecutionForecast,
-        zones: Optional[EntryZones] = None,
-        stop_loss: Optional[StopLossRecommendation] = None,
+        zones: EntryZones | None = None,
+        stop_loss: StopLossRecommendation | None = None,
     ) -> TakeProfitRecommendation:
 
         entry = zones.primary_entry if zones else forecast.current_price

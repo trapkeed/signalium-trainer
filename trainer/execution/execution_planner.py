@@ -8,8 +8,7 @@ Does NOT place trades. Produces institutional-grade recommendations only.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -26,7 +25,6 @@ from trainer.execution.execution_types import (
     BrokerConstraints,
     ExecutionForecast,
     SizingMethod,
-    _clamp,
     default_broker,
 )
 from trainer.execution.order_strategy import OrderRecommendation, OrderStrategyEngine
@@ -72,7 +70,7 @@ class ExecutionPlan:
             and self.entry_quality.grade != ExecutionGrade.REJECT
         )
 
-    def executive_summary(self) -> Dict:
+    def executive_summary(self) -> dict:
         """One-screen institutional summary."""
         return {
             "instrument": self.instrument,
@@ -98,7 +96,7 @@ class ExecutionPlan:
             "slippage": round(self.simulation.expected_slippage, 5),
         }
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "executive_summary": self.executive_summary(),
             "forecast": self.forecast.to_dict(),
@@ -128,8 +126,8 @@ class ExecutionPlanner:
 
     def __init__(
         self,
-        broker: Optional[BrokerConstraints] = None,
-        risk_limits: Optional[RiskLimits] = None,
+        broker: BrokerConstraints | None = None,
+        risk_limits: RiskLimits | None = None,
         sizing_method: SizingMethod = SizingMethod.FIXED_RISK,
     ):
         self._broker = broker or default_broker()
@@ -208,7 +206,7 @@ class ExecutionPlanner:
 
         return plan
 
-    def plan_batch(self, forecasts: List[ExecutionForecast]) -> List[ExecutionPlan]:
+    def plan_batch(self, forecasts: list[ExecutionForecast]) -> list[ExecutionPlan]:
         """Generate plans for a list of forecasts."""
         plans = [self.plan(f) for f in forecasts]
         plans.sort(key=lambda p: p.score.overall_score, reverse=True)

@@ -31,8 +31,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import torch
@@ -136,7 +136,7 @@ class PredictionHeadValidator:
         model: nn.Module,
         x_val: torch.Tensor,
         y_val: torch.Tensor,
-        probs: Optional[torch.Tensor] = None,
+        probs: torch.Tensor | None = None,
     ) -> dict[str, HeadResult]:
         """Evaluate all detected heads on the validation set.
 

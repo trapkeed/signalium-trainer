@@ -35,8 +35,8 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Promotion rule
@@ -111,7 +111,7 @@ class PromotionDecision:
     passed_rules: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     requires_manual_approval: bool = True
-    decided_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    decided_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     notes: str = ""
 
     def summary(self) -> str:
@@ -186,22 +186,22 @@ class PromotionPolicy:
 
     def __init__(
         self,
-        min_accuracy: Optional[float] = None,
-        min_precision: Optional[float] = None,
-        min_recall: Optional[float] = None,
-        min_f1: Optional[float] = None,
-        min_profit_factor: Optional[float] = None,
-        max_drawdown: Optional[float] = None,
-        min_sharpe: Optional[float] = None,
-        min_sortino: Optional[float] = None,
-        max_calibration_error: Optional[float] = None,
-        max_ece: Optional[float] = None,
-        min_trade_count: Optional[int] = None,
-        min_confidence_quality: Optional[float] = None,
-        min_win_rate: Optional[float] = None,
-        min_validation_folds: Optional[int] = None,
+        min_accuracy: float | None = None,
+        min_precision: float | None = None,
+        min_recall: float | None = None,
+        min_f1: float | None = None,
+        min_profit_factor: float | None = None,
+        max_drawdown: float | None = None,
+        min_sharpe: float | None = None,
+        min_sortino: float | None = None,
+        max_calibration_error: float | None = None,
+        max_ece: float | None = None,
+        min_trade_count: int | None = None,
+        min_confidence_quality: float | None = None,
+        min_win_rate: float | None = None,
+        min_validation_folds: int | None = None,
         require_manual_approval: bool = True,
-        custom_rules: Optional[list[PromotionRule]] = None,
+        custom_rules: list[PromotionRule] | None = None,
     ) -> None:
         self._rules: list[PromotionRule] = []
         self._manual = require_manual_approval

@@ -16,10 +16,10 @@ from trainer.calibration.platt import PlattScaling
 from trainer.calibration.temperature import TemperatureScaling
 
 __all__ = [
-    "TemperatureScaling",
-    "PlattScaling",
     "IsotonicCalibration",
+    "PlattScaling",
+    "TemperatureScaling",
+    "compute_confidence_accuracy",
     "compute_ece",
     "compute_reliability_data",
-    "compute_confidence_accuracy",
 ]

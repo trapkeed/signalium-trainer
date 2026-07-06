@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Model roles
@@ -57,11 +57,11 @@ class BenchmarkRecord:
     composite: float
     grade_label: str
     promotion_eligible: bool
-    category_scores: Dict[str, float]  # category → score
-    registered_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    category_scores: dict[str, float]  # category → score
+    registered_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @classmethod
-    def from_research_score(cls, rs: Any, role: str = ModelRole.EXPERIMENTAL) -> "BenchmarkRecord":
+    def from_research_score(cls, rs: Any, role: str = ModelRole.EXPERIMENTAL) -> BenchmarkRecord:
         return cls(
             experiment_id=rs.experiment_id,
             model_id=rs.model_id,
@@ -73,7 +73,7 @@ class BenchmarkRecord:
             category_scores={cs.category: cs.score for cs in rs.category_scores},
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "model_id": self.model_id,
@@ -102,7 +102,7 @@ class BenchmarkComparison:
     reference_id: str = ""
     reference_name: str = ""
     reference_role: str = ""
-    compared_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    compared_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Composite deltas
     subject_composite: float = 0.0
@@ -111,13 +111,13 @@ class BenchmarkComparison:
     composite_improved: bool = False
 
     # Per-category deltas
-    category_deltas: Dict[str, float] = field(default_factory=dict)
+    category_deltas: dict[str, float] = field(default_factory=dict)
 
     # Strengths and weaknesses
-    stronger_categories: List[str] = field(default_factory=list)
-    weaker_categories: List[str] = field(default_factory=list)
+    stronger_categories: list[str] = field(default_factory=list)
+    weaker_categories: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "comparison_id": self.comparison_id,
             "subject": {
@@ -159,8 +159,8 @@ class IRSEBenchmarker:
     """IRSE benchmark comparison engine."""
 
     def __init__(self) -> None:
-        self._records: Dict[str, BenchmarkRecord] = {}
-        self._champion_id: Optional[str] = None
+        self._records: dict[str, BenchmarkRecord] = {}
+        self._champion_id: str | None = None
 
     # ------------------------------------------------------------------
     # Registration
@@ -198,7 +198,7 @@ class IRSEBenchmarker:
     def compare(
         self,
         subject_id: str,
-        against: Optional[str] = None,
+        against: str | None = None,
     ) -> BenchmarkComparison:
         """Compare subject experiment against a reference (default: champion)."""
         subject = self._records.get(subject_id)
@@ -213,9 +213,9 @@ class IRSEBenchmarker:
             raise KeyError(f"Reference not registered: {reference_id}")
 
         delta = subject.composite - reference.composite
-        cat_deltas: Dict[str, float] = {}
-        stronger: List[str] = []
-        weaker: List[str] = []
+        cat_deltas: dict[str, float] = {}
+        stronger: list[str] = []
+        weaker: list[str] = []
 
         all_cats = set(subject.category_scores) | set(reference.category_scores)
         for cat in sorted(all_cats):
@@ -243,9 +243,9 @@ class IRSEBenchmarker:
             weaker_categories=weaker,
         )
 
-    def compare_all_against(self, reference_id: str) -> List[Dict[str, Any]]:
+    def compare_all_against(self, reference_id: str) -> list[dict[str, Any]]:
         """Compare every registered model against the reference."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for exp_id in self._records:
             if exp_id == reference_id:
                 continue
@@ -260,13 +260,13 @@ class IRSEBenchmarker:
     # Reports
     # ------------------------------------------------------------------
 
-    def benchmark_report(self, subject_id: str) -> Dict[str, Any]:
+    def benchmark_report(self, subject_id: str) -> dict[str, Any]:
         """Full benchmark report for one experiment."""
         subject = self._records.get(subject_id)
         if subject is None:
             return {"error": f"Not registered: {subject_id}"}
 
-        comparisons: List[Dict[str, Any]] = []
+        comparisons: list[dict[str, Any]] = []
         for ref_id, ref_rec in self._records.items():
             if ref_id == subject_id:
                 continue
@@ -276,7 +276,7 @@ class IRSEBenchmarker:
             except Exception:
                 pass
 
-        champion_comparison: Optional[Dict[str, Any]] = None
+        champion_comparison: dict[str, Any] | None = None
         if self._champion_id and self._champion_id != subject_id:
             try:
                 champion_comparison = self.compare(subject_id, against=self._champion_id).to_dict()
@@ -291,14 +291,14 @@ class IRSEBenchmarker:
             "total_registered_models": len(self._records),
         }
 
-    def full_benchmark_report(self) -> Dict[str, Any]:
+    def full_benchmark_report(self) -> dict[str, Any]:
         """Summary benchmark report for all registered models."""
         sorted_records = sorted(
             self._records.values(),
             key=lambda r: r.composite,
             reverse=True,
         )
-        role_counts: Dict[str, int] = {}
+        role_counts: dict[str, int] = {}
         for rec in self._records.values():
             role_counts[rec.role] = role_counts.get(rec.role, 0) + 1
 
@@ -315,10 +315,10 @@ class IRSEBenchmarker:
             },
         }
 
-    def by_role(self, role: str) -> List[BenchmarkRecord]:
+    def by_role(self, role: str) -> list[BenchmarkRecord]:
         return [r for r in self._records.values() if r.role == role]
 
-    def champion_record(self) -> Optional[BenchmarkRecord]:
+    def champion_record(self) -> BenchmarkRecord | None:
         if self._champion_id:
             return self._records.get(self._champion_id)
         return None

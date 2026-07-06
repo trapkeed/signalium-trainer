@@ -19,8 +19,9 @@ Usage::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -190,7 +191,7 @@ class MultiAssetValidationResult:
     worst_instrument: str = ""
     worst_timeframe: str = ""
 
-    def get(self, instrument: str, timeframe: str) -> Optional[InstrumentResult]:
+    def get(self, instrument: str, timeframe: str) -> InstrumentResult | None:
         return self.results.get(instrument, {}).get(timeframe)
 
     def all_results(self) -> list[InstrumentResult]:
@@ -238,7 +239,7 @@ class MultiAssetValidator:
         instruments: list[str],
         timeframes: list[str],
         strategy: Any,
-        eval_fn: Optional[Callable] = None,
+        eval_fn: Callable | None = None,
         min_folds_required: int = 3,
     ) -> None:
         self._instruments = [i.upper() for i in instruments]

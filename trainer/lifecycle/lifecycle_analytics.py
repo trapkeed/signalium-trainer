@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
@@ -24,7 +23,6 @@ except ImportError:
 from trainer.lifecycle.lifecycle_models import StateRecord
 from trainer.lifecycle.lifecycle_states import (
     CLOSING_STATES,
-    TERMINAL_STATES,
     LifecycleState,
 )
 
@@ -40,7 +38,7 @@ class StateAnalytics:
     max_duration_h: float = 0.0
     total_duration_h: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "state": self.state.value,
             "visit_count": self.visit_count,
@@ -66,12 +64,12 @@ class LifecycleAnalyticsReport:
     cancellation_rate: float = 0.0
     expiration_rate: float = 0.0
     invalidation_rate: float = 0.0
-    state_analytics: Dict[str, StateAnalytics] = field(default_factory=dict)
-    transition_matrix: Dict[str, Dict[str, int]] = field(default_factory=dict)
-    path_performance: List[Dict] = field(default_factory=list)
-    top_paths: List[str] = field(default_factory=list)
+    state_analytics: dict[str, StateAnalytics] = field(default_factory=dict)
+    transition_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
+    path_performance: list[dict] = field(default_factory=list)
+    top_paths: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total_trades": self.total_trades,
             "completed_trades": self.completed_trades,
@@ -96,8 +94,8 @@ class LifecycleAnalytics:
 
     def analyse(
         self,
-        histories: List[List[StateRecord]],
-        final_states: Optional[List[LifecycleState]] = None,
+        histories: list[list[StateRecord]],
+        final_states: list[LifecycleState] | None = None,
     ) -> LifecycleAnalyticsReport:
         """
         histories    : list of state_history lists from TradeLifecycle objects
@@ -110,12 +108,12 @@ class LifecycleAnalytics:
         report = LifecycleAnalyticsReport(total_trades=n)
 
         # ── Per-state duration accumulator ─────────────────────────────────
-        dur_accum: Dict[LifecycleState, List[float]] = collections.defaultdict(list)
-        trans_matrix: Dict[str, Dict[str, int]] = collections.defaultdict(
+        dur_accum: dict[LifecycleState, list[float]] = collections.defaultdict(list)
+        trans_matrix: dict[str, dict[str, int]] = collections.defaultdict(
             lambda: collections.defaultdict(int)
         )
-        lifecycle_durations: List[float] = []
-        path_counter: Dict[str, int] = collections.Counter()
+        lifecycle_durations: list[float] = []
+        path_counter: dict[str, int] = collections.Counter()
 
         for idx, history in enumerate(histories):
             if not history:
@@ -192,10 +190,10 @@ class LifecycleAnalytics:
 
     def state_time_distribution(
         self,
-        histories: List[List[StateRecord]],
-    ) -> Dict[str, float]:
+        histories: list[list[StateRecord]],
+    ) -> dict[str, float]:
         """Return average hours spent in each state across all histories."""
-        accum: Dict[str, List[float]] = collections.defaultdict(list)
+        accum: dict[str, list[float]] = collections.defaultdict(list)
         for history in histories:
             for record in history:
                 if record.duration_h > 0:
@@ -204,10 +202,10 @@ class LifecycleAnalytics:
 
     def transition_frequency(
         self,
-        histories: List[List[StateRecord]],
-    ) -> Dict[str, int]:
+        histories: list[list[StateRecord]],
+    ) -> dict[str, int]:
         """Count occurrences of every unique from→to transition pair."""
-        freq: Dict[str, int] = collections.Counter()
+        freq: dict[str, int] = collections.Counter()
         for history in histories:
             for i in range(len(history) - 1):
                 key = f"{history[i].state.value}→{history[i+1].state.value}"

@@ -30,8 +30,8 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import numpy as np
 import torch
@@ -86,7 +86,7 @@ class DriftReport:
     regime_drift_jsd: float = 0.0
     n_drifted_features: int = 0
     drift_severity: str = "none"
-    detected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    detected_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def summary(self) -> str:
         lines = [
@@ -159,15 +159,15 @@ class DriftAnalyzer:
         self,
         x_ref: torch.Tensor,
         x_current: torch.Tensor,
-        y_ref: Optional[torch.Tensor] = None,
-        y_current: Optional[torch.Tensor] = None,
-        probs_ref: Optional[torch.Tensor] = None,
-        probs_current: Optional[torch.Tensor] = None,
+        y_ref: torch.Tensor | None = None,
+        y_current: torch.Tensor | None = None,
+        probs_ref: torch.Tensor | None = None,
+        probs_current: torch.Tensor | None = None,
         acc_ref: float = 0.0,
         acc_current: float = 0.0,
-        regime_dist_ref: Optional[dict[str, float]] = None,
-        regime_dist_current: Optional[dict[str, float]] = None,
-        feature_names: Optional[list[str]] = None,
+        regime_dist_ref: dict[str, float] | None = None,
+        regime_dist_current: dict[str, float] | None = None,
+        feature_names: list[str] | None = None,
     ) -> DriftReport:
         """Detect all drift types.
 

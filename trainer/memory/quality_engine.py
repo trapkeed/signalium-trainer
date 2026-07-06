@@ -5,8 +5,6 @@ Calculates a Decision Quality Score across 10 factors.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -19,7 +17,6 @@ from trainer.memory.decision_types import (
     NEGATIVE_OUTCOMES,
     POSITIVE_OUTCOMES,
     QUALITY_WEIGHTS,
-    OutcomeType,
     QualityFactor,
     grade_from_score,
 )
@@ -33,8 +30,8 @@ class QualityEngine:
     """Scores decisions across 10 quality factors and computes an overall grade."""
 
     def score(self, record: DecisionRecord) -> DecisionScore:
-        sub: Dict[str, float] = {}
-        notes: List[str] = []
+        sub: dict[str, float] = {}
+        notes: list[str] = []
 
         snap = record.snapshot
         out = record.outcome
@@ -152,12 +149,12 @@ class QualityEngine:
         record.score = ds
         return ds
 
-    def batch_score(self, records: List[DecisionRecord]) -> List[DecisionScore]:
+    def batch_score(self, records: list[DecisionRecord]) -> list[DecisionScore]:
         scores = []
         for r in records:
             s = self.score_and_attach(r)
             scores.append(s)
         return scores
 
-    def quality_weights(self) -> Dict[str, float]:
+    def quality_weights(self) -> dict[str, float]:
         return {k.value: v for k, v in QUALITY_WEIGHTS.items()}

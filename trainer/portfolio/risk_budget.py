@@ -6,9 +6,8 @@ currencies, and individual exposures.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
 from trainer.portfolio.portfolio_instruments import AssetClass, ModelForecast
 
@@ -70,7 +69,7 @@ class RiskBudgetConfig:
     max_short_only: float = 0.80
 
     @classmethod
-    def conservative(cls) -> "RiskBudgetConfig":
+    def conservative(cls) -> RiskBudgetConfig:
         return cls(
             max_usd_exposure=0.50,
             max_gold_exposure=0.20,
@@ -85,7 +84,7 @@ class RiskBudgetConfig:
         )
 
     @classmethod
-    def aggressive(cls) -> "RiskBudgetConfig":
+    def aggressive(cls) -> RiskBudgetConfig:
         return cls(
             max_usd_exposure=0.80,
             max_gold_exposure=0.40,
@@ -105,10 +104,10 @@ class RiskBudgetConfig:
 
 @dataclass
 class BudgetCheckResult:
-    items: List[BudgetItem]
+    items: list[BudgetItem]
     overall_status: BudgetStatus
-    breaches: List[BudgetItem]
-    warnings: List[BudgetItem]
+    breaches: list[BudgetItem]
+    warnings: list[BudgetItem]
 
     def is_feasible(self) -> bool:
         return self.overall_status != BudgetStatus.BREACH
@@ -128,18 +127,18 @@ class BudgetCheckResult:
 class RiskBudgetEngine:
     """Enforces configurable risk budgets on portfolio allocations."""
 
-    def __init__(self, config: Optional[RiskBudgetConfig] = None) -> None:
+    def __init__(self, config: RiskBudgetConfig | None = None) -> None:
         self.config = config or RiskBudgetConfig()
 
     def check(
         self,
-        weights: Dict[str, float],
-        forecasts: List[ModelForecast],
-        by_currency: Optional[Dict[str, float]] = None,
-        by_asset_class: Optional[Dict[str, float]] = None,
-        gross_exposure: Optional[float] = None,
+        weights: dict[str, float],
+        forecasts: list[ModelForecast],
+        by_currency: dict[str, float] | None = None,
+        by_asset_class: dict[str, float] | None = None,
+        gross_exposure: float | None = None,
     ) -> BudgetCheckResult:
-        items: List[BudgetItem] = []
+        items: list[BudgetItem] = []
         fc_map = {f.instrument: f for f in forecasts}
 
         gross = (
@@ -242,9 +241,9 @@ class RiskBudgetEngine:
 
     def scale_to_budget(
         self,
-        weights: Dict[str, float],
-        forecasts: List[ModelForecast],
-    ) -> Dict[str, float]:
+        weights: dict[str, float],
+        forecasts: list[ModelForecast],
+    ) -> dict[str, float]:
         gross = sum(abs(w) for w in weights.values())
         if gross < 1e-9:
             return dict(weights)
@@ -272,10 +271,10 @@ class RiskBudgetEngine:
 
     def utilisation_report(
         self,
-        weights: Dict[str, float],
-        forecasts: List[ModelForecast],
-        by_currency: Optional[Dict[str, float]] = None,
-        by_asset_class: Optional[Dict[str, float]] = None,
+        weights: dict[str, float],
+        forecasts: list[ModelForecast],
+        by_currency: dict[str, float] | None = None,
+        by_asset_class: dict[str, float] | None = None,
     ) -> dict:
         result = self.check(weights, forecasts, by_currency, by_asset_class)
         return {

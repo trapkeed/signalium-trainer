@@ -18,9 +18,9 @@ import json
 import tempfile
 import time
 import uuid
+from datetime import UTC
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
@@ -30,7 +30,6 @@ from trainer.framework.traced_inference import TracedInferenceAdapter
 from trainer.traceability import (
     InferenceContext,
     PredictionMetadata,
-    TracedPrediction,
     hash_config,
     hash_schema,
     hash_string,
@@ -350,12 +349,12 @@ class TestInferenceTiming:
         assert result.metadata.inference.inference_duration_ms >= 40.0  # allow some slack
 
     def test_inference_timestamp_is_recent(self, traced_adapter, x_batch) -> None:
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime
 
         result = traced_adapter.predict(x_batch)
         ts_str = result.metadata.inference.inference_timestamp
         ts = datetime.fromisoformat(ts_str)
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         assert abs((now - ts).total_seconds()) < 5, "Timestamp should be within 5 seconds of now"
 
 

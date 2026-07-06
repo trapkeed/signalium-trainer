@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from trainer.research.champion.status import ModelStatus
 
@@ -31,7 +31,7 @@ class ModelEntry:
     status: ModelStatus = ModelStatus.EXPERIMENTAL
     experiment_id: str = ""
     metrics: dict[str, float] = field(default_factory=dict)
-    promoted_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    promoted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,7 +46,7 @@ class ModelEntry:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ModelEntry":
+    def from_dict(cls, d: dict[str, Any]) -> ModelEntry:
         entry = cls.__new__(cls)
         entry.model_name = d["model_name"]
         entry.model_version = d["model_version"]
@@ -54,7 +54,7 @@ class ModelEntry:
         entry.experiment_id = d.get("experiment_id", "")
         entry.metrics = d.get("metrics", {})
         raw_ts = d.get("promoted_at")
-        entry.promoted_at = datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(timezone.utc)
+        entry.promoted_at = datetime.fromisoformat(raw_ts) if raw_ts else datetime.now(UTC)
         entry.notes = d.get("notes", "")
         return entry
 
@@ -98,7 +98,7 @@ class ChampionRegistry:
         model_name: str,
         model_version: str,
         experiment_id: str = "",
-        metrics: Optional[dict[str, float]] = None,
+        metrics: dict[str, float] | None = None,
         notes: str = "",
     ) -> ModelEntry:
         """Add a new model entry with EXPERIMENTAL status.
@@ -163,11 +163,11 @@ class ChampionRegistry:
                 for other in self._entries.get(model_name, []):
                     if other.status == ModelStatus.CHAMPION and other is not entry:
                         other.status = ModelStatus.RETIRED
-                        other.promoted_at = datetime.now(timezone.utc)
+                        other.promoted_at = datetime.now(UTC)
                         other.notes = f"Auto-retired when {model_version} became champion."
 
             entry.status = new_status
-            entry.promoted_at = datetime.now(timezone.utc)
+            entry.promoted_at = datetime.now(UTC)
             entry.notes = notes
             self._flush()
         return entry
@@ -196,12 +196,12 @@ class ChampionRegistry:
             if entry is None:
                 raise KeyError(f"Model '{model_name}' v{model_version} is not registered.")
             entry.status = ModelStatus.RETIRED
-            entry.promoted_at = datetime.now(timezone.utc)
+            entry.promoted_at = datetime.now(UTC)
             entry.notes = notes
             self._flush()
         return entry
 
-    def get_champion(self, model_name: str) -> Optional[ModelEntry]:
+    def get_champion(self, model_name: str) -> ModelEntry | None:
         """Return the current CHAMPION entry for a model name.
 
         Args:
@@ -219,7 +219,7 @@ class ChampionRegistry:
         """Return all CHALLENGER entries for a model name."""
         return [e for e in self._entries.get(model_name, []) if e.status == ModelStatus.CHALLENGER]
 
-    def list_all(self, model_name: Optional[str] = None) -> list[ModelEntry]:
+    def list_all(self, model_name: str | None = None) -> list[ModelEntry]:
         """Return all entries, optionally filtered by model name.
 
         Args:
@@ -251,7 +251,7 @@ class ChampionRegistry:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _find(self, model_name: str, model_version: str) -> Optional[ModelEntry]:
+    def _find(self, model_name: str, model_version: str) -> ModelEntry | None:
         """Find a specific model/version entry (call with lock held)."""
         for entry in self._entries.get(model_name, []):
             if entry.model_version == model_version:

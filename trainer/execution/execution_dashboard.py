@@ -10,9 +10,6 @@ All output is pure data (dicts/lists) — no rendering dependencies.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
@@ -26,15 +23,15 @@ from trainer.execution.execution_planner import ExecutionPlan
 class ExecutionDashboard:
     """Converts a list of ExecutionPlan objects into dashboard data."""
 
-    def __init__(self, plans: Optional[List[ExecutionPlan]] = None):
-        self._plans: List[ExecutionPlan] = plans or []
+    def __init__(self, plans: list[ExecutionPlan] | None = None):
+        self._plans: list[ExecutionPlan] = plans or []
 
     def add_plan(self, plan: ExecutionPlan) -> None:
         self._plans.append(plan)
 
     # ── 1. Execution Dashboard ─────────────────────────────────────────────────
 
-    def execution_dashboard(self) -> Dict:
+    def execution_dashboard(self) -> dict:
         """High-level summary of all active plans."""
         rows = []
         for p in self._plans:
@@ -70,7 +67,7 @@ class ExecutionDashboard:
 
     # ── 2. Risk Dashboard ─────────────────────────────────────────────────────
 
-    def risk_dashboard(self) -> Dict:
+    def risk_dashboard(self) -> dict:
         """Per-trade risk metrics for portfolio risk monitoring."""
         rows = []
         for p in self._plans:
@@ -104,7 +101,7 @@ class ExecutionDashboard:
 
     # ── 3. Trade Timeline ─────────────────────────────────────────────────────
 
-    def trade_timeline(self) -> Dict:
+    def trade_timeline(self) -> dict:
         """Timeline of entry / stop / target levels for all plans."""
         events = []
         for i, p in enumerate(self._plans):
@@ -151,7 +148,7 @@ class ExecutionDashboard:
 
     # ── 4. Probability Charts ─────────────────────────────────────────────────
 
-    def probability_charts(self) -> Dict:
+    def probability_charts(self) -> dict:
         """TP / stop hit probabilities per instrument."""
         rows = []
         for p in self._plans:
@@ -175,7 +172,7 @@ class ExecutionDashboard:
 
     # ── 5. Stop Distribution ──────────────────────────────────────────────────
 
-    def stop_distribution(self) -> Dict:
+    def stop_distribution(self) -> dict:
         """All stop levels across instruments for distribution analysis."""
         rows = []
         for p in self._plans:
@@ -202,7 +199,7 @@ class ExecutionDashboard:
 
     # ── 6. Target Distribution ────────────────────────────────────────────────
 
-    def target_distribution(self) -> Dict:
+    def target_distribution(self) -> dict:
         """All take profit levels across instruments."""
         rows = []
         for p in self._plans:
@@ -229,7 +226,7 @@ class ExecutionDashboard:
 
     # ── 7. Execution Scorecards ───────────────────────────────────────────────
 
-    def execution_scorecards(self) -> Dict:
+    def execution_scorecards(self) -> dict:
         """Detailed scorecard per instrument."""
         cards = []
         for p in self._plans:
@@ -262,7 +259,7 @@ class ExecutionDashboard:
 
     # ── 8. Fill Quality Analysis ──────────────────────────────────────────────
 
-    def fill_quality_analysis(self) -> Dict:
+    def fill_quality_analysis(self) -> dict:
         """Simulation fill quality and slippage analysis."""
         rows = []
         for p in self._plans:
@@ -282,7 +279,7 @@ class ExecutionDashboard:
                 }
             )
 
-        quality_counts: Dict[str, int] = {}
+        quality_counts: dict[str, int] = {}
         for r in rows:
             q = r["fill_quality"]
             quality_counts[q] = quality_counts.get(q, 0) + 1
@@ -295,7 +292,7 @@ class ExecutionDashboard:
 
     # ── Full dashboard ────────────────────────────────────────────────────────
 
-    def full_dashboard(self) -> Dict:
+    def full_dashboard(self) -> dict:
         """All 8 views in a single response."""
         return {
             "execution_dashboard": self.execution_dashboard(),

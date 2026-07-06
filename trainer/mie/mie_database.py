@@ -5,7 +5,8 @@ from __future__ import annotations
 import contextlib
 import sqlite3
 import time
-from typing import Any, Dict, Iterator, List, Optional
+from collections.abc import Iterator
+from typing import Any
 
 try:
     from loguru import logger
@@ -181,7 +182,7 @@ class MIEDatabase:
     def __init__(self, db_path: str = ":memory:") -> None:
         self._path = db_path
         if db_path == ":memory:":
-            self._persistent_conn: Optional[sqlite3.Connection] = sqlite3.connect(":memory:")
+            self._persistent_conn: sqlite3.Connection | None = sqlite3.connect(":memory:")
             self._persistent_conn.row_factory = sqlite3.Row
             self._persistent_conn.executescript(_SCHEMA)
             self._persistent_conn.commit()
@@ -208,7 +209,7 @@ class MIEDatabase:
 
     # ── Write methods ──────────────────────────────────────────────────────
 
-    def save_intelligence(self, rec: Dict[str, Any]) -> int:
+    def save_intelligence(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO market_intelligence
             (report_id, symbol, timestamp, tradeability, trade_grade,
@@ -233,7 +234,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_regime(self, rec: Dict[str, Any]) -> int:
+    def save_regime(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO market_regime_history
             (symbol, timestamp, regime, confidence, sub_regime, adx, vol_ratio)
@@ -254,7 +255,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_risk(self, rec: Dict[str, Any]) -> int:
+    def save_risk(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO risk_history
             (symbol, timestamp, risk_regime, risk_score, multiplier,
@@ -277,7 +278,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_tradeability(self, rec: Dict[str, Any]) -> int:
+    def save_tradeability(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO tradeability_history
             (symbol, timestamp, score, grade, confidence_f, rr_f,
@@ -301,7 +302,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_quality(self, rec: Dict[str, Any]) -> int:
+    def save_quality(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO market_quality
             (symbol, timestamp, market_quality, execution_quality,
@@ -328,7 +329,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_execution(self, rec: Dict[str, Any]) -> int:
+    def save_execution(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO execution_quality
             (symbol, timestamp, mode, entry_low, entry_high,
@@ -352,7 +353,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_reliability(self, rec: Dict[str, Any]) -> int:
+    def save_reliability(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO prediction_reliability
             (symbol, timestamp, reliability, confidence_score,
@@ -374,7 +375,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_similarity(self, rec: Dict[str, Any]) -> int:
+    def save_similarity(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO behavior_similarity
             (symbol, timestamp, similarity, historical_win, match_count, best_match)
@@ -394,7 +395,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_commentary(self, rec: Dict[str, Any]) -> int:
+    def save_commentary(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO ai_commentary
             (symbol, timestamp, summary, regime_note, risk_note,
@@ -418,7 +419,7 @@ class MIEDatabase:
             )
             return cur.lastrowid or 0
 
-    def save_scores(self, rec: Dict[str, Any]) -> int:
+    def save_scores(self, rec: dict[str, Any]) -> int:
         sql = """
         INSERT INTO market_scores
             (symbol, timestamp, tradeability, market_quality, risk_score,
@@ -448,7 +449,7 @@ class MIEDatabase:
 
     # ── Read methods ───────────────────────────────────────────────────────
 
-    def get_latest_intelligence(self, symbol: str, limit: int = 1) -> List[Dict[str, Any]]:
+    def get_latest_intelligence(self, symbol: str, limit: int = 1) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM market_intelligence WHERE symbol=? "
@@ -459,7 +460,7 @@ class MIEDatabase:
 
     def get_regime_history(
         self, symbol: str, since: float = 0.0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM market_regime_history WHERE symbol=? AND timestamp>=? "
@@ -470,7 +471,7 @@ class MIEDatabase:
 
     def get_tradeability_history(
         self, symbol: str, since: float = 0.0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM tradeability_history WHERE symbol=? AND timestamp>=? "
@@ -481,7 +482,7 @@ class MIEDatabase:
 
     def get_risk_history(
         self, symbol: str, since: float = 0.0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM risk_history WHERE symbol=? AND timestamp>=? "
@@ -492,7 +493,7 @@ class MIEDatabase:
 
     def get_quality_history(
         self, symbol: str, since: float = 0.0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM market_quality WHERE symbol=? AND timestamp>=? "
@@ -503,7 +504,7 @@ class MIEDatabase:
 
     def get_commentary_history(
         self, symbol: str, since: float = 0.0, limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM ai_commentary WHERE symbol=? AND timestamp>=? "
@@ -514,7 +515,7 @@ class MIEDatabase:
 
     def get_scores_history(
         self, symbol: str, since: float = 0.0, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM market_scores WHERE symbol=? AND timestamp>=? "

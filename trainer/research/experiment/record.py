@@ -6,8 +6,8 @@ import platform
 import subprocess
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 def _git_commit() -> str:
@@ -99,12 +99,12 @@ class ExperimentRecord:
     configuration: dict[str, Any] = field(default_factory=dict)
     hyperparameters: dict[str, Any] = field(default_factory=dict)
     random_seed: int = 42
-    training_duration_seconds: Optional[float] = None
+    training_duration_seconds: float | None = None
     hardware_info: dict[str, Any] = field(default_factory=_hardware_info)
-    mlflow_run_id: Optional[str] = None
+    mlflow_run_id: str | None = None
     metrics: dict[str, float] = field(default_factory=dict)
-    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    end_time: Optional[datetime] = None
+    start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
+    end_time: datetime | None = None
     status: str = "running"
     notes: str = ""
 
@@ -115,7 +115,7 @@ class ExperimentRecord:
             metrics: Final evaluation metric dict.
         """
         self.metrics = metrics
-        self.end_time = datetime.now(timezone.utc)
+        self.end_time = datetime.now(UTC)
         if self.start_time:
             self.training_duration_seconds = (self.end_time - self.start_time).total_seconds()
         self.status = "completed"
@@ -126,7 +126,7 @@ class ExperimentRecord:
         Args:
             reason: Optional failure reason written to notes.
         """
-        self.end_time = datetime.now(timezone.utc)
+        self.end_time = datetime.now(UTC)
         self.status = "failed"
         if reason:
             self.notes = reason
@@ -156,7 +156,7 @@ class ExperimentRecord:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "ExperimentRecord":
+    def from_dict(cls, d: dict[str, Any]) -> ExperimentRecord:
         """Deserialise from a dict (e.g. loaded from JSON).
 
         Args:
@@ -184,9 +184,7 @@ class ExperimentRecord:
         rec.status = d.get("status", "unknown")
         rec.notes = d.get("notes", "")
         raw_start = d.get("start_time")
-        rec.start_time = (
-            datetime.fromisoformat(raw_start) if raw_start else datetime.now(timezone.utc)
-        )
+        rec.start_time = datetime.fromisoformat(raw_start) if raw_start else datetime.now(UTC)
         raw_end = d.get("end_time")
         rec.end_time = datetime.fromisoformat(raw_end) if raw_end else None
         return rec

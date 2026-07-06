@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import math
 import statistics
-from typing import List, Tuple
 
 try:
     from loguru import logger
@@ -17,7 +15,7 @@ from trainer.mie.mie_models import CalibrationResult, MarketInput
 from trainer.mie.mie_types import clamp
 
 
-def _brier_score(predictions: List[float], outcomes: List[float]) -> float:
+def _brier_score(predictions: list[float], outcomes: list[float]) -> float:
     """Mean squared error between predicted probabilities and binary outcomes."""
     if not predictions or len(predictions) != len(outcomes):
         return 0.25  # default (uninformative prior)
@@ -25,8 +23,8 @@ def _brier_score(predictions: List[float], outcomes: List[float]) -> float:
 
 
 def _expected_calibration_error(
-    predictions: List[float],
-    outcomes: List[float],
+    predictions: list[float],
+    outcomes: list[float],
     n_bins: int = 5,
 ) -> float:
     """
@@ -36,7 +34,7 @@ def _expected_calibration_error(
     if len(predictions) < n_bins or len(predictions) != len(outcomes):
         return 0.10  # default
 
-    bins: List[List[Tuple[float, float]]] = [[] for _ in range(n_bins)]
+    bins: list[list[tuple[float, float]]] = [[] for _ in range(n_bins)]
     for p, o in zip(predictions, outcomes):
         idx = min(int(p * n_bins), n_bins - 1)
         bins[idx].append((p, o))
@@ -72,8 +70,8 @@ class CalibrationEngine:
     def evaluate(
         self,
         inp: MarketInput,
-        pred_hist: List[float] = (),
-        out_hist: List[float] = (),
+        pred_hist: list[float] = (),
+        out_hist: list[float] = (),
     ) -> CalibrationResult:
         pred_hist = list(pred_hist)
         out_hist = list(out_hist)
@@ -115,8 +113,8 @@ class CalibrationEngine:
 
     def _overconfidence(
         self,
-        predictions: List[float],
-        outcomes: List[float],
+        predictions: list[float],
+        outcomes: list[float],
     ) -> float:
         """
         Positive = model predicts higher probabilities than observed success rate.

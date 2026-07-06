@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import math
 import statistics
-from typing import List
 
 try:
     from loguru import logger
@@ -34,7 +33,7 @@ class MarketEfficiency:
 
     def analyse_window(
         self,
-        bars: List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         if len(bars) < 3:
@@ -86,7 +85,7 @@ class MarketEfficiency:
         return features
 
     @staticmethod
-    def _estimate_fractal_dimension(closes: List[float]) -> float:
+    def _estimate_fractal_dimension(closes: list[float]) -> float:
         """Simplified fractal dimension estimate.
 
         D ≈ 1 = pure trend, D ≈ 2 = pure random walk.

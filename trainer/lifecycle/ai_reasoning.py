@@ -9,7 +9,6 @@ Pure template + rule-based reasoning — no external AI dependency.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -35,13 +34,13 @@ class ReasoningReport:
     direction: str
     state: LifecycleState
     headline: str
-    rationale: List[str] = field(default_factory=list)
-    risk_factors: List[str] = field(default_factory=list)
-    action_items: List[str] = field(default_factory=list)
+    rationale: list[str] = field(default_factory=list)
+    risk_factors: list[str] = field(default_factory=list)
+    action_items: list[str] = field(default_factory=list)
     outlook: str = ""
     confidence_narrative: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "trade_id": self.trade_id,
             "instrument": self.instrument,
@@ -63,7 +62,7 @@ class AiReasoningEngine:
     """
 
     # State headlines
-    _HEADLINES: Dict[LifecycleState, str] = {
+    _HEADLINES: dict[LifecycleState, str] = {
         LifecycleState.IDEA: "Market identified — initial screening in progress",
         LifecycleState.WATCHLIST: "Setup developing — monitoring for entry conditions",
         LifecycleState.PREPARATION: "Conditions approaching entry — preparation active",
@@ -93,15 +92,15 @@ class AiReasoningEngine:
         direction: str,
         state: LifecycleState,
         confidence: float,
-        context: Optional[MarketContext] = None,
-        metrics: Optional[PositionMetrics] = None,
-        lc_conf: Optional[LifecycleConfidence] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        lc_conf: LifecycleConfidence | None = None,
         prev_confidence: float = 0.65,
     ) -> ReasoningReport:
 
-        rationale: List[str] = []
-        risks: List[str] = []
-        actions: List[str] = []
+        rationale: list[str] = []
+        risks: list[str] = []
+        actions: list[str] = []
         headline = self._HEADLINES.get(state, f"Trade in {state.value} state")
 
         # ── Confidence narrative ──────────────────────────────────────────────

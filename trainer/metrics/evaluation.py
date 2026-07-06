@@ -9,7 +9,6 @@ import torch
 import torchmetrics
 from loguru import logger
 from sklearn.metrics import (
-    ConfusionMatrixDisplay,
     classification_report,
     roc_auc_score,
 )

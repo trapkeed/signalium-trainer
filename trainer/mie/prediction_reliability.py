@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 try:
     from loguru import logger
 except ImportError:
@@ -97,8 +95,8 @@ class PredictionReliabilityEngine:
         calib: float,
         health: float,
         win_rate: float,
-    ) -> List[str]:
-        reasons: List[str] = []
+    ) -> list[str]:
+        reasons: list[str] = []
         if conf < self._min_conf:
             reasons.append(f"Low prediction confidence ({conf:.0%})")
         if conf > self._max_conf:

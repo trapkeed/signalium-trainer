@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -24,7 +24,7 @@ def _pytorch_version() -> str:
     return torch.__version__
 
 
-def _cuda_version() -> Optional[str]:
+def _cuda_version() -> str | None:
     if torch.cuda.is_available():
         return torch.version.cuda or "unknown"
     return None
@@ -112,7 +112,7 @@ class InferenceContext:
         return self._pytorch_version
 
     @property
-    def cuda_version(self) -> Optional[str]:
+    def cuda_version(self) -> str | None:
         return self._cuda_version
 
     @property

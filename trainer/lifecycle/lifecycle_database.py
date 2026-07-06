@@ -18,8 +18,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Dict, Generator, List, Optional
 
 try:
     from loguru import logger
@@ -28,7 +28,6 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import LifecycleState
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS trade_lifecycle (
@@ -122,7 +121,7 @@ class LifecycleDatabase:
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
         if db_path == ":memory:":
-            self._persistent_conn: Optional[sqlite3.Connection] = sqlite3.connect(":memory:")
+            self._persistent_conn: sqlite3.Connection | None = sqlite3.connect(":memory:")
             self._persistent_conn.row_factory = sqlite3.Row
         else:
             self._persistent_conn = None
@@ -147,7 +146,7 @@ class LifecycleDatabase:
 
     # ── Trade Lifecycle ───────────────────────────────────────────────────────
 
-    def upsert_lifecycle(self, summary: Dict) -> None:
+    def upsert_lifecycle(self, summary: dict) -> None:
         sql = """
         INSERT INTO trade_lifecycle
             (trade_id, instrument, direction, current_state, confidence,
@@ -190,7 +189,7 @@ class LifecycleDatabase:
             if self._persistent_conn:
                 conn.commit()
 
-    def get_lifecycle(self, trade_id: str) -> Optional[Dict]:
+    def get_lifecycle(self, trade_id: str) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM trade_lifecycle WHERE trade_id = ?", (trade_id,)
@@ -199,10 +198,10 @@ class LifecycleDatabase:
 
     def list_lifecycles(
         self,
-        state: Optional[str] = None,
-        instrument: Optional[str] = None,
+        state: str | None = None,
+        instrument: str | None = None,
         limit: int = 100,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         conditions, params = [], []
         if state:
             conditions.append("current_state = ?")
@@ -219,7 +218,7 @@ class LifecycleDatabase:
 
     # ── Events ────────────────────────────────────────────────────────────────
 
-    def insert_event(self, event_dict: Dict) -> None:
+    def insert_event(self, event_dict: dict) -> None:
         sql = """
         INSERT OR IGNORE INTO lifecycle_events
             (event_id, trade_id, event_type, state, timestamp, description, severity, data)
@@ -233,7 +232,7 @@ class LifecycleDatabase:
             if self._persistent_conn:
                 conn.commit()
 
-    def get_events_for_trade(self, trade_id: str) -> List[Dict]:
+    def get_events_for_trade(self, trade_id: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM lifecycle_events WHERE trade_id = ? ORDER BY timestamp",
@@ -241,7 +240,7 @@ class LifecycleDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_critical_events(self, limit: int = 50) -> List[Dict]:
+    def get_critical_events(self, limit: int = 50) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM lifecycle_events WHERE severity = 'CRITICAL' "
@@ -252,7 +251,7 @@ class LifecycleDatabase:
 
     # ── State History ─────────────────────────────────────────────────────────
 
-    def insert_state_record(self, trade_id: str, record: Dict) -> None:
+    def insert_state_record(self, trade_id: str, record: dict) -> None:
         sql = """
         INSERT INTO state_history
             (trade_id, state, timestamp, confidence, reason, duration_h, market_ctx, position_mtr)
@@ -276,7 +275,7 @@ class LifecycleDatabase:
             if self._persistent_conn:
                 conn.commit()
 
-    def get_state_history(self, trade_id: str) -> List[Dict]:
+    def get_state_history(self, trade_id: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM state_history WHERE trade_id = ? ORDER BY timestamp",
@@ -286,7 +285,7 @@ class LifecycleDatabase:
 
     # ── Transition Rules ──────────────────────────────────────────────────────
 
-    def upsert_transition_rule(self, rule: Dict) -> None:
+    def upsert_transition_rule(self, rule: dict) -> None:
         sql = """
         INSERT INTO transition_rules
             (from_state, to_state, entry_conditions, exit_conditions, validation_rules,
@@ -323,14 +322,14 @@ class LifecycleDatabase:
             if self._persistent_conn:
                 conn.commit()
 
-    def get_transition_rules(self) -> List[Dict]:
+    def get_transition_rules(self) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute("SELECT * FROM transition_rules").fetchall()
         return [dict(r) for r in rows]
 
     # ── Analytics ─────────────────────────────────────────────────────────────
 
-    def save_analytics_snapshot(self, analytics: Dict) -> int:
+    def save_analytics_snapshot(self, analytics: dict) -> int:
         sql = """
         INSERT INTO lifecycle_analytics
             (snapshot_ts, total_trades, completed_trades, failed_trades,
@@ -367,7 +366,7 @@ class LifecycleDatabase:
                 conn.commit()
             return cur.lastrowid or 0
 
-    def get_latest_analytics(self) -> Optional[Dict]:
+    def get_latest_analytics(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM lifecycle_analytics ORDER BY snapshot_ts DESC LIMIT 1"
@@ -376,7 +375,7 @@ class LifecycleDatabase:
 
     # ── Optimisation ──────────────────────────────────────────────────────────
 
-    def save_optimisation(self, result: Dict) -> int:
+    def save_optimisation(self, result: dict) -> int:
         sql = """
         INSERT INTO optimisation_results
             (analysed_at, total_analysed, findings, summary, key_insight, top_priority)
@@ -399,7 +398,7 @@ class LifecycleDatabase:
                 conn.commit()
             return cur.lastrowid or 0
 
-    def get_optimisation_results(self, limit: int = 10) -> List[Dict]:
+    def get_optimisation_results(self, limit: int = 10) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM optimisation_results ORDER BY analysed_at DESC LIMIT ?",
@@ -409,7 +408,7 @@ class LifecycleDatabase:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         with self._conn() as conn:
             tl = conn.execute("SELECT COUNT(*) FROM trade_lifecycle").fetchone()[0]
             ev = conn.execute("SELECT COUNT(*) FROM lifecycle_events").fetchone()[0]

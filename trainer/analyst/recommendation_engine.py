@@ -13,7 +13,6 @@ VALIDATION, STABILITY, DIVERSITY.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -24,11 +23,9 @@ except ImportError:
 
 from trainer.analyst.analyst_models import Citation, Recommendation, ResearchQuery
 from trainer.analyst.analyst_types import (
-    CitationType,
     Permission,
     QueryType,
     RecommendationType,
-    Role,
     has_permission,
 )
 from trainer.analyst.citation_engine import CitationEngine
@@ -127,7 +124,7 @@ class RecommendationEngine:
     def __init__(
         self,
         index: KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         top_k: int = 6,
     ):
         self._index = index
@@ -135,12 +132,12 @@ class RecommendationEngine:
         self._retriever = RetrievalEngine(index, top_k=top_k)
         self._prompt = PromptEngine()
         self._citation = CitationEngine()
-        self._history: List[Recommendation] = []
+        self._history: list[Recommendation] = []
 
     def recommend(
         self,
         query: ResearchQuery,
-    ) -> List[Recommendation]:
+    ) -> list[Recommendation]:
         """Generate evidence-based recommendations for a query."""
         if not has_permission(query.role, Permission.READ):
             return []
@@ -165,7 +162,7 @@ class RecommendationEngine:
         logger.info(f"RecommendationEngine: generated {len(recs)} recommendations")
         return recs
 
-    def auto_recommend(self) -> List[Recommendation]:
+    def auto_recommend(self) -> list[Recommendation]:
         """Scan the entire knowledge index and auto-generate recommendations.
 
         Returns recommendations triggered by detected patterns in indexed content.
@@ -212,9 +209,9 @@ class RecommendationEngine:
     def _parse_recommendations(
         self,
         text: str,
-        citations: List[Citation],
+        citations: list[Citation],
         query: str,
-    ) -> List[Recommendation]:
+    ) -> list[Recommendation]:
         """Parse numbered recommendations from LLM response text."""
         recs = []
 
@@ -228,7 +225,7 @@ class RecommendationEngine:
                 rec_type=rec_type,
                 title=title.strip()[:120],
                 description=desc.strip()[:400],
-                rationale=f"Evidence from retrieved research artifacts",
+                rationale="Evidence from retrieved research artifacts",
                 citations=citations[:3],
                 priority=priority,
             )
@@ -280,7 +277,7 @@ class RecommendationEngine:
         }
         return titles.get(rec_type, "Research Recommendation")
 
-    def _description_for_type(self, rec_type: RecommendationType, triggers: List[str]) -> str:
+    def _description_for_type(self, rec_type: RecommendationType, triggers: list[str]) -> str:
         descs = {
             RecommendationType.DATA_COLLECTION: "Expand training dataset to include underrepresented market regimes.",
             RecommendationType.FEATURE_ENGINEERING: "Review and prune features showing signs of instability or redundancy.",
@@ -294,10 +291,10 @@ class RecommendationEngine:
         }
         return descs.get(rec_type, "See retrieved research artifacts for details.")
 
-    def history(self, last_n: int = 20) -> List[Recommendation]:
+    def history(self, last_n: int = 20) -> list[Recommendation]:
         return self._history[-last_n:]
 
-    def pending(self) -> List[Recommendation]:
+    def pending(self) -> list[Recommendation]:
         return [r for r in self._history if not r.implemented]
 
     def mark_implemented(self, rec_id: str) -> bool:

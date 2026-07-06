@@ -26,7 +26,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -204,10 +204,10 @@ class ModelComparison:
         probs_a: torch.Tensor,
         probs_b: torch.Tensor,
         labels: torch.Tensor,
-        trades_a: Optional[list] = None,
-        trades_b: Optional[list] = None,
+        trades_a: list | None = None,
+        trades_b: list | None = None,
         n_classes: int = 3,
-    ) -> "ModelComparison":
+    ) -> ModelComparison:
         """Factory: compute snapshots from raw model outputs.
 
         Args:

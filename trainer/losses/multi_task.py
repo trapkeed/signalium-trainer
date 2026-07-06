@@ -17,13 +17,13 @@ L_total = Σ_i  w_i * L_i   (only over heads that have both prediction and label
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from trainer.losses.advanced import DistributionLoss, MultiStepBCELoss
+from trainer.losses.advanced import DistributionLoss
 from trainer.models.quant_v1.config import MultiTaskLossConfig, RegressionLossType
 
 # ---------------------------------------------------------------------------
@@ -101,29 +101,29 @@ class MultiTaskLossOutput:
     direction: torch.Tensor
 
     # Phase 14.5
-    confidence: Optional[torch.Tensor] = None
-    expected_move: Optional[torch.Tensor] = None
-    stop_loss: Optional[torch.Tensor] = None
-    take_profit: Optional[torch.Tensor] = None
-    holding_time: Optional[torch.Tensor] = None
-    tp_probability: Optional[torch.Tensor] = None
+    confidence: torch.Tensor | None = None
+    expected_move: torch.Tensor | None = None
+    stop_loss: torch.Tensor | None = None
+    take_profit: torch.Tensor | None = None
+    holding_time: torch.Tensor | None = None
+    tp_probability: torch.Tensor | None = None
 
     # Phase 14.6
-    mfe: Optional[torch.Tensor] = None
-    mae_excursion: Optional[torch.Tensor] = None
-    trade_efficiency: Optional[torch.Tensor] = None
-    reward_risk: Optional[torch.Tensor] = None
-    trade_survival: Optional[torch.Tensor] = None
-    sl_resilience: Optional[torch.Tensor] = None
-    tp_achievability: Optional[torch.Tensor] = None
-    entry_quality: Optional[torch.Tensor] = None
-    exit_quality: Optional[torch.Tensor] = None
-    market_stability: Optional[torch.Tensor] = None
-    trade_decay: Optional[torch.Tensor] = None
-    profit_distribution: Optional[torch.Tensor] = None
-    loss_distribution: Optional[torch.Tensor] = None
-    position_size_quality: Optional[torch.Tensor] = None
-    uncertainty: Optional[torch.Tensor] = None
+    mfe: torch.Tensor | None = None
+    mae_excursion: torch.Tensor | None = None
+    trade_efficiency: torch.Tensor | None = None
+    reward_risk: torch.Tensor | None = None
+    trade_survival: torch.Tensor | None = None
+    sl_resilience: torch.Tensor | None = None
+    tp_achievability: torch.Tensor | None = None
+    entry_quality: torch.Tensor | None = None
+    exit_quality: torch.Tensor | None = None
+    market_stability: torch.Tensor | None = None
+    trade_decay: torch.Tensor | None = None
+    profit_distribution: torch.Tensor | None = None
+    loss_distribution: torch.Tensor | None = None
+    position_size_quality: torch.Tensor | None = None
+    uncertainty: torch.Tensor | None = None
 
     def to_dict(self) -> dict[str, float]:
         """Convert to plain dict of scalar floats for logging / MLflow."""
@@ -153,7 +153,7 @@ class MultiTaskLossOutput:
             "uncertainty",
         ]
         for f in _fields:
-            val: Optional[torch.Tensor] = getattr(self, f)
+            val: torch.Tensor | None = getattr(self, f)
             if val is not None:
                 result[f"loss_{f}"] = val.item()
         return result
@@ -213,7 +213,7 @@ class MultiTaskLoss(nn.Module):
     def __init__(
         self,
         config: MultiTaskLossConfig,
-        direction_class_weights: Optional[torch.Tensor] = None,
+        direction_class_weights: torch.Tensor | None = None,
         label_smoothing: float = 0.0,
         regression_loss_type: RegressionLossType = RegressionLossType.HUBER,
         huber_delta: float = 1.0,
@@ -255,7 +255,7 @@ class MultiTaskLoss(nn.Module):
         total = cfg.direction_weight * direction_loss
 
         # ── Helper for scalar regression ─────────────────────────────────
-        def _reg(pred_key: str, label_key: str) -> Optional[torch.Tensor]:
+        def _reg(pred_key: str, label_key: str) -> torch.Tensor | None:
             if pred_key in predictions and label_key in labels:
                 return _regression_loss(
                     predictions[pred_key],
@@ -266,7 +266,7 @@ class MultiTaskLoss(nn.Module):
             return None
 
         # ── Helper for binary cross-entropy (scalar) ─────────────────────
-        def _bce(pred_key: str, label_key: str) -> Optional[torch.Tensor]:
+        def _bce(pred_key: str, label_key: str) -> torch.Tensor | None:
             if pred_key in predictions and label_key in labels:
                 pred = predictions[pred_key]
                 tgt = labels[label_key].float()
@@ -276,7 +276,7 @@ class MultiTaskLoss(nn.Module):
             return None
 
         # ── Helper for MSE (scalar) ───────────────────────────────────────
-        def _mse(pred_key: str, label_key: str) -> Optional[torch.Tensor]:
+        def _mse(pred_key: str, label_key: str) -> torch.Tensor | None:
             if pred_key in predictions and label_key in labels:
                 pred = predictions[pred_key]
                 tgt = labels[label_key].float()
@@ -287,7 +287,7 @@ class MultiTaskLoss(nn.Module):
 
         # ── Phase 14.5 losses ─────────────────────────────────────────────
 
-        conf_loss: Optional[torch.Tensor] = None
+        conf_loss: torch.Tensor | None = None
         if "confidence" in predictions and "y_confidence" in labels:
             y_conf = labels["y_confidence"].float()
             if y_conf.dim() == 1:
@@ -334,7 +334,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.reward_risk_weight * rr_loss
 
         # Trade survival — multi-step BCE
-        ts_loss: Optional[torch.Tensor] = None
+        ts_loss: torch.Tensor | None = None
         if "trade_survival" in predictions and "y_trade_survival" in labels:
             ts_loss = F.binary_cross_entropy(
                 predictions["trade_survival"],
@@ -359,7 +359,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.exit_quality_weight * exq_loss
 
         # Market stability — 4-class CrossEntropy
-        ms_loss: Optional[torch.Tensor] = None
+        ms_loss: torch.Tensor | None = None
         if "market_stability" in predictions and "y_market_stability" in labels:
             ms_loss = self._market_stability_loss(
                 predictions["market_stability"],
@@ -368,7 +368,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.market_stability_weight * ms_loss
 
         # Trade decay — multi-step BCE (prob + curve)
-        td_loss: Optional[torch.Tensor] = None
+        td_loss: torch.Tensor | None = None
         if "trade_decay" in predictions and "y_trade_decay" in labels:
             td_loss = F.binary_cross_entropy(
                 predictions["trade_decay"],
@@ -377,7 +377,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.trade_decay_weight * td_loss
 
         # Profit distribution — composite loss
-        pd_loss: Optional[torch.Tensor] = None
+        pd_loss: torch.Tensor | None = None
         if "profit_distribution" in predictions and "y_profit_distribution" in labels:
             pd_loss = self._profit_dist_loss(
                 predictions["profit_distribution"],
@@ -386,7 +386,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.profit_distribution_weight * pd_loss
 
         # Loss distribution — composite loss
-        ld_loss: Optional[torch.Tensor] = None
+        ld_loss: torch.Tensor | None = None
         if "loss_distribution" in predictions and "y_loss_distribution" in labels:
             ld_loss = self._loss_dist_loss(
                 predictions["loss_distribution"],
@@ -399,7 +399,7 @@ class MultiTaskLoss(nn.Module):
             total = total + cfg.position_size_quality_weight * ps_loss
 
         # Uncertainty — MSE on both components
-        unc_loss: Optional[torch.Tensor] = None
+        unc_loss: torch.Tensor | None = None
         if "uncertainty" in predictions and "y_uncertainty" in labels:
             unc_loss = F.mse_loss(
                 predictions["uncertainty"],

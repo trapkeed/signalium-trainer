@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import math
 import statistics
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -17,19 +15,19 @@ from trainer.mie.mie_models import MarketInput, MarketRegimeResult
 from trainer.mie.mie_types import MarketRegime, clamp
 
 
-def _stdev(values: List[float]) -> float:
+def _stdev(values: list[float]) -> float:
     if len(values) < 2:
         return 0.0
     return statistics.stdev(values)
 
 
-def _mean(values: List[float]) -> float:
+def _mean(values: list[float]) -> float:
     if not values:
         return 0.0
     return statistics.mean(values)
 
 
-def _ema(values: List[float], period: int) -> float:
+def _ema(values: list[float], period: int) -> float:
     """Exponential moving average of the last `period` values."""
     if not values:
         return 0.0
@@ -40,21 +38,21 @@ def _ema(values: List[float], period: int) -> float:
     return result
 
 
-def _has_higher_highs(highs: List[float], lookback: int = 5) -> bool:
+def _has_higher_highs(highs: list[float], lookback: int = 5) -> bool:
     if len(highs) < lookback:
         return False
     segment = highs[-lookback:]
     return all(segment[i] >= segment[i - 1] for i in range(1, len(segment)))
 
 
-def _has_lower_lows(lows: List[float], lookback: int = 5) -> bool:
+def _has_lower_lows(lows: list[float], lookback: int = 5) -> bool:
     if len(lows) < lookback:
         return False
     segment = lows[-lookback:]
     return all(segment[i] <= segment[i - 1] for i in range(1, len(segment)))
 
 
-def _volume_spike(volumes: List[float], threshold: float = 2.5) -> bool:
+def _volume_spike(volumes: list[float], threshold: float = 2.5) -> bool:
     if len(volumes) < 5:
         return False
     avg_vol = _mean(volumes[:-1])
@@ -95,7 +93,7 @@ class MarketRegimeEngine:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def detect(self, inp: MarketInput) -> MarketRegimeResult:
-        signals: Dict = {}
+        signals: dict = {}
         regime, confidence, sub = self._classify(inp, signals)
         logger.debug(f"[MRE] {inp.symbol} → {regime.value} ({confidence:.2f})")
         return MarketRegimeResult(
@@ -110,7 +108,7 @@ class MarketRegimeEngine:
     def _classify(
         self,
         inp: MarketInput,
-        signals: Dict,
+        signals: dict,
     ) -> tuple:
         returns = inp.returns or []
         closes = inp.closes or []

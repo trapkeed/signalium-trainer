@@ -14,7 +14,6 @@ Provides per-head metric computation:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 
@@ -27,24 +26,24 @@ class MultiTaskMetrics:
     are not available in the evaluation dataset.
     """
 
-    direction_accuracy: Optional[float] = None
+    direction_accuracy: float | None = None
 
-    move_mae: Optional[float] = None
-    move_rmse: Optional[float] = None
+    move_mae: float | None = None
+    move_rmse: float | None = None
 
-    sl_mae: Optional[float] = None
-    sl_rmse: Optional[float] = None
+    sl_mae: float | None = None
+    sl_rmse: float | None = None
 
-    tp_mae: Optional[float] = None
-    tp_rmse: Optional[float] = None
+    tp_mae: float | None = None
+    tp_rmse: float | None = None
 
-    holding_time_mae: Optional[float] = None
-    holding_time_rmse: Optional[float] = None
+    holding_time_mae: float | None = None
+    holding_time_rmse: float | None = None
 
-    tp_prob_roc_auc: Optional[float] = None
+    tp_prob_roc_auc: float | None = None
 
-    confidence_ece: Optional[float] = None
-    confidence_reliability: Optional[float] = None
+    confidence_ece: float | None = None
+    confidence_reliability: float | None = None
 
     def to_dict(self) -> dict[str, float]:
         """Return non-None metrics as a plain dict for logging/export."""
@@ -86,7 +85,7 @@ def compute_regression_metrics(preds: torch.Tensor, targets: torch.Tensor) -> tu
     return mae, rmse
 
 
-def compute_tp_prob_roc_auc(preds: torch.Tensor, targets: torch.Tensor) -> Optional[float]:
+def compute_tp_prob_roc_auc(preds: torch.Tensor, targets: torch.Tensor) -> float | None:
     """Compute ROC-AUC for the TP-before-SL binary head.
 
     Requires scikit-learn.  Returns None if only one class is present in

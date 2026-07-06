@@ -3,4 +3,4 @@
 from trainer.research.champion.registry import ChampionRegistry, ModelEntry
 from trainer.research.champion.status import ModelStatus
 
-__all__ = ["ModelStatus", "ChampionRegistry", "ModelEntry"]
+__all__ = ["ChampionRegistry", "ModelEntry", "ModelStatus"]

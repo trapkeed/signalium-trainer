@@ -10,8 +10,6 @@ Pure Python implementation (no numpy).
 from __future__ import annotations
 
 import math
-import statistics
-from typing import Dict, List, Optional, Set, Tuple
 
 try:
     from loguru import logger
@@ -21,11 +19,11 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 
-def _mean(data: List[float]) -> float:
+def _mean(data: list[float]) -> float:
     return sum(data) / len(data) if data else 0.0
 
 
-def _pearson(a: List[float], b: List[float]) -> float:
+def _pearson(a: list[float], b: list[float]) -> float:
     """Compute Pearson correlation coefficient."""
     n = min(len(a), len(b))
     if n < 2:
@@ -40,7 +38,7 @@ def _pearson(a: List[float], b: List[float]) -> float:
     return max(-1.0, min(1.0, num / denom))
 
 
-def _tail_correlation(a: List[float], b: List[float], percentile: float = 0.10) -> float:
+def _tail_correlation(a: list[float], b: list[float], percentile: float = 0.10) -> float:
     """Correlation in the joint lower tail (both below p-th percentile)."""
     n = min(len(a), len(b))
     if n < 10:
@@ -72,10 +70,10 @@ class CorrelationEngine:
 
     def rolling_correlation(
         self,
-        returns_a: List[float],
-        returns_b: List[float],
-        window: Optional[int] = None,
-    ) -> List[float]:
+        returns_a: list[float],
+        returns_b: list[float],
+        window: int | None = None,
+    ) -> list[float]:
         """Compute rolling Pearson correlation with given window."""
         w = window or self._window
         n = min(len(returns_a), len(returns_b))
@@ -86,7 +84,7 @@ class CorrelationEngine:
             result.append(round(_pearson(a, b), 4))
         return result
 
-    def current_correlation(self, returns_a: List[float], returns_b: List[float]) -> float:
+    def current_correlation(self, returns_a: list[float], returns_b: list[float]) -> float:
         """Correlation over the most recent `window` observations."""
         w = min(self._window, len(returns_a), len(returns_b))
         return round(_pearson(returns_a[-w:], returns_b[-w:]), 4)
@@ -95,11 +93,11 @@ class CorrelationEngine:
 
     def correlation_matrix(
         self,
-        returns: Dict[str, List[float]],
-    ) -> Dict[str, Dict[str, float]]:
+        returns: dict[str, list[float]],
+    ) -> dict[str, dict[str, float]]:
         """Compute the full pairwise correlation matrix."""
         instruments = list(returns.keys())
-        matrix: Dict[str, Dict[str, float]] = {}
+        matrix: dict[str, dict[str, float]] = {}
         for i, ins_a in enumerate(instruments):
             matrix[ins_a] = {}
             for j, ins_b in enumerate(instruments):
@@ -115,9 +113,9 @@ class CorrelationEngine:
 
     def dynamic_correlation(
         self,
-        returns: Dict[str, List[float]],
+        returns: dict[str, list[float]],
         lookback: int = 60,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Average pairwise correlation for each instrument vs the portfolio."""
         instruments = list(returns.keys())
         result = {}
@@ -137,8 +135,8 @@ class CorrelationEngine:
 
     def correlation_clusters(
         self,
-        returns: Dict[str, List[float]],
-    ) -> List[Set[str]]:
+        returns: dict[str, list[float]],
+    ) -> list[set[str]]:
         """Identify groups of highly correlated instruments.
 
         Uses single-linkage clustering at `self._threshold`.
@@ -147,13 +145,13 @@ class CorrelationEngine:
         matrix = self.correlation_matrix(returns)
 
         # Assign each to its own cluster, then merge
-        clusters: List[Set[str]] = [{ins} for ins in instruments]
+        clusters: list[set[str]] = [{ins} for ins in instruments]
 
         changed = True
         while changed:
             changed = False
-            new_clusters: List[Set[str]] = []
-            merged: Set[int] = set()
+            new_clusters: list[set[str]] = []
+            merged: set[int] = set()
             for i in range(len(clusters)):
                 if i in merged:
                     continue
@@ -181,13 +179,13 @@ class CorrelationEngine:
 
     def hidden_exposure(
         self,
-        weights: Dict[str, float],
-        returns: Dict[str, List[float]],
-    ) -> Dict[str, float]:
+        weights: dict[str, float],
+        returns: dict[str, list[float]],
+    ) -> dict[str, float]:
         """Effective exposure accounting for correlation."""
         matrix = self.correlation_matrix(returns)
         instruments = list(weights.keys())
-        hidden: Dict[str, float] = {}
+        hidden: dict[str, float] = {}
         for ins in instruments:
             w = weights.get(ins, 0.0)
             corrs = [
@@ -202,11 +200,11 @@ class CorrelationEngine:
 
     def currency_concentration(
         self,
-        weights: Dict[str, float],
-        currencies: Dict[str, str],  # instrument → base currency
-    ) -> Dict[str, float]:
+        weights: dict[str, float],
+        currencies: dict[str, str],  # instrument → base currency
+    ) -> dict[str, float]:
         """Aggregate exposure by base currency."""
-        ccy: Dict[str, float] = {}
+        ccy: dict[str, float] = {}
         for ins, w in weights.items():
             c = currencies.get(ins, "UNKNOWN")
             ccy[c] = ccy.get(c, 0.0) + w
@@ -216,12 +214,12 @@ class CorrelationEngine:
 
     def tail_correlations(
         self,
-        returns: Dict[str, List[float]],
+        returns: dict[str, list[float]],
         percentile: float = 0.10,
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """Pairwise tail correlations in the lower `percentile` of both series."""
         instruments = list(returns.keys())
-        result: Dict[str, Dict[str, float]] = {}
+        result: dict[str, dict[str, float]] = {}
         for a in instruments:
             result[a] = {}
             for b in instruments:
@@ -234,7 +232,7 @@ class CorrelationEngine:
 
     # ── Portfolio average correlation ─────────────────────────────────────────
 
-    def average_correlation(self, returns: Dict[str, List[float]]) -> float:
+    def average_correlation(self, returns: dict[str, list[float]]) -> float:
         """Average pairwise correlation across all instrument pairs."""
         instruments = list(returns.keys())
         if len(instruments) < 2:

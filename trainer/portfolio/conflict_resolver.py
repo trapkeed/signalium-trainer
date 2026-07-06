@@ -11,9 +11,8 @@ Examples of conflicts:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
 
 from trainer.portfolio.portfolio_instruments import (
     InstrumentInfo,
@@ -77,11 +76,11 @@ class ReinforcementDetail:
 
 @dataclass
 class ConflictReport:
-    conflicts: List[ConflictDetail]
-    reinforcements: List[ReinforcementDetail]
-    conflicted_instruments: Set[str]
-    clean_forecasts: List[ModelForecast]
-    adjusted_forecasts: List[ModelForecast]
+    conflicts: list[ConflictDetail]
+    reinforcements: list[ReinforcementDetail]
+    conflicted_instruments: set[str]
+    clean_forecasts: list[ModelForecast]
+    adjusted_forecasts: list[ModelForecast]
 
     def conflict_count(self) -> int:
         return len(self.conflicts)
@@ -105,7 +104,7 @@ class ConflictReport:
 
 
 # Known conflict patterns (currency exposure overlap)
-_DIRECT_CONFLICTS: List[Tuple[str, str, str]] = [
+_DIRECT_CONFLICTS: list[tuple[str, str, str]] = [
     # (A, B, description) — these pairs have opposing implicit USD direction
     ("EURUSD", "USDCHF", "EUR/USD long = USD short; USD/CHF long = USD long → USD conflict"),
     ("EURUSD", "USDJPY", "EUR/USD long = USD short; USD/JPY long = USD long → USD conflict"),
@@ -119,7 +118,7 @@ _DIRECT_CONFLICTS: List[Tuple[str, str, str]] = [
     ("NZDUSD", "USDJPY", "NZD/USD long = USD short; USD/JPY long = USD long → USD conflict"),
 ]
 
-_SAFE_HAVEN_RISK_PAIRS: List[Tuple[str, str]] = [
+_SAFE_HAVEN_RISK_PAIRS: list[tuple[str, str]] = [
     ("XAUUSD", "NAS100"),
     ("XAUUSD", "SPX500"),
     ("XAUUSD", "BTCUSD"),
@@ -129,7 +128,7 @@ _SAFE_HAVEN_RISK_PAIRS: List[Tuple[str, str]] = [
     ("USDJPY", "NZDUSD"),
 ]
 
-_RISK_ON_INSTRUMENTS: Set[str] = {
+_RISK_ON_INSTRUMENTS: set[str] = {
     "NAS100",
     "US30",
     "SPX500",
@@ -138,7 +137,7 @@ _RISK_ON_INSTRUMENTS: Set[str] = {
     "AUDUSD",
     "NZDUSD",
 }
-_SAFE_HAVEN_INSTRUMENTS: Set[str] = {"XAUUSD", "USDCHF", "USDJPY"}
+_SAFE_HAVEN_INSTRUMENTS: set[str] = {"XAUUSD", "USDCHF", "USDJPY"}
 
 
 def _usd_direction(fc: ModelForecast, info: InstrumentInfo) -> float:
@@ -155,15 +154,15 @@ def _usd_direction(fc: ModelForecast, info: InstrumentInfo) -> float:
 class ConflictResolver:
     """Detects signal conflicts and recommends resolutions."""
 
-    def __init__(self, registry: Optional[InstrumentRegistry] = None) -> None:
+    def __init__(self, registry: InstrumentRegistry | None = None) -> None:
         self._registry = registry or InstrumentRegistry.default()
 
-    def resolve(self, forecasts: List[ModelForecast]) -> ConflictReport:
-        fc_map: Dict[str, ModelForecast] = {f.instrument: f for f in forecasts}
-        conflicts: List[ConflictDetail] = []
-        reinforcements: List[ReinforcementDetail] = []
-        ignore_set: Set[str] = set()
-        reduce_set: Set[str] = set()
+    def resolve(self, forecasts: list[ModelForecast]) -> ConflictReport:
+        fc_map: dict[str, ModelForecast] = {f.instrument: f for f in forecasts}
+        conflicts: list[ConflictDetail] = []
+        reinforcements: list[ReinforcementDetail] = []
+        ignore_set: set[str] = set()
+        reduce_set: set[str] = set()
 
         # Direct currency conflicts
         for a, b, desc in _DIRECT_CONFLICTS:
@@ -293,7 +292,7 @@ class ConflictResolver:
         return "Keep all positions; monitor correlation risk."
 
     @staticmethod
-    def _apply_reduce(forecasts: List[ModelForecast], reduce_set: Set[str]) -> List[ModelForecast]:
+    def _apply_reduce(forecasts: list[ModelForecast], reduce_set: set[str]) -> list[ModelForecast]:
         result = []
         for fc in forecasts:
             if fc.instrument in reduce_set:

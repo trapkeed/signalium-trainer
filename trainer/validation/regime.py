@@ -24,9 +24,9 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import torch
@@ -66,7 +66,7 @@ class RegimeDistribution:
     total: int
 
     @classmethod
-    def from_labels(cls, labels: list[MarketRegime]) -> "RegimeDistribution":
+    def from_labels(cls, labels: list[MarketRegime]) -> RegimeDistribution:
         counts: dict[str, int] = {}
         for lbl in labels:
             counts[lbl.value] = counts.get(lbl.value, 0) + 1
@@ -138,8 +138,8 @@ class MarketRegimeClassifier:
     def classify(
         self,
         ohlcv: torch.Tensor,
-        timestamps: Optional[torch.Tensor] = None,
-        news_mask: Optional[torch.Tensor] = None,
+        timestamps: torch.Tensor | None = None,
+        news_mask: torch.Tensor | None = None,
     ) -> list[MarketRegime]:
         """Classify every bar into a market regime.
 

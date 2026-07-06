@@ -9,7 +9,6 @@ Performance Review, Deployment Readiness, Feature Analysis, Research Progress.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -18,8 +17,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import Citation, ResearchQuery, ResearchReport
-from trainer.analyst.analyst_types import Permission, QueryType, ReportType, Role, has_permission
+from trainer.analyst.analyst_models import ResearchQuery, ResearchReport
+from trainer.analyst.analyst_types import Permission, QueryType, ReportType, has_permission
 from trainer.analyst.citation_engine import CitationEngine
 from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
@@ -119,7 +118,7 @@ class ReportGenerator:
     def __init__(
         self,
         index: KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         top_k: int = 8,
     ):
         self._index = index
@@ -127,7 +126,7 @@ class ReportGenerator:
         self._retriever = RetrievalEngine(index, top_k=top_k)
         self._prompt = PromptEngine()
         self._citation = CitationEngine()
-        self._reports: List[ResearchReport] = []
+        self._reports: list[ResearchReport] = []
 
     def generate(
         self,
@@ -189,14 +188,14 @@ class ReportGenerator:
         logger.info(f"ReportGenerator: generated {report_type.value} report '{title}'")
         return report
 
-    def _build_sections(self, content: str, report_type: ReportType) -> List[Dict]:
+    def _build_sections(self, content: str, report_type: ReportType) -> list[dict]:
         """Build section metadata from report content."""
         section_names = _REPORT_SECTIONS.get(report_type, ["Content"])
         sections = []
         lines = content.split("\n")
 
         current_section = None
-        current_lines: List[str] = []
+        current_lines: list[str] = []
 
         for line in lines:
             if line.startswith("## "):
@@ -227,13 +226,13 @@ class ReportGenerator:
 
         return sections
 
-    def list_reports(self) -> List[Dict]:
+    def list_reports(self) -> list[dict]:
         return [r.to_dict() for r in self._reports]
 
-    def get_report(self, report_id: str) -> Optional[ResearchReport]:
+    def get_report(self, report_id: str) -> ResearchReport | None:
         return next((r for r in self._reports if r.report_id == report_id), None)
 
-    def report_types(self) -> List[str]:
+    def report_types(self) -> list[str]:
         return [r.value for r in ReportType]
 
 

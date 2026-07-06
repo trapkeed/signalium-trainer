@@ -25,8 +25,7 @@ Usage::
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class EnsembleVisualizationBuilder:
@@ -38,9 +37,9 @@ class EnsembleVisualizationBuilder:
 
     def expert_weight_chart(
         self,
-        current_weights: Dict[str, float],
-        expert_names: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        current_weights: dict[str, float],
+        expert_names: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Bar chart of current expert weights."""
         names = expert_names or {}
         data = [
@@ -67,8 +66,8 @@ class EnsembleVisualizationBuilder:
 
     def voting_distribution(
         self,
-        vote_records: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        vote_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Stacked bar chart of vote distribution per expert."""
         if not vote_records:
             return {
@@ -78,7 +77,7 @@ class EnsembleVisualizationBuilder:
                 "note": "No voting records provided.",
             }
         classes = ["buy", "sell", "no_trade"]
-        expert_votes: Dict[str, Dict[str, int]] = {}
+        expert_votes: dict[str, dict[str, int]] = {}
         for record in vote_records:
             eid = record.get("expert_id", "unknown")
             cls = record.get("voted_class", "no_trade")
@@ -115,8 +114,8 @@ class EnsembleVisualizationBuilder:
 
     def agreement_matrix(
         self,
-        matrix_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        matrix_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """Heatmap of pairwise expert agreement."""
         matrix_data["chart_type"] = "heatmap"
         matrix_data["title"] = matrix_data.get("title", "Expert Agreement Matrix")
@@ -125,8 +124,8 @@ class EnsembleVisualizationBuilder:
 
     def disagreement_matrix(
         self,
-        matrix_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        matrix_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """Heatmap of pairwise expert disagreement."""
         matrix_data["chart_type"] = "heatmap"
         matrix_data["title"] = matrix_data.get("title", "Expert Disagreement Matrix")
@@ -139,9 +138,9 @@ class EnsembleVisualizationBuilder:
 
     def confidence_distribution(
         self,
-        ensemble_results: List[Dict[str, Any]],
+        ensemble_results: list[dict[str, Any]],
         n_bins: int = 10,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Histogram of ensemble confidence values."""
         if not ensemble_results:
             return {
@@ -180,9 +179,9 @@ class EnsembleVisualizationBuilder:
 
     def weight_evolution(
         self,
-        weight_history: Dict[str, List[float]],
-        expert_names: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        weight_history: dict[str, list[float]],
+        expert_names: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Line chart showing expert weight trajectories over time."""
         names = expert_names or {}
         series = []
@@ -210,9 +209,9 @@ class EnsembleVisualizationBuilder:
 
     def expert_performance_timeline(
         self,
-        performance_records: List[Dict[str, Any]],
+        performance_records: list[dict[str, Any]],
         window: int = 50,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Line chart of rolling accuracy per expert over time."""
         if not performance_records:
             return {
@@ -222,7 +221,7 @@ class EnsembleVisualizationBuilder:
                 "note": "No performance records provided.",
             }
 
-        by_expert: Dict[str, List[Dict[str, Any]]] = {}
+        by_expert: dict[str, list[dict[str, Any]]] = {}
         for r in performance_records:
             eid = r.get("expert_id", "unknown")
             if eid not in by_expert:
@@ -258,9 +257,9 @@ class EnsembleVisualizationBuilder:
 
     def ensemble_vs_expert_accuracy(
         self,
-        expert_metrics: Dict[str, Dict[str, float]],
-        ensemble_metrics: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, Any]:
+        expert_metrics: dict[str, dict[str, float]],
+        ensemble_metrics: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
         """Bar chart comparing ensemble accuracy vs each expert."""
         data = []
         for eid, met in sorted(expert_metrics.items()):
@@ -296,8 +295,8 @@ class EnsembleVisualizationBuilder:
 
     def regime_performance_heatmap(
         self,
-        regime_accuracy: Dict[str, Dict[str, float]],
-    ) -> Dict[str, Any]:
+        regime_accuracy: dict[str, dict[str, float]],
+    ) -> dict[str, Any]:
         """Heatmap of expert accuracy per regime."""
         expert_ids = list(regime_accuracy.keys())
         regimes = sorted({r for m in regime_accuracy.values() for r in m})
@@ -317,16 +316,16 @@ class EnsembleVisualizationBuilder:
 
     def full_dashboard(
         self,
-        current_weights: Dict[str, float],
-        weight_history: Dict[str, List[float]],
-        vote_records: List[Dict[str, Any]],
-        agreement_matrix_data: Dict[str, Any],
-        ensemble_results: List[Dict[str, Any]],
-        performance_records: List[Dict[str, Any]],
-        expert_metrics: Optional[Dict[str, Dict[str, float]]] = None,
-        ensemble_metrics: Optional[Dict[str, float]] = None,
-        expert_names: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        current_weights: dict[str, float],
+        weight_history: dict[str, list[float]],
+        vote_records: list[dict[str, Any]],
+        agreement_matrix_data: dict[str, Any],
+        ensemble_results: list[dict[str, Any]],
+        performance_records: list[dict[str, Any]],
+        expert_metrics: dict[str, dict[str, float]] | None = None,
+        ensemble_metrics: dict[str, float] | None = None,
+        expert_names: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """Build all dashboard charts in one call."""
         return {
             "expert_weight_chart": self.expert_weight_chart(current_weights, expert_names),

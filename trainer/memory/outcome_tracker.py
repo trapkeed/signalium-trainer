@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import collections
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
@@ -21,7 +20,6 @@ from trainer.memory.decision_types import (
     NEGATIVE_OUTCOMES,
     POSITIVE_OUTCOMES,
     DecisionType,
-    OutcomeType,
 )
 
 
@@ -39,12 +37,12 @@ class OutcomeSummary:
     avg_holding_h: float = 0.0
     hit_tp_count: int = 0
     hit_sl_count: int = 0
-    outcome_distribution: Dict[str, int] = field(default_factory=dict)
-    by_instrument: Dict[str, Dict] = field(default_factory=dict)
-    by_session: Dict[str, Dict] = field(default_factory=dict)
-    by_regime: Dict[str, Dict] = field(default_factory=dict)
+    outcome_distribution: dict[str, int] = field(default_factory=dict)
+    by_instrument: dict[str, dict] = field(default_factory=dict)
+    by_session: dict[str, dict] = field(default_factory=dict)
+    by_regime: dict[str, dict] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "total": self.total,
             "with_outcome": self.with_outcome,
@@ -68,8 +66,8 @@ class OutcomeTracker:
 
     def summarise(
         self,
-        records: List[DecisionRecord],
-        decision_type: Optional[DecisionType] = None,
+        records: list[DecisionRecord],
+        decision_type: DecisionType | None = None,
     ) -> OutcomeSummary:
         if decision_type:
             records = [r for r in records if r.decision_type == decision_type]
@@ -83,7 +81,7 @@ class OutcomeTracker:
             return summary
 
         # Outcome distribution
-        dist: Dict[str, int] = collections.Counter(
+        dist: dict[str, int] = collections.Counter(
             r.outcome.outcome_type.value for r in with_outcome
         )
         summary.outcome_distribution = dict(dist)
@@ -106,7 +104,7 @@ class OutcomeTracker:
         summary.hit_sl_count = sum(1 for r in with_outcome if r.outcome.hit_sl)
 
         # By instrument
-        by_instr: Dict[str, List] = collections.defaultdict(list)
+        by_instr: dict[str, list] = collections.defaultdict(list)
         for r in with_outcome:
             by_instr[r.instrument].append(r.outcome.actual_pnl)
         summary.by_instrument = {
@@ -119,7 +117,7 @@ class OutcomeTracker:
         }
 
         # By session
-        by_session: Dict[str, List] = collections.defaultdict(list)
+        by_session: dict[str, list] = collections.defaultdict(list)
         for r in with_outcome:
             by_session[r.snapshot.session].append(r.outcome.actual_pnl)
         summary.by_session = {
@@ -131,7 +129,7 @@ class OutcomeTracker:
         }
 
         # By regime
-        by_regime: Dict[str, List] = collections.defaultdict(list)
+        by_regime: dict[str, list] = collections.defaultdict(list)
         for r in with_outcome:
             by_regime[r.snapshot.market_regime].append(r.outcome.actual_pnl)
         summary.by_regime = {
@@ -145,7 +143,7 @@ class OutcomeTracker:
         logger.debug(f"OutcomeTracker: {n} outcomes analysed, win_rate={summary.win_rate:.2%}")
         return summary
 
-    def direction_accuracy(self, records: List[DecisionRecord]) -> float:
+    def direction_accuracy(self, records: list[DecisionRecord]) -> float:
         """Fraction of entry decisions with correct direction."""
         entry = [
             r
@@ -159,13 +157,13 @@ class OutcomeTracker:
         correct = sum(1 for r in entry if r.outcome.actual_direction_correct)
         return round(correct / len(entry), 4)
 
-    def tp_hit_rate(self, records: List[DecisionRecord]) -> float:
+    def tp_hit_rate(self, records: list[DecisionRecord]) -> float:
         with_outcome = [r for r in records if r.has_outcome]
         if not with_outcome:
             return 0.0
         return round(sum(1 for r in with_outcome if r.outcome.hit_tp) / len(with_outcome), 4)
 
-    def sl_hit_rate(self, records: List[DecisionRecord]) -> float:
+    def sl_hit_rate(self, records: list[DecisionRecord]) -> float:
         with_outcome = [r for r in records if r.has_outcome]
         if not with_outcome:
             return 0.0

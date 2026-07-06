@@ -4,8 +4,8 @@ from trainer.research.validation.rolling_window import RollingFold, RollingWindo
 from trainer.research.validation.walk_forward import ValidationFold, WalkForwardValidator
 
 __all__ = [
-    "WalkForwardValidator",
-    "ValidationFold",
-    "RollingWindowValidator",
     "RollingFold",
+    "RollingWindowValidator",
+    "ValidationFold",
+    "WalkForwardValidator",
 ]
