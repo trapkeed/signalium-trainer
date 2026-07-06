@@ -34,7 +34,8 @@ RUN pip install --upgrade --no-cache-dir pip setuptools wheel
 # then fetch torchmetrics from PyPI in the next step.
 # ---------------------------------------------------------------------------
 RUN pip install --no-cache-dir "torch>=2.3.0" \
-        --index-url https://download.pytorch.org/whl/cpu
+        --index-url https://download.pytorch.org/whl/cpu \
+        --timeout 300 --retries 5
 
 # torchmetrics lives on PyPI, not the PyTorch wheel server
 RUN pip install --no-cache-dir "torchmetrics>=1.4.0"
