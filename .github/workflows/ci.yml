@@ -122,7 +122,8 @@ jobs:
       - name: Install package and test dependencies
         run: |
           pip install --upgrade pip
-          pip install torch --index-url https://download.pytorch.org/whl/cpu --timeout 300 --retries 5
+          pip install torch --index-url https://download.pytorch.org/whl/cpu --timeout 120 --retries 3 || \
+            pip install torch --timeout 120 --retries 3
           pip install -e ".[dev]" --timeout 300 --retries 5
 
       - name: Run tests
