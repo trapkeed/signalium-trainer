@@ -58,10 +58,10 @@ class TestInferencePipeline:
     def test_predict_returns_correct_type(
         self, model: QuantModelV1, batch_input: torch.Tensor
     ) -> None:
-        from trainer.models.quant_v1.output import QuantModelOutput
+        from trainer.models.quant_v1.output import MultiTaskQuantModelOutput, QuantModelOutput
 
         out = model.predict(batch_input)
-        assert isinstance(out, QuantModelOutput)
+        assert isinstance(out, (QuantModelOutput, MultiTaskQuantModelOutput))
 
     @torch.no_grad()
     def test_probabilities_consistent_with_buy_sell_notrade(

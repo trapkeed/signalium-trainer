@@ -489,7 +489,7 @@ class InstitutionalValidationEngine:
             "calibration_curve": self._viz_builder.build_calibration_curve(calib_report),
             "drift_chart": self._viz_builder.build_drift_chart(drift_report),
             "performance_trend": self._viz_builder.build_performance_trend(
-                fold_results=[{"accuracy": 0.5}],
+                fold_metrics=[{"accuracy": 0.5}],
                 metric="accuracy",
             ),
             "trade_distribution": self._viz_builder.build_trade_distribution(trades),
