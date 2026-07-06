@@ -1,0 +1,161 @@
+Failing symptom
+- Pytest collection fails with:
+  ImportError: cannot import name 'CategoryNarrative' from 'trainer.research.hrsa_explanations'
+  (observed while importing trainer/research/__init__.py).
+
+Root cause (likely)
+- trainer/research/__init__.py imports CategoryNarrative (and other symbols) from trainer.research.hrsa_explanations at package import time.
+- Either:
+  1) hrsa_explanations.py does not define/export CategoryNarrative (symbol missing / renamed), or
+  2) there is a circular import: hrsa_explanations imports something from trainer.research which causes the symbol not to be available at import time.
+
+Two safe fixes (pick the one that matches your intent)
+
+Option A — If CategoryNarrative was accidentally removed/renamed: add or alias the symbol in trainer/research/hrsa_explanations.py
+- Add a small data class (or alias) to hrsa_explanations so the symbol exists. Example implementation (adjust fields/types to the real model):
+
+# trainer/research/hrsa_explanations.py
+from dataclasses import dataclass
+from typing import List, Optional
+
+@dataclass
+class MetricContributor:
+    metric_name: str
+    contribution: float
+    details: Optional[str] = None
+
+@dataclass
+class CategoryNarrative:
+    category: str
+    narrative: str
+    contributors: List[MetricContributor]
+
+# existing exports; ensure these names are in the module's globals
+__all__ = [
+    "MetricContributor",
+    "CategoryNarrative",
+    "HRSAExplainer",
+    "Recommendation",
+    "ScoreExplanation",
+    # ... other names
+]
+
+- If the real implementation already exists under another name (e.g. CategoryNarrativeV2), add a compatibility alias:
+CategoryNarrative = CategoryNarrativeV2
+
+After adding this, run the test suite again (pytest) — import error should be resolved.
+
+Option B — If the failure is due to an import-time circular dependency: avoid heavy imports in trainer/research/__init__.py and use lazy imports
+- The package-level __init__ imports many modules eagerly; if hrsa_explanations imports back into the package this can break collection. Two approaches:
+
+1) Lazy import the problematic hrsa_explanations symbols only when needed (defer import instead of top-level import in __init__):
+- Replace the top-level import in trainer/research/__init__.py:
+
+# old (causes eager import)
+from trainer.research.hrsa_explanations import (
+    CategoryNarrative,
+    HRSAExplainer,
+    MetricContributor,
+    Recommendation,
+    ScoreExplanation,
+)
+
+- With a lazy accessor (example):
+
+# __init__.py (add near where you need these names exported)
+def _load_hrsa_explanations():
+    from trainer.research.hrsa_explanations import (
+        CategoryNarrative,
+        HRSAExplainer,
+        MetricContributor,
+        Recommendation,
+        ScoreExplanation,
+    )
+    globals().update({
+        "CategoryNarrative": CategoryNarrative,
+        "HRSAExplainer": HRSAExplainer,
+        "MetricContributor": MetricContributor,
+        "Recommendation": Recommendation,
+        "ScoreExplanation": ScoreExplanation,
+    })
+
+# call once on first attribute access (simple pattern)
+try:
+    # attempt import but don't fail package import if it errors
+    _load_hrsa_explanations()
+except Exception:
+    # fallback: tests that only import the package can still import other parts
+    pass
+
+2) Or wrap the import in a try/except and surface a clearer error for consumers who actually need the symbols:
+try:
+    from trainer.research.hrsa_explanations import (
+        CategoryNarrative,
+        HRSAExplainer,
+        MetricContributor,
+        Recommendation,
+        ScoreExplanation,
+    )
+except ImportError:
+    CategoryNarrative = None
+    HRSAExplainer = None
+    MetricContributor = None
+    Recommendation = None
+    ScoreExplanation = None
+
+- This prevents pytest collection from failing just because one symbol wasn't importable; tests that need those symbols should import them explicitly (so they get a clear ImportError) or you can fail-fast with a clearer message.
+
+Recommended immediate action
+1. Inspect trainer/research/hrsa_explanations.py:
+   - If CategoryNarrative is missing/renamed, add the class or a compatibility alias (Option A). That is the preferable permanent fix.
+   - If the module defines CategoryNarrative but the import still fails, check for circular imports inside hrsa_explanations.py (search for "from trainer.research" or imports of sibling modules). If present, refactor to avoid circular imports — move type-only imports into typing.TYPE_CHECKING blocks or into function scope.
+
+2. If you need a quick CI-unblocking change, apply the try/except lazy import pattern in trainer/research/__init__.py so package import doesn't fail during test collection (Option B).
+
+Example patch snippets
+
+A. Add CategoryNarrative class (preferred if symbol intended to exist)
+--- trainer/research/hrsa_explanations.py (new/updated)
+from dataclasses import dataclass
+from typing import List, Optional
+
+@dataclass
+class MetricContributor:
+    metric_name: str
+    contribution: float
+    details: Optional[str] = None
+
+@dataclass
+class CategoryNarrative:
+    category: str
+    narrative: str
+    contributors: List[MetricContributor]
+
+# ensure these are exported
+__all__ = ["MetricContributor", "CategoryNarrative", "HRSAExplainer", "Recommendation", "ScoreExplanation"]
+
+B. Make import in __init__.py robust (quick unblock)
+--- trainer/research/__init__.py (replace the top-level hrsa_explanations import)
+try:
+    from trainer.research.hrsa_explanations import (
+        CategoryNarrative,
+        HRSAExplainer,
+        MetricContributor,
+        Recommendation,
+        ScoreExplanation,
+    )
+except ImportError:
+    # Defer error until the symbols are actually needed, avoid breaking package import.
+    CategoryNarrative = None
+    HRSAExplainer = None
+    MetricContributor = None
+    Recommendation = None
+    ScoreExplanation = None
+
+Testing
+- Run locally before pushing:
+  - python -c "import trainer.research; print('import ok')"
+  - pytest -q
+- On CI, re-run the workflow.
+
+If you want, I can (1) inspect trainer/research/hrsa_explanations.py to tell you which names it defines and whether a circular import exists, and (2) produce a concrete patch for that file or for __init__.py — tell me which file you prefer to modify.
