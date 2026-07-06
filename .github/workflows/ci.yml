@@ -135,17 +135,49 @@ jobs:
           fail_ci_if_error: false
 
   # ── Docker ──────────────────────────────────────────────────────────────────
+  #
+  # CI builds and validates the CPU-only image (docker/Dockerfile.cpu).
+  # That image uses python:3.12-slim as its base and installs the CPU PyTorch
+  # wheel, so it builds on standard GitHub Actions runners with no NVIDIA
+  # runtime or physical GPU required.
+  #
+  # The GPU production image (docker/Dockerfile) is NOT built in CI because
+  # it requires the NVIDIA container runtime.  GPU-specific functionality
+  # (CUDA kernels, nvidia-ml-py, multi-GPU training) must be validated in a
+  # deployment environment that has an NVIDIA runtime available.
 
   docker-build:
-    name: Docker — Build Check
+    name: Docker — CPU Image Build & Smoke Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image (no GPU)
+      # ── Build CPU image ────────────────────────────────────────────────────
+      - name: Build CPU Docker image
         run: |
           docker build \
-            --build-arg PYTHON_VERSION=3.12 \
-            --tag signalium-trainer:ci \
-            --file docker/Dockerfile \
+            --tag signalium-trainer:ci-cpu \
+            --file docker/Dockerfile.cpu \
             .
+
+      # ── Smoke test — import check, no GPU required ─────────────────────────
+      - name: Smoke test — verify trainer imports inside container
+        run: |
+          docker run --rm signalium-trainer:ci-cpu \
+            python -c "
+          import torch
+          import trainer
+          assert not torch.cuda.is_available(), 'Expected CPU-only image to have no CUDA'
+          print('smoke test passed — torch', torch.__version__, '| CUDA available:', torch.cuda.is_available())
+          "
+
+      # ── GPU tests skipped in CI ────────────────────────────────────────────
+      # GPU-dependent tests (CUDA kernels, nvidia-ml-py, multi-GPU) are
+      # intentionally skipped here.  Run them on a host that has:
+      #   docker run --gpus all --file docker/Dockerfile ...
+      - name: Note — GPU tests skipped (no NVIDIA runtime on CI runner)
+        run: |
+          echo "GPU-accelerated tests are reserved for deployment environments."
+          echo "To build and test the GPU image locally:"
+          echo "  docker build --tag signalium-trainer:gpu --file docker/Dockerfile ."
+          echo "  docker run --gpus all --rm signalium-trainer:gpu trainer doctor"
