@@ -236,6 +236,12 @@ def _priority(score: float) -> str:
     return "low"
 
 
+# Backward-compatible aliases used by external importers and tests
+CategoryNarrative = ScoreExplanation
+MetricContributor = ImprovementRecommendation
+Recommendation = ImprovementRecommendation
+
+
 # ---------------------------------------------------------------------------
 # HRSAExplainer
 # ---------------------------------------------------------------------------

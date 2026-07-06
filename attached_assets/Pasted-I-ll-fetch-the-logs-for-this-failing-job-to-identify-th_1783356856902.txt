@@ -1,0 +1,94 @@
+I'll fetch the logs for this failing job to identify the issue and provide a solution.The job is failing due to **mypy type-checking errors**. The primary issues are:
+
+1. **Missing type arguments for generic types** (872 errors total) - `dict` and `list` without type parameters like `dict[str, Any]`
+2. **Untyped function calls and decorators** in typed contexts
+3. **Module attribute errors** in the research package
+
+Let me examine the key files to provide specific fixes:# Solution for Failing Type Checking Job
+
+Your CI job is failing due to **mypy type checking errors**. There are 872 errors across 207 files, with three main categories of issues:
+
+## Primary Issues
+
+### 1. **Missing Type Arguments for Generic Types** (Most Common)
+Lines like `list`, `dict` without type parameters (e.g., `list[str]`, `dict[str, int]`).
+
+**Example from `model_comparator.py:125-126`:**
+```python
+chunks_a: list,  # ❌ Missing type argument
+chunks_b: list,  # ❌ Missing type argument
+```
+
+**Fix:**
+```python
+chunks_a: list[Any],  # or list[ChunkType] if available
+chunks_b: list[Any],
+metrics: list[str] | None,
+artifact_data: dict[str, list[Any]],
+table: dict[str, dict[str, Any]],
+```
+
+### 2. **Variable Annotation Missing**
+From `execution_dashboard.py:56`:
+```python
+grade_counts = {}  # ❌ Need explicit type hint
+```
+
+**Fix:**
+```python
+grade_counts: dict[str, int] = {}
+quality_counts: dict[str, int] = {}
+```
+
+### 3. **Import Attribute Not Found**
+From `trainer/research/__init__.py:129-152`:
+```python
+from trainer.research.hrsa_explanations import (
+    CategoryNarrative,  # ❌ Module has no attribute
+    MetricContributor,
+    Recommendation,
+)
+```
+
+**Fix:** Verify these classes actually exist in `trainer/research/hrsa_explanations.py`, or remove them from the import if they don't.
+
+## Recommended Solutions
+
+### Quick Fix (Suppress for Now)
+Add a mypy config to `pyproject.toml` or `mypy.ini`:
+```ini
+[mypy]
+ignore_missing_imports = True
+disallow_untyped_defs = False
+```
+
+### Proper Fix (Recommended)
+Update all bare `list` and `dict` type hints throughout the codebase:
+
+**In `trainer/analyst/model_comparator.py`:**
+```python
+def _build_table(
+    self,
+    chunks_a: list[Any],  # Add type parameter
+    chunks_b: list[Any],  # Add type parameter
+    metrics: list[str] | None,
+) -> dict[str, dict[str, Any]]:  # Add type parameter
+```
+
+**In `trainer/execution/execution_dashboard.py`:**
+```python
+def execution_dashboard(self) -> dict[str, Any]:  # Line 34
+    grade_counts: dict[str, int] = {}  # Line 56
+    return {  # Line 60
+        "chart_type": "execution_dashboard",
+        ...
+    }
+
+def fill_quality_analysis(self) -> dict[str, Any]:  # Line 262
+    quality_counts: dict[str, int] = {}  # Line 282
+```
+
+**In `trainer/research/__init__.py`:**
+Verify the imports on lines 129-152 match what's actually exported from those modules, or add type stubs if needed.
+
+The majority of fixes involve systematically adding type parameters to all `list` and `dict` declarations, using `Any` as a fallback where the specific type is unclear.
