@@ -30,14 +30,13 @@ import json
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from trainer.mlops.registry import ModelRecord
-
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -222,63 +221,91 @@ class MLOpsDatabase:
                 created_at, updated_at)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                record.model_id, record.name, record.version,
-                record.training_date, record.architecture, record.backbone,
-                record.parameter_count, record.dataset_version,
-                record.feature_version, record.label_version, record.git_commit,
-                record.lifecycle_state, record.promotion_status,
-                record.deployment_status, record.retirement_status,
-                record.hardware_used, record.training_duration_seconds,
-                record.parent_model_id, json.dumps(record.child_model_ids),
-                record.notes, json.dumps(record.training_config),
+                record.model_id,
+                record.name,
+                record.version,
+                record.training_date,
+                record.architecture,
+                record.backbone,
+                record.parameter_count,
+                record.dataset_version,
+                record.feature_version,
+                record.label_version,
+                record.git_commit,
+                record.lifecycle_state,
+                record.promotion_status,
+                record.deployment_status,
+                record.retirement_status,
+                record.hardware_used,
+                record.training_duration_seconds,
+                record.parent_model_id,
+                json.dumps(record.child_model_ids),
+                record.notes,
+                json.dumps(record.training_config),
                 json.dumps(record.validation_report),
                 json.dumps([a.to_dict() for a in record.approval_history]),
                 json.dumps(record.metadata),
-                record.created_at, record.updated_at,
+                record.created_at,
+                record.updated_at,
             ),
         )
         self._conn.commit()
         return record.model_id
 
-    def get_model(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_model(self, model_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM model_registry WHERE model_id = ?", (model_id,)
         ).fetchone()
         return self._model_row(row) if row else None
 
-    def list_models(self, lifecycle_state: Optional[str] = None,
-                    limit: int = 200) -> List[Dict[str, Any]]:
+    def list_models(
+        self, lifecycle_state: str | None = None, limit: int = 200
+    ) -> list[dict[str, Any]]:
         if lifecycle_state:
             rows = self._conn.execute(
                 "SELECT * FROM model_registry WHERE lifecycle_state = ? "
-                "ORDER BY created_at DESC LIMIT ?", (lifecycle_state, limit)
+                "ORDER BY created_at DESC LIMIT ?",
+                (lifecycle_state, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM model_registry ORDER BY created_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM model_registry ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
         return [self._model_row(r) for r in rows]
 
-    def _model_row(self, row: sqlite3.Row) -> Dict[str, Any]:
+    def _model_row(self, row: sqlite3.Row) -> dict[str, Any]:
         d = dict(row)
-        for k in ("child_model_ids", "training_config_json",
-                   "validation_report_json", "metadata_json"):
+        for k in (
+            "child_model_ids",
+            "training_config_json",
+            "validation_report_json",
+            "metadata_json",
+        ):
             v = d.pop(k, None) or "{}"
             key = k.replace("_json", "").replace("training_config", "training_config")
             d[key.replace("_json", "")] = json.loads(v) if v else {}
-        d["child_model_ids"] = json.loads(d.pop("child_model_ids", "[]") or "[]") if "child_model_ids" in d else []
-        d["approval_history"] = json.loads(d.pop("approval_history_json", "[]") or "[]") if "approval_history_json" in d else []
+        d["child_model_ids"] = (
+            json.loads(d.pop("child_model_ids", "[]") or "[]") if "child_model_ids" in d else []
+        )
+        d["approval_history"] = (
+            json.loads(d.pop("approval_history_json", "[]") or "[]")
+            if "approval_history_json" in d
+            else []
+        )
         for k in list(d.keys()):
             if k.endswith("_json"):
                 d[k[:-5]] = json.loads(d.pop(k) or "{}")
         return d
 
-    def update_model_state(self, model_id: str, lifecycle_state: str,
-                            deployment_status: str = "",
-                            promotion_status: str = "") -> None:
+    def update_model_state(
+        self,
+        model_id: str,
+        lifecycle_state: str,
+        deployment_status: str = "",
+        promotion_status: str = "",
+    ) -> None:
         sets = ["lifecycle_state = ?", "updated_at = ?"]
-        vals: List[Any] = [lifecycle_state, datetime.now(timezone.utc).isoformat()]
+        vals: list[Any] = [lifecycle_state, datetime.now(UTC).isoformat()]
         if deployment_status:
             sets.append("deployment_status = ?")
             vals.append(deployment_status)
@@ -296,7 +323,7 @@ class MLOpsDatabase:
     # Lifecycle transitions
     # -----------------------------------------------------------------------
 
-    def save_transition(self, transition_dict: Dict[str, Any]) -> None:
+    def save_transition(self, transition_dict: dict[str, Any]) -> None:
         self._conn.execute(
             """INSERT OR REPLACE INTO lifecycle_transitions
                (transition_id, model_id, from_state, to_state, actor,
@@ -310,16 +337,14 @@ class MLOpsDatabase:
                 transition_dict.get("actor", "system"),
                 transition_dict.get("reason", ""),
                 json.dumps(transition_dict.get("metadata", {})),
-                transition_dict.get("timestamp",
-                                     datetime.now(timezone.utc).isoformat()),
+                transition_dict.get("timestamp", datetime.now(UTC).isoformat()),
             ),
         )
         self._conn.commit()
 
-    def get_lifecycle_history(self, model_id: str) -> List[Dict[str, Any]]:
+    def get_lifecycle_history(self, model_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM lifecycle_transitions WHERE model_id = ? ORDER BY timestamp",
-            (model_id,)
+            "SELECT * FROM lifecycle_transitions WHERE model_id = ? ORDER BY timestamp", (model_id,)
         ).fetchall()
         result = []
         for r in rows:
@@ -332,7 +357,7 @@ class MLOpsDatabase:
     # Deployments
     # -----------------------------------------------------------------------
 
-    def save_deployment(self, deploy_dict: Dict[str, Any]) -> str:
+    def save_deployment(self, deploy_dict: dict[str, Any]) -> str:
         did = deploy_dict.get("deployment_id", str(uuid.uuid4()))
         self._conn.execute(
             """INSERT OR REPLACE INTO deployments
@@ -351,8 +376,7 @@ class MLOpsDatabase:
                 deploy_dict.get("status", "active"),
                 deploy_dict.get("from_state", ""),
                 deploy_dict.get("to_state", ""),
-                deploy_dict.get("deployed_at",
-                                 datetime.now(timezone.utc).isoformat()),
+                deploy_dict.get("deployed_at", datetime.now(UTC).isoformat()),
                 deploy_dict.get("rolled_back_at"),
                 deploy_dict.get("rollback_reason"),
                 json.dumps(deploy_dict.get("metadata", {})),
@@ -361,17 +385,17 @@ class MLOpsDatabase:
         self._conn.commit()
         return did
 
-    def list_deployments(self, model_id: Optional[str] = None,
-                          limit: int = 100) -> List[Dict[str, Any]]:
+    def list_deployments(
+        self, model_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         if model_id:
             rows = self._conn.execute(
-                "SELECT * FROM deployments WHERE model_id = ? "
-                "ORDER BY deployed_at DESC LIMIT ?", (model_id, limit)
+                "SELECT * FROM deployments WHERE model_id = ? " "ORDER BY deployed_at DESC LIMIT ?",
+                (model_id, limit),
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT * FROM deployments ORDER BY deployed_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM deployments ORDER BY deployed_at DESC LIMIT ?", (limit,)
             ).fetchall()
         result = []
         for r in rows:
@@ -384,7 +408,7 @@ class MLOpsDatabase:
     # Health metrics
     # -----------------------------------------------------------------------
 
-    def save_health_report(self, report_dict: Dict[str, Any]) -> str:
+    def save_health_report(self, report_dict: dict[str, Any]) -> str:
         metric_id = str(uuid.uuid4())
         self._conn.execute(
             """INSERT INTO health_metrics
@@ -406,25 +430,26 @@ class MLOpsDatabase:
                 json.dumps(report_dict.get("drift_alerts", [])),
                 report_dict.get("n_records", 0),
                 json.dumps(report_dict),
-                datetime.now(timezone.utc).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
         self._conn.commit()
         return metric_id
 
-    def get_latest_health(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get_latest_health(self, model_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT snapshot_json FROM health_metrics WHERE model_id = ? "
-            "ORDER BY recorded_at DESC LIMIT 1", (model_id,)
+            "ORDER BY recorded_at DESC LIMIT 1",
+            (model_id,),
         ).fetchone()
         if not row:
             return None
         return json.loads(row["snapshot_json"])
 
-    def list_health_history(self, model_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def list_health_history(self, model_id: str, limit: int = 50) -> list[dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT * FROM health_metrics WHERE model_id = ? "
-            "ORDER BY recorded_at DESC LIMIT ?", (model_id, limit)
+            "SELECT * FROM health_metrics WHERE model_id = ? " "ORDER BY recorded_at DESC LIMIT ?",
+            (model_id, limit),
         ).fetchall()
         result = []
         for r in rows:
@@ -438,7 +463,7 @@ class MLOpsDatabase:
     # Alerts
     # -----------------------------------------------------------------------
 
-    def save_alert(self, alert_dict: Dict[str, Any]) -> str:
+    def save_alert(self, alert_dict: dict[str, Any]) -> str:
         aid = alert_dict.get("alert_id", str(uuid.uuid4()))
         self._conn.execute(
             """INSERT OR REPLACE INTO alerts
@@ -457,16 +482,15 @@ class MLOpsDatabase:
                 alert_dict.get("acknowledged_at"),
                 alert_dict.get("resolved_at"),
                 json.dumps(alert_dict.get("metadata", {})),
-                alert_dict.get("created_at",
-                                datetime.now(timezone.utc).isoformat()),
+                alert_dict.get("created_at", datetime.now(UTC).isoformat()),
             ),
         )
         self._conn.commit()
         return aid
 
-    def list_alerts(self, status: Optional[str] = None,
-                     model_id: Optional[str] = None,
-                     limit: int = 100) -> List[Dict[str, Any]]:
+    def list_alerts(
+        self, status: str | None = None, model_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         wheres, vals = [], []
         if status:
             wheres.append("status = ?")
@@ -491,7 +515,7 @@ class MLOpsDatabase:
     # Audit events
     # -----------------------------------------------------------------------
 
-    def save_audit_event(self, event_dict: Dict[str, Any]) -> str:
+    def save_audit_event(self, event_dict: dict[str, Any]) -> str:
         eid = event_dict.get("event_id", str(uuid.uuid4()))
         self._conn.execute(
             """INSERT OR REPLACE INTO audit_events
@@ -507,16 +531,15 @@ class MLOpsDatabase:
                 event_dict.get("outcome", "success"),
                 json.dumps(event_dict.get("metadata", {})),
                 event_dict.get("session_id"),
-                event_dict.get("timestamp",
-                                datetime.now(timezone.utc).isoformat()),
+                event_dict.get("timestamp", datetime.now(UTC).isoformat()),
             ),
         )
         self._conn.commit()
         return eid
 
-    def list_audit_events(self, event_type: Optional[str] = None,
-                           model_id: Optional[str] = None,
-                           limit: int = 200) -> List[Dict[str, Any]]:
+    def list_audit_events(
+        self, event_type: str | None = None, model_id: str | None = None, limit: int = 200
+    ) -> list[dict[str, Any]]:
         wheres, vals = [], []
         if event_type:
             wheres.append("event_type = ?")
@@ -541,7 +564,7 @@ class MLOpsDatabase:
     # Retraining recommendations
     # -----------------------------------------------------------------------
 
-    def save_recommendation(self, rec_dict: Dict[str, Any]) -> str:
+    def save_recommendation(self, rec_dict: dict[str, Any]) -> str:
         rid = rec_dict.get("recommendation_id", str(uuid.uuid4()))
         self._conn.execute(
             """INSERT OR REPLACE INTO retraining_recommendations
@@ -557,8 +580,7 @@ class MLOpsDatabase:
                 rec_dict.get("status", "pending"),
                 rec_dict.get("policy_id", ""),
                 json.dumps(rec_dict.get("metrics", {})),
-                rec_dict.get("created_at",
-                              datetime.now(timezone.utc).isoformat()),
+                rec_dict.get("created_at", datetime.now(UTC).isoformat()),
                 rec_dict.get("acted_at"),
                 rec_dict.get("acted_by"),
             ),
@@ -566,9 +588,9 @@ class MLOpsDatabase:
         self._conn.commit()
         return rid
 
-    def list_recommendations(self, model_id: Optional[str] = None,
-                               status: Optional[str] = None,
-                               limit: int = 50) -> List[Dict[str, Any]]:
+    def list_recommendations(
+        self, model_id: str | None = None, status: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         wheres, vals = [], []
         if model_id:
             wheres.append("model_id = ?")
@@ -580,7 +602,8 @@ class MLOpsDatabase:
         vals.append(limit)
         rows = self._conn.execute(
             f"SELECT * FROM retraining_recommendations {where_str} "
-            f"ORDER BY created_at DESC LIMIT ?", vals
+            f"ORDER BY created_at DESC LIMIT ?",
+            vals,
         ).fetchall()
         result = []
         for r in rows:
@@ -593,7 +616,7 @@ class MLOpsDatabase:
     # Stats
     # -----------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         def _count(table: str, where: str = "") -> int:
             sql = f"SELECT COUNT(*) as n FROM {table}"
             if where:
@@ -609,8 +632,7 @@ class MLOpsDatabase:
             "active_alerts": _count("alerts", "status = 'active'"),
             "critical_alerts": _count("alerts", "level = 'CRITICAL' AND status = 'active'"),
             "total_audit_events": _count("audit_events"),
-            "pending_recommendations": _count("retraining_recommendations",
-                                               "status = 'pending'"),
+            "pending_recommendations": _count("retraining_recommendations", "status = 'pending'"),
         }
 
     def close(self) -> None:

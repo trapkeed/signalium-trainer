@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from trainer.research.experiment.record import ExperimentRecord
 
@@ -54,7 +55,7 @@ class ExperimentTracker:
             self._records[record.experiment_id] = record
             self._flush()
 
-    def get(self, experiment_id: str) -> Optional[ExperimentRecord]:
+    def get(self, experiment_id: str) -> ExperimentRecord | None:
         """Retrieve a single record by ID.
 
         Args:
@@ -95,10 +96,10 @@ class ExperimentTracker:
 
     def filter(
         self,
-        model_name: Optional[str] = None,
-        status: Optional[str] = None,
-        dataset_version: Optional[str] = None,
-        predicate: Optional[Callable[[ExperimentRecord], bool]] = None,
+        model_name: str | None = None,
+        status: str | None = None,
+        dataset_version: str | None = None,
+        predicate: Callable[[ExperimentRecord], bool] | None = None,
     ) -> list[ExperimentRecord]:
         """Return records matching all provided filters.
 
@@ -125,9 +126,9 @@ class ExperimentTracker:
     def best_by(
         self,
         metric: str,
-        model_name: Optional[str] = None,
+        model_name: str | None = None,
         higher_is_better: bool = True,
-    ) -> Optional[ExperimentRecord]:
+    ) -> ExperimentRecord | None:
         """Return the experiment with the best value for a given metric.
 
         Args:
@@ -142,8 +143,10 @@ class ExperimentTracker:
         candidates = [r for r in candidates if metric in r.metrics]
         if not candidates:
             return None
-        return max(candidates, key=lambda r: (r.metrics[metric] if higher_is_better
-                                              else -r.metrics[metric]))
+        return max(
+            candidates,
+            key=lambda r: (r.metrics[metric] if higher_is_better else -r.metrics[metric]),
+        )
 
     def summary(self) -> list[dict[str, Any]]:
         """Return a concise table summary of all experiments.
@@ -153,16 +156,18 @@ class ExperimentTracker:
         """
         rows = []
         for rec in self.load_all():
-            rows.append({
-                "experiment_id": rec.experiment_id[:8],
-                "name": rec.name,
-                "model_name": rec.model_name,
-                "status": rec.status,
-                "accuracy": rec.metrics.get("accuracy"),
-                "f1_macro": rec.metrics.get("f1_macro"),
-                "duration_s": rec.training_duration_seconds,
-                "git": rec.git_commit_hash[:7] if rec.git_commit_hash else None,
-            })
+            rows.append(
+                {
+                    "experiment_id": rec.experiment_id[:8],
+                    "name": rec.name,
+                    "model_name": rec.model_name,
+                    "status": rec.status,
+                    "accuracy": rec.metrics.get("accuracy"),
+                    "f1_macro": rec.metrics.get("f1_macro"),
+                    "duration_s": rec.training_duration_seconds,
+                    "git": rec.git_commit_hash[:7] if rec.git_commit_hash else None,
+                }
+            )
         return rows
 
     # ------------------------------------------------------------------
@@ -182,8 +187,7 @@ class ExperimentTracker:
         try:
             data = json.loads(self._store_path.read_text())
             self._records = {
-                eid: ExperimentRecord.from_dict(rec_dict)
-                for eid, rec_dict in data.items()
+                eid: ExperimentRecord.from_dict(rec_dict) for eid, rec_dict in data.items()
             }
         except Exception:
             self._records = {}

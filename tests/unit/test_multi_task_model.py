@@ -45,6 +45,7 @@ NUM_CLASSES = 3
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _base_config() -> QuantV1Config:
     return QuantV1Config(
         encoder=InputEncoderConfig(input_dim=INPUT_DIM, hidden_dim=HIDDEN, projection_dropout=0.0),
@@ -66,10 +67,18 @@ def _base_config() -> QuantV1Config:
 def _all_heads_config() -> QuantV1Config:
     cfg = _base_config()
     head_cfg = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
-    cfg.expected_move_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS)
-    cfg.stop_loss_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS)
-    cfg.take_profit_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS)
-    cfg.holding_time_head = RegressionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.MINUTES)
+    cfg.expected_move_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS
+    )
+    cfg.stop_loss_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS
+    )
+    cfg.take_profit_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.PIPS
+    )
+    cfg.holding_time_head = RegressionHeadConfig(
+        enabled=True, hidden_dim=16, dropout=0.0, unit=RegressionUnit.MINUTES
+    )
     cfg.tp_probability_head = TPProbabilityHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     return cfg
 
@@ -95,6 +104,7 @@ def multi_task_model() -> QuantModelV1:
 # Backward compatibility: forward() still returns logits
 # ---------------------------------------------------------------------------
 
+
 class TestForwardBackwardCompat:
     def test_forward_returns_tensor(self, base_model: QuantModelV1, x: torch.Tensor) -> None:
         out = base_model(x)
@@ -104,11 +114,15 @@ class TestForwardBackwardCompat:
         out = base_model(x)
         assert out.shape == (BATCH, NUM_CLASSES)
 
-    def test_forward_multi_task_logits_shape(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_forward_multi_task_logits_shape(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model(x)
         assert out.shape == (BATCH, NUM_CLASSES)
 
-    def test_ce_loss_works_on_forward_output(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_ce_loss_works_on_forward_output(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         logits = multi_task_model(x)
         targets = torch.randint(0, NUM_CLASSES, (BATCH,))
         loss = nn.CrossEntropyLoss()(logits, targets)
@@ -119,8 +133,11 @@ class TestForwardBackwardCompat:
 # predict() returns MultiTaskQuantModelOutput
 # ---------------------------------------------------------------------------
 
+
 class TestPredictOutput:
-    def test_predict_returns_multi_task_output(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_predict_returns_multi_task_output(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.predict(x)
         assert isinstance(out, MultiTaskQuantModelOutput)
 
@@ -128,12 +145,16 @@ class TestPredictOutput:
         out = multi_task_model.predict(x)
         assert out.probabilities.shape == (BATCH, NUM_CLASSES)
 
-    def test_probabilities_sum_to_one(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_probabilities_sum_to_one(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.predict(x)
         sums = out.probabilities.sum(dim=-1)
         assert torch.allclose(sums, torch.ones(BATCH), atol=1e-5)
 
-    def test_confidence_shape_and_range(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_confidence_shape_and_range(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.predict(x)
         assert out.confidence.shape == (BATCH, 1)
         assert (out.confidence >= 0).all()
@@ -154,7 +175,9 @@ class TestPredictOutput:
         assert out.take_profit is not None
         assert (out.take_profit >= 0).all(), "TP must be non-negative"
 
-    def test_holding_time_nonnegative(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_holding_time_nonnegative(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.predict(x)
         assert out.holding_time is not None
         assert (out.holding_time >= 0).all(), "Holding time must be non-negative"
@@ -171,7 +194,9 @@ class TestPredictOutput:
         assert isinstance(base, QuantModelOutput)
         assert base.probabilities.shape == (BATCH, NUM_CLASSES)
 
-    def test_prediction_timestamp_present(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_prediction_timestamp_present(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.predict(x)
         assert out.prediction_timestamp is not None
         assert "T" in out.prediction_timestamp
@@ -185,18 +210,23 @@ class TestPredictOutput:
 # forward_multi_task() dict output
 # ---------------------------------------------------------------------------
 
+
 class TestForwardMultiTask:
     def test_always_present_keys(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
         out = multi_task_model.forward_multi_task(x)
         assert "direction_logits" in out
         assert "confidence" in out
 
-    def test_optional_head_keys_present_when_enabled(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_optional_head_keys_present_when_enabled(
+        self, multi_task_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = multi_task_model.forward_multi_task(x)
         for key in ("expected_move", "stop_loss", "take_profit", "holding_time", "tp_probability"):
             assert key in out, f"Expected key '{key}' missing from forward_multi_task() output"
 
-    def test_optional_head_keys_absent_when_disabled(self, base_model: QuantModelV1, x: torch.Tensor) -> None:
+    def test_optional_head_keys_absent_when_disabled(
+        self, base_model: QuantModelV1, x: torch.Tensor
+    ) -> None:
         out = base_model.forward_multi_task(x)
         for key in ("expected_move", "stop_loss", "take_profit", "holding_time", "tp_probability"):
             assert key not in out, f"Unexpected key '{key}' in base model output"
@@ -219,12 +249,12 @@ class TestForwardMultiTask:
 # Gradient flow through all heads
 # ---------------------------------------------------------------------------
 
+
 class TestMultiTaskGradientFlow:
     def test_gradients_flow_to_all_parameters(
         self, multi_task_model: QuantModelV1, x: torch.Tensor
     ) -> None:
         from trainer.losses.multi_task import MultiTaskLoss
-        from trainer.models.quant_v1.config import MultiTaskLossConfig
 
         multi_task_model.train()
         criterion = MultiTaskLoss(config=MultiTaskLossConfig())
@@ -244,16 +274,14 @@ class TestMultiTaskGradientFlow:
         loss_out.total.backward()
 
         no_grad = [
-            name for name, p in multi_task_model.named_parameters()
+            name
+            for name, p in multi_task_model.named_parameters()
             if p.requires_grad and p.grad is None
         ]
         assert not no_grad, f"Parameters missing gradients: {no_grad}"
 
-    def test_total_loss_is_finite(
-        self, multi_task_model: QuantModelV1, x: torch.Tensor
-    ) -> None:
+    def test_total_loss_is_finite(self, multi_task_model: QuantModelV1, x: torch.Tensor) -> None:
         from trainer.losses.multi_task import MultiTaskLoss
-        from trainer.models.quant_v1.config import MultiTaskLossConfig
 
         multi_task_model.train()
         criterion = MultiTaskLoss(config=MultiTaskLossConfig())
@@ -275,11 +303,19 @@ class TestMultiTaskGradientFlow:
 # Architecture metadata
 # ---------------------------------------------------------------------------
 
+
 class TestMultiTaskArchitectureMetadata:
     def test_enabled_heads_all_present(self, multi_task_model: QuantModelV1) -> None:
         heads = multi_task_model.enabled_heads
-        for expected in ("direction", "confidence", "expected_move", "stop_loss",
-                         "take_profit", "holding_time", "tp_probability"):
+        for expected in (
+            "direction",
+            "confidence",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+        ):
             assert expected in heads
 
     def test_base_model_enabled_heads(self, base_model: QuantModelV1) -> None:
@@ -288,7 +324,9 @@ class TestMultiTaskArchitectureMetadata:
         assert "confidence" in heads
         assert "expected_move" not in heads
 
-    def test_architecture_summary_includes_enabled_heads(self, multi_task_model: QuantModelV1) -> None:
+    def test_architecture_summary_includes_enabled_heads(
+        self, multi_task_model: QuantModelV1
+    ) -> None:
         summary = multi_task_model.get_architecture_summary()
         assert "enabled_heads" in summary
 

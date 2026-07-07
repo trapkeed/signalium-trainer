@@ -23,7 +23,6 @@ Adding a new backbone requires only:
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -174,11 +173,10 @@ class _SinusoidalPositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
         div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10000.0) / d_model)
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model)
         )
         pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term[:d_model // 2])
+        pe[:, 1::2] = torch.cos(position * div_term[: d_model // 2])
         pe = pe.unsqueeze(0)  # (1, max_len, d_model)
         self.register_buffer("pe", pe)
 
@@ -374,7 +372,7 @@ class TemporalCNNBackbone(SequenceEncoder):
         blocks: list[nn.Module] = []
         in_ch = input_dim
         for i, out_ch in enumerate(channels):
-            dilation = 2 ** i
+            dilation = 2**i
             blocks.append(
                 _CausalTCNBlock(
                     in_channels=in_ch,
@@ -528,6 +526,5 @@ def build_backbone(input_dim: int, config: BackboneConfig) -> SequenceEncoder:
     if config.type == BackboneType.HYBRID_LSTM_TRANSFORMER:
         return HybridLSTMTransformerBackbone(input_dim=input_dim, config=config)
     raise ValueError(
-        f"Unknown backbone type: '{config.type}'. "
-        f"Available: {[t.value for t in BackboneType]}"
+        f"Unknown backbone type: '{config.type}'. " f"Available: {[t.value for t in BackboneType]}"
     )

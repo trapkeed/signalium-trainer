@@ -31,9 +31,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -41,11 +41,9 @@ from trainer.exporters.manifest import ManifestBuilder
 from trainer.traceability.config import TraceabilityConfig
 from trainer.traceability.metadata import (
     ModelInfo,
-    PredictionMetadata,
     ReproducibilityInfo,
     SchemaVersions,
 )
-from trainer.traceability.context import InferenceContext
 
 
 class MetadataManifestBuilder(ManifestBuilder):
@@ -69,7 +67,7 @@ class MetadataManifestBuilder(ManifestBuilder):
         version: str,
         framework: str,
         architecture: str,
-        trace_config: Optional[TraceabilityConfig] = None,
+        trace_config: TraceabilityConfig | None = None,
     ) -> None:
         super().__init__(
             model_id=model_id,
@@ -111,7 +109,8 @@ class MetadataManifestBuilder(ManifestBuilder):
     def _build_traceability_section(self) -> dict[str, Any]:
         cfg = self._trace_config
         try:
-            from trainer.traceability.context import _git_commit, _pytorch_version, _python_version
+            from trainer.traceability.context import _git_commit, _python_version, _pytorch_version
+
             git_hash = _git_commit(short=True)
             pytorch_ver = _pytorch_version()
             python_ver = _python_version()
@@ -160,7 +159,7 @@ class MetadataManifestBuilder(ManifestBuilder):
             "model": asdict(model_info),
             "reproducibility": asdict(repro_info),
             "schemas": asdict(schemas),
-            "manifest_generated_at": datetime.now(tz=timezone.utc).isoformat(),
+            "manifest_generated_at": datetime.now(tz=UTC).isoformat(),
             "python_version": python_ver,
         }
 
@@ -174,7 +173,7 @@ class MetadataManifestBuilder(ManifestBuilder):
         trace_config: TraceabilityConfig,
         framework: str,
         architecture: str,
-    ) -> "MetadataManifestBuilder":
+    ) -> MetadataManifestBuilder:
         """Create a builder directly from a ``TraceabilityConfig``."""
         return cls(
             model_id=trace_config.model_name,

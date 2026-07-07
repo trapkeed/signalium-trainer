@@ -25,20 +25,19 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 from loguru import logger
 
+from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.attribution import (
     AttributionResult,
     GradientAttribution,
     IntegratedGradients,
 )
-from trainer.explainability.attention import AttentionExtractor, AttentionMap
 from trainer.explainability.stream_analysis import StreamContribution, StreamContributionAnalyzer
-
 
 # ---------------------------------------------------------------------------
 # PredictionExplanation — result container
@@ -70,13 +69,13 @@ class PredictionExplanation:
     """
 
     top_features: list[tuple[str, float]] = field(default_factory=list)
-    most_influential_timeframe: Optional[str] = None
-    most_influential_memory: Optional[str] = None
+    most_influential_timeframe: str | None = None
+    most_influential_memory: str | None = None
     confidence_explanation: str = ""
-    uncertainty_explanation: Optional[str] = None
-    stream_contributions: Optional[StreamContribution] = None
-    attention_map: Optional[AttentionMap] = None
-    attribution_result: Optional[AttributionResult] = None
+    uncertainty_explanation: str | None = None
+    stream_contributions: StreamContribution | None = None
+    attention_map: AttentionMap | None = None
+    attribution_result: AttributionResult | None = None
     target_class: int = 0
     method: str = "gradient_attribution"
 
@@ -85,7 +84,11 @@ class PredictionExplanation:
 
         Uses plain ASCII so the output is safe for any terminal or log file.
         """
-        label = ["BUY", "SELL", "NO_TRADE"][self.target_class] if self.target_class < 3 else str(self.target_class)
+        label = (
+            ["BUY", "SELL", "NO_TRADE"][self.target_class]
+            if self.target_class < 3
+            else str(self.target_class)
+        )
         lines = [
             f"=== Prediction Explanation  class={self.target_class} ({label})"
             f"  method={self.method} ===",
@@ -187,7 +190,7 @@ class ExplainabilityEngine:
         self,
         model: nn.Module,
         input_tensor: torch.Tensor,
-        feature_names: Optional[list[str]] = None,
+        feature_names: list[str] | None = None,
         target_class: int = 0,
     ) -> PredictionExplanation:
         """Generate a complete prediction explanation.
@@ -208,8 +211,8 @@ class ExplainabilityEngine:
         top_features = attribution.top_features(k=self._top_k, sample_idx=0)
 
         # ── Attention (Transformer backbones only) ───────────────────────
-        attn_map: Optional[AttentionMap] = None
-        most_influential_timeframe: Optional[str] = None
+        attn_map: AttentionMap | None = None
+        most_influential_timeframe: str | None = None
         if self._extract_attention:
             try:
                 attn_map = AttentionExtractor.extract(model, input_tensor)
@@ -222,8 +225,8 @@ class ExplainabilityEngine:
                 logger.debug(f"Attention extraction skipped: {exc}")
 
         # ── Stream contributions (Hybrid encoder only) ───────────────────
-        stream_contrib: Optional[StreamContribution] = None
-        most_influential_memory: Optional[str] = None
+        stream_contrib: StreamContribution | None = None
+        most_influential_memory: str | None = None
         try:
             stream_contrib = StreamContributionAnalyzer.analyze(model, input_tensor)
             if stream_contrib.is_hybrid and "market_memory" in stream_contrib.fusion_weights:
@@ -248,7 +251,7 @@ class ExplainabilityEngine:
             attention_map=attn_map,
             attribution_result=attribution,
             target_class=target_class,
-            method=self._method,
+            method="gradient_attribution" if self._method == "gradient" else self._method,
         )
 
     def explain_stream_contributions(
@@ -273,7 +276,7 @@ class ExplainabilityEngine:
         self,
         model: nn.Module,
         input_tensor: torch.Tensor,
-        feature_names: Optional[list[str]],
+        feature_names: list[str] | None,
         target_class: int,
     ) -> AttributionResult:
         if self._method == "integrated_gradients":
@@ -333,7 +336,7 @@ class ExplainabilityEngine:
         self,
         model: nn.Module,
         input_tensor: torch.Tensor,
-    ) -> Optional[str]:
+    ) -> str | None:
         try:
             unc_head = getattr(model, "uncertainty_head", None)
             if unc_head is None:
@@ -351,9 +354,13 @@ class ExplainabilityEngine:
             level = "high" if (ep + al) > 0.5 else "low"
             parts = [f"Prediction uncertainty is {level} (epistemic={ep:.3f}, aleatoric={al:.3f})."]
             if ep > 0.3:
-                parts.append("Model has limited knowledge of this region — consider reducing position size.")
+                parts.append(
+                    "Model has limited knowledge of this region — consider reducing position size."
+                )
             if al > 0.3:
-                parts.append("High aleatoric noise — market conditions are inherently unpredictable here.")
+                parts.append(
+                    "High aleatoric noise — market conditions are inherently unpredictable here."
+                )
             return " ".join(parts)
         except Exception:
             return None

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from trainer.framework.abstractions.loss import BaseLoss
@@ -27,7 +24,7 @@ class WeightedCrossEntropyLoss(BaseLoss):
 
     def __init__(
         self,
-        class_weights: Optional[torch.Tensor] = None,
+        class_weights: torch.Tensor | None = None,
         reduction: str = "mean",
         label_smoothing: float = 0.0,
         ignore_index: int = -100,
@@ -41,7 +38,7 @@ class WeightedCrossEntropyLoss(BaseLoss):
         if class_weights is not None:
             self.register_buffer("class_weights", class_weights.float())
         else:
-            self.class_weights: Optional[torch.Tensor] = None
+            self.class_weights: torch.Tensor | None = None
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Compute weighted cross-entropy loss.

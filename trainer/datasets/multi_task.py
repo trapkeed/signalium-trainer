@@ -40,15 +40,11 @@ silently skips.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-
-from trainer.datasets.base import BaseDataset
-
 
 # ---------------------------------------------------------------------------
 # Column → label key mappings
@@ -105,7 +101,7 @@ class MultiTaskParquetDataset(Dataset):
         self,
         root: Path,
         split: str = "train",
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
         direction_column: str = "label",
         dtype: torch.dtype = torch.float32,
     ) -> None:
@@ -194,7 +190,7 @@ class MultiTaskParquetDataset(Dataset):
 
 
 def collate_multi_task(
-    batch: list[tuple[torch.Tensor, dict[str, torch.Tensor]]]
+    batch: list[tuple[torch.Tensor, dict[str, torch.Tensor]]],
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Custom collate function for MultiTaskParquetDataset batches.
 

@@ -25,10 +25,10 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-import torch
 import numpy as np
+import torch
 from loguru import logger
 
 
@@ -74,9 +74,7 @@ class LeakageReport:
 
     @property
     def is_critical(self) -> bool:
-        return bool(
-            self.future_leakage or self.target_leakage or self.errors
-        )
+        return bool(self.future_leakage or self.target_leakage or self.errors)
 
     def summary(self) -> str:
         lines = ["=== Leakage Detection Report ==="]
@@ -146,8 +144,8 @@ class LeakageDetector:
         y_train: torch.Tensor,
         x_val: torch.Tensor,
         y_val: torch.Tensor,
-        timestamps: Optional[torch.Tensor] = None,
-        feature_names: Optional[list[str]] = None,
+        timestamps: torch.Tensor | None = None,
+        feature_names: list[str] | None = None,
     ) -> LeakageReport:
         """Run all leakage checks.
 
@@ -196,19 +194,13 @@ class LeakageDetector:
 
     # ── Private checkers ──────────────────────────────────────────────────
 
-    def _check_nan_inf(
-        self, x: torch.Tensor, split: str, report: LeakageReport
-    ) -> None:
+    def _check_nan_inf(self, x: torch.Tensor, split: str, report: LeakageReport) -> None:
         if not torch.isfinite(x).all():
             n_bad = int((~torch.isfinite(x)).sum().item())
             report.nan_inf_features += n_bad
-            report.warnings.append(
-                f"{n_bad} NaN/Inf values detected in {split} features."
-            )
+            report.warnings.append(f"{n_bad} NaN/Inf values detected in {split} features.")
 
-    def _check_missing_sequences(
-        self, x: torch.Tensor, report: LeakageReport
-    ) -> None:
+    def _check_missing_sequences(self, x: torch.Tensor, report: LeakageReport) -> None:
         flat = x.reshape(x.shape[0], -1)
         all_zero = (flat == 0).all(dim=1)
         n_missing = int(all_zero.sum().item())
@@ -218,9 +210,7 @@ class LeakageDetector:
                 f"{n_missing} all-zero sequences detected (possibly missing data)."
             )
 
-    def _check_timestamps(
-        self, timestamps: torch.Tensor, report: LeakageReport
-    ) -> None:
+    def _check_timestamps(self, timestamps: torch.Tensor, report: LeakageReport) -> None:
         ts = timestamps.cpu().numpy()
         # Non-monotonic
         if not np.all(ts[1:] >= ts[:-1]):
@@ -232,9 +222,7 @@ class LeakageDetector:
         _, counts = np.unique(ts, return_counts=True)
         n_dup_ts = int((counts > 1).sum())
         if n_dup_ts > 0:
-            report.timestamp_issues.append(
-                f"{n_dup_ts} duplicate timestamps detected."
-            )
+            report.timestamp_issues.append(f"{n_dup_ts} duplicate timestamps detected.")
         # Large gaps (> 10× median interval)
         if len(ts) > 2:
             diffs = np.diff(ts)
@@ -256,8 +244,7 @@ class LeakageDetector:
             val_flat = x_val.reshape(x_val.shape[0], -1).cpu().numpy()
             train_set = set(map(tuple, train_flat.astype(np.float32).tolist()))
             duplicates = sum(
-                1 for row in val_flat.astype(np.float32).tolist()
-                if tuple(row) in train_set
+                1 for row in val_flat.astype(np.float32).tolist() if tuple(row) in train_set
             )
             report.duplicate_samples += duplicates
             if duplicates > 0:
@@ -271,7 +258,7 @@ class LeakageDetector:
         self,
         x_train: torch.Tensor,
         y_train: torch.Tensor,
-        feature_names: Optional[list[str]],
+        feature_names: list[str] | None,
         report: LeakageReport,
     ) -> None:
         """Flag features with very high correlation to the target label."""
@@ -286,13 +273,16 @@ class LeakageDetector:
                     continue
                 corr = float(np.corrcoef(col, y)[0, 1])
                 if abs(corr) > self._target_corr_thresh:
-                    name = (feature_names[i] if feature_names and i < len(feature_names)
-                            else f"feature_{i}")
+                    name = (
+                        feature_names[i]
+                        if feature_names and i < len(feature_names)
+                        else f"feature_{i}"
+                    )
                     leaky_features.append(f"{name} (|r|={abs(corr):.3f})")
             if leaky_features:
                 report.target_leakage = True
                 report.errors.append(
-                    f"Target leakage — features trivially correlated with label: "
+                    "Target leakage — features trivially correlated with label: "
                     + ", ".join(leaky_features[:5])
                 )
         except Exception as exc:

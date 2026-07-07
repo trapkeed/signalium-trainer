@@ -6,22 +6,22 @@ Generates structured comparison reports with citations.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_types import QueryType, Permission, Role, has_permission
-from trainer.analyst.analyst_models import ResearchQuery, LLMResponse, Citation
-from trainer.analyst.analyst_types import CitationType
-from trainer.analyst.knowledge_index  import KnowledgeIndex
+from trainer.analyst.analyst_models import ResearchQuery
+from trainer.analyst.analyst_types import Permission, QueryType, has_permission
+from trainer.analyst.citation_engine import CitationEngine
+from trainer.analyst.knowledge_index import KnowledgeIndex
+from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider
+from trainer.analyst.prompt_engine import PromptEngine
 from trainer.analyst.retrieval_engine import RetrievalEngine
-from trainer.analyst.prompt_engine    import PromptEngine
-from trainer.analyst.citation_engine  import CitationEngine
-from trainer.analyst.llm_provider     import LLMProvider, MockLLMProvider
 
 
 class ModelComparator:
@@ -29,23 +29,23 @@ class ModelComparator:
 
     def __init__(
         self,
-        index:    KnowledgeIndex,
-        provider: Optional[LLMProvider] = None,
-        top_k:    int = 6,
+        index: KnowledgeIndex,
+        provider: LLMProvider | None = None,
+        top_k: int = 6,
     ):
-        self._index     = index
-        self._provider  = provider or MockLLMProvider()
+        self._index = index
+        self._provider = provider or MockLLMProvider()
         self._retriever = RetrievalEngine(index, top_k=top_k)
-        self._prompt    = PromptEngine()
-        self._citation  = CitationEngine()
+        self._prompt = PromptEngine()
+        self._citation = CitationEngine()
 
     def compare(
         self,
-        query:        ResearchQuery,
-        artifact_a:   str,
-        artifact_b:   str,
-        metrics:      Optional[List[str]] = None,
-    ) -> Dict:
+        query: ResearchQuery,
+        artifact_a: str,
+        artifact_b: str,
+        metrics: list[str] | None = None,
+    ) -> dict:
         """Compare two research artifacts and return a structured comparison report."""
         if not has_permission(query.role, Permission.COMPARE):
             return {"error": "Access denied. COMPARE permission required."}
@@ -80,25 +80,25 @@ class ModelComparator:
         logger.info(f"ModelComparator: compared {artifact_a} vs {artifact_b}")
 
         return {
-            "artifact_a":   artifact_a,
-            "artifact_b":   artifact_b,
-            "table":        comparison_table,
-            "analysis":     response.content,
-            "citations":    [c.to_dict() for c in citations],
-            "grounded":     response.grounded,
+            "artifact_a": artifact_a,
+            "artifact_b": artifact_b,
+            "table": comparison_table,
+            "analysis": response.content,
+            "citations": [c.to_dict() for c in citations],
+            "grounded": response.grounded,
         }
 
     def compare_batch(
         self,
-        query:     ResearchQuery,
-        artifacts: List[str],
-    ) -> Dict:
+        query: ResearchQuery,
+        artifacts: list[str],
+    ) -> dict:
         """Compare multiple artifacts. Returns pairwise comparison matrix."""
         if not has_permission(query.role, Permission.COMPARE):
             return {"error": "Access denied."}
 
         all_chunks = []
-        artifact_data: Dict[str, List] = {}
+        artifact_data: dict[str, list] = {}
         for art in artifacts:
             chunks = self._index.get_by_artifact(art)
             artifact_data[art] = chunks
@@ -106,7 +106,7 @@ class ModelComparator:
 
         context = self._retriever.build_context(all_chunks)
         full_query = f"Compare {', '.join(artifacts)}. {query.text}"
-        prompt  = self._prompt.build(QueryType.COMPARISON, full_query, context)
+        prompt = self._prompt.build(QueryType.COMPARISON, full_query, context)
         response = self._provider.generate(prompt, context)
         response.retrieved_chunks = all_chunks
 
@@ -115,20 +115,20 @@ class ModelComparator:
 
         return {
             "artifacts": artifacts,
-            "analysis":  response.content,
+            "analysis": response.content,
             "citations": [c.to_dict() for c in citations],
-            "grounded":  response.grounded,
+            "grounded": response.grounded,
         }
 
     def _build_table(
         self,
-        chunks_a:  List,
-        chunks_b:  List,
-        metrics:   Optional[List[str]],
-    ) -> Dict[str, Dict]:
+        chunks_a: list,
+        chunks_b: list,
+        metrics: list[str] | None,
+    ) -> dict[str, dict]:
         """Build a metric comparison table from chunk metadata."""
         default_metrics = metrics or ["sharpe", "max_drawdown", "accuracy", "calibration", "status"]
-        table: Dict[str, Dict] = {}
+        table: dict[str, dict] = {}
 
         meta_a = {}
         for c in chunks_a:
@@ -154,10 +154,10 @@ class ModelComparator:
 
     def ranking(
         self,
-        query:     ResearchQuery,
-        artifacts: List[str],
-        metric:    str = "sharpe",
-    ) -> List[Dict]:
+        query: ResearchQuery,
+        artifacts: list[str],
+        metric: str = "sharpe",
+    ) -> list[dict]:
         """Rank artifacts by a given metric (descending for sharpe, ascending for drawdown)."""
         if not has_permission(query.role, Permission.COMPARE):
             return []
@@ -165,14 +165,16 @@ class ModelComparator:
         ranked = []
         for art in artifacts:
             chunks = self._index.get_by_artifact(art)
-            meta: Dict[str, Any] = {}
+            meta: dict[str, Any] = {}
             for c in chunks:
                 meta.update(c.metadata)
-            ranked.append({
-                "artifact_id": art,
-                "metric":      metric,
-                "value":       meta.get(metric, None),
-            })
+            ranked.append(
+                {
+                    "artifact_id": art,
+                    "metric": metric,
+                    "value": meta.get(metric),
+                }
+            )
 
         # Sort — lower is better for drawdown, higher for everything else
         reverse = metric != "max_drawdown"

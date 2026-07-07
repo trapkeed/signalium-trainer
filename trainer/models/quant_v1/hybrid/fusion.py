@@ -18,8 +18,6 @@ Stream contribution tracking is available for training monitoring:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
@@ -63,9 +61,9 @@ class AdaptiveFusionLayer(nn.Module):
             # Learnable per-stream weights (before softmax)
             self.stream_logits = nn.Parameter(torch.zeros(n))
             # All streams must have same dim for weighted sum; project each first
-            self.stream_projs = nn.ModuleList([
-                nn.Linear(dim, config.latent_dim) for dim in self._stream_dims
-            ])
+            self.stream_projs = nn.ModuleList(
+                [nn.Linear(dim, config.latent_dim) for dim in self._stream_dims]
+            )
             self.out_proj = nn.Sequential(
                 nn.LayerNorm(config.latent_dim),
                 nn.GELU(),
@@ -75,9 +73,9 @@ class AdaptiveFusionLayer(nn.Module):
         elif config.strategy == FusionStrategy.ATTENTION:
             # Project each stream to a common embed_dim for attention
             embed_dim = config.latent_dim
-            self.stream_projs = nn.ModuleList([
-                nn.Linear(dim, embed_dim) for dim in self._stream_dims
-            ])
+            self.stream_projs = nn.ModuleList(
+                [nn.Linear(dim, embed_dim) for dim in self._stream_dims]
+            )
             self.attention = nn.MultiheadAttention(
                 embed_dim=embed_dim,
                 num_heads=config.num_attention_heads,
@@ -141,40 +139,32 @@ class AdaptiveFusionLayer(nn.Module):
 
     def _forward_weighted(self, stream_outputs: list[torch.Tensor]) -> torch.Tensor:
         weights = torch.softmax(self.stream_logits, dim=0)  # (n,)
-        projected = [
-            self.stream_projs[i](stream_outputs[i]) for i in range(len(stream_outputs))
-        ]
+        projected = [self.stream_projs[i](stream_outputs[i]) for i in range(len(stream_outputs))]
         stacked = torch.stack(projected, dim=1)  # (batch, n, latent_dim)
-        w = weights.unsqueeze(0).unsqueeze(-1)   # (1, n, 1)
-        fused = (w * stacked).sum(dim=1)         # (batch, latent_dim)
+        w = weights.unsqueeze(0).unsqueeze(-1)  # (1, n, 1)
+        fused = (w * stacked).sum(dim=1)  # (batch, latent_dim)
         out = self.norm_out(self.out_proj(fused))
         if self._track:
             self.last_contributions = {
-                name: weights[i].item()
-                for i, name in enumerate(self._stream_names)
+                name: weights[i].item() for i, name in enumerate(self._stream_names)
             }
         return out
 
     def _forward_attention(self, stream_outputs: list[torch.Tensor]) -> torch.Tensor:
-        tokens = [
-            self.stream_projs[i](stream_outputs[i]) for i in range(len(stream_outputs))
-        ]
-        tokens_3d = torch.stack(tokens, dim=1)   # (batch, n, embed_dim)
+        tokens = [self.stream_projs[i](stream_outputs[i]) for i in range(len(stream_outputs))]
+        tokens_3d = torch.stack(tokens, dim=1)  # (batch, n, embed_dim)
         attn_out, attn_weights = self.attention(tokens_3d, tokens_3d, tokens_3d)
         # Mean-pool over token dimension
-        pooled = attn_out.mean(dim=1)             # (batch, embed_dim)
+        pooled = attn_out.mean(dim=1)  # (batch, embed_dim)
         out = self.norm_out(self.out_proj(pooled))
         if self._track and attn_weights is not None:
             mean_weights = attn_weights.mean(dim=(0, 1))  # (n,)
             self.last_contributions = {
-                name: mean_weights[i].item()
-                for i, name in enumerate(self._stream_names)
+                name: mean_weights[i].item() for i, name in enumerate(self._stream_names)
             }
         return out
 
-    def _record_concat_contributions(
-        self, stream_outputs: list[torch.Tensor]
-    ) -> None:
+    def _record_concat_contributions(self, stream_outputs: list[torch.Tensor]) -> None:
         total_norm = sum(s.norm(dim=-1).mean().item() for s in stream_outputs)
         for i, name in enumerate(self._stream_names):
             norm_i = stream_outputs[i].norm(dim=-1).mean().item()

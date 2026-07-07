@@ -14,13 +14,13 @@ Prediction values are NEVER modified — metadata rides alongside them.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from typing import Any, Optional
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 
 def _utcnow() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _new_uuid() -> str:
@@ -62,16 +62,16 @@ class ModelInfo:
     enabled_heads: list[str] = field(default_factory=list)
     framework: str = "pytorch"
     precision: str = "fp32"
-    model_registry_id: Optional[str] = None
-    experiment_id: Optional[str] = None
-    mlflow_run_id: Optional[str] = None
-    training_timestamp: Optional[str] = None
-    model_export_timestamp: Optional[str] = None
+    model_registry_id: str | None = None
+    experiment_id: str | None = None
+    mlflow_run_id: str | None = None
+    training_timestamp: str | None = None
+    model_export_timestamp: str | None = None
     # ── Phase 14.9C — Architecture metadata (all optional with safe defaults)
     phase: str = "14.6"
     backbone_type: str = "unknown"
     active_streams: list[str] = field(default_factory=list)
-    fusion_strategy: Optional[str] = None
+    fusion_strategy: str | None = None
     encoder_versions: dict[str, str] = field(default_factory=dict)
 
 
@@ -97,7 +97,7 @@ class InferenceInfo:
     batch_size: int = 1
     device: str = "cpu"
     device_name: str = "cpu"
-    cuda_version: Optional[str] = None
+    cuda_version: str | None = None
     pytorch_version: str = "unknown"
     python_version: str = "unknown"
     memory_used_mb: float = 0.0
@@ -127,16 +127,16 @@ class ReproducibilityInfo:
     git_commit_hash: str = "unknown"
     trainer_version: str = "0.1.0"
     framework_version: str = "unknown"
-    random_seed: Optional[int] = None
-    training_config_hash: Optional[str] = None
-    inference_config_hash: Optional[str] = None
-    feature_config_version: Optional[str] = None
-    feature_schema_version: Optional[str] = None
-    label_schema_version: Optional[str] = None
-    normalization_version: Optional[str] = None
-    scaling_version: Optional[str] = None
-    configuration_version: Optional[str] = None
-    dataset_version: Optional[str] = None
+    random_seed: int | None = None
+    training_config_hash: str | None = None
+    inference_config_hash: str | None = None
+    feature_config_version: str | None = None
+    feature_schema_version: str | None = None
+    label_schema_version: str | None = None
+    normalization_version: str | None = None
+    scaling_version: str | None = None
+    configuration_version: str | None = None
+    dataset_version: str | None = None
 
 
 @dataclass

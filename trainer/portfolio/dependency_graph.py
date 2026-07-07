@@ -6,10 +6,8 @@ and market clusters. Updated continuously from new correlation data.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
 
 from trainer.portfolio.correlation_engine import CorrelationMatrix
 
@@ -24,11 +22,11 @@ class ClusterType(str, Enum):
 @dataclass
 class GraphNode:
     instrument: str
-    cluster_id: Optional[str] = None
+    cluster_id: str | None = None
     centrality: float = 0.0
     risk_weight: float = 1.0
     asset_class: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -63,7 +61,7 @@ class GraphEdge:
 class Cluster:
     cluster_id: str
     cluster_type: ClusterType
-    members: List[str]
+    members: list[str]
     centroid_instrument: str
     average_internal_correlation: float
     risk_score: float = 0.0
@@ -81,18 +79,18 @@ class Cluster:
 
 @dataclass
 class DependencyGraphSnapshot:
-    nodes: Dict[str, GraphNode]
-    edges: List[GraphEdge]
-    clusters: List[Cluster]
+    nodes: dict[str, GraphNode]
+    edges: list[GraphEdge]
+    clusters: list[Cluster]
     timestamp: str = ""
 
-    def node_list(self) -> List[dict]:
+    def node_list(self) -> list[dict]:
         return [n.to_dict() for n in self.nodes.values()]
 
-    def edge_list(self) -> List[dict]:
+    def edge_list(self) -> list[dict]:
         return [e.to_dict() for e in self.edges]
 
-    def cluster_list(self) -> List[dict]:
+    def cluster_list(self) -> list[dict]:
         return [c.to_dict() for c in self.clusters]
 
     def to_dict(self) -> dict:
@@ -108,13 +106,13 @@ class DependencyGraphSnapshot:
             },
         }
 
-    def cluster_for(self, instrument: str) -> Optional[Cluster]:
+    def cluster_for(self, instrument: str) -> Cluster | None:
         for c in self.clusters:
             if instrument in c.members:
                 return c
         return None
 
-    def neighbors(self, instrument: str, min_weight: float = 0.5) -> List[str]:
+    def neighbors(self, instrument: str, min_weight: float = 0.5) -> list[str]:
         result = []
         for e in self.edges:
             if e.source == instrument and abs(e.weight) >= min_weight:
@@ -133,7 +131,7 @@ class DependencyGraphBuilder:
     def __init__(self, edge_threshold: float = 0.3, cluster_threshold: float = 0.6) -> None:
         self.edge_threshold = edge_threshold
         self.cluster_threshold = cluster_threshold
-        self._snapshots: List[DependencyGraphSnapshot] = []
+        self._snapshots: list[DependencyGraphSnapshot] = []
 
     def build(self, matrix: CorrelationMatrix, timestamp: str = "") -> DependencyGraphSnapshot:
         nodes = self._build_nodes(matrix)
@@ -153,15 +151,12 @@ class DependencyGraphBuilder:
             self._snapshots = self._snapshots[-100:]
         return snapshot
 
-    def _build_nodes(self, matrix: CorrelationMatrix) -> Dict[str, GraphNode]:
-        return {
-            sym: GraphNode(instrument=sym)
-            for sym in matrix.instruments
-        }
+    def _build_nodes(self, matrix: CorrelationMatrix) -> dict[str, GraphNode]:
+        return {sym: GraphNode(instrument=sym) for sym in matrix.instruments}
 
-    def _build_edges(self, matrix: CorrelationMatrix) -> List[GraphEdge]:
+    def _build_edges(self, matrix: CorrelationMatrix) -> list[GraphEdge]:
         edges = []
-        seen: Set[Tuple[str, str]] = set()
+        seen: set[tuple[str, str]] = set()
         for i, a in enumerate(matrix.instruments):
             for j, b in enumerate(matrix.instruments):
                 if a == b:
@@ -172,17 +167,20 @@ class DependencyGraphBuilder:
                 seen.add(key)
                 corr = matrix.get(a, b)
                 if abs(corr) >= self.edge_threshold:
-                    edges.append(GraphEdge(
-                        source=a, target=b,
-                        weight=abs(corr),
-                        correlation=corr,
-                    ))
+                    edges.append(
+                        GraphEdge(
+                            source=a,
+                            target=b,
+                            weight=abs(corr),
+                            correlation=corr,
+                        )
+                    )
         return edges
 
     @staticmethod
-    def _compute_centrality(nodes: Dict[str, GraphNode], edges: List[GraphEdge]) -> None:
-        degree: Dict[str, int] = {sym: 0 for sym in nodes}
-        strength: Dict[str, float] = {sym: 0.0 for sym in nodes}
+    def _compute_centrality(nodes: dict[str, GraphNode], edges: list[GraphEdge]) -> None:
+        degree: dict[str, int] = {sym: 0 for sym in nodes}
+        strength: dict[str, float] = {sym: 0.0 for sym in nodes}
         for e in edges:
             degree[e.source] = degree.get(e.source, 0) + 1
             degree[e.target] = degree.get(e.target, 0) + 1
@@ -192,16 +190,17 @@ class DependencyGraphBuilder:
         for sym, node in nodes.items():
             node.centrality = round(strength.get(sym, 0.0) / max(max_strength, 1e-9), 4)
 
-    def _build_clusters(self, matrix: CorrelationMatrix,
-                        nodes: Dict[str, GraphNode]) -> List[Cluster]:
+    def _build_clusters(
+        self, matrix: CorrelationMatrix, nodes: dict[str, GraphNode]
+    ) -> list[Cluster]:
         symbols = matrix.instruments
         n = len(symbols)
         if n == 0:
             return []
 
         # Greedy single-link clustering by correlation
-        assigned: Dict[str, str] = {}
-        clusters: Dict[str, List[str]] = {}
+        assigned: dict[str, str] = {}
+        clusters: dict[str, list[str]] = {}
         cluster_idx = 0
 
         for i in range(n):
@@ -225,17 +224,19 @@ class DependencyGraphBuilder:
         for cid, members in clusters.items():
             centroid = self._centroid(members, matrix)
             avg_corr = self._avg_internal_correlation(members, matrix)
-            result.append(Cluster(
-                cluster_id=cid,
-                cluster_type=ClusterType.CORRELATION,
-                members=members,
-                centroid_instrument=centroid,
-                average_internal_correlation=avg_corr,
-            ))
+            result.append(
+                Cluster(
+                    cluster_id=cid,
+                    cluster_type=ClusterType.CORRELATION,
+                    members=members,
+                    centroid_instrument=centroid,
+                    average_internal_correlation=avg_corr,
+                )
+            )
         return result
 
     @staticmethod
-    def _centroid(members: List[str], matrix: CorrelationMatrix) -> str:
+    def _centroid(members: list[str], matrix: CorrelationMatrix) -> str:
         if len(members) == 1:
             return members[0]
         best = members[0]
@@ -248,7 +249,7 @@ class DependencyGraphBuilder:
         return best
 
     @staticmethod
-    def _avg_internal_correlation(members: List[str], matrix: CorrelationMatrix) -> float:
+    def _avg_internal_correlation(members: list[str], matrix: CorrelationMatrix) -> float:
         if len(members) < 2:
             return 1.0
         pairs = 0
@@ -260,20 +261,17 @@ class DependencyGraphBuilder:
         return round(total / max(pairs, 1), 4)
 
     @staticmethod
-    def _assign_clusters(nodes: Dict[str, GraphNode], clusters: List[Cluster]) -> None:
+    def _assign_clusters(nodes: dict[str, GraphNode], clusters: list[Cluster]) -> None:
         for cluster in clusters:
             for sym in cluster.members:
                 if sym in nodes:
                     nodes[sym].cluster_id = cluster.cluster_id
 
-    def latest_snapshot(self) -> Optional[DependencyGraphSnapshot]:
+    def latest_snapshot(self) -> DependencyGraphSnapshot | None:
         return self._snapshots[-1] if self._snapshots else None
 
-    def history(self, n: int = 10) -> List[DependencyGraphSnapshot]:
+    def history(self, n: int = 10) -> list[DependencyGraphSnapshot]:
         return self._snapshots[-n:]
 
-    def cluster_evolution(self) -> List[dict]:
-        return [
-            {"timestamp": s.timestamp, "n_clusters": len(s.clusters)}
-            for s in self._snapshots
-        ]
+    def cluster_evolution(self) -> list[dict]:
+        return [{"timestamp": s.timestamp, "n_clusters": len(s.clusters)} for s in self._snapshots]

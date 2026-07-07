@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import torch
-
 
 # Class index constants — shared across all Signalium classifiers
 CLASS_BUY = 0
@@ -40,7 +39,7 @@ class ModelOutput:
     probabilities: torch.Tensor
     confidence: torch.Tensor
     predicted_class: torch.Tensor
-    auxiliary: Optional[dict[str, Any]] = None
+    auxiliary: dict[str, Any] | None = None
 
     @property
     def buy_prob(self) -> torch.Tensor:
@@ -81,7 +80,7 @@ class ModelOutput:
             result.update(self.auxiliary)
         return result
 
-    def gate_by_confidence(self, threshold: float) -> "ModelOutput":
+    def gate_by_confidence(self, threshold: float) -> ModelOutput:
         """Return a new ModelOutput containing only samples above the threshold.
 
         Samples below the threshold are replaced with NO_TRADE predictions.
@@ -94,8 +93,9 @@ class ModelOutput:
             New ModelOutput with low-confidence samples mapped to NO_TRADE.
         """
         mask = self.confidence.squeeze(-1) >= threshold
-        new_predicted = torch.where(mask, self.predicted_class,
-                                    torch.full_like(self.predicted_class, CLASS_NO_TRADE))
+        new_predicted = torch.where(
+            mask, self.predicted_class, torch.full_like(self.predicted_class, CLASS_NO_TRADE)
+        )
         return ModelOutput(
             logits=self.logits,
             probabilities=self.probabilities,

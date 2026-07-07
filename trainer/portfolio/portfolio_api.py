@@ -19,50 +19,62 @@ Endpoints:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from trainer.portfolio.portfolio_instruments import (
-    InstrumentRegistry, ModelForecast,
-)
-from trainer.portfolio.correlation_engine import (
-    CorrelationEngine, CorrelationMethod,
-)
-from trainer.portfolio.exposure_engine import ExposureEngine
-from trainer.portfolio.dependency_graph import DependencyGraphBuilder
-from trainer.portfolio.regime_detector import RegimeDetector
-from trainer.portfolio.risk_budget import RiskBudgetConfig, RiskBudgetEngine
 from trainer.portfolio.conflict_resolver import ConflictResolver
+from trainer.portfolio.correlation_engine import (
+    CorrelationEngine,
+    CorrelationMethod,
+)
+from trainer.portfolio.dependency_graph import DependencyGraphBuilder
+from trainer.portfolio.exposure_engine import ExposureEngine
+from trainer.portfolio.optimizer import OptimizationObjective, PortfolioOptimizer
+from trainer.portfolio.portfolio_dashboard import PortfolioDashboard
+from trainer.portfolio.portfolio_database import PortfolioDatabase
+from trainer.portfolio.portfolio_instruments import (
+    InstrumentRegistry,
+    ModelForecast,
+)
 from trainer.portfolio.portfolio_scorer import PortfolioScorer
 from trainer.portfolio.position_allocator import AllocationMethod, PositionAllocator
+from trainer.portfolio.regime_detector import RegimeDetector
+from trainer.portfolio.risk_budget import RiskBudgetConfig, RiskBudgetEngine
 from trainer.portfolio.scenario_analysis import ScenarioAnalyser, ScenarioType
-from trainer.portfolio.optimizer import OptimizationObjective, PortfolioOptimizer
-from trainer.portfolio.portfolio_database import PortfolioDatabase
-from trainer.portfolio.portfolio_dashboard import PortfolioDashboard
 
 try:
     from loguru import logger
 except ImportError:
     import types as _types
+
     _log = _types.ModuleType("loguru")
+
     class _L:
-        def info(self, *a, **k): pass
-        def error(self, *a, **k): pass
-        def warning(self, *a, **k): pass
-        def debug(self, *a, **k): pass
+        def info(self, *a, **k):
+            pass
+
+        def error(self, *a, **k):
+            pass
+
+        def warning(self, *a, **k):
+            pass
+
+        def debug(self, *a, **k):
+            pass
+
     _log.logger = _L()
     logger = _log.logger
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _ok(data: Any) -> dict:
     return {"status": "ok", "data": data}
 
 
-def _err(message: str, exc: Optional[Exception] = None) -> dict:
+def _err(message: str, exc: Exception | None = None) -> dict:
     logger.error(f"PortfolioAPI error: {message}" + (f" — {exc}" if exc else ""))
     return {"status": "error", "message": message}
 
@@ -73,8 +85,8 @@ class PortfolioApi:
     def __init__(
         self,
         db_path: str = ":memory:",
-        registry: Optional[InstrumentRegistry] = None,
-        budget_config: Optional[RiskBudgetConfig] = None,
+        registry: InstrumentRegistry | None = None,
+        budget_config: RiskBudgetConfig | None = None,
         risk_free_rate: float = 0.045,
         correlation_window: int = 60,
     ) -> None:
@@ -89,27 +101,29 @@ class PortfolioApi:
         self._regime_detector = RegimeDetector()
         self._conflict_resolver = ConflictResolver(registry=self._registry)
         self._scorer = PortfolioScorer(risk_free_rate=risk_free_rate)
-        self._allocator = PositionAllocator(budget_config=self._budget_config,
-                                             risk_free_rate=risk_free_rate)
+        self._allocator = PositionAllocator(
+            budget_config=self._budget_config, risk_free_rate=risk_free_rate
+        )
         self._scenario = ScenarioAnalyser(risk_free_rate=risk_free_rate)
-        self._optimizer = PortfolioOptimizer(risk_free_rate=risk_free_rate,
-                                              budget_config=self._budget_config)
+        self._optimizer = PortfolioOptimizer(
+            risk_free_rate=risk_free_rate, budget_config=self._budget_config
+        )
         self._db = PortfolioDatabase(db_path)
         self._dashboard = PortfolioDashboard(db=self._db)
 
         # Cache: last scored state
-        self._last_forecasts: List[ModelForecast] = []
+        self._last_forecasts: list[ModelForecast] = []
         self._last_correlation_matrix = None
 
     # ── Core Recommend ─────────────────────────────────────────────────────
 
     def recommend(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         method: str = "hybrid",
         run_conflict_check: bool = True,
         run_budget_check: bool = True,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -138,15 +152,15 @@ class PortfolioApi:
             regime = self._regime_detector.detect(timestamp=ts)
 
             # 4. Allocation
-            alloc_method = AllocationMethod(method) if method in [m.value for m in AllocationMethod] else AllocationMethod.HYBRID
-            allocation = self._allocator.allocate(
-                active_forecasts, matrix, regime, alloc_method
+            alloc_method = (
+                AllocationMethod(method)
+                if method in [m.value for m in AllocationMethod]
+                else AllocationMethod.HYBRID
             )
+            allocation = self._allocator.allocate(active_forecasts, matrix, regime, alloc_method)
 
             # 5. Exposure
-            exposure = self._exposure_engine.compute(
-                active_forecasts, allocation.signed_weights
-            )
+            exposure = self._exposure_engine.compute(active_forecasts, allocation.signed_weights)
 
             # 6. Portfolio scoring
             metrics = self._scorer.score(active_forecasts, allocation.weights, matrix)
@@ -174,32 +188,38 @@ class PortfolioApi:
             }
 
             # Persist
-            self._db.save_recommendation({
-                "rec_id": rec_id,
-                "timestamp": ts,
-                "instrument_count": len(active_forecasts),
-                "expected_return": metrics.expected_return,
-                "expected_volatility": metrics.expected_volatility,
-                "expected_sharpe": metrics.expected_sharpe,
-                "diversification_score": metrics.diversification_score,
-                "regime": regime.primary_regime.value,
-                "method": method,
-                "weights": allocation.signed_weights,
-                "metrics": metrics.to_dict(),
-            })
-            self._db.save_allocation({
-                "alloc_id": str(uuid.uuid4()),
-                "timestamp": ts,
-                "method": method,
-                "regime": regime.primary_regime.value,
-                "instrument_count": len(active_forecasts),
-                "expected_return": metrics.expected_return,
-                "expected_sharpe": metrics.expected_sharpe,
-                "budget_feasible": allocation.budget_feasible,
-                "weights": allocation.signed_weights,
-            })
+            self._db.save_recommendation(
+                {
+                    "rec_id": rec_id,
+                    "timestamp": ts,
+                    "instrument_count": len(active_forecasts),
+                    "expected_return": metrics.expected_return,
+                    "expected_volatility": metrics.expected_volatility,
+                    "expected_sharpe": metrics.expected_sharpe,
+                    "diversification_score": metrics.diversification_score,
+                    "regime": regime.primary_regime.value,
+                    "method": method,
+                    "weights": allocation.signed_weights,
+                    "metrics": metrics.to_dict(),
+                }
+            )
+            self._db.save_allocation(
+                {
+                    "alloc_id": str(uuid.uuid4()),
+                    "timestamp": ts,
+                    "method": method,
+                    "regime": regime.primary_regime.value,
+                    "instrument_count": len(active_forecasts),
+                    "expected_return": metrics.expected_return,
+                    "expected_sharpe": metrics.expected_sharpe,
+                    "budget_feasible": allocation.budget_feasible,
+                    "weights": allocation.signed_weights,
+                }
+            )
 
-            logger.info(f"PortfolioApi.recommend: {len(active_forecasts)} instruments, Sharpe={metrics.expected_sharpe:.2f}")
+            logger.info(
+                f"PortfolioApi.recommend: {len(active_forecasts)} instruments, Sharpe={metrics.expected_sharpe:.2f}"
+            )
             return _ok(result)
 
         except Exception as exc:
@@ -209,28 +229,30 @@ class PortfolioApi:
 
     def exposure(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        timestamp: Optional[str] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
             report = self._exposure_engine.compute(forecasts, weights)
             exp_id = str(uuid.uuid4())
-            self._db.save_exposure({
-                "exp_id": exp_id,
-                "timestamp": ts,
-                "gross_exposure": report.gross_exposure,
-                "net_exposure": report.net_exposure,
-                "long_exposure": report.long_exposure,
-                "short_exposure": report.short_exposure,
-                "diversification_ratio": report.diversification_ratio,
-                "alert_count": len(report.alerts),
-                "by_asset_class": report.by_asset_class,
-                "by_currency": report.by_currency,
-                "by_region": report.by_region,
-                "alerts": [a.to_dict() for a in report.alerts],
-            })
+            self._db.save_exposure(
+                {
+                    "exp_id": exp_id,
+                    "timestamp": ts,
+                    "gross_exposure": report.gross_exposure,
+                    "net_exposure": report.net_exposure,
+                    "long_exposure": report.long_exposure,
+                    "short_exposure": report.short_exposure,
+                    "diversification_ratio": report.diversification_ratio,
+                    "alert_count": len(report.alerts),
+                    "by_asset_class": report.by_asset_class,
+                    "by_currency": report.by_currency,
+                    "by_region": report.by_region,
+                    "alerts": [a.to_dict() for a in report.alerts],
+                }
+            )
             return _ok({"exp_id": exp_id, "exposure": report.to_dict()})
         except Exception as exc:
             return _err(f"exposure failed: {exc}", exc)
@@ -239,29 +261,35 @@ class PortfolioApi:
 
     def correlation(
         self,
-        observations: Dict[str, float],
+        observations: dict[str, float],
         method: str = "rolling",
-        instruments: Optional[List[str]] = None,
-        timestamp: Optional[str] = None,
+        instruments: list[str] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
             self._corr_engine.add_observations(observations)
-            m = CorrelationMethod(method) if method in [cm.value for cm in CorrelationMethod] else CorrelationMethod.ROLLING
+            m = (
+                CorrelationMethod(method)
+                if method in [cm.value for cm in CorrelationMethod]
+                else CorrelationMethod.ROLLING
+            )
             matrix = self._corr_engine.compute_matrix(instruments, method=m, timestamp=ts)
             matrix_id = str(uuid.uuid4())
             matrix_dict = matrix.to_dict()
             self._db.save_correlation_matrix(
                 matrix_id, ts, method, matrix.instruments, matrix_dict["pairs"]
             )
-            return _ok({
-                "matrix_id": matrix_id,
-                "matrix": matrix_dict,
-                "high_correlation_pairs": [
-                    {"a": a, "b": b, "correlation": round(c, 4)}
-                    for a, b, c in matrix.high_correlation_pairs(0.7)
-                ],
-            })
+            return _ok(
+                {
+                    "matrix_id": matrix_id,
+                    "matrix": matrix_dict,
+                    "high_correlation_pairs": [
+                        {"a": a, "b": b, "correlation": round(c, 4)}
+                        for a, b, c in matrix.high_correlation_pairs(0.7)
+                    ],
+                }
+            )
         except Exception as exc:
             return _err(f"correlation failed: {exc}", exc)
 
@@ -269,15 +297,19 @@ class PortfolioApi:
 
     def optimize(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         objective: str = "max_sharpe",
         compare_all: bool = False,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
             matrix = self._last_correlation_matrix
-            obj = OptimizationObjective(objective) if objective in [o.value for o in OptimizationObjective] else OptimizationObjective.MAX_SHARPE
+            obj = (
+                OptimizationObjective(objective)
+                if objective in [o.value for o in OptimizationObjective]
+                else OptimizationObjective.MAX_SHARPE
+            )
 
             if compare_all:
                 results = self._optimizer.compare_objectives(forecasts, matrix)
@@ -288,26 +320,34 @@ class PortfolioApi:
                 results = {objective: best}
 
             opt_id = str(uuid.uuid4())
-            self._db.save_optimization({
-                "opt_id": opt_id,
-                "timestamp": ts,
-                "objective": best.objective,
-                "expected_sharpe": best.optimal_metrics.expected_sharpe,
-                "expected_return": best.optimal_metrics.expected_return,
-                "expected_volatility": best.optimal_metrics.expected_volatility,
-                "diversification_score": best.optimal_metrics.diversification_score,
-                "iterations": best.iterations,
-                "converged": best.converged,
-                "weights": best.optimal_weights,
-                "metrics": best.optimal_metrics.to_dict(),
-            })
+            self._db.save_optimization(
+                {
+                    "opt_id": opt_id,
+                    "timestamp": ts,
+                    "objective": best.objective,
+                    "expected_sharpe": best.optimal_metrics.expected_sharpe,
+                    "expected_return": best.optimal_metrics.expected_return,
+                    "expected_volatility": best.optimal_metrics.expected_volatility,
+                    "diversification_score": best.optimal_metrics.diversification_score,
+                    "iterations": best.iterations,
+                    "converged": best.converged,
+                    "weights": best.optimal_weights,
+                    "metrics": best.optimal_metrics.to_dict(),
+                }
+            )
 
-            return _ok({
-                "opt_id": opt_id,
-                "best": best.to_dict(),
-                "all_objectives": {k: v.to_dict() for k, v in results.items()} if compare_all else None,
-                "efficient_frontier": self._optimizer.efficient_frontier(forecasts, n_points=8, correlation_matrix=matrix),
-            })
+            return _ok(
+                {
+                    "opt_id": opt_id,
+                    "best": best.to_dict(),
+                    "all_objectives": (
+                        {k: v.to_dict() for k, v in results.items()} if compare_all else None
+                    ),
+                    "efficient_frontier": self._optimizer.efficient_frontier(
+                        forecasts, n_points=8, correlation_matrix=matrix
+                    ),
+                }
+            )
         except Exception as exc:
             return _err(f"optimize failed: {exc}", exc)
 
@@ -315,10 +355,10 @@ class PortfolioApi:
 
     def scenario(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
-        scenarios: Optional[List[str]] = None,
-        timestamp: Optional[str] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
+        scenarios: list[str] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -327,22 +367,26 @@ class PortfolioApi:
                 n = max(len(forecasts), 1)
                 weights = {f.instrument: 1.0 / n for f in forecasts}
 
-            sc_types = [ScenarioType(s) for s in (scenarios or []) if s in [st.value for st in ScenarioType]] or None
+            sc_types = [
+                ScenarioType(s) for s in (scenarios or []) if s in [st.value for st in ScenarioType]
+            ] or None
             report = self._scenario.run_all(forecasts, weights, sc_types, matrix)
 
             # Persist each scenario
             for r in report.results:
-                self._db.save_scenario({
-                    "scenario_id": str(uuid.uuid4()),
-                    "timestamp": ts,
-                    "scenario_type": r.scenario_type,
-                    "base_sharpe": r.base_sharpe,
-                    "stressed_sharpe": r.stressed_sharpe,
-                    "return_impact": r.return_impact,
-                    "volatility_impact": r.volatility_impact,
-                    "resilience_score": r.resilience_score,
-                    "instrument_impacts": r.instrument_impacts,
-                })
+                self._db.save_scenario(
+                    {
+                        "scenario_id": str(uuid.uuid4()),
+                        "timestamp": ts,
+                        "scenario_type": r.scenario_type,
+                        "base_sharpe": r.base_sharpe,
+                        "stressed_sharpe": r.stressed_sharpe,
+                        "return_impact": r.return_impact,
+                        "volatility_impact": r.volatility_impact,
+                        "resilience_score": r.resilience_score,
+                        "instrument_impacts": r.instrument_impacts,
+                    }
+                )
 
             return _ok(report.to_dict())
         except Exception as exc:
@@ -350,7 +394,7 @@ class PortfolioApi:
 
     # ── Conflict Check ─────────────────────────────────────────────────────
 
-    def conflict_check(self, forecasts: List[ModelForecast]) -> dict:
+    def conflict_check(self, forecasts: list[ModelForecast]) -> dict:
         try:
             report = self._conflict_resolver.resolve(forecasts)
             return _ok(report.to_dict())
@@ -361,8 +405,8 @@ class PortfolioApi:
 
     def regime(
         self,
-        observations: Optional[Dict[str, float]] = None,
-        timestamp: Optional[str] = None,
+        observations: dict[str, float] | None = None,
+        timestamp: str | None = None,
     ) -> dict:
         try:
             ts = timestamp or _now()
@@ -378,8 +422,8 @@ class PortfolioApi:
 
     def risk_budget_check(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
     ) -> dict:
         try:
             engine = RiskBudgetEngine(self._budget_config)
@@ -402,8 +446,7 @@ class PortfolioApi:
         except Exception as exc:
             return _err(f"recommendations_history failed: {exc}", exc)
 
-    def scenario_history(self, scenario_type: Optional[str] = None,
-                          limit: int = 20) -> dict:
+    def scenario_history(self, scenario_type: str | None = None, limit: int = 20) -> dict:
         try:
             return _ok({"history": self._db.scenario_history(scenario_type, limit)})
         except Exception as exc:
@@ -413,8 +456,8 @@ class PortfolioApi:
 
     def dashboard_data(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
         correlation_matrix=None,
     ) -> dict:
         try:
@@ -422,7 +465,9 @@ class PortfolioApi:
             metrics = self._scorer.score(forecasts, weights, matrix)
             exposure = self._exposure_engine.compute(forecasts, weights)
             graph = self._dep_graph.latest_snapshot()
-            all_charts = self._dashboard.build_all(forecasts, weights, metrics, exposure, matrix, graph)
+            all_charts = self._dashboard.build_all(
+                forecasts, weights, metrics, exposure, matrix, graph
+            )
             return _ok(all_charts)
         except Exception as exc:
             return _err(f"dashboard_data failed: {exc}", exc)
@@ -431,17 +476,19 @@ class PortfolioApi:
 
     def stats(self) -> dict:
         try:
-            return _ok({
-                "database": self._db.stats(),
-                "registry": {
-                    "total_instruments": self._registry.total(),
-                    "asset_class_summary": self._registry.asset_class_summary(),
-                },
-                "correlation_engine": {
-                    "tracked_instruments": len(self._corr_engine.instruments()),
-                    "window": self._corr_engine._window,
-                },
-            })
+            return _ok(
+                {
+                    "database": self._db.stats(),
+                    "registry": {
+                        "total_instruments": self._registry.total(),
+                        "asset_class_summary": self._registry.asset_class_summary(),
+                    },
+                    "correlation_engine": {
+                        "tracked_instruments": len(self._corr_engine.instruments()),
+                        "window": self._corr_engine._window,
+                    },
+                }
+            )
         except Exception as exc:
             return _err(f"stats failed: {exc}", exc)
 
@@ -449,10 +496,12 @@ class PortfolioApi:
 
     def registry_info(self) -> dict:
         try:
-            return _ok({
-                "total": self._registry.total(),
-                "instruments": self._registry.to_dict(),
-                "asset_class_summary": self._registry.asset_class_summary(),
-            })
+            return _ok(
+                {
+                    "total": self._registry.total(),
+                    "instruments": self._registry.to_dict(),
+                    "asset_class_summary": self._registry.asset_class_summary(),
+                }
+            )
         except Exception as exc:
             return _err(f"registry_info failed: {exc}", exc)

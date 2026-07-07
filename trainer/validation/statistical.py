@@ -31,11 +31,11 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 
 
 @dataclass
@@ -160,7 +160,9 @@ class StatisticalMetricsEngine:
         # 11. MAPE (on confidence vs correct probability)
         correct_probs = p[np.arange(n), y]
         with np.errstate(divide="ignore", invalid="ignore"):
-            mape_vals = np.abs(1.0 - correct_probs) / np.where(correct_probs > 0, correct_probs, 1.0)
+            mape_vals = np.abs(1.0 - correct_probs) / np.where(
+                correct_probs > 0, correct_probs, 1.0
+            )
         mape = float(np.nanmean(mape_vals) * 100)
 
         # 12. R² (explained variance of confidence)
@@ -267,7 +269,8 @@ class StatisticalMetricsEngine:
                 fp += 1
             tpr.append(tp / n_pos)
             fpr.append(fp / n_neg)
-        return float(np.trapz(tpr, fpr))
+        _trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))
+        return float(_trapz(tpr, fpr))
 
     @staticmethod
     def _average_precision(scores: np.ndarray, labels: np.ndarray) -> float:
@@ -283,11 +286,10 @@ class StatisticalMetricsEngine:
                 tp += 1
             precisions.append(tp / (i + 1))
             recalls.append(tp / n_pos)
-        return float(np.trapz(precisions, recalls)) if len(recalls) > 1 else 0.0
+        _trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))
+        return float(_trapz(precisions, recalls)) if len(recalls) > 1 else 0.0
 
-    def _ece(
-        self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray, n: int
-    ) -> float:
+    def _ece(self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray, n: int) -> float:
         correct = (preds == labels).astype(float)
         bins = np.linspace(0, 1, self._bins + 1)
         ece = 0.0
@@ -300,9 +302,7 @@ class StatisticalMetricsEngine:
             ece += (mask.sum() / n) * abs(bin_acc - bin_conf)
         return float(ece)
 
-    def _mce(
-        self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray
-    ) -> float:
+    def _mce(self, conf: np.ndarray, preds: np.ndarray, labels: np.ndarray) -> float:
         correct = (preds == labels).astype(float)
         bins = np.linspace(0, 1, self._bins + 1)
         max_ce = 0.0

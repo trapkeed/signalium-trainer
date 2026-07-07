@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 import requests
 
@@ -34,8 +33,8 @@ class APIKeyAuth(requests.auth.AuthBase):
 
 
 def resolve_auth(
-    api_key: Optional[str] = None,
-    token: Optional[str] = None,
+    api_key: str | None = None,
+    token: str | None = None,
 ) -> requests.auth.AuthBase:
     """Resolve authentication from explicit values or environment variables.
 

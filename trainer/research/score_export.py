@@ -20,9 +20,8 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # IRSEScoreExporter
@@ -39,16 +38,16 @@ class IRSEScoreExporter:
         benchmarker: Any,
         database: Any,
     ) -> None:
-        self._lb      = leaderboard
-        self._trends  = trend_tracker
-        self._bm      = benchmarker
-        self._db      = database
+        self._lb = leaderboard
+        self._trends = trend_tracker
+        self._bm = benchmarker
+        self._db = database
 
     # ------------------------------------------------------------------
     # JSON export
     # ------------------------------------------------------------------
 
-    def export_json(self, experiment_id: Optional[str] = None) -> str:
+    def export_json(self, experiment_id: str | None = None) -> str:
         """Export full research score data as JSON."""
         if experiment_id:
             row = self._db.get_latest_for_experiment(experiment_id)
@@ -58,7 +57,7 @@ class IRSEScoreExporter:
                 "leaderboard": self._lb.rank_by("research_score")[:100],
                 "trend_report": self._trends.trend_report(),
                 "benchmark_report": self._bm.full_benchmark_report(),
-                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "exported_at": datetime.now(UTC).isoformat(),
             }
         return json.dumps(payload, indent=2, default=str)
 
@@ -100,9 +99,7 @@ class IRSEScoreExporter:
             "model_family",
             "scored_at",
         ]
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for e in entries:
             writer.writerow(e)
@@ -117,7 +114,7 @@ class IRSEScoreExporter:
         entries = self._lb.rank_by("research_score")[:top_n]
         dist = self._trends.score_distribution()
         trend = self._trends.improvement_trend()
-        generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
         def score_bar(score: float) -> str:
             pct = max(0.0, min(100.0, score))
@@ -161,12 +158,12 @@ class IRSEScoreExporter:
         stat_rows = ""
         for k, v in {
             "Total Scored": dist.get("n", 0),
-            "Mean Score":   f"{dist.get('mean', 0):.1f}",
-            "Max Score":    f"{dist.get('max', 0):.1f}",
-            "Min Score":    f"{dist.get('min', 0):.1f}",
-            "P75":          f"{dist.get('p75', 0):.1f}",
-            "Trend Slope":  f"{trend.get('slope', 0):.4f}",
-            "Trend":        trend.get("trend", "—"),
+            "Mean Score": f"{dist.get('mean', 0):.1f}",
+            "Max Score": f"{dist.get('max', 0):.1f}",
+            "Min Score": f"{dist.get('min', 0):.1f}",
+            "P75": f"{dist.get('p75', 0):.1f}",
+            "Trend Slope": f"{trend.get('slope', 0):.4f}",
+            "Trend": trend.get("trend", "—"),
         }.items():
             stat_rows += f"<tr><td>{k}</td><td><strong>{v}</strong></td></tr>"
 
@@ -238,24 +235,28 @@ class IRSEScoreExporter:
 
     def export_research_report(
         self,
-        experiment_id: Optional[str] = None,
+        experiment_id: str | None = None,
         as_markdown: bool = True,
     ) -> str:
         """Generate a full Markdown or JSON research report."""
-        generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
         dist = self._trends.score_distribution()
         trend = self._trends.improvement_trend()
         bm_report = self._bm.full_benchmark_report()
         top_10 = self._lb.rank_by("research_score")[:10]
 
         if not as_markdown:
-            return json.dumps({
-                "generated_at": generated,
-                "score_distribution": dist,
-                "improvement_trend": trend,
-                "benchmark_summary": bm_report,
-                "top_10": top_10,
-            }, indent=2, default=str)
+            return json.dumps(
+                {
+                    "generated_at": generated,
+                    "score_distribution": dist,
+                    "improvement_trend": trend,
+                    "benchmark_summary": bm_report,
+                    "top_10": top_10,
+                },
+                indent=2,
+                default=str,
+            )
 
         lines = [
             "# Institutional Research Scoring Engine — Research Report",
@@ -270,8 +271,8 @@ class IRSEScoreExporter:
             "",
             "## Score Distribution",
             "",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Count  | {dist.get('n', 0)} |",
             f"| Mean   | {dist.get('mean', 0):.1f} |",
             f"| Std    | {dist.get('std', 0):.2f} |",
@@ -322,7 +323,7 @@ class IRSEScoreExporter:
         if not row:
             return f"# No score found for experiment: {experiment_id}\n"
 
-        generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
         lines = [
             f"# Research Score Card — {row.get('name', experiment_id)}",
             f"\n_Generated: {generated}_\n",

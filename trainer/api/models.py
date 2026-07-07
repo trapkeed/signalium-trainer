@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class DatasetStatus(str, Enum):
@@ -44,12 +44,12 @@ class DatasetManifest(BaseModel):
     version: str
     status: DatasetStatus
     files: list[FileEntry]
-    feature_version: Optional[str] = None
-    label_version: Optional[str] = None
+    feature_version: str | None = None
+    label_version: str | None = None
     created_at: datetime
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    download_url_base: Optional[str] = None
+    download_url_base: str | None = None
 
 
 class ModelManifest(BaseModel):
@@ -60,8 +60,8 @@ class ModelManifest(BaseModel):
     framework: str
     architecture: str
     files: list[FileEntry]
-    training_run_id: Optional[str] = None
-    dataset_version: Optional[str] = None
+    training_run_id: str | None = None
+    dataset_version: str | None = None
     metrics: dict[str, float] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -75,7 +75,7 @@ class UploadModelRequest(BaseModel):
     framework: str
     architecture: str
     run_id: str
-    dataset_version: Optional[str] = None
+    dataset_version: str | None = None
     metrics: dict[str, float] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -86,7 +86,7 @@ class UploadMetricsRequest(BaseModel):
     run_id: str
     epoch: int
     metrics: dict[str, float]
-    step: Optional[int] = None
+    step: int | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

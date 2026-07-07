@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
 from trainer.mlops.registry import LifecycleState, ModelRecord
-
 
 # ---------------------------------------------------------------------------
 # Lifecycle transition
@@ -58,12 +57,10 @@ class LifecycleTransition:
     to_state: str = ""
     actor: str = "system"
     reason: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "transition_id": self.transition_id,
             "model_id": self.model_id,
@@ -83,6 +80,7 @@ class LifecycleTransition:
 
 class LifecycleError(Exception):
     """Raised when an invalid lifecycle transition is attempted."""
+
     pass
 
 
@@ -91,21 +89,50 @@ class LifecycleError(Exception):
 # ---------------------------------------------------------------------------
 
 # Maps from_state → set of valid to_states
-_VALID_TRANSITIONS: Dict[str, Set[str]] = {
-    LifecycleState.DRAFT:       {LifecycleState.TRAINING, LifecycleState.ARCHIVED},
-    LifecycleState.TRAINING:    {LifecycleState.VALIDATING, LifecycleState.ARCHIVED, LifecycleState.DRAFT},
-    LifecycleState.VALIDATING:  {LifecycleState.CANDIDATE, LifecycleState.DRAFT, LifecycleState.ARCHIVED},
-    LifecycleState.CANDIDATE:   {LifecycleState.APPROVED, LifecycleState.DRAFT, LifecycleState.ARCHIVED},
-    LifecycleState.APPROVED:    {LifecycleState.CHAMPION, LifecycleState.PRODUCTION, LifecycleState.SHADOW,
-                                  LifecycleState.CANDIDATE, LifecycleState.ARCHIVED},
-    LifecycleState.CHAMPION:    {LifecycleState.PRODUCTION, LifecycleState.SHADOW, LifecycleState.ROLLED_BACK,
-                                  LifecycleState.ARCHIVED},
-    LifecycleState.PRODUCTION:  {LifecycleState.CHAMPION, LifecycleState.SHADOW, LifecycleState.ROLLED_BACK,
-                                  LifecycleState.ARCHIVED},
-    LifecycleState.SHADOW:      {LifecycleState.PRODUCTION, LifecycleState.CHAMPION, LifecycleState.ARCHIVED,
-                                  LifecycleState.CANDIDATE},
-    LifecycleState.ARCHIVED:    {LifecycleState.RETIRED},
-    LifecycleState.RETIRED:     set(),   # terminal
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    LifecycleState.DRAFT: {LifecycleState.TRAINING, LifecycleState.ARCHIVED},
+    LifecycleState.TRAINING: {
+        LifecycleState.VALIDATING,
+        LifecycleState.ARCHIVED,
+        LifecycleState.DRAFT,
+    },
+    LifecycleState.VALIDATING: {
+        LifecycleState.CANDIDATE,
+        LifecycleState.DRAFT,
+        LifecycleState.ARCHIVED,
+    },
+    LifecycleState.CANDIDATE: {
+        LifecycleState.APPROVED,
+        LifecycleState.DRAFT,
+        LifecycleState.ARCHIVED,
+    },
+    LifecycleState.APPROVED: {
+        LifecycleState.CHAMPION,
+        LifecycleState.PRODUCTION,
+        LifecycleState.SHADOW,
+        LifecycleState.CANDIDATE,
+        LifecycleState.ARCHIVED,
+    },
+    LifecycleState.CHAMPION: {
+        LifecycleState.PRODUCTION,
+        LifecycleState.SHADOW,
+        LifecycleState.ROLLED_BACK,
+        LifecycleState.ARCHIVED,
+    },
+    LifecycleState.PRODUCTION: {
+        LifecycleState.CHAMPION,
+        LifecycleState.SHADOW,
+        LifecycleState.ROLLED_BACK,
+        LifecycleState.ARCHIVED,
+    },
+    LifecycleState.SHADOW: {
+        LifecycleState.PRODUCTION,
+        LifecycleState.CHAMPION,
+        LifecycleState.ARCHIVED,
+        LifecycleState.CANDIDATE,
+    },
+    LifecycleState.ARCHIVED: {LifecycleState.RETIRED},
+    LifecycleState.RETIRED: set(),  # terminal
     LifecycleState.ROLLED_BACK: {LifecycleState.ARCHIVED, LifecycleState.CANDIDATE},
 }
 
@@ -128,15 +155,20 @@ class LifecycleManager:
                     If False, log a warning but allow the transition.
         """
         self.strict = strict
-        self._history: Dict[str, List[LifecycleTransition]] = {}
+        self._history: dict[str, list[LifecycleTransition]] = {}
 
     def can_transition(self, from_state: str, to_state: str) -> bool:
         """Return True if the transition is valid."""
         return to_state in _VALID_TRANSITIONS.get(from_state, set())
 
-    def transition(self, record: ModelRecord, to_state: str,
-                   actor: str = "system", reason: str = "",
-                   metadata: Optional[Dict[str, Any]] = None) -> LifecycleTransition:
+    def transition(
+        self,
+        record: ModelRecord,
+        to_state: str,
+        actor: str = "system",
+        reason: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> LifecycleTransition:
         """Execute a lifecycle state transition on a model record.
 
         Args:
@@ -156,8 +188,10 @@ class LifecycleManager:
         if from_state == to_state:
             return LifecycleTransition(
                 model_id=record.model_id,
-                from_state=from_state, to_state=to_state,
-                actor=actor, reason="no-op: same state",
+                from_state=from_state,
+                to_state=to_state,
+                actor=actor,
+                reason="no-op: same state",
                 metadata=metadata or {},
             )
 
@@ -171,7 +205,7 @@ class LifecycleManager:
             logger.warning(msg)
 
         record.lifecycle_state = to_state
-        record.updated_at = datetime.now(timezone.utc).isoformat()
+        record.updated_at = datetime.now(UTC).isoformat()
 
         if to_state == LifecycleState.RETIRED:
             record.retirement_status = "retired"
@@ -195,104 +229,118 @@ class LifecycleManager:
         self._history[record.model_id].append(t)
 
         logger.info(
-            f"Lifecycle: {record.full_name} [{from_state}→{to_state}] "
-            f"by {actor}: {reason}"
+            f"Lifecycle: {record.full_name} [{from_state}→{to_state}] " f"by {actor}: {reason}"
         )
         return t
 
-    def history(self, model_id: str) -> List[LifecycleTransition]:
+    def history(self, model_id: str) -> list[LifecycleTransition]:
         """Return full transition history for a model (oldest first)."""
         return self._history.get(model_id, [])
 
-    def history_dicts(self, model_id: str) -> List[Dict[str, Any]]:
+    def history_dicts(self, model_id: str) -> list[dict[str, Any]]:
         return [t.to_dict() for t in self.history(model_id)]
 
-    def all_history(self) -> List[LifecycleTransition]:
+    def all_history(self) -> list[LifecycleTransition]:
         """Return all transitions across all models, sorted by timestamp."""
         all_t = []
         for transitions in self._history.values():
             all_t.extend(transitions)
         return sorted(all_t, key=lambda t: t.timestamp)
 
-    def rollback(self, record: ModelRecord, actor: str = "system",
-                 reason: str = "emergency rollback") -> LifecycleTransition:
+    def rollback(
+        self, record: ModelRecord, actor: str = "system", reason: str = "emergency rollback"
+    ) -> LifecycleTransition:
         """Emergency rollback — transition to ROLLED_BACK state."""
         return self.transition(
-            record, LifecycleState.ROLLED_BACK,
-            actor=actor, reason=reason,
+            record,
+            LifecycleState.ROLLED_BACK,
+            actor=actor,
+            reason=reason,
             metadata={"rollback": True, "emergency": True},
         )
 
-    def promote_to_candidate(self, record: ModelRecord,
-                              actor: str = "validator",
-                              validation_score: float = 0.0) -> LifecycleTransition:
+    def promote_to_candidate(
+        self, record: ModelRecord, actor: str = "validator", validation_score: float = 0.0
+    ) -> LifecycleTransition:
         """Transition from validating → candidate."""
         return self.transition(
-            record, LifecycleState.CANDIDATE,
+            record,
+            LifecycleState.CANDIDATE,
             actor=actor,
             reason=f"Validation complete. Score={validation_score:.4f}",
             metadata={"validation_score": validation_score},
         )
 
-    def approve(self, record: ModelRecord, approver: str = "ops",
-                reason: str = "") -> LifecycleTransition:
+    def approve(
+        self, record: ModelRecord, approver: str = "ops", reason: str = ""
+    ) -> LifecycleTransition:
         """Approve a candidate model — transition to APPROVED."""
         t = self.transition(
-            record, LifecycleState.APPROVED,
+            record,
+            LifecycleState.APPROVED,
             actor=approver,
             reason=reason or "Manual approval",
             metadata={"approval": True},
         )
         record.add_approval(
-            approver=approver, decision="approved",
-            reason=reason, from_state=t.from_state,
+            approver=approver,
+            decision="approved",
+            reason=reason,
+            from_state=t.from_state,
             to_state=LifecycleState.APPROVED,
         )
         record.promotion_status = "approved"
         return t
 
-    def reject(self, record: ModelRecord, approver: str = "ops",
-               reason: str = "") -> None:
+    def reject(self, record: ModelRecord, approver: str = "ops", reason: str = "") -> None:
         """Reject a candidate model — transition back to DRAFT."""
         record.add_approval(
-            approver=approver, decision="rejected",
-            reason=reason, from_state=record.lifecycle_state,
+            approver=approver,
+            decision="rejected",
+            reason=reason,
+            from_state=record.lifecycle_state,
             to_state=LifecycleState.DRAFT,
         )
         record.promotion_status = "rejected"
         self.transition(
-            record, LifecycleState.DRAFT,
-            actor=approver, reason=f"Rejected: {reason}",
+            record,
+            LifecycleState.DRAFT,
+            actor=approver,
+            reason=f"Rejected: {reason}",
             metadata={"rejection": True},
         )
 
-    def retire(self, record: ModelRecord,
-               actor: str = "system", reason: str = "") -> List[LifecycleTransition]:
+    def retire(
+        self, record: ModelRecord, actor: str = "system", reason: str = ""
+    ) -> list[LifecycleTransition]:
         """Retire a model — transitions to ARCHIVED then RETIRED."""
         transitions = []
         if record.lifecycle_state not in (LifecycleState.ARCHIVED, LifecycleState.RETIRED):
             transitions.append(
-                self.transition(record, LifecycleState.ARCHIVED,
-                                actor=actor, reason=reason or "archiving for retirement")
+                self.transition(
+                    record,
+                    LifecycleState.ARCHIVED,
+                    actor=actor,
+                    reason=reason or "archiving for retirement",
+                )
             )
         transitions.append(
-            self.transition(record, LifecycleState.RETIRED,
-                            actor=actor, reason=reason or "model retired")
+            self.transition(
+                record, LifecycleState.RETIRED, actor=actor, reason=reason or "model retired"
+            )
         )
         record.retirement_status = "retired"
         return transitions
 
-    def state_summary(self) -> Dict[str, Any]:
+    def state_summary(self) -> dict[str, Any]:
         """Return counts of models per lifecycle state."""
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for transitions in self._history.values():
             if transitions:
                 final_state = transitions[-1].to_state
                 counts[final_state] = counts.get(final_state, 0) + 1
         return {
-            "transitions_by_model": {
-                mid: len(ts) for mid, ts in self._history.items()
-            },
+            "transitions_by_model": {mid: len(ts) for mid, ts in self._history.items()},
             "models_tracked": len(self._history),
             "all_transitions": sum(len(ts) for ts in self._history.values()),
         }

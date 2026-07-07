@@ -30,9 +30,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Dataset record
@@ -76,20 +75,18 @@ class DatasetRecord:
     n_samples: int = 0
     n_features: int = 0
     n_labels: int = 3
-    timeframes: List[str] = field(default_factory=list)
-    instruments: List[str] = field(default_factory=list)
-    regimes_covered: List[str] = field(default_factory=list)
+    timeframes: list[str] = field(default_factory=list)
+    instruments: list[str] = field(default_factory=list)
+    regimes_covered: list[str] = field(default_factory=list)
     feature_schema_version: str = ""
     label_schema_version: str = ""
     data_quality_score: float = 0.0
     completeness: float = 1.0
-    status: str = "active"         # active / deprecated / retired
-    parent_version: Optional[str] = None
+    status: str = "active"  # active / deprecated / retired
+    parent_version: str | None = None
     changes_from_parent: str = ""
-    registered_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    registered_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_active(self) -> bool:
@@ -107,7 +104,7 @@ class DatasetRecord:
         except (ValueError, AttributeError):
             return 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "dataset_id": self.dataset_id,
             "version": self.version,
@@ -143,6 +140,7 @@ class DatasetRecord:
 @dataclass
 class DatasetQualityChange:
     """Recorded change in dataset quality between versions."""
+
     change_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     from_version: str = ""
     to_version: str = ""
@@ -152,11 +150,9 @@ class DatasetQualityChange:
     sample_delta: int = 0
     feature_delta: int = 0
     description: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "change_id": self.change_id,
             "from_version": self.from_version,
@@ -184,9 +180,9 @@ class DatasetEvolutionTracker:
     """
 
     def __init__(self) -> None:
-        self._datasets: Dict[str, DatasetRecord] = {}
-        self._registration_order: List[str] = []
-        self._changes: List[DatasetQualityChange] = []
+        self._datasets: dict[str, DatasetRecord] = {}
+        self._registration_order: list[str] = []
+        self._changes: list[DatasetQualityChange] = []
 
     def register(self, record: DatasetRecord) -> str:
         """Register a new dataset version. Returns dataset_id."""
@@ -198,12 +194,8 @@ class DatasetEvolutionTracker:
             change = DatasetQualityChange(
                 from_version=record.parent_version,
                 to_version=record.version,
-                quality_delta=round(
-                    record.data_quality_score - parent.data_quality_score, 4
-                ),
-                completeness_delta=round(
-                    record.completeness - parent.completeness, 4
-                ),
+                quality_delta=round(record.data_quality_score - parent.data_quality_score, 4),
+                completeness_delta=round(record.completeness - parent.completeness, 4),
                 instrument_delta=record.n_instruments - parent.n_instruments,
                 sample_delta=record.n_samples - parent.n_samples,
                 feature_delta=record.n_features - parent.n_features,
@@ -212,7 +204,7 @@ class DatasetEvolutionTracker:
             self._changes.append(change)
         return record.dataset_id
 
-    def get(self, version: str) -> Optional[DatasetRecord]:
+    def get(self, version: str) -> DatasetRecord | None:
         return self._datasets.get(version)
 
     def get_or_raise(self, version: str) -> DatasetRecord:
@@ -237,15 +229,15 @@ class DatasetEvolutionTracker:
         r.metadata["retirement_reason"] = reason
         return True
 
-    def active_datasets(self) -> List[DatasetRecord]:
+    def active_datasets(self) -> list[DatasetRecord]:
         return [d for d in self._datasets.values() if d.is_active]
 
-    def latest(self) -> Optional[DatasetRecord]:
+    def latest(self) -> DatasetRecord | None:
         if not self._registration_order:
             return None
         return self._datasets[self._registration_order[-1]]
 
-    def evolution_report(self) -> Dict[str, Any]:
+    def evolution_report(self) -> dict[str, Any]:
         """Generate a full dataset evolution report."""
         active = self.active_datasets()
         versions = [v for v in self._registration_order]
@@ -259,10 +251,14 @@ class DatasetEvolutionTracker:
                 "completeness": self._datasets[v].completeness,
                 "registered_at": self._datasets[v].registered_at,
             }
-            for v in versions if v in self._datasets
+            for v in versions
+            if v in self._datasets
         ]
-        best = max(self._datasets.values(),
-                   key=lambda d: d.data_quality_score) if self._datasets else None
+        best = (
+            max(self._datasets.values(), key=lambda d: d.data_quality_score)
+            if self._datasets
+            else None
+        )
         return {
             "report_type": "dataset_evolution_report",
             "total_versions": len(self._datasets),
@@ -272,10 +268,10 @@ class DatasetEvolutionTracker:
             "quality_timeline": quality_timeline,
             "changes": [c.to_dict() for c in self._changes],
             "summary": self.summary(),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def compare(self, version_a: str, version_b: str) -> Dict[str, Any]:
+    def compare(self, version_a: str, version_b: str) -> dict[str, Any]:
         """Compare two dataset versions."""
         a = self.get_or_raise(version_a)
         b = self.get_or_raise(version_b)
@@ -293,7 +289,7 @@ class DatasetEvolutionTracker:
             "removed_regimes": list(set(a.regimes_covered) - set(b.regimes_covered)),
         }
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         if not self._datasets:
             return {"total_versions": 0}
         quality_scores = [d.data_quality_score for d in self._datasets.values()]

@@ -22,10 +22,9 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from trainer.automl.objectives import ObjectiveScorer, build_research_scorer
-
 
 # ---------------------------------------------------------------------------
 # Ranking entry
@@ -56,11 +55,11 @@ class RankingEntry:
     score: float = 0.0
     backbone: str = ""
     model_version: str = ""
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     dimension: str = "overall"
     dimension_type: str = "overall"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trial_id": self.trial_id,
             "record_id": self.record_id,
@@ -93,30 +92,21 @@ class RankingResult:
         n_experiments: Total number of experiments ranked.
     """
 
-    overall: List[RankingEntry] = field(default_factory=list)
-    by_instrument: Dict[str, List[RankingEntry]] = field(default_factory=dict)
-    by_timeframe: Dict[str, List[RankingEntry]] = field(default_factory=dict)
-    by_regime: Dict[str, List[RankingEntry]] = field(default_factory=dict)
-    champion: Optional[RankingEntry] = None
+    overall: list[RankingEntry] = field(default_factory=list)
+    by_instrument: dict[str, list[RankingEntry]] = field(default_factory=dict)
+    by_timeframe: dict[str, list[RankingEntry]] = field(default_factory=dict)
+    by_regime: dict[str, list[RankingEntry]] = field(default_factory=dict)
+    champion: RankingEntry | None = None
     n_experiments: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "n_experiments": self.n_experiments,
             "champion": self.champion.to_dict() if self.champion else None,
             "overall": [e.to_dict() for e in self.overall],
-            "by_instrument": {
-                k: [e.to_dict() for e in v]
-                for k, v in self.by_instrument.items()
-            },
-            "by_timeframe": {
-                k: [e.to_dict() for e in v]
-                for k, v in self.by_timeframe.items()
-            },
-            "by_regime": {
-                k: [e.to_dict() for e in v]
-                for k, v in self.by_regime.items()
-            },
+            "by_instrument": {k: [e.to_dict() for e in v] for k, v in self.by_instrument.items()},
+            "by_timeframe": {k: [e.to_dict() for e in v] for k, v in self.by_timeframe.items()},
+            "by_regime": {k: [e.to_dict() for e in v] for k, v in self.by_regime.items()},
         }
 
 
@@ -134,29 +124,47 @@ class ExperimentRanker:
     """
 
     INSTRUMENTS = [
-        "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD",
-        "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY",
-        "XAUUSD", "XAGUSD", "USOIL", "US30", "NAS100",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "USDCHF",
+        "AUDUSD",
+        "USDCAD",
+        "NZDUSD",
+        "EURGBP",
+        "EURJPY",
+        "GBPJPY",
+        "XAUUSD",
+        "XAGUSD",
+        "USOIL",
+        "US30",
+        "NAS100",
     ]
 
     TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
 
     REGIMES = ["trending_up", "trending_down", "ranging", "volatile", "crisis"]
 
-    def __init__(self, scorer: Optional[ObjectiveScorer] = None) -> None:
+    def __init__(self, scorer: ObjectiveScorer | None = None) -> None:
         self.scorer = scorer or build_research_scorer()
 
-    def _score_experiment(self, experiment: Dict[str, Any],
-                          reference: List[Dict[str, Any]]) -> float:
+    def _score_experiment(
+        self, experiment: dict[str, Any], reference: list[dict[str, Any]]
+    ) -> float:
         metrics = experiment.get("metrics") or experiment.get("validation_results", {})
         return self.scorer.composite_score(metrics, reference)
 
-    def _extract_metrics(self, experiment: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_metrics(self, experiment: dict[str, Any]) -> dict[str, Any]:
         return experiment.get("metrics") or experiment.get("validation_results", {})
 
-    def _make_entry(self, experiment: Dict[str, Any], rank: int,
-                    score: float, dimension: str = "overall",
-                    dimension_type: str = "overall") -> RankingEntry:
+    def _make_entry(
+        self,
+        experiment: dict[str, Any],
+        rank: int,
+        score: float,
+        dimension: str = "overall",
+        dimension_type: str = "overall",
+    ) -> RankingEntry:
         return RankingEntry(
             trial_id=experiment.get("trial_id", ""),
             record_id=experiment.get("record_id", ""),
@@ -170,12 +178,12 @@ class ExperimentRanker:
             dimension_type=dimension_type,
         )
 
-    def rank_all(self, experiments: List[Dict[str, Any]]) -> List[RankingEntry]:
+    def rank_all(self, experiments: list[dict[str, Any]]) -> list[RankingEntry]:
         """Return experiments sorted by composite score descending."""
         if not experiments:
             return []
         all_metrics = [self._extract_metrics(e) for e in experiments]
-        scored: List[Tuple[int, float]] = []
+        scored: list[tuple[int, float]] = []
         for i, exp in enumerate(experiments):
             s = self._score_experiment(exp, all_metrics)
             scored.append((i, s))
@@ -185,20 +193,21 @@ class ExperimentRanker:
             for rank, (idx, score) in enumerate(scored)
         ]
 
-    def top_n(self, experiments: List[Dict[str, Any]], n: int = 10) -> List[RankingEntry]:
+    def top_n(self, experiments: list[dict[str, Any]], n: int = 10) -> list[RankingEntry]:
         """Return top-N ranked experiments."""
         return self.rank_all(experiments)[:n]
 
-    def rank_by_instrument(self, experiments: List[Dict[str, Any]],
-                           instrument: str) -> List[RankingEntry]:
+    def rank_by_instrument(
+        self, experiments: list[dict[str, Any]], instrument: str
+    ) -> list[RankingEntry]:
         """Rank experiments by their per-instrument metrics."""
         filtered = []
         for exp in experiments:
             metrics = self._extract_metrics(exp)
             instr_metrics = (
-                metrics.get("per_instrument", {}).get(instrument) or
-                metrics.get(instrument) or
-                metrics
+                metrics.get("per_instrument", {}).get(instrument)
+                or metrics.get(instrument)
+                or metrics
             )
             filtered.append({**exp, "_ranked_metrics": instr_metrics})
 
@@ -206,7 +215,7 @@ class ExperimentRanker:
             return []
 
         ref = [f.get("_ranked_metrics", {}) for f in filtered]
-        scored: List[Tuple[int, float]] = []
+        scored: list[tuple[int, float]] = []
         for i, exp in enumerate(filtered):
             metrics = exp.get("_ranked_metrics", {})
             s = self.scorer.composite_score(metrics, ref)
@@ -214,22 +223,20 @@ class ExperimentRanker:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [
             self._make_entry(
-                experiments[idx], rank + 1, score,
-                dimension=instrument, dimension_type="instrument"
+                experiments[idx], rank + 1, score, dimension=instrument, dimension_type="instrument"
             )
             for rank, (idx, score) in enumerate(scored)
         ]
 
-    def rank_by_timeframe(self, experiments: List[Dict[str, Any]],
-                          timeframe: str) -> List[RankingEntry]:
+    def rank_by_timeframe(
+        self, experiments: list[dict[str, Any]], timeframe: str
+    ) -> list[RankingEntry]:
         """Rank experiments by their per-timeframe metrics."""
         filtered = []
         for exp in experiments:
             metrics = self._extract_metrics(exp)
             tf_metrics = (
-                metrics.get("per_timeframe", {}).get(timeframe) or
-                metrics.get(timeframe) or
-                metrics
+                metrics.get("per_timeframe", {}).get(timeframe) or metrics.get(timeframe) or metrics
             )
             filtered.append({**exp, "_ranked_metrics": tf_metrics})
 
@@ -237,7 +244,7 @@ class ExperimentRanker:
             return []
 
         ref = [f.get("_ranked_metrics", {}) for f in filtered]
-        scored: List[Tuple[int, float]] = []
+        scored: list[tuple[int, float]] = []
         for i, exp in enumerate(filtered):
             metrics = exp.get("_ranked_metrics", {})
             s = self.scorer.composite_score(metrics, ref)
@@ -245,22 +252,18 @@ class ExperimentRanker:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [
             self._make_entry(
-                experiments[idx], rank + 1, score,
-                dimension=timeframe, dimension_type="timeframe"
+                experiments[idx], rank + 1, score, dimension=timeframe, dimension_type="timeframe"
             )
             for rank, (idx, score) in enumerate(scored)
         ]
 
-    def rank_by_regime(self, experiments: List[Dict[str, Any]],
-                       regime: str) -> List[RankingEntry]:
+    def rank_by_regime(self, experiments: list[dict[str, Any]], regime: str) -> list[RankingEntry]:
         """Rank experiments by their per-regime metrics."""
         filtered = []
         for exp in experiments:
             metrics = self._extract_metrics(exp)
             regime_metrics = (
-                metrics.get("per_regime", {}).get(regime) or
-                metrics.get(regime) or
-                metrics
+                metrics.get("per_regime", {}).get(regime) or metrics.get(regime) or metrics
             )
             filtered.append({**exp, "_ranked_metrics": regime_metrics})
 
@@ -268,7 +271,7 @@ class ExperimentRanker:
             return []
 
         ref = [f.get("_ranked_metrics", {}) for f in filtered]
-        scored: List[Tuple[int, float]] = []
+        scored: list[tuple[int, float]] = []
         for i, exp in enumerate(filtered):
             metrics = exp.get("_ranked_metrics", {})
             s = self.scorer.composite_score(metrics, ref)
@@ -276,16 +279,18 @@ class ExperimentRanker:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [
             self._make_entry(
-                experiments[idx], rank + 1, score,
-                dimension=regime, dimension_type="regime"
+                experiments[idx], rank + 1, score, dimension=regime, dimension_type="regime"
             )
             for rank, (idx, score) in enumerate(scored)
         ]
 
-    def full_ranking(self, experiments: List[Dict[str, Any]],
-                     instruments: Optional[List[str]] = None,
-                     timeframes: Optional[List[str]] = None,
-                     regimes: Optional[List[str]] = None) -> RankingResult:
+    def full_ranking(
+        self,
+        experiments: list[dict[str, Any]],
+        instruments: list[str] | None = None,
+        timeframes: list[str] | None = None,
+        regimes: list[str] | None = None,
+    ) -> RankingResult:
         """Compute full multi-dimensional ranking.
 
         Args:
@@ -304,15 +309,15 @@ class ExperimentRanker:
 
         overall = self.rank_all(experiments)
 
-        by_instrument: Dict[str, List[RankingEntry]] = {}
+        by_instrument: dict[str, list[RankingEntry]] = {}
         for instr in instr_list:
             by_instrument[instr] = self.rank_by_instrument(experiments, instr)
 
-        by_timeframe: Dict[str, List[RankingEntry]] = {}
+        by_timeframe: dict[str, list[RankingEntry]] = {}
         for tf in tf_list:
             by_timeframe[tf] = self.rank_by_timeframe(experiments, tf)
 
-        by_regime: Dict[str, List[RankingEntry]] = {}
+        by_regime: dict[str, list[RankingEntry]] = {}
         for regime in regime_list:
             by_regime[regime] = self.rank_by_regime(experiments, regime)
 

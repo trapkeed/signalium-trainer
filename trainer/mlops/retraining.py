@@ -34,11 +34,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Retraining triggers
@@ -47,18 +46,23 @@ from loguru import logger
 
 class RetrainingTrigger:
     PERFORMANCE_DEGRADATION = "performance_degradation"
-    CONFIDENCE_DEGRADATION  = "confidence_degradation"
-    FEATURE_DRIFT           = "feature_drift"
-    LABEL_DRIFT             = "label_drift"
-    CALIBRATION_DRIFT       = "calibration_drift"
-    REGIME_DRIFT            = "regime_drift"
-    SCHEDULED               = "scheduled"
-    MANUAL                  = "manual"
+    CONFIDENCE_DEGRADATION = "confidence_degradation"
+    FEATURE_DRIFT = "feature_drift"
+    LABEL_DRIFT = "label_drift"
+    CALIBRATION_DRIFT = "calibration_drift"
+    REGIME_DRIFT = "regime_drift"
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
 
     ALL = [
-        PERFORMANCE_DEGRADATION, CONFIDENCE_DEGRADATION,
-        FEATURE_DRIFT, LABEL_DRIFT, CALIBRATION_DRIFT,
-        REGIME_DRIFT, SCHEDULED, MANUAL,
+        PERFORMANCE_DEGRADATION,
+        CONFIDENCE_DEGRADATION,
+        FEATURE_DRIFT,
+        LABEL_DRIFT,
+        CALIBRATION_DRIFT,
+        REGIME_DRIFT,
+        SCHEDULED,
+        MANUAL,
     ]
 
 
@@ -89,18 +93,18 @@ class RetrainingPolicy:
     cooldown_hours: float = 24.0
     priority: int = 2
     description: str = ""
-    last_triggered: Optional[str] = None
+    last_triggered: str | None = None
 
     def is_in_cooldown(self) -> bool:
         if self.last_triggered is None:
             return False
         last = datetime.fromisoformat(self.last_triggered)
         if last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
-        now = datetime.now(timezone.utc)
+            last = last.replace(tzinfo=UTC)
+        now = datetime.now(UTC)
         return (now - last).total_seconds() < self.cooldown_hours * 3600
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "policy_id": self.policy_id,
             "trigger": self.trigger,
@@ -146,15 +150,13 @@ class RetrainingRecommendation:
     reason: str = ""
     priority: int = 2
     status: str = "pending"
-    metrics: Dict[str, float] = field(default_factory=dict)
+    metrics: dict[str, float] = field(default_factory=dict)
     policy_id: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    acted_at: Optional[str] = None
-    acted_by: Optional[str] = None
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    acted_at: str | None = None
+    acted_by: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "recommendation_id": self.recommendation_id,
             "model_id": self.model_id,
@@ -193,8 +195,8 @@ class RetrainingPolicyManager:
                 "Retraining recommendations are advisory only."
             )
         self.auto_retrain = False
-        self._policies: Dict[str, RetrainingPolicy] = {}
-        self._recommendations: List[RetrainingRecommendation] = []
+        self._policies: dict[str, RetrainingPolicy] = {}
+        self._recommendations: list[RetrainingRecommendation] = []
 
     def add_policy(self, policy: RetrainingPolicy) -> str:
         """Register a retraining policy. Returns policy_id."""
@@ -205,15 +207,15 @@ class RetrainingPolicyManager:
     def remove_policy(self, policy_id: str) -> bool:
         return bool(self._policies.pop(policy_id, None))
 
-    def get_policy(self, policy_id: str) -> Optional[RetrainingPolicy]:
+    def get_policy(self, policy_id: str) -> RetrainingPolicy | None:
         return self._policies.get(policy_id)
 
-    def list_policies(self) -> List[Dict[str, Any]]:
+    def list_policies(self) -> list[dict[str, Any]]:
         return [p.to_dict() for p in self._policies.values()]
 
-    def evaluate(self, model_id: str,
-                 metrics: Dict[str, float],
-                 force_manual: bool = False) -> List[RetrainingRecommendation]:
+    def evaluate(
+        self, model_id: str, metrics: dict[str, float], force_manual: bool = False
+    ) -> list[RetrainingRecommendation]:
         """Evaluate all active policies against current metrics.
 
         Returns a list of retraining recommendations (advisory only).
@@ -233,10 +235,10 @@ class RetrainingPolicyManager:
         recommendations = []
         metric_map = {
             RetrainingTrigger.PERFORMANCE_DEGRADATION: "performance_degradation",
-            RetrainingTrigger.CONFIDENCE_DEGRADATION:  "confidence_degradation",
-            RetrainingTrigger.CALIBRATION_DRIFT:       "calibration_drift",
-            RetrainingTrigger.FEATURE_DRIFT:           "feature_drift",
-            RetrainingTrigger.REGIME_DRIFT:            "regime_drift",
+            RetrainingTrigger.CONFIDENCE_DEGRADATION: "confidence_degradation",
+            RetrainingTrigger.CALIBRATION_DRIFT: "calibration_drift",
+            RetrainingTrigger.FEATURE_DRIFT: "feature_drift",
+            RetrainingTrigger.REGIME_DRIFT: "regime_drift",
         }
 
         for policy in self._policies.values():
@@ -246,11 +248,11 @@ class RetrainingPolicyManager:
                 continue
 
             should_recommend = False
-            trigger_value: Optional[float] = None
+            trigger_value: float | None = None
 
-            if policy.trigger == RetrainingTrigger.MANUAL and force_manual:
-                should_recommend = True
-            elif policy.trigger == RetrainingTrigger.SCHEDULED:
+            if (
+                policy.trigger == RetrainingTrigger.MANUAL and force_manual
+            ) or policy.trigger == RetrainingTrigger.SCHEDULED:
                 should_recommend = True
             elif policy.trigger in metric_map:
                 metric_key = metric_map[policy.trigger]
@@ -280,9 +282,7 @@ class RetrainingPolicyManager:
                     f"(trigger={policy.trigger}): {reason}"
                 )
 
-        if force_manual and not any(
-            r.trigger == RetrainingTrigger.MANUAL for r in recommendations
-        ):
+        if force_manual and not any(r.trigger == RetrainingTrigger.MANUAL for r in recommendations):
             rec = RetrainingRecommendation(
                 model_id=model_id,
                 trigger=RetrainingTrigger.MANUAL,
@@ -296,9 +296,9 @@ class RetrainingPolicyManager:
 
         return recommendations
 
-    def _build_reason(self, policy: RetrainingPolicy,
-                       value: Optional[float],
-                       metrics: Dict[str, float]) -> str:
+    def _build_reason(
+        self, policy: RetrainingPolicy, value: float | None, metrics: dict[str, float]
+    ) -> str:
         if value is not None:
             return (
                 f"{policy.trigger}: observed {value:.4f} ≥ "
@@ -307,13 +307,12 @@ class RetrainingPolicyManager:
             ).strip()
         return f"{policy.trigger}: policy triggered. {policy.description}".strip()
 
-    def acknowledge(self, recommendation_id: str,
-                    acted_by: str = "human") -> bool:
+    def acknowledge(self, recommendation_id: str, acted_by: str = "human") -> bool:
         """Mark a recommendation as acted upon."""
         for r in self._recommendations:
             if r.recommendation_id == recommendation_id:
                 r.status = "acted_upon"
-                r.acted_at = datetime.now(timezone.utc).isoformat()
+                r.acted_at = datetime.now(UTC).isoformat()
                 r.acted_by = acted_by
                 return True
         return False
@@ -326,21 +325,21 @@ class RetrainingPolicyManager:
                 return True
         return False
 
-    def pending_recommendations(self, model_id: Optional[str] = None
-                                 ) -> List[Dict[str, Any]]:
+    def pending_recommendations(self, model_id: str | None = None) -> list[dict[str, Any]]:
         recs = [r for r in self._recommendations if r.status == "pending"]
         if model_id:
             recs = [r for r in recs if r.model_id == model_id]
         return [r.to_dict() for r in sorted(recs, key=lambda r: r.priority)]
 
-    def all_recommendations(self, model_id: Optional[str] = None,
-                             limit: int = 100) -> List[Dict[str, Any]]:
+    def all_recommendations(
+        self, model_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         recs = list(reversed(self._recommendations))
         if model_id:
             recs = [r for r in recs if r.model_id == model_id]
         return [r.to_dict() for r in recs[:limit]]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "total_policies": len(self._policies),
             "active_policies": sum(1 for p in self._policies.values() if p.enabled),
@@ -356,36 +355,44 @@ class RetrainingPolicyManager:
 def build_default_policies() -> RetrainingPolicyManager:
     """Build the default set of retraining policies."""
     mgr = RetrainingPolicyManager(auto_retrain=False)
-    mgr.add_policy(RetrainingPolicy(
-        policy_id="perf_degradation_default",
-        trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
-        threshold=0.05,
-        cooldown_hours=24,
-        priority=1,
-        description="Accuracy dropped 5%+ below baseline.",
-    ))
-    mgr.add_policy(RetrainingPolicy(
-        policy_id="confidence_degradation_default",
-        trigger=RetrainingTrigger.CONFIDENCE_DEGRADATION,
-        threshold=0.10,
-        cooldown_hours=24,
-        priority=2,
-        description="Average confidence dropped 10%+ below baseline.",
-    ))
-    mgr.add_policy(RetrainingPolicy(
-        policy_id="calibration_drift_default",
-        trigger=RetrainingTrigger.CALIBRATION_DRIFT,
-        threshold=0.05,
-        cooldown_hours=48,
-        priority=2,
-        description="Calibration error drifted 5%+ from baseline.",
-    ))
-    mgr.add_policy(RetrainingPolicy(
-        policy_id="regime_drift_default",
-        trigger=RetrainingTrigger.REGIME_DRIFT,
-        threshold=0.20,
-        cooldown_hours=72,
-        priority=3,
-        description="Market regime distribution shifted significantly.",
-    ))
+    mgr.add_policy(
+        RetrainingPolicy(
+            policy_id="perf_degradation_default",
+            trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
+            threshold=0.05,
+            cooldown_hours=24,
+            priority=1,
+            description="Accuracy dropped 5%+ below baseline.",
+        )
+    )
+    mgr.add_policy(
+        RetrainingPolicy(
+            policy_id="confidence_degradation_default",
+            trigger=RetrainingTrigger.CONFIDENCE_DEGRADATION,
+            threshold=0.10,
+            cooldown_hours=24,
+            priority=2,
+            description="Average confidence dropped 10%+ below baseline.",
+        )
+    )
+    mgr.add_policy(
+        RetrainingPolicy(
+            policy_id="calibration_drift_default",
+            trigger=RetrainingTrigger.CALIBRATION_DRIFT,
+            threshold=0.05,
+            cooldown_hours=48,
+            priority=2,
+            description="Calibration error drifted 5%+ from baseline.",
+        )
+    )
+    mgr.add_policy(
+        RetrainingPolicy(
+            policy_id="regime_drift_default",
+            trigger=RetrainingTrigger.REGIME_DRIFT,
+            threshold=0.20,
+            cooldown_hours=72,
+            priority=3,
+            description="Market regime distribution shifted significantly.",
+        )
+    )
     return mgr

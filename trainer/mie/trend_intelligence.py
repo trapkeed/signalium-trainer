@@ -3,23 +3,23 @@
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import TrendState, clamp
 from trainer.mie.mie_models import MarketInput, TrendResult
+from trainer.mie.mie_types import TrendState, clamp
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _ema(values: List[float], period: int) -> float:
+def _ema(values: list[float], period: int) -> float:
     if not values:
         return 0.0
     k = 2.0 / (period + 1)
@@ -42,30 +42,30 @@ class TrendIntelligenceEngine:
 
     def __init__(
         self,
-        adx_strong:   float = 40.0,
+        adx_strong: float = 40.0,
         adx_moderate: float = 25.0,
-        adx_weak:     float = 15.0,
-        ema_fast:     int   = 9,
-        ema_slow:     int   = 21,
+        adx_weak: float = 15.0,
+        ema_fast: int = 9,
+        ema_slow: int = 21,
     ) -> None:
-        self._adx_strong   = adx_strong
+        self._adx_strong = adx_strong
         self._adx_moderate = adx_moderate
-        self._adx_weak     = adx_weak
-        self._ema_fast     = ema_fast
-        self._ema_slow     = ema_slow
+        self._adx_weak = adx_weak
+        self._ema_fast = ema_fast
+        self._ema_slow = ema_slow
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def analyse(self, inp: MarketInput) -> TrendResult:
         closes = inp.closes or []
-        highs  = inp.highs  or []
-        lows   = inp.lows   or []
-        adx    = inp.adx
+        highs = inp.highs or []
+        lows = inp.lows or []
+        adx = inp.adx
 
         direction = self._detect_direction(closes, highs, lows, inp.rsi)
-        state     = self._classify_state(adx, direction)
-        quality   = self._compute_quality(adx, direction, closes, highs, lows)
-        strength  = clamp(adx, 0.0, 100.0)
+        state = self._classify_state(adx, direction)
+        quality = self._compute_quality(adx, direction, closes, highs, lows)
+        strength = clamp(adx, 0.0, 100.0)
 
         logger.debug(
             f"[TI] {inp.symbol} adx={adx:.1f} dir={direction} → {state.value} q={quality:.1f}"
@@ -82,10 +82,10 @@ class TrendIntelligenceEngine:
 
     def _detect_direction(
         self,
-        closes: List[float],
-        highs:  List[float],
-        lows:   List[float],
-        rsi:    float,
+        closes: list[float],
+        highs: list[float],
+        lows: list[float],
+        rsi: float,
     ) -> str:
         if not closes:
             return "NEUTRAL"
@@ -96,8 +96,8 @@ class TrendIntelligenceEngine:
             return "UP"
         # EMA crossover signal
         if len(closes) >= self._ema_slow:
-            ema_f = _ema(closes[-self._ema_fast:], self._ema_fast)
-            ema_s = _ema(closes[-self._ema_slow:], self._ema_slow)
+            ema_f = _ema(closes[-self._ema_fast :], self._ema_fast)
+            ema_s = _ema(closes[-self._ema_slow :], self._ema_slow)
             if ema_f > ema_s * 1.001:
                 return "UP"
             if ema_f < ema_s * 0.999:
@@ -120,7 +120,7 @@ class TrendIntelligenceEngine:
             return TrendState.SIDEWAYS
         return TrendState.REVERSING
 
-    def _has_hh_hl(self, highs: List[float], lows: List[float], n: int = 5) -> bool:
+    def _has_hh_hl(self, highs: list[float], lows: list[float], n: int = 5) -> bool:
         if len(highs) < n or len(lows) < n:
             return False
         hs = highs[-n:]
@@ -129,7 +129,7 @@ class TrendIntelligenceEngine:
         hl = all(ls[i] >= ls[i - 1] for i in range(1, n))
         return hh and hl
 
-    def _has_ll_lh(self, highs: List[float], lows: List[float], n: int = 5) -> bool:
+    def _has_ll_lh(self, highs: list[float], lows: list[float], n: int = 5) -> bool:
         if len(highs) < n or len(lows) < n:
             return False
         hs = highs[-n:]
@@ -140,26 +140,26 @@ class TrendIntelligenceEngine:
 
     def _compute_quality(
         self,
-        adx:       float,
+        adx: float,
         direction: str,
-        closes:    List[float],
-        highs:     List[float],
-        lows:      List[float],
+        closes: list[float],
+        highs: list[float],
+        lows: list[float],
     ) -> float:
         score = 0.0
         # ADX contribution (0-60)
         score += clamp(adx / self._adx_strong * 60.0, 0.0, 60.0)
         # Structure confirmation (0-30)
-        if direction == "UP"   and self._has_hh_hl(highs, lows):
-            score += 30.0
-        elif direction == "DOWN" and self._has_ll_lh(highs, lows):
+        if (direction == "UP" and self._has_hh_hl(highs, lows)) or (
+            direction == "DOWN" and self._has_ll_lh(highs, lows)
+        ):
             score += 30.0
         elif direction != "NEUTRAL":
             score += 10.0
         # EMA gap bonus (0-10)
         if len(closes) >= self._ema_slow:
-            ema_f = _ema(closes[-self._ema_fast:], self._ema_fast)
-            ema_s = _ema(closes[-self._ema_slow:], self._ema_slow)
-            gap   = abs(ema_f - ema_s) / max(ema_s, 1e-9)
+            ema_f = _ema(closes[-self._ema_fast :], self._ema_fast)
+            ema_s = _ema(closes[-self._ema_slow :], self._ema_slow)
+            gap = abs(ema_f - ema_s) / max(ema_s, 1e-9)
             score += clamp(gap * 1000.0, 0.0, 10.0)
         return clamp(score, 0.0, 100.0)

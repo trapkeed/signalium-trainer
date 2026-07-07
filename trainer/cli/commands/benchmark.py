@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -14,13 +12,13 @@ console = Console()
 
 @app.callback(invoke_without_command=True)
 def benchmark(
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name to benchmark."),
+    model: str | None = typer.Option(None, "--model", "-m", help="Model name to benchmark."),
     batch_size: int = typer.Option(32, "--batch-size", "-b", help="Batch size."),
     num_batches: int = typer.Option(50, "--num-batches", help="Number of batches to measure."),
     num_workers: int = typer.Option(4, "--num-workers", help="DataLoader worker count."),
 ) -> None:
     """Measure DataLoader throughput and model forward-pass latency."""
-    import time
+
     import torch
 
     from trainer.utils.device import resolve_device
@@ -45,6 +43,7 @@ def benchmark(
 
     if model:
         from trainer.registry import ModelRegistry
+
         try:
             model_cls = ModelRegistry.get(model)
             table.add_row("Model", model_cls.__name__)

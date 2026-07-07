@@ -17,7 +17,9 @@ def export(
     output_dir: Path = typer.Option(
         Path("exports"), "--output-dir", "-o", help="Export output directory."
     ),
-    torchscript: bool = typer.Option(True, "--torchscript/--no-torchscript", help="Export TorchScript."),
+    torchscript: bool = typer.Option(
+        True, "--torchscript/--no-torchscript", help="Export TorchScript."
+    ),
     onnx: bool = typer.Option(True, "--onnx/--no-onnx", help="Export ONNX."),
     onnx_opset: int = typer.Option(17, "--onnx-opset", help="ONNX opset version."),
 ) -> None:

@@ -8,20 +8,17 @@ historical_strategy_performance, model_health.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_models import AllocationRequest, PositionSize
-from trainer.icari.icari_types import SizingMethod
 from trainer.icari.position_sizing_engine import PositionSizingEngine
 
-
-_ADJUSTMENT_BOUNDS = (0.10, 2.0)   # min/max adjustment multiplier
+_ADJUSTMENT_BOUNDS = (0.10, 2.0)  # min/max adjustment multiplier
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -33,38 +30,38 @@ class DynamicSizer:
 
     def __init__(
         self,
-        base_engine:          PositionSizingEngine = None,
-        drawdown_soft_limit:  float = 0.05,
-        drawdown_hard_limit:  float = 0.10,
-        max_correlation:      float = 0.70,
-        session_multipliers:  Optional[Dict[str, float]] = None,
+        base_engine: PositionSizingEngine = None,
+        drawdown_soft_limit: float = 0.05,
+        drawdown_hard_limit: float = 0.10,
+        max_correlation: float = 0.70,
+        session_multipliers: dict[str, float] | None = None,
     ):
-        self._engine            = base_engine or PositionSizingEngine()
-        self._dd_soft           = drawdown_soft_limit
-        self._dd_hard           = drawdown_hard_limit
-        self._max_corr          = max_correlation
-        self._session_mult      = session_multipliers or {
-            "LONDON":    1.00,
-            "NEW_YORK":  1.00,
-            "TOKYO":     0.80,
-            "SYDNEY":    0.70,
-            "OVERLAP":   1.10,
+        self._engine = base_engine or PositionSizingEngine()
+        self._dd_soft = drawdown_soft_limit
+        self._dd_hard = drawdown_hard_limit
+        self._max_corr = max_correlation
+        self._session_mult = session_multipliers or {
+            "LONDON": 1.00,
+            "NEW_YORK": 1.00,
+            "TOKYO": 0.80,
+            "SYDNEY": 0.70,
+            "OVERLAP": 1.10,
         }
 
     def size(
         self,
-        req:                 AllocationRequest,
-        current_drawdown:    float = 0.0,
-        session:             str   = "LONDON",
-        historical_perf:     float = 0.5,   # 0–1 strategy performance score
-        model_health:        float = 1.0,   # 0–1
-        spread_pips:         float = 0.0,
-        spread_threshold:    float = 3.0,
+        req: AllocationRequest,
+        current_drawdown: float = 0.0,
+        session: str = "LONDON",
+        historical_perf: float = 0.5,  # 0–1 strategy performance score
+        model_health: float = 1.0,  # 0–1
+        spread_pips: float = 0.0,
+        spread_threshold: float = 3.0,
     ) -> PositionSize:
         """Size the position then apply all dynamic adjustments."""
         base = self._engine.size(req)
 
-        adjustments: Dict[str, float] = {}
+        adjustments: dict[str, float] = {}
 
         # 1. Drawdown adjustment
         dd_adj = self._drawdown_adj(current_drawdown)
@@ -87,7 +84,11 @@ class DynamicSizer:
         adjustments["correlation"] = corr_adj
 
         # 6. Spread adjustment
-        spread_adj = 1.0 if spread_pips <= spread_threshold else max(0.3, 1.0 - (spread_pips - spread_threshold) * 0.1)
+        spread_adj = (
+            1.0
+            if spread_pips <= spread_threshold
+            else max(0.3, 1.0 - (spread_pips - spread_threshold) * 0.1)
+        )
         adjustments["spread"] = spread_adj
 
         # 7. Session adjustment
@@ -114,19 +115,19 @@ class DynamicSizer:
         composite = _clamp(composite, *_ADJUSTMENT_BOUNDS)
 
         # Apply
-        new_units       = max(0.001, base.units * composite)
+        new_units = max(0.001, base.units * composite)
         new_risk_amount = base.risk_amount * composite
-        new_risk_frac   = min(0.05, base.risk_frac * composite)
+        new_risk_frac = min(0.05, base.risk_frac * composite)
 
         result = PositionSize(
-            instrument    = base.instrument,
-            method        = base.method,
-            units         = round(new_units, 4),
-            risk_amount   = round(new_risk_amount, 2),
-            risk_frac     = round(new_risk_frac, 4),
-            stop_distance = base.stop_distance,
-            adjusted      = True,
-            adjustments   = {k: round(v, 4) for k, v in adjustments.items()},
+            instrument=base.instrument,
+            method=base.method,
+            units=round(new_units, 4),
+            risk_amount=round(new_risk_amount, 2),
+            risk_frac=round(new_risk_frac, 4),
+            stop_distance=base.stop_distance,
+            adjusted=True,
+            adjustments={k: round(v, 4) for k, v in adjustments.items()},
         )
 
         logger.debug(
@@ -139,7 +140,7 @@ class DynamicSizer:
 
     def _drawdown_adj(self, dd: float) -> float:
         if dd >= self._dd_hard:
-            return 0.25    # emergency reduction
+            return 0.25  # emergency reduction
         if dd >= self._dd_soft:
             # Linear reduction from 1.0 at soft to 0.25 at hard
             span = max(self._dd_hard - self._dd_soft, 1e-9)

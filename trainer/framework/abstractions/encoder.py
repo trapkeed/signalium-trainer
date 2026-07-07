@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
 
 
-class BaseFeatureEncoder(nn.Module):
+class BaseFeatureEncoder(ABC, nn.Module):
     """Abstract base for all feature encoders in the Signalium Model Framework.
 
     A feature encoder transforms raw input tensors (batch, seq_len, input_dim)

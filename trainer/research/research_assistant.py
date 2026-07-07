@@ -26,12 +26,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
-from trainer.mlops.registry import ModelRegistry
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Report types
@@ -39,19 +35,24 @@ from trainer.mlops.registry import ModelRegistry
 
 
 class ReportType:
-    WEEKLY_RESEARCH      = "weekly_research_report"
+    WEEKLY_RESEARCH = "weekly_research_report"
     MONTHLY_MODEL_HEALTH = "monthly_model_health_report"
-    FEATURE_QUALITY      = "feature_quality_report"
-    DATASET_QUALITY      = "dataset_quality_report"
-    VALIDATION_SUMMARY   = "validation_summary"
-    RESEARCH_ROADMAP     = "research_roadmap"
-    MARKET_EVOLUTION     = "market_evolution_report"
-    LABEL_QUALITY        = "label_quality_report"
+    FEATURE_QUALITY = "feature_quality_report"
+    DATASET_QUALITY = "dataset_quality_report"
+    VALIDATION_SUMMARY = "validation_summary"
+    RESEARCH_ROADMAP = "research_roadmap"
+    MARKET_EVOLUTION = "market_evolution_report"
+    LABEL_QUALITY = "label_quality_report"
 
     ALL = [
-        WEEKLY_RESEARCH, MONTHLY_MODEL_HEALTH, FEATURE_QUALITY,
-        DATASET_QUALITY, VALIDATION_SUMMARY, RESEARCH_ROADMAP,
-        MARKET_EVOLUTION, LABEL_QUALITY,
+        WEEKLY_RESEARCH,
+        MONTHLY_MODEL_HEALTH,
+        FEATURE_QUALITY,
+        DATASET_QUALITY,
+        VALIDATION_SUMMARY,
+        RESEARCH_ROADMAP,
+        MARKET_EVOLUTION,
+        LABEL_QUALITY,
     ]
 
 
@@ -76,17 +77,19 @@ class ResearchAssistant:
         registry: ModelRegistry (optional).
     """
 
-    def __init__(self,
-                 observatory=None,
-                 health_tracker=None,
-                 feature_manager=None,
-                 label_monitor=None,
-                 dataset_tracker=None,
-                 advisor=None,
-                 experiment_engine=None,
-                 knowledge_base=None,
-                 market_monitor=None,
-                 registry=None) -> None:
+    def __init__(
+        self,
+        observatory=None,
+        health_tracker=None,
+        feature_manager=None,
+        label_monitor=None,
+        dataset_tracker=None,
+        advisor=None,
+        experiment_engine=None,
+        knowledge_base=None,
+        market_monitor=None,
+        registry=None,
+    ) -> None:
         self.observatory = observatory
         self.health_tracker = health_tracker
         self.feature_manager = feature_manager
@@ -98,9 +101,9 @@ class ResearchAssistant:
         self.market_monitor = market_monitor
         self.registry = registry
 
-    def weekly_research_report(self) -> Dict[str, Any]:
+    def weekly_research_report(self) -> dict[str, Any]:
         """Generate the weekly research summary."""
-        sections: Dict[str, Any] = {
+        sections: dict[str, Any] = {
             "report_type": ReportType.WEEKLY_RESEARCH,
             "report_id": self._report_id(),
             "period": "weekly",
@@ -156,10 +159,9 @@ class ResearchAssistant:
 
         return sections
 
-    def monthly_model_health_report(self,
-                                     model_id: Optional[str] = None) -> Dict[str, Any]:
+    def monthly_model_health_report(self, model_id: str | None = None) -> dict[str, Any]:
         """Generate monthly model health report."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.MONTHLY_MODEL_HEALTH,
             "report_id": self._report_id(),
             "model_id": model_id or "all",
@@ -186,9 +188,9 @@ class ResearchAssistant:
 
         return report
 
-    def feature_quality_report(self) -> Dict[str, Any]:
+    def feature_quality_report(self) -> dict[str, Any]:
         """Generate feature quality report."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.FEATURE_QUALITY,
             "report_id": self._report_id(),
             "generated_at": self._now(),
@@ -196,17 +198,17 @@ class ResearchAssistant:
 
         if self.feature_manager:
             evaluations = self.feature_manager.evaluate_all()
-            by_cls: Dict[str, int] = {}
-            by_rec: Dict[str, int] = {}
+            by_cls: dict[str, int] = {}
+            by_rec: dict[str, int] = {}
             for e in evaluations:
                 by_cls[e.classification] = by_cls.get(e.classification, 0) + 1
                 by_rec[e.recommendation] = by_rec.get(e.recommendation, 0) + 1
             report["summary"] = self.feature_manager.summary()
             report["by_classification"] = by_cls
             report["by_recommendation"] = by_rec
-            report["evaluations"] = [e.to_dict() for e in
-                                       sorted(evaluations,
-                                              key=lambda e: -e.health_score)[:20]]
+            report["evaluations"] = [
+                e.to_dict() for e in sorted(evaluations, key=lambda e: -e.health_score)[:20]
+            ]
             report["promotion_candidates"] = [
                 e.to_dict() for e in self.feature_manager.promotion_candidates()
             ]
@@ -215,9 +217,9 @@ class ResearchAssistant:
             ]
         return report
 
-    def dataset_quality_report(self) -> Dict[str, Any]:
+    def dataset_quality_report(self) -> dict[str, Any]:
         """Generate dataset quality report."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.DATASET_QUALITY,
             "report_id": self._report_id(),
             "generated_at": self._now(),
@@ -226,17 +228,16 @@ class ResearchAssistant:
             report["evolution_report"] = self.dataset_tracker.evolution_report()
         if self.label_monitor:
             all_reports = self.label_monitor.all_reports()
-            report["label_quality"] = {
-                v: r.to_dict() for v, r in all_reports.items()
-            }
+            report["label_quality"] = {v: r.to_dict() for v, r in all_reports.items()}
             report["low_quality_versions"] = self.label_monitor.low_quality_versions()
         return report
 
-    def validation_summary(self,
-                            validation_records: Optional[List[Dict]] = None,
-                            ) -> Dict[str, Any]:
+    def validation_summary(
+        self,
+        validation_records: list[dict] | None = None,
+    ) -> dict[str, Any]:
         """Generate validation summary from recent records."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.VALIDATION_SUMMARY,
             "report_id": self._report_id(),
             "generated_at": self._now(),
@@ -260,10 +261,9 @@ class ResearchAssistant:
                 report["observatory"] = obs
         return report
 
-    def research_roadmap(self,
-                          horizon_months: int = 3) -> Dict[str, Any]:
+    def research_roadmap(self, horizon_months: int = 3) -> dict[str, Any]:
         """Generate a research roadmap for the next N months."""
-        roadmap: Dict[str, Any] = {
+        roadmap: dict[str, Any] = {
             "report_type": ReportType.RESEARCH_ROADMAP,
             "report_id": self._report_id(),
             "horizon_months": horizon_months,
@@ -312,19 +312,23 @@ class ResearchAssistant:
             promotions = self.feature_manager.promotion_candidates()
             retirements = self.feature_manager.retirement_candidates()
             for e in promotions[:3]:
-                medium_term.append({
-                    "type": "feature_promotion",
-                    "priority": 3,
-                    "title": f"Promote feature: {e.name}",
-                    "recommendation": e.recommendation,
-                })
+                medium_term.append(
+                    {
+                        "type": "feature_promotion",
+                        "priority": 3,
+                        "title": f"Promote feature: {e.name}",
+                        "recommendation": e.recommendation,
+                    }
+                )
             for e in retirements[:3]:
-                short_term.append({
-                    "type": "feature_retirement",
-                    "priority": 3,
-                    "title": f"Retire feature: {e.name}",
-                    "recommendation": e.recommendation,
-                })
+                short_term.append(
+                    {
+                        "type": "feature_retirement",
+                        "priority": 3,
+                        "title": f"Retire feature: {e.name}",
+                        "recommendation": e.recommendation,
+                    }
+                )
 
         roadmap["immediate"] = sorted(immediate, key=lambda x: x["priority"])
         roadmap["short_term"] = sorted(short_term, key=lambda x: x["priority"])
@@ -334,9 +338,9 @@ class ResearchAssistant:
         roadmap["n_medium_term"] = len(medium_term)
         return roadmap
 
-    def market_evolution_report(self) -> Dict[str, Any]:
+    def market_evolution_report(self) -> dict[str, Any]:
         """Generate market evolution report."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.MARKET_EVOLUTION,
             "report_id": self._report_id(),
             "generated_at": self._now(),
@@ -348,23 +352,21 @@ class ResearchAssistant:
             report["n_new_detections"] = len(detections)
         return report
 
-    def label_quality_report(self) -> Dict[str, Any]:
+    def label_quality_report(self) -> dict[str, Any]:
         """Generate label quality report."""
-        report: Dict[str, Any] = {
+        report: dict[str, Any] = {
             "report_type": ReportType.LABEL_QUALITY,
             "report_id": self._report_id(),
             "generated_at": self._now(),
         }
         if self.label_monitor:
             all_reports = self.label_monitor.all_reports()
-            report["label_versions"] = {
-                v: r.to_dict() for v, r in all_reports.items()
-            }
+            report["label_versions"] = {v: r.to_dict() for v, r in all_reports.items()}
             report["summary"] = self.label_monitor.summary()
             report["low_quality"] = self.label_monitor.low_quality_versions()
         return report
 
-    def full_intelligence_report(self) -> Dict[str, Any]:
+    def full_intelligence_report(self) -> dict[str, Any]:
         """Generate the complete institutional research intelligence report."""
         return {
             "report_type": "research_intelligence_report",
@@ -380,9 +382,10 @@ class ResearchAssistant:
 
     @staticmethod
     def _now() -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     @staticmethod
     def _report_id() -> str:
         import uuid
+
         return str(uuid.uuid4())

@@ -1,0 +1,66 @@
+Failure cause
+- The pytest run fails during import with:
+  ImportError: cannot import name 'CategoryNarrative' from 'trainer.research.hrsa_explanations'
+- The file trainer/research/hrsa_explanations.py (shown in the logs) does not define a CategoryNarrative symbol, but trainer/research/__init__.py tries to import it. The missing symbol causes collection to abort.
+
+Fix (two safe options)
+1) Preferred: add a CategoryNarrative dataclass to hrsa_explanations.py so the import succeeds and a clear structured type is available to the package/tests.
+2) Safer fallback: make the import in trainer/research/__init__.py robust (try/except) so test import won’t crash if the symbol is missing — but this only hides the problem if the tests or code actually rely on the type.
+
+Recommended change (add the dataclass)
+Insert this into trainer/research/hrsa_explanations.py (e.g. after ImprovementRecommendation or before ScoreExplanation):
+
+```python
+from dataclasses import dataclass
+from typing import Any
+
+@dataclass
+class CategoryNarrative:
+    """
+    Representation of a per-category narrative used by the package/tests.
+    Fields chosen to be compatible with how category narratives are referenced:
+      - category: category key/name
+      - grade: textual grade (e.g. 'A', 'B', etc. or 'Good')
+      - score: numeric score 0–100
+      - confidence: fractional confidence (0.0–1.0)
+      - narrative: human-readable narrative for the category
+    """
+    category: str
+    grade: str
+    score: float
+    confidence: float
+    narrative: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "category": self.category,
+            "grade": self.grade,
+            "score": round(self.score, 1),
+            "confidence": round(self.confidence, 3),
+            "narrative": self.narrative,
+        }
+```
+
+- This provides the missing symbol and a clear conversion method for JSON/dict comparisons.
+- Adjust field names/types if your tests expect different attributes; the names above are typical and match the narrative usage in hrsa_explanations.py.
+
+Optional: make the package import robust
+If you prefer to avoid breakage while you add the class, change trainer/research/__init__.py where CategoryNarrative is imported to a guarded import:
+
+```python
+try:
+    from .hrsa_explanations import CategoryNarrative
+except Exception:
+    # Fallback for older versions / interim compatibility:
+    CategoryNarrative = dict
+```
+
+- This avoids ImportError at package import time. Prefer only as a short-term measure; better to add the real class.
+
+After applying the change
+- Run the test job locally or re-run CI. The ImportError should be resolved and tests will proceed to the next failures (if any).
+- If subsequent failures reference attribute differences on CategoryNarrative instances, update the dataclass fields to match what tests expect (I can inspect tests and suggest exact fields if you want).
+
+If you want, I can:
+- Propose the exact patch/commit diff for the repository.
+- Inspect trainer/research/__init__.py and the failing tests to ensure the new class matches expected shape.

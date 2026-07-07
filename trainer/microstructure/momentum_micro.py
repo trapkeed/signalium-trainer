@@ -8,15 +8,15 @@ Directional Persistence, Trend Energy, Impulse Decay.
 from __future__ import annotations
 
 import statistics
-from typing import List
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
+from trainer.microstructure.micro_models import MicrostructureFeatures, OHLCBar
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
@@ -32,7 +32,7 @@ class MomentumMicrostructure:
 
     def analyse_window(
         self,
-        bars:     List[OHLCBar],
+        bars: list[OHLCBar],
         features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         if len(bars) < 3:
@@ -53,8 +53,10 @@ class MomentumMicrostructure:
         # ── Momentum Acceleration / Deceleration ──────────────────────────────
         # Compare recent half vs earlier half
         half = max(n // 2, 1)
-        recent_avg_abs  = statistics.mean(abs(m) for m in moves[-half:]) if moves[-half:] else 0.0
-        earlier_avg_abs = statistics.mean(abs(m) for m in moves[:half]) if moves[:half] else recent_avg_abs
+        recent_avg_abs = statistics.mean(abs(m) for m in moves[-half:]) if moves[-half:] else 0.0
+        earlier_avg_abs = (
+            statistics.mean(abs(m) for m in moves[:half]) if moves[:half] else recent_avg_abs
+        )
 
         if earlier_avg_abs > 1e-10:
             ratio = recent_avg_abs / earlier_avg_abs
@@ -72,21 +74,20 @@ class MomentumMicrostructure:
         # Exhaustion: recent bars have large range but small body (wicks dominating)
         recent_bars = bars[-half:]
         avg_wick_ratio = statistics.mean(
-            1.0 - abs(b.close - b.open) / b.range if b.range > 1e-10 else 0.5
-            for b in recent_bars
+            1.0 - abs(b.close - b.open) / b.range if b.range > 1e-10 else 0.5 for b in recent_bars
         )
         features.momentum_exhaustion = _clamp(avg_wick_ratio)
 
         # ── Trend Energy ──────────────────────────────────────────────────────
         # Directional move from first to last bar / sum of absolute moves
-        net_move   = abs(bars[-1].close - bars[0].close)
+        net_move = abs(bars[-1].close - bars[0].close)
         total_move = sum(abs(m) for m in moves) if moves else 1e-10
         features.trend_energy = _clamp(_safe_div(net_move, total_move, 0.0))
 
         # ── Impulse Decay ─────────────────────────────────────────────────────
         # How much has the impulse (max move) decayed vs current momentum?
-        abs_moves   = [abs(m) for m in moves]
-        peak_move   = max(abs_moves) if abs_moves else 0.0
+        abs_moves = [abs(m) for m in moves]
+        peak_move = max(abs_moves) if abs_moves else 0.0
         latest_move = abs(moves[-1]) if moves else 0.0
         features.impulse_decay = _clamp(1.0 - _safe_div(latest_move, peak_move, 0.0))
 

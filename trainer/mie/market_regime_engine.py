@@ -2,33 +2,32 @@
 
 from __future__ import annotations
 
-import math
 import statistics
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import MarketRegime, clamp
 from trainer.mie.mie_models import MarketInput, MarketRegimeResult
+from trainer.mie.mie_types import MarketRegime, clamp
 
 
-def _stdev(values: List[float]) -> float:
+def _stdev(values: list[float]) -> float:
     if len(values) < 2:
         return 0.0
     return statistics.stdev(values)
 
 
-def _mean(values: List[float]) -> float:
+def _mean(values: list[float]) -> float:
     if not values:
         return 0.0
     return statistics.mean(values)
 
 
-def _ema(values: List[float], period: int) -> float:
+def _ema(values: list[float], period: int) -> float:
     """Exponential moving average of the last `period` values."""
     if not values:
         return 0.0
@@ -39,21 +38,21 @@ def _ema(values: List[float], period: int) -> float:
     return result
 
 
-def _has_higher_highs(highs: List[float], lookback: int = 5) -> bool:
+def _has_higher_highs(highs: list[float], lookback: int = 5) -> bool:
     if len(highs) < lookback:
         return False
     segment = highs[-lookback:]
     return all(segment[i] >= segment[i - 1] for i in range(1, len(segment)))
 
 
-def _has_lower_lows(lows: List[float], lookback: int = 5) -> bool:
+def _has_lower_lows(lows: list[float], lookback: int = 5) -> bool:
     if len(lows) < lookback:
         return False
     segment = lows[-lookback:]
     return all(segment[i] <= segment[i - 1] for i in range(1, len(segment)))
 
 
-def _volume_spike(volumes: List[float], threshold: float = 2.5) -> bool:
+def _volume_spike(volumes: list[float], threshold: float = 2.5) -> bool:
     if len(volumes) < 5:
         return False
     avg_vol = _mean(volumes[:-1])
@@ -77,24 +76,24 @@ class MarketRegimeEngine:
 
     def __init__(
         self,
-        adx_strong:   float = 40.0,
+        adx_strong: float = 40.0,
         adx_trending: float = 25.0,
-        adx_weak:     float = 15.0,
-        vol_extreme:  float = 4.0,
-        vol_high:     float = 2.5,
+        adx_weak: float = 15.0,
+        vol_extreme: float = 4.0,
+        vol_high: float = 2.5,
         vol_compress: float = 0.5,
     ) -> None:
-        self._adx_strong   = adx_strong
+        self._adx_strong = adx_strong
         self._adx_trending = adx_trending
-        self._adx_weak     = adx_weak
-        self._vol_extreme  = vol_extreme
-        self._vol_high     = vol_high
+        self._adx_weak = adx_weak
+        self._vol_extreme = vol_extreme
+        self._vol_high = vol_high
         self._vol_compress = vol_compress
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def detect(self, inp: MarketInput) -> MarketRegimeResult:
-        signals: Dict = {}
+        signals: dict = {}
         regime, confidence, sub = self._classify(inp, signals)
         logger.debug(f"[MRE] {inp.symbol} → {regime.value} ({confidence:.2f})")
         return MarketRegimeResult(
@@ -108,29 +107,29 @@ class MarketRegimeEngine:
 
     def _classify(
         self,
-        inp:     MarketInput,
-        signals: Dict,
+        inp: MarketInput,
+        signals: dict,
     ) -> tuple:
         returns = inp.returns or []
-        closes  = inp.closes  or []
-        highs   = inp.highs   or []
-        lows    = inp.lows    or []
+        closes = inp.closes or []
+        highs = inp.highs or []
+        lows = inp.lows or []
         volumes = inp.volumes or []
 
         # Derived metrics
         current_vol = _stdev(returns[-20:]) if len(returns) >= 2 else 0.0
-        base_vol    = _stdev(returns[-60:]) if len(returns) >= 10 else max(current_vol, 1e-9)
-        vol_ratio   = current_vol / max(base_vol, 1e-9)
-        adx         = inp.adx
-        rsi         = inp.rsi
-        atr         = inp.atr
-        spread      = inp.spread
-        news        = inp.news_events or []
+        base_vol = _stdev(returns[-60:]) if len(returns) >= 10 else max(current_vol, 1e-9)
+        vol_ratio = current_vol / max(base_vol, 1e-9)
+        adx = inp.adx
+        rsi = inp.rsi
+        atr = inp.atr
+        spread = inp.spread
+        news = inp.news_events or []
 
-        signals["adx"]       = round(adx, 2)
+        signals["adx"] = round(adx, 2)
         signals["vol_ratio"] = round(vol_ratio, 3)
-        signals["rsi"]       = round(rsi, 2)
-        signals["spread"]    = round(spread, 6)
+        signals["rsi"] = round(rsi, 2)
+        signals["spread"] = round(spread, 6)
 
         # 1. Black Swan
         if vol_ratio > self._vol_extreme * 1.5 or (atr > 0 and spread > atr * 0.8):
@@ -175,7 +174,11 @@ class MarketRegimeEngine:
             # Expansion: ATR expanding?
             if len(inp.highs) >= 5 and len(inp.lows) >= 5:
                 recent_range = _mean([h - l for h, l in zip(highs[-5:], lows[-5:])])
-                older_range  = _mean([h - l for h, l in zip(highs[-10:-5], lows[-10:-5])]) if len(highs) >= 10 else recent_range
+                older_range = (
+                    _mean([h - l for h, l in zip(highs[-10:-5], lows[-10:-5])])
+                    if len(highs) >= 10
+                    else recent_range
+                )
                 if recent_range > older_range * 1.3:
                     return MarketRegime.EXPANSION, 0.75, "atr_expanding"
             return MarketRegime.TRENDING, 0.80, "adx_trending"
@@ -193,7 +196,11 @@ class MarketRegimeEngine:
         # 9. Compression — vol ratio OR absolute vol extremely low vs ATR
         abs_vol_atr = current_vol / max(inp.atr, 1e-9)
         if vol_ratio < self._vol_compress or abs_vol_atr < 0.05:
-            return MarketRegime.COMPRESSION, 0.74, f"vol_ratio={vol_ratio:.3f} abs_atr={abs_vol_atr:.4f}"
+            return (
+                MarketRegime.COMPRESSION,
+                0.74,
+                f"vol_ratio={vol_ratio:.3f} abs_atr={abs_vol_atr:.4f}",
+            )
 
         # 10. Range
         if adx < self._adx_weak:

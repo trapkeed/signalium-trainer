@@ -24,42 +24,42 @@ Endpoints:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import LifecycleState
-from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
-from trainer.lifecycle.trade_lifecycle import TradeLifecycle
-from trainer.lifecycle.state_machine import StateMachine
-from trainer.lifecycle.transition_engine import TransitionEngine
-from trainer.lifecycle.position_monitor import PositionMonitor
-from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
-from trainer.lifecycle.event_engine import EventEngine
 from trainer.lifecycle.ai_reasoning import AiReasoningEngine
+from trainer.lifecycle.event_engine import EventEngine
 from trainer.lifecycle.lifecycle_analytics import LifecycleAnalytics
-from trainer.lifecycle.lifecycle_optimizer import LifecycleOptimizer
+from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
 from trainer.lifecycle.lifecycle_dashboard import LifecycleDashboard
 from trainer.lifecycle.lifecycle_database import LifecycleDatabase
+from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
+from trainer.lifecycle.lifecycle_optimizer import LifecycleOptimizer
+from trainer.lifecycle.lifecycle_states import LifecycleState
+from trainer.lifecycle.position_monitor import PositionMonitor
+from trainer.lifecycle.state_machine import StateMachine
+from trainer.lifecycle.trade_lifecycle import TradeLifecycle
+from trainer.lifecycle.transition_engine import TransitionEngine
 
 
 @dataclass
 class ApiResponse:
-    success:  bool
+    success: bool
     endpoint: str
-    data:     Dict       = field(default_factory=dict)
-    error:    str        = ""
-    warnings: List[str]  = field(default_factory=list)
+    data: dict = field(default_factory=dict)
+    error: str = ""
+    warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         d = {
-            "success":  self.success,
+            "success": self.success,
             "endpoint": self.endpoint,
-            "data":     self.data,
+            "data": self.data,
         }
         if self.error:
             d["error"] = self.error
@@ -71,37 +71,37 @@ class ApiResponse:
 class LifecycleAPI:
     """Public API for the Trade Lifecycle Intelligence Engine."""
 
-    def __init__(self, db: Optional[LifecycleDatabase] = None):
-        self._db    = db or LifecycleDatabase()
-        self._sm    = StateMachine()
-        self._te    = TransitionEngine()
-        self._pm    = PositionMonitor()
-        self._lce   = LifecycleConfidenceEngine()
-        self._ee    = EventEngine()
-        self._are   = AiReasoningEngine()
-        self._la    = LifecycleAnalytics()
-        self._lo    = LifecycleOptimizer()
-        self._dash  = LifecycleDashboard()
+    def __init__(self, db: LifecycleDatabase | None = None):
+        self._db = db or LifecycleDatabase()
+        self._sm = StateMachine()
+        self._te = TransitionEngine()
+        self._pm = PositionMonitor()
+        self._lce = LifecycleConfidenceEngine()
+        self._ee = EventEngine()
+        self._are = AiReasoningEngine()
+        self._la = LifecycleAnalytics()
+        self._lo = LifecycleOptimizer()
+        self._dash = LifecycleDashboard()
         # In-memory registry (supplement to DB for live objects)
-        self._active: Dict[str, TradeLifecycle] = {}
+        self._active: dict[str, TradeLifecycle] = {}
 
     # ── 1. Create Lifecycle ───────────────────────────────────────────────────
 
     def create_lifecycle(
         self,
-        instrument:  str,
-        direction:   str,
-        confidence:  float = 0.50,
-        context:     Optional[MarketContext] = None,
-        tags:        Optional[List[str]] = None,
+        instrument: str,
+        direction: str,
+        confidence: float = 0.50,
+        context: MarketContext | None = None,
+        tags: list[str] | None = None,
     ) -> ApiResponse:
         try:
             tl = TradeLifecycle.new(
-                instrument = instrument,
-                direction  = direction,
-                confidence = confidence,
-                context    = context,
-                tags       = tags,
+                instrument=instrument,
+                direction=direction,
+                confidence=confidence,
+                context=context,
+                tags=tags,
             )
             self._active[tl.trade_id] = tl
             self._db.upsert_lifecycle(tl.summary())
@@ -126,21 +126,24 @@ class LifecycleAPI:
 
     def transition(
         self,
-        trade_id:   str,
-        new_state:  LifecycleState,
-        reason:     str,
-        confidence: Optional[float]          = None,
-        context:    Optional[MarketContext]  = None,
-        metrics:    Optional[PositionMetrics] = None,
+        trade_id: str,
+        new_state: LifecycleState,
+        reason: str,
+        confidence: float | None = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
-            return ApiResponse(False, "transition", error=f"Trade {trade_id} not in active registry")
+            return ApiResponse(
+                False, "transition", error=f"Trade {trade_id} not in active registry"
+            )
 
         ok = tl.transition_to(new_state, reason, confidence, context, metrics, self._sm)
         if not ok:
             return ApiResponse(
-                False, "transition",
+                False,
+                "transition",
                 error=(
                     f"Transition {tl.current_state.value} → {new_state.value} "
                     f"was not permitted by state machine"
@@ -157,8 +160,8 @@ class LifecycleAPI:
 
     def auto_transition(
         self,
-        trade_id:   str,
-        context:    Optional[MarketContext] = None,
+        trade_id: str,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -166,11 +169,15 @@ class LifecycleAPI:
 
         rec = tl.recommend_transition(context, self._te)
         if rec.recommended is None or rec.should_stay:
-            return ApiResponse(True, "auto_transition", {
-                "action":  "STAY",
-                "reason":  rec.stay_reason or rec.reason,
-                "state":   tl.current_state.value,
-            })
+            return ApiResponse(
+                True,
+                "auto_transition",
+                {
+                    "action": "STAY",
+                    "reason": rec.stay_reason or rec.reason,
+                    "state": tl.current_state.value,
+                },
+            )
 
         ok = tl.transition_to(
             rec.recommended,
@@ -180,27 +187,35 @@ class LifecycleAPI:
             sm=self._sm,
         )
         if not ok:
-            return ApiResponse(True, "auto_transition", {
-                "action":      "STAY",
-                "reason":      f"Recommended {rec.recommended.value} not permitted",
-                "state":       tl.current_state.value,
-                "recommended": rec.recommended.value,
-            })
+            return ApiResponse(
+                True,
+                "auto_transition",
+                {
+                    "action": "STAY",
+                    "reason": f"Recommended {rec.recommended.value} not permitted",
+                    "state": tl.current_state.value,
+                    "recommended": rec.recommended.value,
+                },
+            )
 
         self._db.upsert_lifecycle(tl.summary())
-        return ApiResponse(True, "auto_transition", {
-            "action":    "TRANSITIONED",
-            "new_state": tl.current_state.value,
-            "reason":    rec.reason,
-            "confidence": rec.confidence,
-        })
+        return ApiResponse(
+            True,
+            "auto_transition",
+            {
+                "action": "TRANSITIONED",
+                "new_state": tl.current_state.value,
+                "reason": rec.reason,
+                "confidence": rec.confidence,
+            },
+        )
 
     # ── 5. Recommend Transition (read-only) ───────────────────────────────────
 
     def recommend_transition(
         self,
-        trade_id:   str,
-        context:    Optional[MarketContext] = None,
+        trade_id: str,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -213,9 +228,9 @@ class LifecycleAPI:
 
     def position_management(
         self,
-        trade_id:   str,
-        context:    Optional[MarketContext]  = None,
-        metrics:    Optional[PositionMetrics] = None,
+        trade_id: str,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -228,8 +243,8 @@ class LifecycleAPI:
 
     def lifecycle_confidence(
         self,
-        trade_id:   str,
-        context:    Optional[MarketContext] = None,
+        trade_id: str,
+        context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -242,10 +257,10 @@ class LifecycleAPI:
 
     def detect_events(
         self,
-        trade_id:    str,
-        context:     Optional[MarketContext]  = None,
-        metrics:     Optional[PositionMetrics] = None,
-        prev_context: Optional[MarketContext] = None,
+        trade_id: str,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_context: MarketContext | None = None,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -254,20 +269,24 @@ class LifecycleAPI:
         new_events = tl.detect_events(context, metrics, prev_context, ee=self._ee)
         for ev in new_events:
             self._db.insert_event(ev.to_dict())
-        return ApiResponse(True, "detect_events", {
-            "trade_id":   trade_id,
-            "new_events": len(new_events),
-            "events":     [e.to_dict() for e in new_events],
-        })
+        return ApiResponse(
+            True,
+            "detect_events",
+            {
+                "trade_id": trade_id,
+                "new_events": len(new_events),
+                "events": [e.to_dict() for e in new_events],
+            },
+        )
 
     # ── 9. Reasoning ──────────────────────────────────────────────────────────
 
     def reasoning(
         self,
-        trade_id:    str,
-        context:     Optional[MarketContext]  = None,
-        metrics:     Optional[PositionMetrics] = None,
-        prev_conf:   float = 0.65,
+        trade_id: str,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_conf: float = 0.65,
     ) -> ApiResponse:
         tl = self._active.get(trade_id)
         if not tl:
@@ -281,34 +300,41 @@ class LifecycleAPI:
     def state_history(self, trade_id: str) -> ApiResponse:
         tl = self._active.get(trade_id)
         if tl:
-            return ApiResponse(True, "state_history", {
-                "trade_id": trade_id,
-                "history":  [r.to_dict() for r in tl.state_history],
-                "count":    len(tl.state_history),
-            })
+            return ApiResponse(
+                True,
+                "state_history",
+                {
+                    "trade_id": trade_id,
+                    "history": [r.to_dict() for r in tl.state_history],
+                    "count": len(tl.state_history),
+                },
+            )
         rows = self._db.get_state_history(trade_id)
         if rows:
-            return ApiResponse(True, "state_history", {
-                "trade_id": trade_id,
-                "history":  rows,
-                "count":    len(rows),
-            })
+            return ApiResponse(
+                True,
+                "state_history",
+                {
+                    "trade_id": trade_id,
+                    "history": rows,
+                    "count": len(rows),
+                },
+            )
         return ApiResponse(False, "state_history", error=f"No history for {trade_id}")
 
     # ── 11. Lifecycle Analytics ───────────────────────────────────────────────
 
     def lifecycle_analytics(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
-        lifecycles = (
-            [self._active[tid] for tid in (trade_ids or []) if tid in self._active]
-            or list(self._active.values())
-        )
+        lifecycles = [
+            self._active[tid] for tid in (trade_ids or []) if tid in self._active
+        ] or list(self._active.values())
         if not lifecycles:
             return ApiResponse(False, "lifecycle_analytics", error="No active lifecycles")
 
-        histories    = [tl.state_history for tl in lifecycles]
+        histories = [tl.state_history for tl in lifecycles]
         final_states = [tl.current_state for tl in lifecycles]
 
         report = self._la.analyse(histories, final_states)
@@ -319,16 +345,15 @@ class LifecycleAPI:
 
     def optimisation(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
-        lifecycles = (
-            [self._active[tid] for tid in (trade_ids or []) if tid in self._active]
-            or list(self._active.values())
-        )
+        lifecycles = [
+            self._active[tid] for tid in (trade_ids or []) if tid in self._active
+        ] or list(self._active.values())
         if not lifecycles:
             return ApiResponse(False, "optimisation", error="No active lifecycles")
 
-        histories    = [tl.state_history for tl in lifecycles]
+        histories = [tl.state_history for tl in lifecycles]
         final_states = [tl.current_state for tl in lifecycles]
 
         report = self._lo.optimise(histories, final_states)
@@ -343,8 +368,11 @@ class LifecycleAPI:
             return ApiResponse(False, "timeline_dashboard", error=f"Trade {trade_id} not found")
 
         view = self._dash.lifecycle_timeline(
-            tl.trade_id, tl.instrument, tl.direction,
-            tl.state_history, tl.current_state,
+            tl.trade_id,
+            tl.instrument,
+            tl.direction,
+            tl.state_history,
+            tl.current_state,
         )
         return ApiResponse(True, "timeline_dashboard", view)
 
@@ -362,12 +390,11 @@ class LifecycleAPI:
 
     def transition_dashboard(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
-        lifecycles = (
-            [self._active[tid] for tid in (trade_ids or []) if tid in self._active]
-            or list(self._active.values())
-        )
+        lifecycles = [
+            self._active[tid] for tid in (trade_ids or []) if tid in self._active
+        ] or list(self._active.values())
         if not lifecycles:
             return ApiResponse(False, "transition_dashboard", error="No lifecycles")
 
@@ -379,13 +406,12 @@ class LifecycleAPI:
 
     def statistics_dashboard(
         self,
-        trade_ids: Optional[List[str]] = None,
+        trade_ids: list[str] | None = None,
     ) -> ApiResponse:
-        lifecycles = (
-            [self._active[tid] for tid in (trade_ids or []) if tid in self._active]
-            or list(self._active.values())
-        )
-        histories    = [tl.state_history for tl in lifecycles]
+        lifecycles = [
+            self._active[tid] for tid in (trade_ids or []) if tid in self._active
+        ] or list(self._active.values())
+        histories = [tl.state_history for tl in lifecycles]
         final_states = [tl.current_state for tl in lifecycles]
         view = self._dash.lifecycle_statistics(histories, final_states)
         return ApiResponse(True, "statistics_dashboard", view)
@@ -396,7 +422,11 @@ class LifecycleAPI:
         return ApiResponse(True, "db_stats", self._db.stats())
 
     def active_trades(self) -> ApiResponse:
-        return ApiResponse(True, "active_trades", {
-            "count":  len(self._active),
-            "trades": [tl.summary() for tl in self._active.values()],
-        })
+        return ApiResponse(
+            True,
+            "active_trades",
+            {
+                "count": len(self._active),
+                "trades": [tl.summary() for tl in self._active.values()],
+            },
+        )

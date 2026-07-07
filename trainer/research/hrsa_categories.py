@@ -31,17 +31,14 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from trainer.research.normalization import (
     CategoryNormaliser,
     NormMethod,
-    Normaliser,
 )
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
-
 
 # ---------------------------------------------------------------------------
 # MetricMapping — one metric within a category
@@ -52,7 +49,7 @@ from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 class MetricMapping:
     name: str
     weight: float = 1.0
-    normalisation_method: Optional[str] = None   # overrides category default
+    normalisation_method: str | None = None  # overrides category default
 
 
 # ---------------------------------------------------------------------------
@@ -64,15 +61,15 @@ class MetricMapping:
 class CategoryDefinition:
     name: str
     display_name: str
-    weight: float               # within Level 3 composite (sums to 1.0 across all)
-    metric_mappings: List[MetricMapping] = field(default_factory=list)
+    weight: float  # within Level 3 composite (sums to 1.0 across all)
+    metric_mappings: list[MetricMapping] = field(default_factory=list)
     normalisation_method: str = NormMethod.MIN_MAX
     description: str = ""
 
-    def metric_weights(self) -> Dict[str, float]:
+    def metric_weights(self) -> dict[str, float]:
         return {m.name: m.weight for m in self.metric_mappings}
 
-    def metric_names(self) -> List[str]:
+    def metric_names(self) -> list[str]:
         return [m.name for m in self.metric_mappings]
 
 
@@ -80,7 +77,8 @@ class CategoryDefinition:
 # Default category definitions (15 categories)
 # ---------------------------------------------------------------------------
 
-def _default_categories() -> List[CategoryDefinition]:
+
+def _default_categories() -> list[CategoryDefinition]:
     return [
         CategoryDefinition(
             name="validation_quality",
@@ -88,14 +86,14 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.15,
             metric_mappings=[
                 MetricMapping("walk_forward_accuracy", 3.0),
-                MetricMapping("f1_macro",              2.0),
-                MetricMapping("roc_auc",               2.0),
-                MetricMapping("pr_auc",                1.5),
-                MetricMapping("n_validation_folds",    1.0),
-                MetricMapping("fold_score_std",        1.5),
-                MetricMapping("consistency_score",     2.0),
+                MetricMapping("f1_macro", 2.0),
+                MetricMapping("roc_auc", 2.0),
+                MetricMapping("pr_auc", 1.5),
+                MetricMapping("n_validation_folds", 1.0),
+                MetricMapping("fold_score_std", 1.5),
+                MetricMapping("consistency_score", 2.0),
                 MetricMapping("prediction_reliability", 1.5),
-                MetricMapping("cross_entropy",         1.0),
+                MetricMapping("cross_entropy", 1.0),
             ],
         ),
         CategoryDefinition(
@@ -103,17 +101,17 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Trading Performance",
             weight=0.15,
             metric_mappings=[
-                MetricMapping("sharpe_ratio",       3.0),
-                MetricMapping("sortino_ratio",       2.0),
-                MetricMapping("calmar_ratio",        2.0),
-                MetricMapping("profit_factor",       2.5),
-                MetricMapping("max_drawdown",        3.0),
-                MetricMapping("expectancy",          2.0),
-                MetricMapping("win_rate",            1.5),
-                MetricMapping("average_r_multiple",  1.5),
+                MetricMapping("sharpe_ratio", 3.0),
+                MetricMapping("sortino_ratio", 2.0),
+                MetricMapping("calmar_ratio", 2.0),
+                MetricMapping("profit_factor", 2.5),
+                MetricMapping("max_drawdown", 3.0),
+                MetricMapping("expectancy", 2.0),
+                MetricMapping("win_rate", 1.5),
+                MetricMapping("average_r_multiple", 1.5),
                 MetricMapping("tp_before_sl_accuracy", 1.0),
-                MetricMapping("capital_efficiency",  1.0),
-                MetricMapping("recovery_factor",     1.0),
+                MetricMapping("capital_efficiency", 1.0),
+                MetricMapping("recovery_factor", 1.0),
             ],
         ),
         CategoryDefinition(
@@ -122,10 +120,10 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.07,
             metric_mappings=[
                 MetricMapping("expected_calibration_error", 3.0),
-                MetricMapping("brier_score",                2.0),
-                MetricMapping("confidence_reliability",     2.0),
-                MetricMapping("prediction_entropy",         1.5),
-                MetricMapping("probability_calibration",    1.5),
+                MetricMapping("brier_score", 2.0),
+                MetricMapping("confidence_reliability", 2.0),
+                MetricMapping("prediction_entropy", 1.5),
+                MetricMapping("probability_calibration", 1.5),
             ],
         ),
         CategoryDefinition(
@@ -133,12 +131,12 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Generalization",
             weight=0.10,
             metric_mappings=[
-                MetricMapping("cross_regime_stability",    2.5),
-                MetricMapping("cross_asset_stability",     2.0),
+                MetricMapping("cross_regime_stability", 2.5),
+                MetricMapping("cross_asset_stability", 2.0),
                 MetricMapping("cross_timeframe_stability", 2.0),
-                MetricMapping("oos_performance",           3.0),
-                MetricMapping("recent_data_performance",   2.0),
-                MetricMapping("historical_stability",      1.5),
+                MetricMapping("oos_performance", 3.0),
+                MetricMapping("recent_data_performance", 2.0),
+                MetricMapping("historical_stability", 1.5),
             ],
         ),
         CategoryDefinition(
@@ -146,12 +144,12 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Robustness",
             weight=0.10,
             metric_mappings=[
-                MetricMapping("monte_carlo_stability",      2.5),
-                MetricMapping("stress_test_pass_rate",      3.0),
-                MetricMapping("noise_resistance",           2.0),
-                MetricMapping("data_gap_tolerance",         1.5),
+                MetricMapping("monte_carlo_stability", 2.5),
+                MetricMapping("stress_test_pass_rate", 3.0),
+                MetricMapping("noise_resistance", 2.0),
+                MetricMapping("data_gap_tolerance", 1.5),
                 MetricMapping("spread_expansion_tolerance", 2.0),
-                MetricMapping("drift_resistance",           2.0),
+                MetricMapping("drift_resistance", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -160,11 +158,11 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.05,
             metric_mappings=[
                 MetricMapping("inference_latency_ms", 3.0),
-                MetricMapping("training_time_hours",  2.0),
-                MetricMapping("gpu_utilization",      1.5),
-                MetricMapping("ram_usage_gb",         2.0),
-                MetricMapping("model_size_mb",        1.5),
-                MetricMapping("storage_usage_gb",     1.0),
+                MetricMapping("training_time_hours", 2.0),
+                MetricMapping("gpu_utilization", 1.5),
+                MetricMapping("ram_usage_gb", 2.0),
+                MetricMapping("model_size_mb", 1.5),
+                MetricMapping("storage_usage_gb", 1.0),
             ],
         ),
         CategoryDefinition(
@@ -172,11 +170,11 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Explainability",
             weight=0.05,
             metric_mappings=[
-                MetricMapping("explainability_coverage",    2.0),
+                MetricMapping("explainability_coverage", 2.0),
                 MetricMapping("feature_attribution_quality", 2.0),
-                MetricMapping("attention_quality",          1.5),
-                MetricMapping("prediction_traceability",    2.0),
-                MetricMapping("decision_transparency",      1.5),
+                MetricMapping("attention_quality", 1.5),
+                MetricMapping("prediction_traceability", 2.0),
+                MetricMapping("decision_transparency", 1.5),
                 MetricMapping("documentation_completeness", 2.0),
             ],
         ),
@@ -186,11 +184,11 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.05,
             metric_mappings=[
                 MetricMapping("deployment_readiness", 2.5),
-                MetricMapping("rollback_readiness",   2.0),
-                MetricMapping("health_monitoring",    2.0),
-                MetricMapping("monitoring_coverage",  2.0),
-                MetricMapping("audit_coverage",       1.5),
-                MetricMapping("drift_monitoring",     2.0),
+                MetricMapping("rollback_readiness", 2.0),
+                MetricMapping("health_monitoring", 2.0),
+                MetricMapping("monitoring_coverage", 2.0),
+                MetricMapping("audit_coverage", 1.5),
+                MetricMapping("drift_monitoring", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -198,13 +196,13 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Risk Management",
             weight=0.08,
             metric_mappings=[
-                MetricMapping("value_at_risk_95",       2.5),
-                MetricMapping("expected_shortfall_95",  2.5),
-                MetricMapping("tail_risk_ratio",        2.0),
-                MetricMapping("concentration_risk",     1.5),
-                MetricMapping("market_correlation",     1.5),
+                MetricMapping("value_at_risk_95", 2.5),
+                MetricMapping("expected_shortfall_95", 2.5),
+                MetricMapping("tail_risk_ratio", 2.0),
+                MetricMapping("concentration_risk", 1.5),
+                MetricMapping("market_correlation", 1.5),
                 MetricMapping("max_consecutive_losses", 1.5),
-                MetricMapping("risk_adjusted_return",   2.5),
+                MetricMapping("risk_adjusted_return", 2.5),
             ],
         ),
         CategoryDefinition(
@@ -212,12 +210,12 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Data Quality",
             weight=0.05,
             metric_mappings=[
-                MetricMapping("data_completeness",  2.5),
-                MetricMapping("data_consistency",   2.5),
-                MetricMapping("label_quality",      2.5),
-                MetricMapping("feature_coverage",   1.5),
-                MetricMapping("data_freshness",     1.5),
-                MetricMapping("outlier_fraction",   2.0),
+                MetricMapping("data_completeness", 2.5),
+                MetricMapping("data_consistency", 2.5),
+                MetricMapping("label_quality", 2.5),
+                MetricMapping("feature_coverage", 1.5),
+                MetricMapping("data_freshness", 1.5),
+                MetricMapping("outlier_fraction", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -226,9 +224,9 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.04,
             metric_mappings=[
                 MetricMapping("feature_importance_concentration", 2.0),
-                MetricMapping("feature_stability_index",          2.5),
-                MetricMapping("feature_predictive_power",         2.5),
-                MetricMapping("feature_redundancy_score",         2.0),
+                MetricMapping("feature_stability_index", 2.5),
+                MetricMapping("feature_predictive_power", 2.5),
+                MetricMapping("feature_redundancy_score", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -237,9 +235,9 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.04,
             metric_mappings=[
                 MetricMapping("weight_update_stability", 2.0),
-                MetricMapping("prediction_variance",     2.5),
-                MetricMapping("gradient_stability",      2.0),
-                MetricMapping("checkpoint_consistency",  2.0),
+                MetricMapping("prediction_variance", 2.5),
+                MetricMapping("gradient_stability", 2.0),
+                MetricMapping("checkpoint_consistency", 2.0),
                 MetricMapping("training_loss_stability", 2.0),
             ],
         ),
@@ -249,10 +247,10 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.04,
             metric_mappings=[
                 MetricMapping("environment_reproducibility", 2.5),
-                MetricMapping("random_seed_stability",       2.0),
-                MetricMapping("dataset_version_locked",      2.0),
-                MetricMapping("code_version_locked",         2.0),
-                MetricMapping("experiment_traceability",     2.0),
+                MetricMapping("random_seed_stability", 2.0),
+                MetricMapping("dataset_version_locked", 2.0),
+                MetricMapping("code_version_locked", 2.0),
+                MetricMapping("experiment_traceability", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -260,10 +258,10 @@ def _default_categories() -> List[CategoryDefinition]:
             display_name="Security",
             weight=0.02,
             metric_mappings=[
-                MetricMapping("adversarial_robustness",        2.0),
-                MetricMapping("input_validation_coverage",     2.0),
-                MetricMapping("output_sanitization",           2.0),
-                MetricMapping("access_control_completeness",   2.0),
+                MetricMapping("adversarial_robustness", 2.0),
+                MetricMapping("input_validation_coverage", 2.0),
+                MetricMapping("output_sanitization", 2.0),
+                MetricMapping("access_control_completeness", 2.0),
             ],
         ),
         CategoryDefinition(
@@ -272,9 +270,9 @@ def _default_categories() -> List[CategoryDefinition]:
             weight=0.01,
             metric_mappings=[
                 MetricMapping("regulatory_compliance_score", 2.5),
-                MetricMapping("audit_trail_completeness",    2.5),
-                MetricMapping("data_governance_score",       2.0),
-                MetricMapping("model_governance_score",      2.0),
+                MetricMapping("audit_trail_completeness", 2.5),
+                MetricMapping("data_governance_score", 2.0),
+                MetricMapping("model_governance_score", 2.0),
             ],
         ),
     ]
@@ -291,17 +289,17 @@ class CategoryResult:
 
     category: str
     display_name: str
-    score: float              # 0–100
-    confidence: float         # 0–1
-    weight: float             # this category's weight in Level 3
-    weighted_score: float     # score * weight (for Level 3 aggregation)
+    score: float  # 0–100
+    confidence: float  # 0–1
+    weight: float  # this category's weight in Level 3
+    weighted_score: float  # score * weight (for Level 3 aggregation)
     grade: str
-    metric_scores: Dict[str, float]     # metric_name → normalised score (0–100)
-    raw_values: Dict[str, float]        # metric_name → raw value
+    metric_scores: dict[str, float]  # metric_name → normalised score (0–100)
+    raw_values: dict[str, float]  # metric_name → raw value
     metric_count: int = 0
-    coverage: float = 0.0               # fraction of expected metrics present
+    coverage: float = 0.0  # fraction of expected metrics present
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "display_name": self.display_name,
@@ -327,7 +325,7 @@ _CATEGORY_GRADE_THRESHOLDS = [
     (70.0, "Good"),
     (60.0, "Adequate"),
     (50.0, "Weak"),
-    (0.0,  "Critical"),
+    (0.0, "Critical"),
 ]
 
 
@@ -338,9 +336,7 @@ def _category_grade(score: float) -> str:
     return "Critical"
 
 
-def _category_confidence(
-    coverage: float, metric_count: int, scores: List[float]
-) -> float:
+def _category_confidence(coverage: float, metric_count: int, scores: list[float]) -> float:
     """Compute confidence for a category score.
 
     Higher coverage + more metrics + lower score variance → higher confidence.
@@ -353,7 +349,7 @@ def _category_confidence(
     if len(scores) >= 2:
         mean = sum(scores) / len(scores)
         variance = sum((s - mean) ** 2 for s in scores) / len(scores)
-        std = variance ** 0.5
+        std = variance**0.5
         var_factor = max(0.0, 1.0 - std / 30.0)  # std of 30 pts → 0 conf
     else:
         var_factor = 0.5
@@ -365,22 +361,20 @@ class HRSACategoryScorer:
 
     def __init__(
         self,
-        categories: Optional[List[CategoryDefinition]] = None,
-        registry: Optional[RawMetricsRegistry] = None,
+        categories: list[CategoryDefinition] | None = None,
+        registry: RawMetricsRegistry | None = None,
     ) -> None:
-        self._cats: Dict[str, CategoryDefinition] = {}
-        for cat in (categories or _default_categories()):
+        self._cats: dict[str, CategoryDefinition] = {}
+        for cat in categories or _default_categories():
             self._cats[cat.name] = cat
         self._registry = registry or RawMetricsRegistry.default()
         self._normaliser = CategoryNormaliser()
 
     @classmethod
-    def default(cls) -> "HRSACategoryScorer":
+    def default(cls) -> HRSACategoryScorer:
         return cls()
 
-    def score_category(
-        self, bundle: RawMetricsBundle, category: str
-    ) -> CategoryResult:
+    def score_category(self, bundle: RawMetricsBundle, category: str) -> CategoryResult:
         cat_def = self._cats.get(category)
         if cat_def is None:
             raise KeyError(f"Unknown category: {category!r}")
@@ -398,8 +392,7 @@ class HRSACategoryScorer:
 
         metric_scores = {name: r.score_100 for name, r in norm_results.items()}
         coverage = (
-            len(metric_scores) / len(cat_def.metric_mappings)
-            if cat_def.metric_mappings else 0.0
+            len(metric_scores) / len(cat_def.metric_mappings) if cat_def.metric_mappings else 0.0
         )
         confidence = _category_confidence(
             coverage=coverage,
@@ -421,18 +414,16 @@ class HRSACategoryScorer:
             coverage=coverage,
         )
 
-    def score_all_categories(
-        self, bundle: RawMetricsBundle
-    ) -> Dict[str, CategoryResult]:
-        results: Dict[str, CategoryResult] = {}
+    def score_all_categories(self, bundle: RawMetricsBundle) -> dict[str, CategoryResult]:
+        results: dict[str, CategoryResult] = {}
         for cat_name in self._cats:
             results[cat_name] = self.score_category(bundle, cat_name)
         return results
 
-    def category_names(self) -> List[str]:
+    def category_names(self) -> list[str]:
         return list(self._cats.keys())
 
-    def category_definitions(self) -> Dict[str, CategoryDefinition]:
+    def category_definitions(self) -> dict[str, CategoryDefinition]:
         return dict(self._cats)
 
     def total_weight(self) -> float:

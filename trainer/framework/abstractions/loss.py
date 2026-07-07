@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
 
 
-class BaseLoss(nn.Module):
+class BaseLoss(ABC, nn.Module):
     """Abstract base for all loss functions in the Signalium Model Framework.
 
     All pluggable loss functions must inherit from this class. It extends

@@ -35,12 +35,11 @@ from __future__ import annotations
 import math
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 from trainer.ensemble.expert import ExpertPrediction
-from trainer.ensemble.strategies import EnsembleResult, WeightedAveragingStrategy
-
+from trainer.ensemble.strategies import WeightedAveragingStrategy
 
 # ---------------------------------------------------------------------------
 # Meta model prediction
@@ -61,18 +60,16 @@ class MetaPrediction:
     uncertainty: float = 0.5
     strategy: str = "meta_learning"
     n_experts: int = 0
-    contributing_experts: List[str] = field(default_factory=list)
-    weight_map: Dict[str, float] = field(default_factory=dict)
+    contributing_experts: list[str] = field(default_factory=list)
+    weight_map: dict[str, float] = field(default_factory=dict)
     agreement_score: float = 0.0
     regime: str = "unknown"
     instrument: str = ""
     timeframe: str = ""
     meta_version: str = "1.0"
     n_training_samples: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def __post_init__(self) -> None:
         total = self.buy_prob + self.sell_prob + self.no_trade_prob
@@ -83,8 +80,7 @@ class MetaPrediction:
 
     @property
     def predicted_class(self) -> str:
-        probs = {"buy": self.buy_prob, "sell": self.sell_prob,
-                 "no_trade": self.no_trade_prob}
+        probs = {"buy": self.buy_prob, "sell": self.sell_prob, "no_trade": self.no_trade_prob}
         return max(probs, key=probs.get)
 
     @property
@@ -101,11 +97,13 @@ class MetaPrediction:
         else:
             grade = "D"
         label = {"buy": "LONG", "sell": "SHORT", "no_trade": "NEUTRAL"}[cls]
-        return (f"[{grade}] {label} | {self.regime} | "
-                f"conf={conf:.2f} | agree={agree:.2f} | "
-                f"n_experts={self.n_experts}")
+        return (
+            f"[{grade}] {label} | {self.regime} | "
+            f"conf={conf:.2f} | agree={agree:.2f} | "
+            f"n_experts={self.n_experts}"
+        )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "buy_prob": self.buy_prob,
             "sell_prob": self.sell_prob,
@@ -138,25 +136,47 @@ class MetaFeatureBuilder:
     """Converts expert predictions + context into a meta-model feature vector."""
 
     REGIMES = [
-        "trending_up", "trending_down", "ranging", "volatile",
-        "high_volatility", "low_volatility", "breakout", "pullback",
-        "crisis", "unknown",
+        "trending_up",
+        "trending_down",
+        "ranging",
+        "volatile",
+        "high_volatility",
+        "low_volatility",
+        "breakout",
+        "pullback",
+        "crisis",
+        "unknown",
     ]
 
     INSTRUMENTS = [
-        "EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD",
-        "USDCAD", "NZDUSD", "EURGBP", "EURJPY", "GBPJPY",
-        "XAUUSD", "XAGUSD", "USOIL", "US30", "NAS100",
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "USDCHF",
+        "AUDUSD",
+        "USDCAD",
+        "NZDUSD",
+        "EURGBP",
+        "EURJPY",
+        "GBPJPY",
+        "XAUUSD",
+        "XAGUSD",
+        "USOIL",
+        "US30",
+        "NAS100",
     ]
 
     TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
 
-    def build(self, predictions: List[ExpertPrediction],
-              weights: Dict[str, float],
-              context: Optional[Dict[str, Any]] = None) -> List[float]:
+    def build(
+        self,
+        predictions: list[ExpertPrediction],
+        weights: dict[str, float],
+        context: dict[str, Any] | None = None,
+    ) -> list[float]:
         """Build feature vector from predictions and context."""
         ctx = context or {}
-        features: List[float] = []
+        features: list[float] = []
 
         if predictions:
             avg_buy = sum(p.buy_prob for p in predictions) / len(predictions)
@@ -166,15 +186,22 @@ class MetaFeatureBuilder:
             avg_unc = sum(p.uncertainty for p in predictions) / len(predictions)
             std_buy = _std([p.buy_prob for p in predictions])
             std_sell = _std([p.sell_prob for p in predictions])
-            features += [avg_buy, avg_sell, avg_nt, avg_conf, avg_unc,
-                         std_buy, std_sell, len(predictions) / 10.0]
+            features += [
+                avg_buy,
+                avg_sell,
+                avg_nt,
+                avg_conf,
+                avg_unc,
+                std_buy,
+                std_sell,
+                len(predictions) / 10.0,
+            ]
         else:
             features += [0.33, 0.33, 0.34, 0.5, 0.5, 0.0, 0.0, 0.0]
 
         for p in predictions:
             w = weights.get(p.expert_id, 1.0 / max(len(predictions), 1))
-            features += [w * p.buy_prob, w * p.sell_prob, w * p.no_trade_prob,
-                         w * p.confidence]
+            features += [w * p.buy_prob, w * p.sell_prob, w * p.no_trade_prob, w * p.confidence]
 
         regime = ctx.get("regime", "unknown")
         regime_ohe = [1.0 if r == regime else 0.0 for r in self.REGIMES]
@@ -199,38 +226,36 @@ class LinearMetaLayer:
     Uses online SGD updates.
     """
 
-    def __init__(self, n_features: int, learning_rate: float = 0.01,
-                 regularization: float = 1e-4) -> None:
+    def __init__(
+        self, n_features: int, learning_rate: float = 0.01, regularization: float = 1e-4
+    ) -> None:
         self.n_features = n_features
         self.lr = learning_rate
         self.reg = regularization
-        self._W: List[List[float]] = [
-            [0.0] * n_features for _ in range(3)
-        ]
-        self._b: List[float] = [0.33, 0.33, 0.34]
+        self._W: list[list[float]] = [[0.0] * n_features for _ in range(3)]
+        self._b: list[float] = [0.33, 0.33, 0.34]
         self._n_updates = 0
 
-    def forward(self, x: List[float]) -> List[float]:
+    def forward(self, x: list[float]) -> list[float]:
         """Return logits for [buy, sell, no_trade]."""
         logits = []
         for i in range(3):
             val = self._b[i] + sum(
-                self._W[i][j] * x[j]
-                for j in range(min(len(x), self.n_features))
+                self._W[i][j] * x[j] for j in range(min(len(x), self.n_features))
             )
             logits.append(val)
         return logits
 
-    def softmax(self, logits: List[float]) -> List[float]:
+    def softmax(self, logits: list[float]) -> list[float]:
         max_v = max(logits)
         exps = [math.exp(v - max_v) for v in logits]
         total = sum(exps)
         return [e / total for e in exps]
 
-    def predict(self, x: List[float]) -> List[float]:
+    def predict(self, x: list[float]) -> list[float]:
         return self.softmax(self.forward(x))
 
-    def update(self, x: List[float], target_idx: int) -> float:
+    def update(self, x: list[float], target_idx: int) -> float:
         """Single SGD step. Returns cross-entropy loss."""
         logits = self.forward(x)
         probs = self.softmax(logits)
@@ -244,7 +269,7 @@ class LinearMetaLayer:
         self._n_updates += 1
         return loss
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "n_features": self.n_features,
             "lr": self.lr,
@@ -255,7 +280,7 @@ class LinearMetaLayer:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "LinearMetaLayer":
+    def from_dict(d: dict[str, Any]) -> LinearMetaLayer:
         layer = LinearMetaLayer(d["n_features"], d["lr"], d["reg"])
         layer._W = d["W"]
         layer._b = d["b"]
@@ -283,32 +308,36 @@ class EnsembleMetaModel:
         meta_version: Version string for this meta model.
     """
 
-    def __init__(self, learning_rate: float = 0.01,
-                 regularization: float = 1e-4,
-                 min_samples_to_activate: int = 50,
-                 meta_version: str = "1.0") -> None:
+    def __init__(
+        self,
+        learning_rate: float = 0.01,
+        regularization: float = 1e-4,
+        min_samples_to_activate: int = 50,
+        meta_version: str = "1.0",
+    ) -> None:
         self.learning_rate = learning_rate
         self.regularization = regularization
         self.min_samples = min_samples_to_activate
         self.meta_version = meta_version
         self.feature_builder = MetaFeatureBuilder()
         self._fallback = WeightedAveragingStrategy()
-        self._n_features: Optional[int] = None
-        self._layer: Optional[LinearMetaLayer] = None
+        self._n_features: int | None = None
+        self._layer: LinearMetaLayer | None = None
         self._n_training_samples = 0
-        self._training_loss_history: List[float] = []
+        self._training_loss_history: list[float] = []
         self.model_id: str = str(uuid.uuid4())
 
     def _ensure_layer(self, n_features: int) -> LinearMetaLayer:
         if self._layer is None or self._layer.n_features != n_features:
-            self._layer = LinearMetaLayer(
-                n_features, self.learning_rate, self.regularization
-            )
+            self._layer = LinearMetaLayer(n_features, self.learning_rate, self.regularization)
         return self._layer
 
-    def predict(self, predictions: List[ExpertPrediction],
-                weights: Dict[str, float],
-                context: Optional[Dict[str, Any]] = None) -> MetaPrediction:
+    def predict(
+        self,
+        predictions: list[ExpertPrediction],
+        weights: dict[str, float],
+        context: dict[str, Any] | None = None,
+    ) -> MetaPrediction:
         """Produce a meta-model prediction.
 
         Falls back to weighted averaging if not enough training data yet.
@@ -320,15 +349,17 @@ class EnsembleMetaModel:
         n = len(predictions)
 
         if not predictions:
-            return MetaPrediction(regime=regime, instrument=instrument,
-                                  timeframe=timeframe,
-                                  n_training_samples=self._n_training_samples,
-                                  meta_version=self.meta_version)
+            return MetaPrediction(
+                regime=regime,
+                instrument=instrument,
+                timeframe=timeframe,
+                n_training_samples=self._n_training_samples,
+                meta_version=self.meta_version,
+            )
 
         agreement = self._compute_agreement(predictions)
 
-        if (self._layer is None or
-                self._n_training_samples < self.min_samples):
+        if self._layer is None or self._n_training_samples < self.min_samples:
             fallback = self._fallback.combine(predictions, weights)
             return MetaPrediction(
                 buy_prob=fallback.buy_prob,
@@ -341,7 +372,9 @@ class EnsembleMetaModel:
                 contributing_experts=[p.expert_id for p in predictions],
                 weight_map=weights,
                 agreement_score=agreement,
-                regime=regime, instrument=instrument, timeframe=timeframe,
+                regime=regime,
+                instrument=instrument,
+                timeframe=timeframe,
                 meta_version=self.meta_version,
                 n_training_samples=self._n_training_samples,
             )
@@ -350,33 +383,35 @@ class EnsembleMetaModel:
         probs = self._layer.predict(features)
         buy, sell, no_trade = probs[0], probs[1], probs[2]
 
-        avg_conf = sum(
-            weights.get(p.expert_id, 1.0 / n) * p.confidence
-            for p in predictions
-        )
-        avg_unc = sum(
-            weights.get(p.expert_id, 1.0 / n) * p.uncertainty
-            for p in predictions
-        )
+        avg_conf = sum(weights.get(p.expert_id, 1.0 / n) * p.confidence for p in predictions)
+        avg_unc = sum(weights.get(p.expert_id, 1.0 / n) * p.uncertainty for p in predictions)
         conf = avg_conf * (0.5 + 0.5 * agreement)
 
         return MetaPrediction(
-            buy_prob=buy, sell_prob=sell, no_trade_prob=no_trade,
-            confidence=conf, uncertainty=avg_unc,
+            buy_prob=buy,
+            sell_prob=sell,
+            no_trade_prob=no_trade,
+            confidence=conf,
+            uncertainty=avg_unc,
             strategy="meta_learning",
             n_experts=n,
             contributing_experts=[p.expert_id for p in predictions],
             weight_map=weights,
             agreement_score=agreement,
-            regime=regime, instrument=instrument, timeframe=timeframe,
+            regime=regime,
+            instrument=instrument,
+            timeframe=timeframe,
             meta_version=self.meta_version,
             n_training_samples=self._n_training_samples,
         )
 
-    def update(self, predictions: List[ExpertPrediction],
-               weights: Dict[str, float],
-               true_class: str,
-               context: Optional[Dict[str, Any]] = None) -> float:
+    def update(
+        self,
+        predictions: list[ExpertPrediction],
+        weights: dict[str, float],
+        true_class: str,
+        context: dict[str, Any] | None = None,
+    ) -> float:
         """Online update with one labeled example. Returns cross-entropy loss."""
         class_map = {"buy": 0, "sell": 1, "no_trade": 2}
         target_idx = class_map.get(true_class, 2)
@@ -392,8 +427,7 @@ class EnsembleMetaModel:
         self._training_loss_history.append(loss)
         return loss
 
-    def fit(self, examples: List[Dict[str, Any]],
-            epochs: int = 1) -> List[float]:
+    def fit(self, examples: list[dict[str, Any]], epochs: int = 1) -> list[float]:
         """Batch fit from list of examples.
 
         Each example: {predictions: [...], weights: {...}, context: {...}, true_class: str}
@@ -403,8 +437,10 @@ class EnsembleMetaModel:
         losses = []
         for _ in range(epochs):
             for ex in examples:
-                preds = [ExpertPrediction.from_dict(p) if isinstance(p, dict) else p
-                         for p in ex.get("predictions", [])]
+                preds = [
+                    ExpertPrediction.from_dict(p) if isinstance(p, dict) else p
+                    for p in ex.get("predictions", [])
+                ]
                 wts = ex.get("weights", {})
                 ctx = ex.get("context", {})
                 tc = ex.get("true_class", "no_trade")
@@ -412,7 +448,7 @@ class EnsembleMetaModel:
                 losses.append(loss)
         return losses
 
-    def _compute_agreement(self, predictions: List[ExpertPrediction]) -> float:
+    def _compute_agreement(self, predictions: list[ExpertPrediction]) -> float:
         if not predictions:
             return 0.0
         classes = [p.predicted_class for p in predictions]
@@ -427,10 +463,10 @@ class EnsembleMetaModel:
     def training_loss(self) -> float:
         if not self._training_loss_history:
             return 0.0
-        recent = self._training_loss_history[-min(100, len(self._training_loss_history)):]
+        recent = self._training_loss_history[-min(100, len(self._training_loss_history)) :]
         return sum(recent) / len(recent)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "meta_version": self.meta_version,
@@ -444,7 +480,7 @@ class EnsembleMetaModel:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "EnsembleMetaModel":
+    def from_dict(d: dict[str, Any]) -> EnsembleMetaModel:
         m = EnsembleMetaModel(
             learning_rate=d.get("learning_rate", 0.01),
             regularization=d.get("regularization", 1e-4),
@@ -465,7 +501,7 @@ class EnsembleMetaModel:
 # ---------------------------------------------------------------------------
 
 
-def _std(vals: List[float]) -> float:
+def _std(vals: list[float]) -> float:
     if len(vals) < 2:
         return 0.0
     mean = sum(vals) / len(vals)

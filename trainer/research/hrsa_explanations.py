@@ -23,9 +23,8 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Improvement recommendation
@@ -35,14 +34,14 @@ from typing import Any, Dict, List, Optional, Tuple
 @dataclass
 class ImprovementRecommendation:
     category: str
-    metric: Optional[str]
+    metric: str | None
     current_score: float
     target_score: float
     estimated_composite_impact: float
     action: str
-    priority: str   # "critical" | "high" | "medium" | "low"
+    priority: str  # "critical" | "high" | "medium" | "low"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "category": self.category,
             "metric": self.metric,
@@ -68,24 +67,22 @@ class ScoreExplanation:
     confidence: float
 
     # Structural highlights
-    strongest_categories: List[Tuple[str, float]]   # [(category, score)]
-    weakest_categories: List[Tuple[str, float]]
+    strongest_categories: list[tuple[str, float]]  # [(category, score)]
+    weakest_categories: list[tuple[str, float]]
 
     # Metric contributors
-    top_positive_metrics: List[Tuple[str, float]]   # [(metric, normalised score 0–100)]
-    top_negative_metrics: List[Tuple[str, float]]
+    top_positive_metrics: list[tuple[str, float]]  # [(metric, normalised score 0–100)]
+    top_negative_metrics: list[tuple[str, float]]
 
     # Narrative
     overall_summary: str
-    category_narratives: Dict[str, str]
+    category_narratives: dict[str, str]
 
     # Improvement
-    recommendations: List[ImprovementRecommendation]
-    improvement_potential: float   # estimated composite gain if top recommendations actioned
+    recommendations: list[ImprovementRecommendation]
+    improvement_potential: float  # estimated composite gain if top recommendations actioned
 
-    generated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    generated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def summary(self) -> str:
         rec_lines = [
@@ -93,28 +90,26 @@ class ScoreExplanation:
             for i, r in enumerate(self.recommendations[:5])
         ]
         strongest = ", ".join(
-            f"{cat} ({score:.0f})"
-            for cat, score in self.strongest_categories[:3]
+            f"{cat} ({score:.0f})" for cat, score in self.strongest_categories[:3]
         )
-        weakest = ", ".join(
-            f"{cat} ({score:.0f})"
-            for cat, score in self.weakest_categories[:3]
+        weakest = ", ".join(f"{cat} ({score:.0f})" for cat, score in self.weakest_categories[:3])
+        return "\n".join(
+            [
+                f"Score Explanation — {self.name or self.experiment_id}",
+                f"  Composite: {self.composite:.1f}/100  conf={self.confidence:.0%}",
+                "",
+                f"  {self.overall_summary}",
+                "",
+                f"  Strongest: {strongest}",
+                f"  Weakest:   {weakest}",
+                "",
+                f"  Improvement potential: +{self.improvement_potential:.1f} pts",
+                "  Top recommendations:",
+                *rec_lines,
+            ]
         )
-        return "\n".join([
-            f"Score Explanation — {self.name or self.experiment_id}",
-            f"  Composite: {self.composite:.1f}/100  conf={self.confidence:.0%}",
-            "",
-            f"  {self.overall_summary}",
-            "",
-            f"  Strongest: {strongest}",
-            f"  Weakest:   {weakest}",
-            "",
-            f"  Improvement potential: +{self.improvement_potential:.1f} pts",
-            "  Top recommendations:",
-            *rec_lines,
-        ])
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score_id": self.score_id,
             "experiment_id": self.experiment_id,
@@ -123,20 +118,16 @@ class ScoreExplanation:
             "confidence": self.confidence,
             "overall_summary": self.overall_summary,
             "strongest_categories": [
-                {"category": c, "score": round(s, 1)}
-                for c, s in self.strongest_categories
+                {"category": c, "score": round(s, 1)} for c, s in self.strongest_categories
             ],
             "weakest_categories": [
-                {"category": c, "score": round(s, 1)}
-                for c, s in self.weakest_categories
+                {"category": c, "score": round(s, 1)} for c, s in self.weakest_categories
             ],
             "top_positive_metrics": [
-                {"metric": m, "score": round(s, 1)}
-                for m, s in self.top_positive_metrics
+                {"metric": m, "score": round(s, 1)} for m, s in self.top_positive_metrics
             ],
             "top_negative_metrics": [
-                {"metric": m, "score": round(s, 1)}
-                for m, s in self.top_negative_metrics
+                {"metric": m, "score": round(s, 1)} for m, s in self.top_negative_metrics
             ],
             "category_narratives": self.category_narratives,
             "recommendations": [r.to_dict() for r in self.recommendations],
@@ -149,7 +140,7 @@ class ScoreExplanation:
 # Improvement action templates
 # ---------------------------------------------------------------------------
 
-_IMPROVEMENT_ACTIONS: Dict[str, Dict[str, str]] = {
+_IMPROVEMENT_ACTIONS: dict[str, dict[str, str]] = {
     "validation_quality": {
         "default": "Increase validation fold count to 12+; improve cross-regime stability.",
         "walk_forward_accuracy": "Improve walk-forward accuracy: review feature engineering and model architecture.",
@@ -228,7 +219,7 @@ _IMPROVEMENT_ACTIONS: Dict[str, Dict[str, str]] = {
 }
 
 
-def _get_action(category: str, metric: Optional[str] = None) -> str:
+def _get_action(category: str, metric: str | None = None) -> str:
     cat_actions = _IMPROVEMENT_ACTIONS.get(category, {})
     if metric and metric in cat_actions:
         return cat_actions[metric]
@@ -245,6 +236,12 @@ def _priority(score: float) -> str:
     return "low"
 
 
+# Backward-compatible aliases used by external importers and tests
+CategoryNarrative = ScoreExplanation
+MetricContributor = ImprovementRecommendation
+Recommendation = ImprovementRecommendation
+
+
 # ---------------------------------------------------------------------------
 # HRSAExplainer
 # ---------------------------------------------------------------------------
@@ -253,7 +250,7 @@ def _priority(score: float) -> str:
 class HRSAExplainer:
     """Generate natural-language explanations for HierarchicalScore results."""
 
-    def explain(self, hs: Any, reference: Optional[Any] = None) -> ScoreExplanation:
+    def explain(self, hs: Any, reference: Any | None = None) -> ScoreExplanation:
         """
         Explain a HierarchicalScore.
 
@@ -265,18 +262,14 @@ class HRSAExplainer:
         cats = hs.level2_categories
 
         # Sort categories
-        scored_cats = [
-            (cat, r.score)
-            for cat, r in cats.items()
-            if r.metric_count > 0
-        ]
+        scored_cats = [(cat, r.score) for cat, r in cats.items() if r.metric_count > 0]
         sorted_desc = sorted(scored_cats, key=lambda x: x[1], reverse=True)
-        sorted_asc  = sorted(scored_cats, key=lambda x: x[1])
+        sorted_asc = sorted(scored_cats, key=lambda x: x[1])
         strongest = sorted_desc[:3]
-        weakest   = sorted_asc[:3]
+        weakest = sorted_asc[:3]
 
         # Per-metric scores (all categories)
-        all_metric_scores: List[Tuple[str, float]] = []
+        all_metric_scores: list[tuple[str, float]] = []
         for r in cats.values():
             for metric, score in r.metric_scores.items():
                 all_metric_scores.append((metric, score))
@@ -296,10 +289,7 @@ class HRSAExplainer:
 
         # Recommendations
         recs = self._build_recommendations(cats, hs.total_weight_used)
-        improvement_potential = min(
-            15.0,
-            sum(r.estimated_composite_impact for r in recs[:5])
-        )
+        improvement_potential = min(15.0, sum(r.estimated_composite_impact for r in recs[:5]))
 
         return ScoreExplanation(
             score_id=hs.score_id,
@@ -322,17 +312,20 @@ class HRSAExplainer:
         composite: float,
         grade: str,
         conf_pct: int,
-        strongest: List[Tuple[str, float]],
-        weakest: List[Tuple[str, float]],
+        strongest: list[tuple[str, float]],
+        weakest: list[tuple[str, float]],
     ) -> str:
         level = (
-            "strong institutional-grade"  if composite >= 85 else
-            "solid candidate-level"       if composite >= 75 else
-            "experimental-level"          if composite >= 60 else
-            "early-research-phase"
+            "strong institutional-grade"
+            if composite >= 85
+            else (
+                "solid candidate-level"
+                if composite >= 75
+                else "experimental-level" if composite >= 60 else "early-research-phase"
+            )
         )
         strong_str = strongest[0][0].replace("_", " ") if strongest else "N/A"
-        weak_str   = weakest[0][0].replace("_", " ") if weakest else "N/A"
+        weak_str = weakest[0][0].replace("_", " ") if weakest else "N/A"
         return (
             f"This model achieved a {level} Research Score of {composite:.1f}/100 "
             f"[{grade}] with {conf_pct}% confidence. "
@@ -341,16 +334,16 @@ class HRSAExplainer:
         )
 
     def _build_category_narratives(
-        self, cats: Dict[str, Any], reference: Optional[Any]
-    ) -> Dict[str, str]:
-        narratives: Dict[str, str] = {}
+        self, cats: dict[str, Any], reference: Any | None
+    ) -> dict[str, str]:
+        narratives: dict[str, str] = {}
         for cat, result in cats.items():
             if result.metric_count == 0:
                 narratives[cat] = "No metrics provided for this category."
                 continue
             grade = result.grade
             score = result.score
-            conf  = result.confidence
+            conf = result.confidence
             if reference:
                 ref_cat = reference.level2_categories.get(cat)
                 if ref_cat and ref_cat.metric_count > 0:
@@ -365,9 +358,9 @@ class HRSAExplainer:
         return narratives
 
     def _build_recommendations(
-        self, cats: Dict[str, Any], total_weight: float
-    ) -> List[ImprovementRecommendation]:
-        recs: List[ImprovementRecommendation] = []
+        self, cats: dict[str, Any], total_weight: float
+    ) -> list[ImprovementRecommendation]:
+        recs: list[ImprovementRecommendation] = []
 
         for cat, result in cats.items():
             if result.metric_count == 0 or result.score >= 90:
@@ -386,29 +379,29 @@ class HRSAExplainer:
 
             impact = (gap * effective_w / total_weight) if total_weight > 0 else 0.0
 
-            recs.append(ImprovementRecommendation(
-                category=cat,
-                metric=worst_metric,
-                current_score=result.score,
-                target_score=min(100.0, result.score + gap * 0.5),
-                estimated_composite_impact=round(impact * 0.5, 3),
-                action=_get_action(cat, worst_metric),
-                priority=_priority(result.score),
-            ))
+            recs.append(
+                ImprovementRecommendation(
+                    category=cat,
+                    metric=worst_metric,
+                    current_score=result.score,
+                    target_score=min(100.0, result.score + gap * 0.5),
+                    estimated_composite_impact=round(impact * 0.5, 3),
+                    action=_get_action(cat, worst_metric),
+                    priority=_priority(result.score),
+                )
+            )
 
         # Sort: critical > high > medium > low; then by impact desc
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         recs.sort(key=lambda r: (priority_order[r.priority], -r.estimated_composite_impact))
         return recs
 
-    def compare_explanations(
-        self, subject: Any, reference: Any
-    ) -> Dict[str, Any]:
+    def compare_explanations(self, subject: Any, reference: Any) -> dict[str, Any]:
         """Return a diff-style explanation comparing subject vs reference."""
         subj_cats = subject.level2_categories
-        ref_cats  = reference.level2_categories
+        ref_cats = reference.level2_categories
         delta = subject.level3_composite - reference.level3_composite
-        cat_deltas: Dict[str, float] = {}
+        cat_deltas: dict[str, float] = {}
         for cat in set(subj_cats) | set(ref_cats):
             s = subj_cats.get(cat)
             r = ref_cats.get(cat)
@@ -416,7 +409,7 @@ class HRSAExplainer:
                 cat_deltas[cat] = round(s.score - r.score, 2)
 
         improvements = {k: v for k, v in cat_deltas.items() if v >= 1.0}
-        regressions  = {k: v for k, v in cat_deltas.items() if v <= -1.0}
+        regressions = {k: v for k, v in cat_deltas.items() if v <= -1.0}
 
         return {
             "composite_delta": round(delta, 2),
@@ -424,9 +417,7 @@ class HRSAExplainer:
             "category_improvements": dict(
                 sorted(improvements.items(), key=lambda x: x[1], reverse=True)
             ),
-            "category_regressions": dict(
-                sorted(regressions.items(), key=lambda x: x[1])
-            ),
+            "category_regressions": dict(sorted(regressions.items(), key=lambda x: x[1])),
             "verdict": (
                 f"Subject beats reference by {delta:+.1f} pts. "
                 f"Improved in: {', '.join(list(improvements)[:3]) or 'none'}. "

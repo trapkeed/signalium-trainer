@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 import torch
 
-from trainer.config.schema import ExportConfig, TrainerConfig
+from trainer.config.schema import TrainerConfig
+from trainer.exporters.manifest import ManifestBuilder
 from trainer.exporters.onnx import ONNXExporter
 from trainer.exporters.torchscript import TorchScriptExporter
-from trainer.exporters.manifest import ManifestBuilder
 from trainer.models.quant_v1.config import (
     BackboneConfig,
     BackboneType,
@@ -97,6 +97,7 @@ class TestONNXExport:
 
     def test_onnx_model_validates(self, small_model: QuantModelV1, tmp_path: Path) -> None:
         import onnx
+
         cfg = TrainerConfig()
         exporter = ONNXExporter(
             model=small_model,
@@ -110,8 +111,8 @@ class TestONNXExport:
     def test_onnx_inference_matches_original(
         self, small_model: QuantModelV1, tmp_path: Path
     ) -> None:
-        import onnxruntime as ort
         import numpy as np
+        import onnxruntime as ort
 
         cfg = TrainerConfig()
         exporter = ONNXExporter(
@@ -158,6 +159,7 @@ class TestManifestWithExport:
         assert manifest_path.exists()
 
         import json
+
         data = json.loads(manifest_path.read_text())
         assert data["model_id"] == "quant_v1"
         assert len(data["files"]) == 1

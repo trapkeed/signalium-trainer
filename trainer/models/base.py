@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -117,7 +117,7 @@ class BaseTrainer(ABC):
         self,
         train_loader: Any,
         val_loader: Any,
-        resume_checkpoint: Optional[Path] = None,
+        resume_checkpoint: Path | None = None,
     ) -> dict[str, Any]:
         """Execute the full training loop.
 

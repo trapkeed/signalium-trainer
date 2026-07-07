@@ -27,12 +27,10 @@ Usage::
 
 from __future__ import annotations
 
-import math
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Health record
@@ -42,6 +40,7 @@ from typing import Any, Dict, List, Optional, Tuple
 @dataclass
 class HealthRecord:
     """One health observation for a model."""
+
     model_id: str
     buy_prob: float = 0.33
     sell_prob: float = 0.33
@@ -49,19 +48,17 @@ class HealthRecord:
     confidence: float = 0.5
     uncertainty: float = 0.5
     predicted_class: str = "no_trade"
-    true_class: Optional[str] = None
-    features_hash: Optional[str] = None   # hash of feature vector (for drift)
+    true_class: str | None = None
+    features_hash: str | None = None  # hash of feature vector (for drift)
     latency_ms: float = 0.0
     calibration_error: float = 0.0
     regime: str = "unknown"
-    is_correct: Optional[bool] = None
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    is_correct: bool | None = None
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def __post_init__(self) -> None:
         if self.true_class is not None:
-            self.is_correct = (self.predicted_class == self.true_class)
+            self.is_correct = self.predicted_class == self.true_class
 
 
 # ---------------------------------------------------------------------------
@@ -99,19 +96,19 @@ class HealthReport:
     regime_drift: float = 0.0
     distribution_drift: float = 0.0
     is_healthy: bool = True
-    drift_alerts: List[str] = field(default_factory=list)
+    drift_alerts: list[str] = field(default_factory=list)
     baseline_avg_confidence: float = 0.0
     recent_avg_confidence: float = 0.0
     baseline_accuracy: float = 0.0
     recent_accuracy: float = 0.0
     baseline_avg_latency: float = 0.0
     recent_avg_latency: float = 0.0
-    baseline_distribution: Dict[str, float] = field(default_factory=dict)
-    recent_distribution: Dict[str, float] = field(default_factory=dict)
+    baseline_distribution: dict[str, float] = field(default_factory=dict)
+    recent_distribution: dict[str, float] = field(default_factory=dict)
     baseline_window: int = 200
     recent_window: int = 50
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "n_records": self.n_records,
@@ -145,6 +142,7 @@ class HealthReport:
 @dataclass
 class DriftThresholds:
     """Configurable thresholds for drift detection."""
+
     confidence_drift: float = 0.10
     prediction_drift: float = 0.15
     calibration_drift: float = 0.05
@@ -152,7 +150,7 @@ class DriftThresholds:
     latency_degradation_ms: float = 20.0
     distribution_drift: float = 0.15
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "confidence_drift": self.confidence_drift,
             "prediction_drift": self.prediction_drift,
@@ -177,33 +175,44 @@ class ModelHealthMonitor:
         thresholds: DriftThresholds for alert generation.
     """
 
-    def __init__(self, baseline_window: int = 200,
-                 recent_window: int = 50,
-                 thresholds: Optional[DriftThresholds] = None) -> None:
+    def __init__(
+        self,
+        baseline_window: int = 200,
+        recent_window: int = 50,
+        thresholds: DriftThresholds | None = None,
+    ) -> None:
         self.baseline_window = baseline_window
         self.recent_window = recent_window
         self.thresholds = thresholds or DriftThresholds()
-        self._buffers: Dict[str, deque] = {}
-        self._all_records: Dict[str, List[HealthRecord]] = {}
+        self._buffers: dict[str, deque] = {}
+        self._all_records: dict[str, list[HealthRecord]] = {}
 
-    def record_prediction(self, model_id: str,
-                           buy_prob: float = 0.33,
-                           sell_prob: float = 0.33,
-                           no_trade_prob: float = 0.34,
-                           confidence: float = 0.5,
-                           uncertainty: float = 0.5,
-                           predicted_class: str = "no_trade",
-                           true_class: Optional[str] = None,
-                           latency_ms: float = 0.0,
-                           calibration_error: float = 0.0,
-                           regime: str = "unknown") -> HealthRecord:
+    def record_prediction(
+        self,
+        model_id: str,
+        buy_prob: float = 0.33,
+        sell_prob: float = 0.33,
+        no_trade_prob: float = 0.34,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+        predicted_class: str = "no_trade",
+        true_class: str | None = None,
+        latency_ms: float = 0.0,
+        calibration_error: float = 0.0,
+        regime: str = "unknown",
+    ) -> HealthRecord:
         """Record one prediction for health tracking."""
         rec = HealthRecord(
             model_id=model_id,
-            buy_prob=buy_prob, sell_prob=sell_prob, no_trade_prob=no_trade_prob,
-            confidence=confidence, uncertainty=uncertainty,
-            predicted_class=predicted_class, true_class=true_class,
-            latency_ms=latency_ms, calibration_error=calibration_error,
+            buy_prob=buy_prob,
+            sell_prob=sell_prob,
+            no_trade_prob=no_trade_prob,
+            confidence=confidence,
+            uncertainty=uncertainty,
+            predicted_class=predicted_class,
+            true_class=true_class,
+            latency_ms=latency_ms,
+            calibration_error=calibration_error,
             regime=regime,
         )
         total_window = self.baseline_window + self.recent_window
@@ -219,15 +228,16 @@ class ModelHealthMonitor:
         buf = list(self._buffers.get(model_id, []))
         n = len(buf)
         report = HealthReport(
-            model_id=model_id, n_records=n,
+            model_id=model_id,
+            n_records=n,
             baseline_window=self.baseline_window,
             recent_window=self.recent_window,
         )
         if n < self.recent_window:
             return report
 
-        baseline = buf[:self.baseline_window]
-        recent = buf[-self.recent_window:]
+        baseline = buf[: self.baseline_window]
+        recent = buf[-self.recent_window :]
 
         b_conf = _mean([r.confidence for r in baseline])
         r_conf = _mean([r.confidence for r in recent])
@@ -283,12 +293,11 @@ class ModelHealthMonitor:
         report.is_healthy = len(alerts) == 0
         return report
 
-    def all_health_reports(self) -> Dict[str, HealthReport]:
+    def all_health_reports(self) -> dict[str, HealthReport]:
         return {mid: self.get_health_report(mid) for mid in self._buffers}
 
-    def unhealthy_models(self) -> List[str]:
-        return [mid for mid, r in self.all_health_reports().items()
-                if not r.is_healthy]
+    def unhealthy_models(self) -> list[str]:
+        return [mid for mid, r in self.all_health_reports().items() if not r.is_healthy]
 
 
 # ---------------------------------------------------------------------------
@@ -296,11 +305,11 @@ class ModelHealthMonitor:
 # ---------------------------------------------------------------------------
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return sum(vals) / len(vals) if vals else 0.0
 
 
-def _class_distribution(records: List[HealthRecord]) -> Dict[str, float]:
+def _class_distribution(records: list[HealthRecord]) -> dict[str, float]:
     if not records:
         return {"buy": 0.33, "sell": 0.33, "no_trade": 0.34}
     n = len(records)
@@ -311,17 +320,17 @@ def _class_distribution(records: List[HealthRecord]) -> Dict[str, float]:
     }
 
 
-def _regime_distribution(records: List[HealthRecord]) -> Dict[str, float]:
+def _regime_distribution(records: list[HealthRecord]) -> dict[str, float]:
     if not records:
         return {}
     n = len(records)
-    regimes: Dict[str, int] = {}
+    regimes: dict[str, int] = {}
     for r in records:
         regimes[r.regime] = regimes.get(r.regime, 0) + 1
     return {k: v / n for k, v in regimes.items()}
 
 
-def _distribution_drift(a: Dict[str, float], b: Dict[str, float]) -> float:
+def _distribution_drift(a: dict[str, float], b: dict[str, float]) -> float:
     """Symmetric KL-divergence proxy over shared keys."""
     keys = set(a) | set(b)
     eps = 1e-9

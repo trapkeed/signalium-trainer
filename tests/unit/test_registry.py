@@ -16,9 +16,9 @@ def clear_registry() -> None:
 
 
 def test_register_and_retrieve() -> None:
-    from trainer.models.base import BaseQuantModel
     import torch
-    from trainer.config.schema import TrainerConfig
+
+    from trainer.models.base import BaseQuantModel
 
     class _DummyModel(BaseQuantModel):
         @property
@@ -43,12 +43,14 @@ def test_get_raises_for_unknown() -> None:
 
 
 def test_duplicate_registration_raises() -> None:
-    from trainer.models.base import BaseQuantModel
     import torch
+
+    from trainer.models.base import BaseQuantModel
 
     class _M(BaseQuantModel):
         feature_dim = 4
         num_classes = 2
+
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return x
 
@@ -62,12 +64,14 @@ def test_list_models() -> None:
 
 
 def test_clear() -> None:
-    from trainer.models.base import BaseQuantModel
     import torch
+
+    from trainer.models.base import BaseQuantModel
 
     class _M2(BaseQuantModel):
         feature_dim = 4
         num_classes = 2
+
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             return x
 

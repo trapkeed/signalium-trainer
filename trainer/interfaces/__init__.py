@@ -23,26 +23,26 @@ Public API::
 
 from trainer.interfaces.base import BaseExternalEncoder
 from trainer.interfaces.future_encoders import (
-    BaseReinforcementLearningInterface,
-    BaseCrossAssetEncoder,
-    BaseNewsEncoder,
-    BaseMacroEncoder,
     BaseAlternativeDataEncoder,
-    BaseOrderBookEncoder,
-    BaseOptionsDataEncoder,
-    BaseSentimentEncoder,
+    BaseCrossAssetEncoder,
     BaseGraphNeuralNetworkInterface,
+    BaseMacroEncoder,
+    BaseNewsEncoder,
+    BaseOptionsDataEncoder,
+    BaseOrderBookEncoder,
+    BaseReinforcementLearningInterface,
+    BaseSentimentEncoder,
 )
 
 __all__ = [
-    "BaseExternalEncoder",
-    "BaseReinforcementLearningInterface",
-    "BaseCrossAssetEncoder",
-    "BaseNewsEncoder",
-    "BaseMacroEncoder",
     "BaseAlternativeDataEncoder",
-    "BaseOrderBookEncoder",
-    "BaseOptionsDataEncoder",
-    "BaseSentimentEncoder",
+    "BaseCrossAssetEncoder",
+    "BaseExternalEncoder",
     "BaseGraphNeuralNetworkInterface",
+    "BaseMacroEncoder",
+    "BaseNewsEncoder",
+    "BaseOptionsDataEncoder",
+    "BaseOrderBookEncoder",
+    "BaseReinforcementLearningInterface",
+    "BaseSentimentEncoder",
 ]

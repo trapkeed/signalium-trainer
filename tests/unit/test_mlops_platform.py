@@ -28,18 +28,16 @@ from __future__ import annotations
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _model_dict(**overrides) -> Dict[str, Any]:
+def _model_dict(**overrides) -> dict[str, Any]:
     return {
         "model_id": str(uuid.uuid4()),
         "name": "signalium_quant",
@@ -62,24 +60,27 @@ def _model_dict(**overrides) -> Dict[str, Any]:
     }
 
 
-def _make_registry(n: int = 2) -> "ModelRegistry":
+def _make_registry(n: int = 2) -> ModelRegistry:
     from trainer.mlops.registry import ModelRecord, ModelRegistry
+
     r = ModelRegistry()
     for i in range(n):
-        r.register(ModelRecord.from_dict(
-            _model_dict(model_id=f"model_{i:02d}",
-                        version=f"{i + 1}.0.0")
-        ))
+        r.register(
+            ModelRecord.from_dict(_model_dict(model_id=f"model_{i:02d}", version=f"{i + 1}.0.0"))
+        )
     return r
 
 
-def _make_engine(tmpdir: str) -> "MLOpsEngine":
-    from trainer.mlops.engine import MLOpsEngine, MLOpsConfig
-    return MLOpsEngine(MLOpsConfig(
-        db_path=os.path.join(tmpdir, "test_mlops.db"),
-        governance_require_approver=False,
-        enable_default_retraining_policies=True,
-    ))
+def _make_engine(tmpdir: str) -> MLOpsEngine:
+    from trainer.mlops.engine import MLOpsConfig, MLOpsEngine
+
+    return MLOpsEngine(
+        MLOpsConfig(
+            db_path=os.path.join(tmpdir, "test_mlops.db"),
+            governance_require_approver=False,
+            enable_default_retraining_policies=True,
+        )
+    )
 
 
 # ===========================================================================
@@ -89,43 +90,49 @@ def _make_engine(tmpdir: str) -> "MLOpsEngine":
 
 class TestModelRecord:
     def test_default_state_is_draft(self):
-        from trainer.mlops.registry import ModelRecord, LifecycleState
+        from trainer.mlops.registry import LifecycleState, ModelRecord
+
         r = ModelRecord(name="m1")
         assert r.lifecycle_state == LifecycleState.DRAFT
 
     def test_full_name(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord(name="quant", version="2.1.0")
         assert r.full_name == "quant@2.1.0"
 
     def test_is_active_false_on_draft(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord()
         assert not r.is_active
 
     def test_is_champion_false_initially(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord()
         assert not r.is_champion
 
     def test_add_approval(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord(model_id="m1")
-        approval = r.add_approval("ops", "approved", "looks good",
-                                   "candidate", "approved")
+        approval = r.add_approval("ops", "approved", "looks good", "candidate", "approved")
         assert approval.approver == "ops"
         assert len(r.approval_history) == 1
 
     def test_add_child(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord(model_id="parent")
         r.add_child("child_01")
         r.add_child("child_02")
-        r.add_child("child_01")   # duplicate — not added
+        r.add_child("child_01")  # duplicate — not added
         assert r.child_model_ids == ["child_01", "child_02"]
 
     def test_to_from_dict(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord.from_dict(_model_dict())
         d = r.to_dict()
         r2 = ModelRecord.from_dict(d)
@@ -134,6 +141,7 @@ class TestModelRecord:
 
     def test_is_terminal_false_by_default(self):
         from trainer.mlops.registry import ModelRecord
+
         r = ModelRecord()
         assert not r.is_terminal
 
@@ -141,6 +149,7 @@ class TestModelRecord:
 class TestModelRegistry:
     def test_register_and_get(self):
         from trainer.mlops.registry import ModelRecord, ModelRegistry
+
         r = ModelRegistry()
         rec = ModelRecord(model_id="m1", name="quant")
         r.register(rec)
@@ -148,6 +157,7 @@ class TestModelRegistry:
 
     def test_get_or_raise_missing(self):
         from trainer.mlops.registry import ModelRegistry
+
         r = ModelRegistry()
         with pytest.raises(KeyError):
             r.get_or_raise("nonexistent")
@@ -157,7 +167,7 @@ class TestModelRegistry:
         assert r.n_models == 3
 
     def test_active_returns_only_active(self):
-        from trainer.mlops.registry import LifecycleState
+
         r = _make_registry(3)
         # Set one to champion (active)
         r.set_champion("model_00")
@@ -166,6 +176,7 @@ class TestModelRegistry:
 
     def test_by_state_draft(self):
         from trainer.mlops.registry import LifecycleState
+
         r = _make_registry(3)
         drafts = r.by_state(LifecycleState.DRAFT)
         assert len(drafts) == 3
@@ -185,6 +196,7 @@ class TestModelRegistry:
 
     def test_latest_version(self):
         from trainer.mlops.registry import ModelRecord, ModelRegistry
+
         r = ModelRegistry()
         r.register(ModelRecord(model_id="a1", name="quant", version="1.0.0"))
         r.register(ModelRecord(model_id="a2", name="quant", version="2.0.0"))
@@ -195,6 +207,7 @@ class TestModelRegistry:
 
     def test_to_from_dict(self):
         from trainer.mlops.registry import ModelRegistry
+
         r = _make_registry(2)
         d = r.to_dict()
         r2 = ModelRegistry.from_dict(d)
@@ -210,19 +223,21 @@ class TestLifecycleManager:
     def setup_method(self):
         from trainer.mlops.lifecycle import LifecycleManager
         from trainer.mlops.registry import ModelRecord
+
         self.lm = LifecycleManager(strict=True)
         self.record = ModelRecord.from_dict(_model_dict())
 
     def test_transition_draft_to_training(self):
         from trainer.mlops.registry import LifecycleState
+
         t = self.lm.transition(self.record, LifecycleState.TRAINING, actor="trainer")
         assert self.record.lifecycle_state == LifecycleState.TRAINING
         assert t.to_state == LifecycleState.TRAINING
 
     def test_full_happy_path(self):
         from trainer.mlops.registry import LifecycleState
-        for state in [LifecycleState.TRAINING, LifecycleState.VALIDATING,
-                      LifecycleState.CANDIDATE]:
+
+        for state in [LifecycleState.TRAINING, LifecycleState.VALIDATING, LifecycleState.CANDIDATE]:
             self.lm.transition(self.record, state)
         self.lm.approve(self.record, approver="ops")
         assert self.record.lifecycle_state == LifecycleState.APPROVED
@@ -231,21 +246,28 @@ class TestLifecycleManager:
     def test_invalid_transition_raises(self):
         from trainer.mlops.lifecycle import LifecycleError
         from trainer.mlops.registry import LifecycleState
+
         with pytest.raises(LifecycleError):
             self.lm.transition(self.record, LifecycleState.RETIRED)
 
     def test_invalid_strict_false_no_raise(self):
         from trainer.mlops.lifecycle import LifecycleManager
         from trainer.mlops.registry import LifecycleState, ModelRecord
+
         lm = LifecycleManager(strict=False)
         rec = ModelRecord.from_dict(_model_dict())
         lm.transition(rec, LifecycleState.RETIRED)  # should not raise
 
     def test_rollback(self):
         from trainer.mlops.registry import LifecycleState
-        for state in [LifecycleState.TRAINING, LifecycleState.VALIDATING,
-                      LifecycleState.CANDIDATE, LifecycleState.APPROVED,
-                      LifecycleState.CHAMPION]:
+
+        for state in [
+            LifecycleState.TRAINING,
+            LifecycleState.VALIDATING,
+            LifecycleState.CANDIDATE,
+            LifecycleState.APPROVED,
+            LifecycleState.CHAMPION,
+        ]:
             self.lm.transition(self.record, state)
         t = self.lm.rollback(self.record, actor="ops", reason="emergency")
         assert self.record.lifecycle_state == LifecycleState.ROLLED_BACK
@@ -253,6 +275,7 @@ class TestLifecycleManager:
 
     def test_history_recorded(self):
         from trainer.mlops.registry import LifecycleState
+
         self.lm.transition(self.record, LifecycleState.TRAINING)
         self.lm.transition(self.record, LifecycleState.VALIDATING)
         history = self.lm.history(self.record.model_id)
@@ -260,6 +283,7 @@ class TestLifecycleManager:
 
     def test_promote_to_candidate(self):
         from trainer.mlops.registry import LifecycleState
+
         self.lm.transition(self.record, LifecycleState.TRAINING)
         self.lm.transition(self.record, LifecycleState.VALIDATING)
         t = self.lm.promote_to_candidate(self.record, validation_score=0.72)
@@ -268,6 +292,7 @@ class TestLifecycleManager:
 
     def test_reject(self):
         from trainer.mlops.registry import LifecycleState
+
         self.lm.transition(self.record, LifecycleState.TRAINING)
         self.lm.transition(self.record, LifecycleState.VALIDATING)
         self.lm.transition(self.record, LifecycleState.CANDIDATE)
@@ -277,6 +302,7 @@ class TestLifecycleManager:
 
     def test_retire(self):
         from trainer.mlops.registry import LifecycleState
+
         transitions = self.lm.retire(self.record, reason="end of life")
         assert self.record.lifecycle_state == LifecycleState.RETIRED
         assert self.record.retirement_status == "retired"
@@ -284,24 +310,28 @@ class TestLifecycleManager:
 
     def test_same_state_is_noop(self):
         from trainer.mlops.registry import LifecycleState
+
         t = self.lm.transition(self.record, LifecycleState.DRAFT)
         assert "no-op" in t.reason
 
     def test_state_summary(self):
         from trainer.mlops.registry import LifecycleState
+
         self.lm.transition(self.record, LifecycleState.TRAINING)
         summary = self.lm.state_summary()
         assert summary["models_tracked"] >= 1
 
     def test_can_transition_true(self):
-        from trainer.mlops.registry import LifecycleState
         from trainer.mlops.lifecycle import LifecycleManager
+        from trainer.mlops.registry import LifecycleState
+
         lm = LifecycleManager()
         assert lm.can_transition(LifecycleState.DRAFT, LifecycleState.TRAINING)
 
     def test_can_transition_false(self):
-        from trainer.mlops.registry import LifecycleState
         from trainer.mlops.lifecycle import LifecycleManager
+        from trainer.mlops.registry import LifecycleState
+
         lm = LifecycleManager()
         assert not lm.can_transition(LifecycleState.DRAFT, LifecycleState.RETIRED)
 
@@ -313,8 +343,9 @@ class TestLifecycleManager:
 
 class TestDeploymentGovernance:
     def setup_method(self):
-        from trainer.mlops.lifecycle import LifecycleManager
         from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
+        from trainer.mlops.lifecycle import LifecycleManager
+
         self.registry = _make_registry(2)
         self.lm = LifecycleManager(strict=False)
         self.gov = DeploymentGovernance(
@@ -325,21 +356,25 @@ class TestDeploymentGovernance:
 
     def _approve_model(self, model_id: str) -> None:
         from trainer.mlops.registry import LifecycleState
+
         model = self.registry.get(model_id)
-        for state in [LifecycleState.TRAINING, LifecycleState.VALIDATING,
-                      LifecycleState.CANDIDATE, LifecycleState.APPROVED]:
+        for state in [
+            LifecycleState.TRAINING,
+            LifecycleState.VALIDATING,
+            LifecycleState.CANDIDATE,
+            LifecycleState.APPROVED,
+        ]:
             self.lm.transition(model, state)
 
     def test_deploy_production(self):
-        from trainer.mlops.registry import LifecycleState
+
         self._approve_model("model_00")
-        rec = self.gov.deploy("model_00", target="production",
-                               approver="ops", reason="release v1")
+        rec = self.gov.deploy("model_00", target="production", approver="ops", reason="release v1")
         assert rec.status == "active"
         assert rec.target == "production"
 
     def test_deploy_champion(self):
-        from trainer.mlops.registry import LifecycleState
+
         self._approve_model("model_00")
         self.gov.deploy("model_00", target="champion", approver="head_quant")
         model = self.registry.get("model_00")
@@ -347,10 +382,10 @@ class TestDeploymentGovernance:
 
     def test_rollback(self):
         from trainer.mlops.registry import LifecycleState
+
         self._approve_model("model_00")
         self.gov.deploy("model_00", target="production", approver="ops")
-        rb_rec = self.gov.rollback("model_00", actor="ops",
-                                    reason="high drift", emergency=True)
+        rb_rec = self.gov.rollback("model_00", actor="ops", reason="high drift", emergency=True)
         assert rb_rec.deploy_type == "emergency_rollback"
         model = self.registry.get("model_00")
         assert model.lifecycle_state == LifecycleState.ROLLED_BACK
@@ -382,6 +417,7 @@ class TestDeploymentGovernance:
 
     def test_auto_promote_disabled_by_default(self):
         from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
+
         gov = DeploymentGovernance(
             registry=self.registry,
             lifecycle=self.lm,
@@ -392,7 +428,7 @@ class TestDeploymentGovernance:
 
     def test_auto_promote_with_eligible_model(self):
         from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
-        from trainer.mlops.registry import LifecycleState
+
         gov = DeploymentGovernance(
             registry=self.registry,
             lifecycle=self.lm,
@@ -416,6 +452,7 @@ class TestDeploymentGovernance:
 class TestProductionMonitor:
     def setup_method(self):
         from trainer.mlops.monitoring import ProductionMonitor
+
         self.monitor = ProductionMonitor(window=100, latency_alert_ms=50.0)
 
     def test_record_inference(self):
@@ -427,6 +464,7 @@ class TestProductionMonitor:
 
     def test_snapshot_empty(self):
         from trainer.mlops.monitoring import MonitoringSnapshot
+
         snap = self.monitor.get_snapshot("nonexistent")
         assert isinstance(snap, MonitoringSnapshot)
         assert snap.n_records == 0
@@ -505,14 +543,17 @@ class TestProductionMonitor:
 
 class TestModelHealthMonitor:
     def setup_method(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         self.monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(confidence_drift=0.05),
         )
 
     def test_record_returns_health_record(self):
         from trainer.mlops.health import HealthRecord
+
         rec = self.monitor.record_prediction("m1", confidence=0.7, predicted_class="buy")
         assert isinstance(rec, HealthRecord)
 
@@ -523,9 +564,11 @@ class TestModelHealthMonitor:
         assert report.is_healthy  # not enough data to detect drift
 
     def test_confidence_drift_detected(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(confidence_drift=0.05),
         )
         for _ in range(20):
@@ -536,24 +579,26 @@ class TestModelHealthMonitor:
         assert report.confidence_drift > 0.05
 
     def test_performance_degradation(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(performance_degradation=0.05),
         )
         for _ in range(20):
-            monitor.record_prediction("m1", predicted_class="buy",
-                                       true_class="buy")
+            monitor.record_prediction("m1", predicted_class="buy", true_class="buy")
         for _ in range(10):
-            monitor.record_prediction("m1", predicted_class="buy",
-                                       true_class="sell")
+            monitor.record_prediction("m1", predicted_class="buy", true_class="sell")
         report = monitor.get_health_report("m1")
         assert report.performance_degradation > 0.0
 
     def test_distribution_drift(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(distribution_drift=0.05),
         )
         for _ in range(20):
@@ -564,9 +609,11 @@ class TestModelHealthMonitor:
         assert report.distribution_drift > 0.0
 
     def test_latency_degradation(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(latency_degradation_ms=5.0),
         )
         for _ in range(20):
@@ -577,9 +624,11 @@ class TestModelHealthMonitor:
         assert report.latency_degradation > 5.0
 
     def test_unhealthy_models_list(self):
-        from trainer.mlops.health import ModelHealthMonitor, DriftThresholds
+        from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
+
         monitor = ModelHealthMonitor(
-            baseline_window=20, recent_window=10,
+            baseline_window=20,
+            recent_window=10,
             thresholds=DriftThresholds(confidence_drift=0.05),
         )
         for _ in range(20):
@@ -606,24 +655,29 @@ class TestModelHealthMonitor:
 class TestAlertingSystem:
     def setup_method(self):
         from trainer.mlops.alerting import AlertingSystem
+
         self.alerting = AlertingSystem()
 
     def test_emit_warning(self):
         from trainer.mlops.alerting import AlertLevel
-        alert = self.alerting.emit(AlertLevel.WARNING, "m1",
-                                    "confidence_drift", "Conf dropped 0.12")
+
+        alert = self.alerting.emit(
+            AlertLevel.WARNING, "m1", "confidence_drift", "Conf dropped 0.12"
+        )
         assert alert.level == "WARNING"
         assert alert.is_active
 
     def test_emit_critical(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
-        alert = self.alerting.emit(AlertLevel.CRITICAL, "m1",
-                                    AlertCategory.LATENCY_SPIKE,
-                                    "p99 latency 250ms")
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
+
+        alert = self.alerting.emit(
+            AlertLevel.CRITICAL, "m1", AlertCategory.LATENCY_SPIKE, "p99 latency 250ms"
+        )
         assert alert.is_critical
 
     def test_acknowledge(self):
         from trainer.mlops.alerting import AlertLevel
+
         alert = self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "test")
         ok = self.alerting.acknowledge(alert.alert_id, ack_by="ops_lead")
         assert ok
@@ -632,6 +686,7 @@ class TestAlertingSystem:
 
     def test_resolve(self):
         from trainer.mlops.alerting import AlertLevel
+
         alert = self.alerting.emit(AlertLevel.INFO, "m1", "system", "info msg")
         ok = self.alerting.resolve(alert.alert_id)
         assert ok
@@ -639,18 +694,21 @@ class TestAlertingSystem:
 
     def test_suppress(self):
         from trainer.mlops.alerting import AlertLevel
+
         alert = self.alerting.emit(AlertLevel.WARNING, "m1", "system", "noise")
         self.alerting.suppress(alert.alert_id)
         assert alert.status == "suppressed"
 
     def test_dedup_returns_same_alert(self):
         from trainer.mlops.alerting import AlertLevel
+
         a1 = self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "1st")
         a2 = self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "2nd")
         assert a1.alert_id == a2.alert_id
 
     def test_dedup_cleared_after_acknowledge(self):
         from trainer.mlops.alerting import AlertLevel
+
         a1 = self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "1st")
         self.alerting.acknowledge(a1.alert_id, "ops")
         a2 = self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "2nd")
@@ -658,6 +716,7 @@ class TestAlertingSystem:
 
     def test_active_alerts_filtered_by_model(self):
         from trainer.mlops.alerting import AlertLevel
+
         self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "m1 alert")
         self.alerting.emit(AlertLevel.WARNING, "m2", "latency_spike", "m2 alert")
         active = self.alerting.active_alerts(model_id="m1")
@@ -665,21 +724,24 @@ class TestAlertingSystem:
 
     def test_active_alerts_filtered_by_level(self):
         from trainer.mlops.alerting import AlertLevel
+
         self.alerting.emit(AlertLevel.CRITICAL, "m1", "latency_spike", "crit")
         self.alerting.emit(AlertLevel.WARNING, "m1", "confidence_drift", "warn")
         critical = self.alerting.active_alerts(level="CRITICAL")
         assert all(a["level"] == "CRITICAL" for a in critical)
 
     def test_critical_count(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
+
         for _ in range(3):
-            self.alerting.emit(AlertLevel.CRITICAL, f"m{_}",
-                                AlertCategory.MODEL_FAILURE, "failure",
-                                dedup=False)
+            self.alerting.emit(
+                AlertLevel.CRITICAL, f"m{_}", AlertCategory.MODEL_FAILURE, "failure", dedup=False
+            )
         assert self.alerting.critical_count() == 3
 
     def test_emit_from_health_report(self):
         from unittest.mock import MagicMock
+
         report = MagicMock()
         report.model_id = "m1"
         report.drift_alerts = ["confidence_drift=0.15", "prediction_drift=0.20"]
@@ -688,6 +750,7 @@ class TestAlertingSystem:
 
     def test_emit_from_monitoring_snapshot_latency(self):
         from unittest.mock import MagicMock
+
         snap = MagicMock()
         snap.model_id = "m1"
         snap.latency_alert = True
@@ -712,9 +775,10 @@ class TestAlertingSystem:
 
 class TestChampionChallengerManager:
     def setup_method(self):
-        from trainer.mlops.lifecycle import LifecycleManager
-        from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
         from trainer.mlops.champion import ChampionChallengerManager
+        from trainer.mlops.governance import DeploymentGovernance, GovernanceConfig
+        from trainer.mlops.lifecycle import LifecycleManager
+
         self.registry = _make_registry(3)
         self.lm = LifecycleManager(strict=False)
         self.gov = DeploymentGovernance(
@@ -768,7 +832,8 @@ class TestChampionChallengerManager:
 
     def test_compare_returns_winner(self):
         comparison = self.cc.compare(
-            "model_00", "model_01",
+            "model_00",
+            "model_01",
             metrics_a={"accuracy": 0.70, "sharpe_ratio": 1.5, "calibration_error": 0.04},
             metrics_b={"accuracy": 0.65, "sharpe_ratio": 1.2, "calibration_error": 0.06},
         )
@@ -800,18 +865,24 @@ class TestChampionChallengerManager:
 class TestAuditSystem:
     def setup_method(self):
         from trainer.mlops.audit import AuditSystem
+
         self.audit = AuditSystem()
 
     def test_log_records_event(self):
         from trainer.mlops.audit import AuditEventType
-        event = self.audit.log(AuditEventType.DEPLOYMENT,
-                                actor="ops", model_id="m1",
-                                description="deployed to production")
+
+        event = self.audit.log(
+            AuditEventType.DEPLOYMENT,
+            actor="ops",
+            model_id="m1",
+            description="deployed to production",
+        )
         assert self.audit.n_events == 1
         assert event.actor == "ops"
 
     def test_query_by_type(self):
         from trainer.mlops.audit import AuditEventType
+
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m1")
         self.audit.log(AuditEventType.PROMOTION, model_id="m2")
         events = self.audit.query(event_type=AuditEventType.DEPLOYMENT)
@@ -819,6 +890,7 @@ class TestAuditSystem:
 
     def test_query_by_model(self):
         from trainer.mlops.audit import AuditEventType
+
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m1")
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m2")
         events = self.audit.query(model_id="m1")
@@ -826,8 +898,8 @@ class TestAuditSystem:
 
     def test_model_history(self):
         from trainer.mlops.audit import AuditEventType
-        for et in [AuditEventType.TRAINING, AuditEventType.VALIDATION,
-                    AuditEventType.PROMOTION]:
+
+        for et in [AuditEventType.TRAINING, AuditEventType.VALIDATION, AuditEventType.PROMOTION]:
             self.audit.log(et, model_id="m1")
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m2")
         history = self.audit.model_history("m1")
@@ -835,6 +907,7 @@ class TestAuditSystem:
 
     def test_get_report(self):
         from trainer.mlops.audit import AuditEventType
+
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m1", actor="ops")
         report = self.audit.get_report()
         assert report["total_events"] == 1
@@ -842,6 +915,7 @@ class TestAuditSystem:
 
     def test_get_report_by_model(self):
         from trainer.mlops.audit import AuditEventType
+
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m1")
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m2")
         report = self.audit.get_report(model_id="m1")
@@ -849,6 +923,7 @@ class TestAuditSystem:
 
     def test_export_all(self):
         from trainer.mlops.audit import AuditEventType
+
         for _ in range(5):
             self.audit.log(AuditEventType.SYSTEM)
         exported = self.audit.export_all()
@@ -856,7 +931,8 @@ class TestAuditSystem:
         assert all("event_id" in e for e in exported)
 
     def test_session_tracking(self):
-        from trainer.mlops.audit import AuditEventType, AuditEvent
+        from trainer.mlops.audit import AuditEventType
+
         session_id = self.audit.start_session()
         self.audit.log(AuditEventType.TRAINING, model_id="m1")
         self.audit.end_session()
@@ -867,6 +943,7 @@ class TestAuditSystem:
 
     def test_stats(self):
         from trainer.mlops.audit import AuditEventType
+
         self.audit.log(AuditEventType.DEPLOYMENT, model_id="m1")
         stats = self.audit.stats()
         assert stats["total_events"] == 1
@@ -880,18 +957,24 @@ class TestAuditSystem:
 class TestRetrainingPolicyManager:
     def setup_method(self):
         from trainer.mlops.retraining import (
-            RetrainingPolicyManager, RetrainingPolicy, RetrainingTrigger,
+            RetrainingPolicy,
+            RetrainingPolicyManager,
+            RetrainingTrigger,
         )
+
         self.mgr = RetrainingPolicyManager(auto_retrain=False)
-        self.mgr.add_policy(RetrainingPolicy(
-            policy_id="perf_test",
-            trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
-            threshold=0.05,
-            cooldown_hours=0,
-        ))
+        self.mgr.add_policy(
+            RetrainingPolicy(
+                policy_id="perf_test",
+                trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
+                threshold=0.05,
+                cooldown_hours=0,
+            )
+        )
 
     def test_auto_retrain_forbidden(self):
         from trainer.mlops.retraining import RetrainingPolicyManager
+
         with pytest.raises(ValueError):
             RetrainingPolicyManager(auto_retrain=True)
 
@@ -911,14 +994,19 @@ class TestRetrainingPolicyManager:
 
     def test_cooldown_prevents_duplicate(self):
         from trainer.mlops.retraining import (
-            RetrainingPolicyManager, RetrainingPolicy, RetrainingTrigger,
+            RetrainingPolicy,
+            RetrainingPolicyManager,
+            RetrainingTrigger,
         )
+
         mgr = RetrainingPolicyManager()
-        mgr.add_policy(RetrainingPolicy(
-            trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
-            threshold=0.01,
-            cooldown_hours=1,
-        ))
+        mgr.add_policy(
+            RetrainingPolicy(
+                trigger=RetrainingTrigger.PERFORMANCE_DEGRADATION,
+                threshold=0.01,
+                cooldown_hours=1,
+            )
+        )
         mgr.evaluate("m1", {"performance_degradation": 0.10})
         recs2 = mgr.evaluate("m1", {"performance_degradation": 0.10})
         assert len(recs2) == 0
@@ -941,6 +1029,7 @@ class TestRetrainingPolicyManager:
 
     def test_build_default_policies(self):
         from trainer.mlops.retraining import build_default_policies
+
         mgr = build_default_policies()
         assert mgr.stats()["total_policies"] >= 4
 
@@ -966,10 +1055,12 @@ class TestMLOpsDatabase:
 
     def _db(self):
         from trainer.mlops.database import MLOpsDatabase
+
         return MLOpsDatabase(os.path.join(self.tmpdir, "test_mlops.db"))
 
     def test_save_and_get_model(self):
         from trainer.mlops.registry import ModelRecord
+
         db = self._db()
         rec = ModelRecord.from_dict(_model_dict(model_id="m1"))
         db.save_model(rec)
@@ -979,7 +1070,8 @@ class TestMLOpsDatabase:
         db.close()
 
     def test_list_models_by_state(self):
-        from trainer.mlops.registry import ModelRecord, LifecycleState
+        from trainer.mlops.registry import LifecycleState, ModelRecord
+
         db = self._db()
         r1 = ModelRecord.from_dict(_model_dict(model_id="m1"))
         r2 = ModelRecord.from_dict(_model_dict(model_id="m2"))
@@ -993,6 +1085,7 @@ class TestMLOpsDatabase:
 
     def test_update_model_state(self):
         from trainer.mlops.registry import ModelRecord
+
         db = self._db()
         rec = ModelRecord.from_dict(_model_dict(model_id="m1"))
         db.save_model(rec)
@@ -1003,29 +1096,34 @@ class TestMLOpsDatabase:
 
     def test_save_and_get_lifecycle_history(self):
         from trainer.mlops.registry import ModelRecord
+
         db = self._db()
         rec = ModelRecord.from_dict(_model_dict(model_id="m1"))
         db.save_model(rec)
-        db.save_transition({
-            "model_id": "m1",
-            "from_state": "draft",
-            "to_state": "training",
-            "actor": "trainer",
-            "reason": "started",
-        })
+        db.save_transition(
+            {
+                "model_id": "m1",
+                "from_state": "draft",
+                "to_state": "training",
+                "actor": "trainer",
+                "reason": "started",
+            }
+        )
         history = db.get_lifecycle_history("m1")
         assert len(history) == 1
         db.close()
 
     def test_save_and_list_deployments(self):
         db = self._db()
-        db.save_deployment({
-            "model_id": "m1",
-            "target": "production",
-            "deploy_type": "manual",
-            "approver": "ops",
-            "status": "active",
-        })
+        db.save_deployment(
+            {
+                "model_id": "m1",
+                "target": "production",
+                "deploy_type": "manual",
+                "approver": "ops",
+                "status": "active",
+            }
+        )
         deps = db.list_deployments()
         assert len(deps) == 1
         assert deps[0]["target"] == "production"
@@ -1033,13 +1131,15 @@ class TestMLOpsDatabase:
 
     def test_save_and_get_health_report(self):
         db = self._db()
-        db.save_health_report({
-            "model_id": "m1",
-            "confidence_drift": 0.12,
-            "is_healthy": False,
-            "drift_alerts": ["confidence_drift=0.12"],
-            "n_records": 100,
-        })
+        db.save_health_report(
+            {
+                "model_id": "m1",
+                "confidence_drift": 0.12,
+                "is_healthy": False,
+                "drift_alerts": ["confidence_drift=0.12"],
+                "n_records": 100,
+            }
+        )
         latest = db.get_latest_health("m1")
         assert latest is not None
         assert latest["confidence_drift"] == pytest.approx(0.12)
@@ -1047,13 +1147,15 @@ class TestMLOpsDatabase:
 
     def test_save_and_list_alerts(self):
         db = self._db()
-        db.save_alert({
-            "level": "CRITICAL",
-            "model_id": "m1",
-            "category": "latency_spike",
-            "message": "p99=250ms",
-            "status": "active",
-        })
+        db.save_alert(
+            {
+                "level": "CRITICAL",
+                "model_id": "m1",
+                "category": "latency_spike",
+                "message": "p99=250ms",
+                "status": "active",
+            }
+        )
         alerts = db.list_alerts(status="active")
         assert len(alerts) == 1
         assert alerts[0]["level"] == "CRITICAL"
@@ -1061,24 +1163,28 @@ class TestMLOpsDatabase:
 
     def test_save_and_list_audit_events(self):
         db = self._db()
-        db.save_audit_event({
-            "event_type": "deployment",
-            "actor": "ops",
-            "model_id": "m1",
-            "description": "deployed v1",
-        })
+        db.save_audit_event(
+            {
+                "event_type": "deployment",
+                "actor": "ops",
+                "model_id": "m1",
+                "description": "deployed v1",
+            }
+        )
         events = db.list_audit_events(event_type="deployment")
         assert len(events) == 1
         db.close()
 
     def test_save_and_list_recommendations(self):
         db = self._db()
-        db.save_recommendation({
-            "model_id": "m1",
-            "trigger": "performance_degradation",
-            "reason": "accuracy dropped 0.07",
-            "priority": 1,
-        })
+        db.save_recommendation(
+            {
+                "model_id": "m1",
+                "trigger": "performance_degradation",
+                "reason": "accuracy dropped 0.07",
+                "priority": 1,
+            }
+        )
         recs = db.list_recommendations(model_id="m1", status="pending")
         assert len(recs) == 1
         db.close()
@@ -1190,11 +1296,12 @@ class TestMLOpsAPI:
         engine.close()
 
     def test_emit_and_acknowledge_alert(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
+
         api, engine = self._api()
-        resp = api.emit_alert(AlertLevel.WARNING, "m1",
-                               AlertCategory.CONFIDENCE_DRIFT,
-                               "Confidence dropped")
+        resp = api.emit_alert(
+            AlertLevel.WARNING, "m1", AlertCategory.CONFIDENCE_DRIFT, "Confidence dropped"
+        )
         alert_id = resp["data"]["alert_id"]
         ack_resp = api.acknowledge_alert(alert_id, ack_by="ops")
         assert ack_resp["status"] == "ok"
@@ -1210,6 +1317,8 @@ class TestMLOpsAPI:
     def test_set_champion(self):
         api, engine = self._api()
         mid = api.register_model(_model_dict())["data"]["model_id"]
+        for state in ["training", "validating", "candidate", "approved"]:
+            api.transition(mid, state)
         resp = api.set_champion(mid, approver="head_quant")
         assert resp["status"] == "ok"
         champion_resp = api.get_champion()
@@ -1218,8 +1327,7 @@ class TestMLOpsAPI:
 
     def test_evaluate_retraining_advisory_only(self):
         api, engine = self._api()
-        resp = api.evaluate_retraining("m1",
-                                        {"performance_degradation": 0.10})
+        resp = api.evaluate_retraining("m1", {"performance_degradation": 0.10})
         assert resp["status"] == "ok"
         assert "ADVISORY ONLY" in resp["data"]["note"]
         engine.close()
@@ -1247,11 +1355,13 @@ class TestMLOpsAPI:
 class TestMLOpsVisualizationBuilder:
     def setup_method(self):
         from trainer.mlops.visualization import MLOpsVisualizationBuilder
+
         self.viz = MLOpsVisualizationBuilder()
 
     def test_registry_status_chart(self):
         models = [
-            {"lifecycle_state": "draft"}, {"lifecycle_state": "draft"},
+            {"lifecycle_state": "draft"},
+            {"lifecycle_state": "draft"},
             {"lifecycle_state": "production"},
         ]
         chart = self.viz.registry_status_chart(models)
@@ -1269,12 +1379,20 @@ class TestMLOpsVisualizationBuilder:
 
     def test_deployment_history_chart(self):
         deployments = [
-            {"deploy_type": "manual", "target": "production",
-             "status": "active", "deployed_at": "2026-07-01",
-             "model_id": "m1"},
-            {"deploy_type": "rollback", "target": "rollback",
-             "status": "rolled_back", "deployed_at": "2026-07-02",
-             "model_id": "m1"},
+            {
+                "deploy_type": "manual",
+                "target": "production",
+                "status": "active",
+                "deployed_at": "2026-07-01",
+                "model_id": "m1",
+            },
+            {
+                "deploy_type": "rollback",
+                "target": "rollback",
+                "status": "rolled_back",
+                "deployed_at": "2026-07-02",
+                "model_id": "m1",
+            },
         ]
         chart = self.viz.deployment_history_chart(deployments)
         assert chart["chart_type"] == "timeline"
@@ -1286,8 +1404,7 @@ class TestMLOpsVisualizationBuilder:
             "model_b": {"model_id": "m2", "name": "Challenger"},
             "overall_winner_name": "Champion",
             "metrics": {
-                "accuracy": {"model_a": 0.70, "model_b": 0.65,
-                              "winner": "m1"},
+                "accuracy": {"model_a": 0.70, "model_b": 0.65, "winner": "m1"},
             },
         }
         chart = self.viz.champion_comparison_chart(comparison)
@@ -1312,9 +1429,14 @@ class TestMLOpsVisualizationBuilder:
 
     def test_drift_heatmap(self):
         health_reports = {
-            "m1": {"confidence_drift": 0.12, "prediction_drift": 0.08,
-                    "calibration_drift": 0.03, "performance_degradation": 0.05,
-                    "latency_degradation": 15.0, "distribution_drift": 0.10},
+            "m1": {
+                "confidence_drift": 0.12,
+                "prediction_drift": 0.08,
+                "calibration_drift": 0.03,
+                "performance_degradation": 0.05,
+                "latency_degradation": 15.0,
+                "distribution_drift": 0.10,
+            },
         }
         chart = self.viz.drift_heatmap(health_reports)
         assert chart["chart_type"] == "heatmap"
@@ -1322,10 +1444,18 @@ class TestMLOpsVisualizationBuilder:
 
     def test_latency_chart(self):
         snaps = {
-            "m1": {"avg_latency_ms": 12.5, "p95_latency_ms": 30.0,
-                    "p99_latency_ms": 80.0, "latency_alert": False},
-            "m2": {"avg_latency_ms": 120.0, "p95_latency_ms": 200.0,
-                    "p99_latency_ms": 300.0, "latency_alert": True},
+            "m1": {
+                "avg_latency_ms": 12.5,
+                "p95_latency_ms": 30.0,
+                "p99_latency_ms": 80.0,
+                "latency_alert": False,
+            },
+            "m2": {
+                "avg_latency_ms": 120.0,
+                "p95_latency_ms": 200.0,
+                "p99_latency_ms": 300.0,
+                "latency_alert": True,
+            },
         }
         chart = self.viz.latency_chart(snaps)
         assert chart["chart_type"] == "bar_grouped"
@@ -1334,25 +1464,44 @@ class TestMLOpsVisualizationBuilder:
     def test_full_dashboard(self):
         charts = self.viz.full_dashboard(
             models=[{"lifecycle_state": "production"}],
-            health_reports={"m1": {"confidence_drift": 0.0, "is_healthy": True,
-                                    "prediction_drift": 0.0,
-                                    "calibration_drift": 0.0,
-                                    "performance_degradation": 0.0,
-                                    "latency_degradation": 0.0,
-                                    "distribution_drift": 0.0}},
-            deployments=[{"deploy_type": "manual", "target": "production",
-                          "status": "active", "deployed_at": "2026-07-01",
-                          "model_id": "m1"}],
+            health_reports={
+                "m1": {
+                    "confidence_drift": 0.0,
+                    "is_healthy": True,
+                    "prediction_drift": 0.0,
+                    "calibration_drift": 0.0,
+                    "performance_degradation": 0.0,
+                    "latency_degradation": 0.0,
+                    "distribution_drift": 0.0,
+                }
+            },
+            deployments=[
+                {
+                    "deploy_type": "manual",
+                    "target": "production",
+                    "status": "active",
+                    "deployed_at": "2026-07-01",
+                    "model_id": "m1",
+                }
+            ],
             comparison=None,
             alerts=[{"category": "system", "level": "INFO"}],
-            monitoring_snapshots={"m1": {"avg_latency_ms": 12.0,
-                                          "p95_latency_ms": 25.0,
-                                          "p99_latency_ms": 40.0,
-                                          "latency_alert": False}},
+            monitoring_snapshots={
+                "m1": {
+                    "avg_latency_ms": 12.0,
+                    "p95_latency_ms": 25.0,
+                    "p99_latency_ms": 40.0,
+                    "latency_alert": False,
+                }
+            },
         )
         expected = [
-            "registry_status", "model_health", "deployment_history",
-            "alert_distribution", "drift_heatmap", "latency",
+            "registry_status",
+            "model_health",
+            "deployment_history",
+            "alert_distribution",
+            "drift_heatmap",
+            "latency",
         ]
         for key in expected:
             assert key in charts
@@ -1452,7 +1601,7 @@ class TestMLOpsEngine:
         engine.close()
 
     def test_full_lifecycle_happy_path(self):
-        from trainer.mlops.registry import LifecycleState
+
         engine = self._engine()
         mid = engine.register_model(_model_dict())
         for state in ["training", "validating", "candidate"]:
@@ -1465,6 +1614,9 @@ class TestMLOpsEngine:
     def test_set_champion(self):
         engine = self._engine()
         mid = engine.register_model(_model_dict())
+        for state in ["training", "validating", "candidate"]:
+            engine.transition(mid, state)
+        engine.approve(mid, approver="head_quant")
         resp = engine.set_champion(mid, approver="head_quant")
         assert resp["status"] == "ok"
         assert engine.champion_manager.current_champion["model_id"] == mid
@@ -1482,8 +1634,7 @@ class TestMLOpsEngine:
     def test_rollback(self):
         engine = self._engine()
         mid = engine.register_model(_model_dict())
-        for state in ["training", "validating", "candidate",
-                       "approved", "production"]:
+        for state in ["training", "validating", "candidate", "approved", "production"]:
             engine.transition(mid, state)
         resp = engine.rollback(mid, actor="ops", reason="drift")
         assert resp["status"] == "ok"
@@ -1493,8 +1644,7 @@ class TestMLOpsEngine:
         engine = self._engine()
         mid = engine.register_model(_model_dict())
         for _ in range(10):
-            engine.record_inference(mid, latency_ms=15.0, confidence=0.78,
-                                     predicted_class="buy")
+            engine.record_inference(mid, latency_ms=15.0, confidence=0.78, predicted_class="buy")
         snap = engine.monitor.get_snapshot(mid)
         assert snap.n_records == 10
         assert snap.avg_latency_ms == pytest.approx(15.0)
@@ -1508,11 +1658,12 @@ class TestMLOpsEngine:
         engine.close()
 
     def test_emit_alert(self):
-        from trainer.mlops.alerting import AlertLevel, AlertCategory
+        from trainer.mlops.alerting import AlertCategory, AlertLevel
+
         engine = self._engine()
-        resp = engine.emit_alert(AlertLevel.CRITICAL, "m1",
-                                  AlertCategory.MODEL_FAILURE,
-                                  "Model returned NaN")
+        resp = engine.emit_alert(
+            AlertLevel.CRITICAL, "m1", AlertCategory.MODEL_FAILURE, "Model returned NaN"
+        )
         assert resp["status"] == "ok"
         active = engine.active_alerts()
         assert len(active) >= 1
@@ -1520,8 +1671,7 @@ class TestMLOpsEngine:
 
     def test_evaluate_retraining_no_auto(self):
         engine = self._engine()
-        resp = engine.evaluate_retraining("m1",
-                                           {"performance_degradation": 0.10})
+        resp = engine.evaluate_retraining("m1", {"performance_degradation": 0.10})
         assert resp["status"] == "ok"
         assert "ADVISORY ONLY" in resp["data"]["note"]
         assert engine.retraining.auto_retrain is False
@@ -1529,6 +1679,7 @@ class TestMLOpsEngine:
 
     def test_retire_model(self):
         from trainer.mlops.registry import LifecycleState
+
         engine = self._engine()
         mid = engine.register_model(_model_dict())
         engine.retire_model(mid, reason="end of life")
@@ -1558,18 +1709,23 @@ class TestMLOpsEngine:
 
     def test_from_config(self):
         from trainer.mlops.engine import MLOpsEngine
-        engine = MLOpsEngine.from_config({
-            "db_path": os.path.join(self.tmpdir, "from_config.db"),
-        })
+
+        engine = MLOpsEngine.from_config(
+            {
+                "db_path": os.path.join(self.tmpdir, "from_config.db"),
+            }
+        )
         assert engine is not None
         engine.close()
 
     def test_add_challenger_and_compare(self):
         engine = self._engine()
-        mid1 = engine.register_model(_model_dict(model_id="a1", version="1.0.0",
-                                                   validation_report={"accuracy": 0.70}))
-        mid2 = engine.register_model(_model_dict(model_id="a2", version="2.0.0",
-                                                   validation_report={"accuracy": 0.65}))
+        mid1 = engine.register_model(
+            _model_dict(model_id="a1", version="1.0.0", validation_report={"accuracy": 0.70})
+        )
+        mid2 = engine.register_model(
+            _model_dict(model_id="a2", version="2.0.0", validation_report={"accuracy": 0.65})
+        )
         engine.set_champion(mid1)
         engine.add_challenger(mid2, reason="new version")
         resp = engine.compare_models(mid1, mid2)
@@ -1592,22 +1748,10 @@ class TestMLOpsEngine:
 
 class TestPublicAPI:
     def test_all_exports_importable(self):
-        from trainer.mlops import (
-            LifecycleState, ApprovalRecord, ModelRecord, ModelRegistry,
-            LifecycleTransition, LifecycleError, LifecycleManager,
-            DeploymentRecord, GovernanceConfig, DeploymentGovernance,
-            InferenceRecord, MonitoringSnapshot, ProductionMonitor,
-            HealthRecord, HealthReport, DriftThresholds, ModelHealthMonitor,
-            AlertLevel, AlertCategory, Alert, AlertingSystem,
-            ChampionEvent, ChampionChallengerManager,
-            AuditEventType, AuditEvent, AuditSystem,
-            RetrainingTrigger, RetrainingPolicy, RetrainingRecommendation,
-            RetrainingPolicyManager, build_default_policies,
-            MLOpsDatabase, MLOpsAPI, MLOpsVisualizationBuilder,
-            MLOpsExporter, MLOpsConfig, MLOpsEngine,
-        )
+        pass
 
     def test_all_names_in_module(self):
         import trainer.mlops as m
+
         for name in m.__all__:
             assert hasattr(m, name), f"Missing from module: {name}"

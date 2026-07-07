@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from trainer.research.benchmark.runner import BenchmarkResult
 from trainer.research.experiment.record import ExperimentRecord
@@ -55,7 +54,7 @@ class ReportGenerator:
         config: ReportConfig.
     """
 
-    def __init__(self, config: Optional[ReportConfig] = None) -> None:
+    def __init__(self, config: ReportConfig | None = None) -> None:
         self._cfg = config or ReportConfig()
 
     # ------------------------------------------------------------------
@@ -80,7 +79,7 @@ class ReportGenerator:
     def generate_benchmark_report(
         self,
         result: BenchmarkResult,
-        leaderboard: Optional[Leaderboard] = None,
+        leaderboard: Leaderboard | None = None,
     ) -> list[Path]:
         """Generate a full benchmark comparison report.
 
@@ -111,7 +110,7 @@ class ReportGenerator:
         """
         data = {
             "title": f"{self._cfg.title} — Leaderboard",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "leaderboard": leaderboard.to_dict(),
         }
         return self._write_all(data, stem="leaderboard")
@@ -123,7 +122,7 @@ class ReportGenerator:
     def _experiment_report_data(self, rec: ExperimentRecord) -> dict[str, Any]:
         return {
             "title": f"{self._cfg.title} — Experiment {rec.experiment_id[:8]}",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "experiment": rec.to_dict(),
         }
 
@@ -144,7 +143,7 @@ class ReportGenerator:
 
         return {
             "title": f"{self._cfg.title} — Benchmark {result.benchmark_id[:8]}",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "conditions": result.conditions.to_dict(),
             "runs_summary": result.to_dict()["runs"],
             "leaderboard": lb.to_dict(),
@@ -160,7 +159,10 @@ class ReportGenerator:
     def _write_all(self, data: dict[str, Any], stem: str) -> list[Path]:
         """Write the data dict in all configured formats."""
         from trainer.research.report.exporters import (
-            export_csv, export_html, export_json, export_markdown,
+            export_csv,
+            export_html,
+            export_json,
+            export_markdown,
         )
 
         out_dir = Path(self._cfg.output_dir)

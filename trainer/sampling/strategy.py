@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset, WeightedRandomSampler
+from torch.utils.data import WeightedRandomSampler
 
 from trainer.models.quant_v1.config import BalancingConfig, BalancingStrategy
 
@@ -214,9 +214,7 @@ class BalancingStrategyBuilder:
             return weights
         return None
 
-    def apply_index_strategy(
-        self, indices: list[int], labels: Sequence[int]
-    ) -> list[int]:
+    def apply_index_strategy(self, indices: list[int], labels: Sequence[int]) -> list[int]:
         """Apply oversample or undersample to dataset indices.
 
         Args:

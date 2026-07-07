@@ -3,25 +3,27 @@
 from __future__ import annotations
 
 import statistics
-from typing import Dict, List, Tuple
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import (
-    MarketRegime, RiskRegime, RISK_REGIME_MULTIPLIERS, clamp,
-)
 from trainer.mie.mie_models import MarketInput, RiskIntelligenceResult
+from trainer.mie.mie_types import (
+    RISK_REGIME_MULTIPLIERS,
+    RiskRegime,
+    clamp,
+)
 
 
-def _mean(vals: List[float]) -> float:
+def _mean(vals: list[float]) -> float:
     return statistics.mean(vals) if vals else 0.0
 
 
-def _stdev(vals: List[float]) -> float:
+def _stdev(vals: list[float]) -> float:
     return statistics.stdev(vals) if len(vals) >= 2 else 0.0
 
 
@@ -41,15 +43,15 @@ class RiskIntelligenceEngine:
 
     def __init__(
         self,
-        vol_high_thresh:    float = 2.0,
+        vol_high_thresh: float = 2.0,
         vol_extreme_thresh: float = 4.0,
-        spread_pct_warn:    float = 0.002,
+        spread_pct_warn: float = 0.002,
         spread_pct_extreme: float = 0.010,
     ) -> None:
-        self._vol_high    = vol_high_thresh
+        self._vol_high = vol_high_thresh
         self._vol_extreme = vol_extreme_thresh
         self._spread_warn = spread_pct_warn
-        self._spread_ext  = spread_pct_extreme
+        self._spread_ext = spread_pct_extreme
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -57,7 +59,7 @@ class RiskIntelligenceEngine:
         factors, warnings = self._score_factors(inp)
         risk_score = clamp(sum(factors.values()), 0.0, 100.0)
         regime = self._map_regime(risk_score, inp)
-        mult   = RISK_REGIME_MULTIPLIERS.get(regime, 1.0)
+        mult = RISK_REGIME_MULTIPLIERS.get(regime, 1.0)
         logger.debug(f"[RI] {inp.symbol} → {regime.value} score={risk_score:.1f}")
         return RiskIntelligenceResult(
             regime=regime,
@@ -72,20 +74,25 @@ class RiskIntelligenceEngine:
     def _score_factors(
         self,
         inp: MarketInput,
-    ) -> Tuple[Dict[str, float], List[str]]:
-        factors: Dict[str, float] = {}
-        warnings: List[str] = []
+    ) -> tuple[dict[str, float], list[str]]:
+        factors: dict[str, float] = {}
+        warnings: list[str] = []
 
         # 1. Volatility ratio (0-25)
-        returns   = inp.returns or []
-        curr_vol  = _stdev(returns[-20:]) if len(returns) >= 2 else 0.0
-        base_vol  = _stdev(returns[-60:]) if len(returns) >= 10 else max(curr_vol, 1e-9)
+        returns = inp.returns or []
+        curr_vol = _stdev(returns[-20:]) if len(returns) >= 2 else 0.0
+        base_vol = _stdev(returns[-60:]) if len(returns) >= 10 else max(curr_vol, 1e-9)
         vol_ratio = curr_vol / max(base_vol, 1e-9)
         if vol_ratio >= self._vol_extreme:
             factors["volatility"] = 25.0
             warnings.append(f"Extreme volatility: ratio={vol_ratio:.2f}")
         elif vol_ratio >= self._vol_high:
-            factors["volatility"] = 15.0 + (vol_ratio - self._vol_high) / max(self._vol_extreme - self._vol_high, 1e-9) * 10.0
+            factors["volatility"] = (
+                15.0
+                + (vol_ratio - self._vol_high)
+                / max(self._vol_extreme - self._vol_high, 1e-9)
+                * 10.0
+            )
         else:
             factors["volatility"] = clamp((vol_ratio - 1.0) * 10.0, 0.0, 15.0)
 
@@ -113,8 +120,8 @@ class RiskIntelligenceEngine:
             factors["spread"] = clamp(spread_frac * 50.0, 0.0, 10.0)
 
         # 3. Liquidity stress via volume vs. baseline (0-20)
-        vols     = inp.volumes or []
-        avg_vol  = _mean(vols[-20:]) if len(vols) >= 5 else inp.volume
+        vols = inp.volumes or []
+        avg_vol = _mean(vols[-20:]) if len(vols) >= 5 else inp.volume
         vol_frac = inp.volume / max(avg_vol, 1.0)
         if vol_frac < 0.1:
             factors["liquidity"] = 20.0
@@ -127,10 +134,10 @@ class RiskIntelligenceEngine:
             factors["liquidity"] = 0.0
 
         # 4. News events (0-15)
-        news       = inp.news_events or []
+        news = inp.news_events or []
         high_count = sum(1 for e in news if e.get("impact", "NONE") == "HIGH")
-        med_count  = sum(1 for e in news if e.get("impact", "NONE") == "MEDIUM")
-        news_pts   = min(15.0, high_count * 7.0 + med_count * 3.0)
+        med_count = sum(1 for e in news if e.get("impact", "NONE") == "MEDIUM")
+        news_pts = min(15.0, high_count * 7.0 + med_count * 3.0)
         factors["news"] = news_pts
         if news_pts >= 7.0:
             warnings.append(f"High-impact news: {high_count} events")
@@ -152,11 +159,11 @@ class RiskIntelligenceEngine:
     # ── Regime mapping ─────────────────────────────────────────────────────
 
     def _map_regime(self, score: float, inp: MarketInput) -> RiskRegime:
-        news       = inp.news_events or []
+        news = inp.news_events or []
         high_count = sum(1 for e in news if e.get("impact", "NONE") == "HIGH")
-        vols       = inp.volumes or []
-        avg_vol    = _mean(vols[-20:]) if len(vols) >= 5 else inp.volume
-        vol_frac   = inp.volume / max(avg_vol, 1.0)
+        vols = inp.volumes or []
+        avg_vol = _mean(vols[-20:]) if len(vols) >= 5 else inp.volume
+        vol_frac = inp.volume / max(avg_vol, 1.0)
 
         # High-impact news override — always at least NEWS_EVENT when score is low
         if high_count >= 1 and score < 50:
@@ -164,14 +171,14 @@ class RiskIntelligenceEngine:
 
         # Special overrides
         if score >= 75:
-            returns  = inp.returns or []
+            returns = inp.returns or []
             curr_vol = _stdev(returns[-5:]) if len(returns) >= 2 else 0.0
             base_vol = _stdev(returns[-60:]) if len(returns) >= 10 else max(curr_vol, 1e-9)
             if curr_vol / max(base_vol, 1e-9) > 4.0:
                 return RiskRegime.BLACK_SWAN
             return RiskRegime.EXTREME
         if score >= 60:
-            returns  = inp.returns or []
+            returns = inp.returns or []
             curr_vol = _stdev(returns[-5:]) if len(returns) >= 2 else 0.0
             base_vol = _stdev(returns[-60:]) if len(returns) >= 10 else max(curr_vol, 1e-9)
             if curr_vol / max(base_vol, 1e-9) > 2.5:

@@ -22,13 +22,12 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Stress result
@@ -131,12 +130,12 @@ class RobustnessTester:
         self,
         seed: int = 42,
         tolerance: float = 0.20,
-        missing_fractions: Optional[list[float]] = None,
-        noise_levels: Optional[list[float]] = None,
-        spread_multipliers: Optional[list[float]] = None,
-        latency_shifts: Optional[list[int]] = None,
-        gap_fractions: Optional[list[float]] = None,
-        spike_multipliers: Optional[list[float]] = None,
+        missing_fractions: list[float] | None = None,
+        noise_levels: list[float] | None = None,
+        spread_multipliers: list[float] | None = None,
+        latency_shifts: list[int] | None = None,
+        gap_fractions: list[float] | None = None,
+        spike_multipliers: list[float] | None = None,
         crash_window: int = 20,
     ) -> None:
         self._seed = seed
@@ -171,51 +170,59 @@ class RobustnessTester:
 
         for frac in self._missing:
             x_stressed = self._apply_missing_candles(x_val.clone(), frac, rng)
-            scenarios.append(self._make_result(
-                "MissingCandles", frac, baseline_acc, model, x_stressed, y_val
-            ))
+            scenarios.append(
+                self._make_result("MissingCandles", frac, baseline_acc, model, x_stressed, y_val)
+            )
 
         for level in self._noise:
             x_stressed = self._apply_noise(x_val.clone(), level, rng)
-            scenarios.append(self._make_result(
-                "NoisyData", level, baseline_acc, model, x_stressed, y_val
-            ))
+            scenarios.append(
+                self._make_result("NoisyData", level, baseline_acc, model, x_stressed, y_val)
+            )
 
         for mult in self._spread:
-            scenarios.append(StressScenarioResult(
-                scenario_name="SpreadExpansion",
-                parameter=mult,
-                baseline_accuracy=baseline_acc,
-                stressed_accuracy=baseline_acc,  # doesn't change model accuracy
-                accuracy_delta=0.0,
-                relative_degradation=0.0,
-                passed=True,
-                details={"note": "Spread affects trading metrics only, not classification accuracy."},
-            ))
+            scenarios.append(
+                StressScenarioResult(
+                    scenario_name="SpreadExpansion",
+                    parameter=mult,
+                    baseline_accuracy=baseline_acc,
+                    stressed_accuracy=baseline_acc,  # doesn't change model accuracy
+                    accuracy_delta=0.0,
+                    relative_degradation=0.0,
+                    passed=True,
+                    details={
+                        "note": "Spread affects trading metrics only, not classification accuracy."
+                    },
+                )
+            )
 
         for shift in self._latency:
             x_stressed = self._apply_latency(x_val.clone(), shift)
-            scenarios.append(self._make_result(
-                "LatencyDelay", float(shift), baseline_acc, model, x_stressed, y_val
-            ))
+            scenarios.append(
+                self._make_result(
+                    "LatencyDelay", float(shift), baseline_acc, model, x_stressed, y_val
+                )
+            )
 
         for frac in self._gaps:
             x_stressed = self._apply_data_gaps(x_val.clone(), frac, rng)
-            scenarios.append(self._make_result(
-                "DataGaps", frac, baseline_acc, model, x_stressed, y_val
-            ))
+            scenarios.append(
+                self._make_result("DataGaps", frac, baseline_acc, model, x_stressed, y_val)
+            )
 
         for mult in self._spikes:
             x_stressed = self._apply_volatility_spike(x_val.clone(), mult, rng)
-            scenarios.append(self._make_result(
-                "VolatilitySpike", mult, baseline_acc, model, x_stressed, y_val
-            ))
+            scenarios.append(
+                self._make_result("VolatilitySpike", mult, baseline_acc, model, x_stressed, y_val)
+            )
 
         # Market crash: reverse a random window
         x_stressed = self._apply_market_crash(x_val.clone(), rng)
-        scenarios.append(self._make_result(
-            "MarketCrash", float(self._crash_w), baseline_acc, model, x_stressed, y_val
-        ))
+        scenarios.append(
+            self._make_result(
+                "MarketCrash", float(self._crash_w), baseline_acc, model, x_stressed, y_val
+            )
+        )
 
         passed = sum(1 for s in scenarios if s.passed)
         robustness_score = passed / len(scenarios) if scenarios else 0.0
@@ -262,9 +269,7 @@ class RobustnessTester:
     @staticmethod
     def _apply_noise(x: torch.Tensor, level: float, rng) -> torch.Tensor:
         scale = float(x.abs().max().item()) * level
-        noise = torch.tensor(
-            rng.normal(0, scale, x.shape), dtype=x.dtype
-        )
+        noise = torch.tensor(rng.normal(0, scale, x.shape), dtype=x.dtype)
         return x + noise
 
     @staticmethod
@@ -294,13 +299,11 @@ class RobustnessTester:
         if n <= self._crash_w:
             return x
         start = int(rng.integers(0, n - self._crash_w))
-        x[start:start + self._crash_w] = -x[start:start + self._crash_w]
+        x[start : start + self._crash_w] = -x[start : start + self._crash_w]
         return x
 
     @torch.no_grad()
-    def _eval_accuracy(
-        self, model: nn.Module, x: torch.Tensor, y: torch.Tensor
-    ) -> float:
+    def _eval_accuracy(self, model: nn.Module, x: torch.Tensor, y: torch.Tensor) -> float:
         was_training = model.training
         model.eval()
         try:

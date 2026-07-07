@@ -12,14 +12,12 @@ Estimates portfolio resilience across each scenario.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
+from trainer.portfolio.correlation_engine import CorrelationMatrix
 from trainer.portfolio.portfolio_instruments import ModelForecast
 from trainer.portfolio.portfolio_scorer import PortfolioMetrics, PortfolioScorer
-from trainer.portfolio.correlation_engine import CorrelationMatrix
 
 
 class ScenarioType(str, Enum):
@@ -41,85 +39,141 @@ class ScenarioType(str, Enum):
 
 
 # Scenario shocks: how each scenario modifies expected returns by instrument tag
-SCENARIO_RETURN_SHOCKS: Dict[str, Dict[str, float]] = {
+SCENARIO_RETURN_SHOCKS: dict[str, dict[str, float]] = {
     ScenarioType.RISK_ON.value: {
-        "risk_on": +0.15, "safe_haven": -0.10, "gold": -0.05,
-        "commodity_currency": +0.10, "tech": +0.12, "crypto": +0.20,
+        "risk_on": +0.15,
+        "safe_haven": -0.10,
+        "gold": -0.05,
+        "commodity_currency": +0.10,
+        "tech": +0.12,
+        "crypto": +0.20,
     },
     ScenarioType.RISK_OFF.value: {
-        "risk_on": -0.20, "safe_haven": +0.15, "gold": +0.12,
-        "commodity_currency": -0.12, "tech": -0.18, "crypto": -0.25,
+        "risk_on": -0.20,
+        "safe_haven": +0.15,
+        "gold": +0.12,
+        "commodity_currency": -0.12,
+        "tech": -0.18,
+        "crypto": -0.25,
     },
     ScenarioType.HIGH_INFLATION.value: {
-        "gold": +0.15, "commodity_currency": +0.08, "crypto": +0.05,
-        "index": -0.08, "usd": -0.05, "bond": -0.12,
+        "gold": +0.15,
+        "commodity_currency": +0.08,
+        "crypto": +0.05,
+        "index": -0.08,
+        "usd": -0.05,
+        "bond": -0.12,
     },
     ScenarioType.LOW_INFLATION.value: {
-        "gold": -0.08, "commodity_currency": -0.05,
-        "index": +0.06, "usd": +0.03, "bond": +0.08,
+        "gold": -0.08,
+        "commodity_currency": -0.05,
+        "index": +0.06,
+        "usd": +0.03,
+        "bond": +0.08,
     },
     ScenarioType.RATE_HIKE.value: {
-        "usd": +0.10, "jpy": -0.08, "gold": -0.10,
-        "index": -0.12, "tech": -0.15, "crypto": -0.15, "bond": -0.18,
+        "usd": +0.10,
+        "jpy": -0.08,
+        "gold": -0.10,
+        "index": -0.12,
+        "tech": -0.15,
+        "crypto": -0.15,
+        "bond": -0.18,
     },
     ScenarioType.RATE_CUT.value: {
-        "usd": -0.10, "gold": +0.08, "index": +0.10,
-        "tech": +0.12, "crypto": +0.10, "bond": +0.15,
+        "usd": -0.10,
+        "gold": +0.08,
+        "index": +0.10,
+        "tech": +0.12,
+        "crypto": +0.10,
+        "bond": +0.15,
     },
     ScenarioType.COMMODITY_SHOCK_UP.value: {
-        "gold": +0.20, "silver": +0.18, "commodity_currency": +0.15,
-        "aud": +0.10, "cad": +0.12, "index": -0.05,
+        "gold": +0.20,
+        "silver": +0.18,
+        "commodity_currency": +0.15,
+        "aud": +0.10,
+        "cad": +0.12,
+        "index": -0.05,
     },
     ScenarioType.COMMODITY_SHOCK_DOWN.value: {
-        "gold": -0.15, "silver": -0.18, "commodity_currency": -0.12,
-        "aud": -0.08, "cad": -0.10,
+        "gold": -0.15,
+        "silver": -0.18,
+        "commodity_currency": -0.12,
+        "aud": -0.08,
+        "cad": -0.10,
     },
     ScenarioType.VOLATILITY_SPIKE.value: {
-        "risk_on": -0.25, "safe_haven": +0.20, "gold": +0.15,
-        "crypto": -0.35, "tech": -0.22, "usd": +0.08,
+        "risk_on": -0.25,
+        "safe_haven": +0.20,
+        "gold": +0.15,
+        "crypto": -0.35,
+        "tech": -0.22,
+        "usd": +0.08,
     },
     ScenarioType.VOLATILITY_CRUSH.value: {
-        "risk_on": +0.08, "safe_haven": -0.05, "index": +0.07,
-        "crypto": +0.10, "tech": +0.08,
+        "risk_on": +0.08,
+        "safe_haven": -0.05,
+        "index": +0.07,
+        "crypto": +0.10,
+        "tech": +0.08,
     },
     ScenarioType.USD_RALLY.value: {
-        "usd": +0.15, "eur": -0.12, "gbp": -0.10, "aud": -0.12,
-        "nzd": -0.12, "gold": -0.12, "commodity_currency": -0.10,
+        "usd": +0.15,
+        "eur": -0.12,
+        "gbp": -0.10,
+        "aud": -0.12,
+        "nzd": -0.12,
+        "gold": -0.12,
+        "commodity_currency": -0.10,
     },
     ScenarioType.USD_SELLOFF.value: {
-        "usd": -0.15, "eur": +0.10, "gbp": +0.09, "aud": +0.12,
-        "nzd": +0.12, "gold": +0.12, "commodity_currency": +0.10,
+        "usd": -0.15,
+        "eur": +0.10,
+        "gbp": +0.09,
+        "aud": +0.12,
+        "nzd": +0.12,
+        "gold": +0.12,
+        "commodity_currency": +0.10,
     },
     ScenarioType.CREDIT_CRISIS.value: {
-        "risk_on": -0.35, "crypto": -0.50, "safe_haven": +0.25,
-        "gold": +0.20, "index": -0.30, "tech": -0.35,
+        "risk_on": -0.35,
+        "crypto": -0.50,
+        "safe_haven": +0.25,
+        "gold": +0.20,
+        "index": -0.30,
+        "tech": -0.35,
     },
     ScenarioType.LIQUIDITY_SQUEEZE.value: {
-        "risk_on": -0.20, "crypto": -0.40, "safe_haven": +0.15,
-        "gold": +0.10, "usd": +0.18, "index": -0.18,
+        "risk_on": -0.20,
+        "crypto": -0.40,
+        "safe_haven": +0.15,
+        "gold": +0.10,
+        "usd": +0.18,
+        "index": -0.18,
     },
 }
 
 # Scenario vol multipliers
-SCENARIO_VOL_MULTIPLIERS: Dict[str, float] = {
-    ScenarioType.RISK_ON.value:            0.9,
-    ScenarioType.RISK_OFF.value:           1.5,
-    ScenarioType.HIGH_INFLATION.value:     1.2,
-    ScenarioType.LOW_INFLATION.value:      0.9,
-    ScenarioType.RATE_HIKE.value:          1.3,
-    ScenarioType.RATE_CUT.value:           1.1,
+SCENARIO_VOL_MULTIPLIERS: dict[str, float] = {
+    ScenarioType.RISK_ON.value: 0.9,
+    ScenarioType.RISK_OFF.value: 1.5,
+    ScenarioType.HIGH_INFLATION.value: 1.2,
+    ScenarioType.LOW_INFLATION.value: 0.9,
+    ScenarioType.RATE_HIKE.value: 1.3,
+    ScenarioType.RATE_CUT.value: 1.1,
     ScenarioType.COMMODITY_SHOCK_UP.value: 1.4,
     ScenarioType.COMMODITY_SHOCK_DOWN.value: 1.3,
-    ScenarioType.VOLATILITY_SPIKE.value:   2.5,
-    ScenarioType.VOLATILITY_CRUSH.value:   0.6,
-    ScenarioType.USD_RALLY.value:          1.2,
-    ScenarioType.USD_SELLOFF.value:        1.2,
-    ScenarioType.CREDIT_CRISIS.value:      3.0,
-    ScenarioType.LIQUIDITY_SQUEEZE.value:  2.5,
+    ScenarioType.VOLATILITY_SPIKE.value: 2.5,
+    ScenarioType.VOLATILITY_CRUSH.value: 0.6,
+    ScenarioType.USD_RALLY.value: 1.2,
+    ScenarioType.USD_SELLOFF.value: 1.2,
+    ScenarioType.CREDIT_CRISIS.value: 3.0,
+    ScenarioType.LIQUIDITY_SQUEEZE.value: 2.5,
 }
 
 # Instrument → tag mapping for scenario shocks
-INSTRUMENT_TAGS: Dict[str, List[str]] = {
+INSTRUMENT_TAGS: dict[str, list[str]] = {
     "EURUSD": ["eur", "major"],
     "GBPUSD": ["gbp", "major"],
     "USDJPY": ["usd", "jpy", "major", "safe_haven"],
@@ -132,7 +186,7 @@ INSTRUMENT_TAGS: Dict[str, List[str]] = {
     "XAUUSD": ["gold", "commodity", "safe_haven"],
     "XAGUSD": ["silver", "commodity"],
     "NAS100": ["index", "tech", "risk_on"],
-    "US30":   ["index", "risk_on"],
+    "US30": ["index", "risk_on"],
     "SPX500": ["index", "risk_on"],
     "BTCUSD": ["crypto", "risk_on"],
     "ETHUSD": ["crypto", "risk_on"],
@@ -153,7 +207,7 @@ class ScenarioResult:
     volatility_impact: float
     sharpe_impact: float
     resilience_score: float
-    instrument_impacts: Dict[str, float] = field(default_factory=dict)
+    instrument_impacts: dict[str, float] = field(default_factory=dict)
     description: str = ""
 
     def is_resilient(self, min_stressed_sharpe: float = 0.0) -> bool:
@@ -181,16 +235,18 @@ class ScenarioResult:
 @dataclass
 class ScenarioReport:
     base_metrics: PortfolioMetrics
-    results: List[ScenarioResult]
-    worst_scenario: Optional[ScenarioResult] = None
-    best_scenario: Optional[ScenarioResult] = None
+    results: list[ScenarioResult]
+    worst_scenario: ScenarioResult | None = None
+    best_scenario: ScenarioResult | None = None
     average_resilience: float = 0.0
 
     def __post_init__(self) -> None:
         if self.results:
             self.worst_scenario = min(self.results, key=lambda r: r.stressed_sharpe)
             self.best_scenario = max(self.results, key=lambda r: r.stressed_sharpe)
-            self.average_resilience = sum(r.resilience_score for r in self.results) / len(self.results)
+            self.average_resilience = sum(r.resilience_score for r in self.results) / len(
+                self.results
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -213,10 +269,10 @@ class ScenarioAnalyser:
 
     def run_scenario(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
         scenario: ScenarioType,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        correlation_matrix: CorrelationMatrix | None = None,
         description: str = "",
     ) -> ScenarioResult:
         base_metrics = self._scorer.score(forecasts, weights, correlation_matrix)
@@ -225,9 +281,7 @@ class ScenarioAnalyser:
         stressed_fc_with_vol = self._scale_volatility(stressed_forecasts, vol_mult)
         stressed_metrics = self._scorer.score(stressed_fc_with_vol, weights, correlation_matrix)
 
-        impact_by_instrument = self._per_instrument_impact(
-            forecasts, stressed_forecasts, weights
-        )
+        impact_by_instrument = self._per_instrument_impact(forecasts, stressed_forecasts, weights)
         return_impact = stressed_metrics.expected_return - base_metrics.expected_return
         vol_impact = stressed_metrics.expected_volatility - base_metrics.expected_volatility
         sharpe_impact = stressed_metrics.expected_sharpe - base_metrics.expected_sharpe
@@ -252,30 +306,34 @@ class ScenarioAnalyser:
 
     def run_all(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
-        scenarios: Optional[List[ScenarioType]] = None,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
+        scenarios: list[ScenarioType] | None = None,
+        correlation_matrix: CorrelationMatrix | None = None,
     ) -> ScenarioReport:
         base_metrics = self._scorer.score(forecasts, weights, correlation_matrix)
         scenarios = scenarios or [
-            ScenarioType.RISK_ON, ScenarioType.RISK_OFF,
-            ScenarioType.HIGH_INFLATION, ScenarioType.LOW_INFLATION,
-            ScenarioType.RATE_HIKE, ScenarioType.RATE_CUT,
-            ScenarioType.VOLATILITY_SPIKE, ScenarioType.USD_RALLY,
-            ScenarioType.COMMODITY_SHOCK_UP, ScenarioType.CREDIT_CRISIS,
+            ScenarioType.RISK_ON,
+            ScenarioType.RISK_OFF,
+            ScenarioType.HIGH_INFLATION,
+            ScenarioType.LOW_INFLATION,
+            ScenarioType.RATE_HIKE,
+            ScenarioType.RATE_CUT,
+            ScenarioType.VOLATILITY_SPIKE,
+            ScenarioType.USD_RALLY,
+            ScenarioType.COMMODITY_SHOCK_UP,
+            ScenarioType.CREDIT_CRISIS,
         ]
         results = [
-            self.run_scenario(forecasts, weights, sc, correlation_matrix)
-            for sc in scenarios
+            self.run_scenario(forecasts, weights, sc, correlation_matrix) for sc in scenarios
         ]
         return ScenarioReport(base_metrics=base_metrics, results=results)
 
     def _apply_scenario(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         scenario: ScenarioType,
-    ) -> List[ModelForecast]:
+    ) -> list[ModelForecast]:
         shocks = SCENARIO_RETURN_SHOCKS.get(scenario.value, {})
         if not shocks:
             return forecasts
@@ -290,19 +348,21 @@ class ScenarioAnalyser:
 
             # Apply shock as modification to expected_return
             new_return = fc.expected_return + shock
-            stressed.append(ModelForecast(
-                instrument=fc.instrument,
-                direction=fc.direction,
-                confidence=fc.confidence,
-                expected_return=max(0.0, new_return),
-                expected_risk=fc.expected_risk,
-                timestamp=fc.timestamp,
-                metadata=dict(fc.metadata),
-            ))
+            stressed.append(
+                ModelForecast(
+                    instrument=fc.instrument,
+                    direction=fc.direction,
+                    confidence=fc.confidence,
+                    expected_return=max(0.0, new_return),
+                    expected_risk=fc.expected_risk,
+                    timestamp=fc.timestamp,
+                    metadata=dict(fc.metadata),
+                )
+            )
         return stressed
 
     @staticmethod
-    def _scale_volatility(forecasts: List[ModelForecast], mult: float) -> List[ModelForecast]:
+    def _scale_volatility(forecasts: list[ModelForecast], mult: float) -> list[ModelForecast]:
         return [
             ModelForecast(
                 instrument=fc.instrument,
@@ -318,10 +378,10 @@ class ScenarioAnalyser:
 
     @staticmethod
     def _per_instrument_impact(
-        base: List[ModelForecast],
-        stressed: List[ModelForecast],
-        weights: Dict[str, float],
-    ) -> Dict[str, float]:
+        base: list[ModelForecast],
+        stressed: list[ModelForecast],
+        weights: dict[str, float],
+    ) -> dict[str, float]:
         base_map = {f.instrument: f for f in base}
         stressed_map = {f.instrument: f for f in stressed}
         impacts = {}

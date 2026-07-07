@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -17,8 +16,8 @@ def upload(
     export_dir: Path = typer.Argument(..., help="Directory containing exported model files."),
     model_id: str = typer.Option(..., "--model-id", help="Signalium model ID."),
     version: str = typer.Option(..., "--version", help="Semantic version (e.g. 1.0.0)."),
-    run_id: Optional[str] = typer.Option(None, "--run-id", help="MLflow run ID."),
-    api_key: Optional[str] = typer.Option(
+    run_id: str | None = typer.Option(None, "--run-id", help="MLflow run ID."),
+    api_key: str | None = typer.Option(
         None, "--api-key", envvar="SIGNALIUM_API_KEY", help="Signalium API key."
     ),
 ) -> None:

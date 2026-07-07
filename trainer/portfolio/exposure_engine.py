@@ -7,13 +7,12 @@ and conflicting exposure.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
 from trainer.portfolio.portfolio_instruments import (
-    AssetClass, InstrumentInfo, InstrumentRegistry, ModelForecast,
+    InstrumentRegistry,
+    ModelForecast,
 )
 
 
@@ -31,7 +30,7 @@ class ExposureAlertItem:
     alert_type: ExposureAlert
     severity: str
     description: str
-    instruments: List[str]
+    instruments: list[str]
     value: float = 0.0
 
     def to_dict(self) -> dict:
@@ -46,16 +45,16 @@ class ExposureAlertItem:
 
 @dataclass
 class ExposureReport:
-    by_asset_class: Dict[str, float]
-    by_currency: Dict[str, float]
-    by_region: Dict[str, float]
-    by_instrument: Dict[str, float]
+    by_asset_class: dict[str, float]
+    by_currency: dict[str, float]
+    by_region: dict[str, float]
+    by_instrument: dict[str, float]
     gross_exposure: float
     net_exposure: float
     long_exposure: float
     short_exposure: float
     diversification_ratio: float
-    alerts: List[ExposureAlertItem] = field(default_factory=list)
+    alerts: list[ExposureAlertItem] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -77,18 +76,18 @@ class ExposureEngine:
 
     # Concentration thresholds (fractions of gross exposure)
     ASSET_CLASS_LIMIT = 0.70
-    CURRENCY_LIMIT    = 0.60
-    REGION_LIMIT      = 0.75
+    CURRENCY_LIMIT = 0.60
+    REGION_LIMIT = 0.75
     SINGLE_INSTRUMENT_LIMIT = 0.35
-    USD_NET_LIMIT     = 0.55
+    USD_NET_LIMIT = 0.55
 
-    def __init__(self, registry: Optional[InstrumentRegistry] = None) -> None:
+    def __init__(self, registry: InstrumentRegistry | None = None) -> None:
         self._registry = registry or InstrumentRegistry.default()
 
     def compute(
         self,
-        forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
     ) -> ExposureReport:
         if not forecasts:
             return ExposureReport({}, {}, {}, {}, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -98,10 +97,10 @@ class ExposureEngine:
             w = 1.0 / len(forecasts)
             weights = {f.instrument: w for f in forecasts}
 
-        by_asset: Dict[str, float] = {}
-        by_currency: Dict[str, float] = {}
-        by_region: Dict[str, float] = {}
-        by_instrument: Dict[str, float] = {}
+        by_asset: dict[str, float] = {}
+        by_currency: dict[str, float] = {}
+        by_region: dict[str, float] = {}
+        by_instrument: dict[str, float] = {}
         long_exp = 0.0
         short_exp = 0.0
 
@@ -137,7 +136,9 @@ class ExposureEngine:
         net = long_exp - short_exp
         div_ratio = self._diversification_ratio(by_instrument, gross)
 
-        alerts = self._detect_alerts(by_asset, by_currency, by_region, by_instrument, gross, forecasts)
+        alerts = self._detect_alerts(
+            by_asset, by_currency, by_region, by_instrument, gross, forecasts
+        )
 
         return ExposureReport(
             by_asset_class=by_asset,
@@ -153,7 +154,7 @@ class ExposureEngine:
         )
 
     @staticmethod
-    def _diversification_ratio(by_instrument: Dict[str, float], gross: float) -> float:
+    def _diversification_ratio(by_instrument: dict[str, float], gross: float) -> float:
         if gross < 1e-9 or not by_instrument:
             return 0.0
         n = len([v for v in by_instrument.values() if abs(v) > 1e-9])
@@ -164,14 +165,14 @@ class ExposureEngine:
 
     def _detect_alerts(
         self,
-        by_asset: Dict[str, float],
-        by_currency: Dict[str, float],
-        by_region: Dict[str, float],
-        by_instrument: Dict[str, float],
+        by_asset: dict[str, float],
+        by_currency: dict[str, float],
+        by_region: dict[str, float],
+        by_instrument: dict[str, float],
         gross: float,
-        forecasts: List[ModelForecast],
-    ) -> List[ExposureAlertItem]:
-        alerts: List[ExposureAlertItem] = []
+        forecasts: list[ModelForecast],
+    ) -> list[ExposureAlertItem]:
+        alerts: list[ExposureAlertItem] = []
         if gross < 1e-9:
             return alerts
 
@@ -179,62 +180,79 @@ class ExposureEngine:
         for cls_key, exp in by_asset.items():
             frac = abs(exp) / gross
             if frac > self.ASSET_CLASS_LIMIT:
-                alerts.append(ExposureAlertItem(
-                    alert_type=ExposureAlert.OVER_CONCENTRATION,
-                    severity="high",
-                    description=f"Asset class '{cls_key}' has {frac:.0%} of gross exposure.",
-                    instruments=[fc.instrument for fc in forecasts
-                                 if self._registry.get(fc.instrument) and
-                                 self._registry.get(fc.instrument).asset_class.value == cls_key],
-                    value=frac,
-                ))
+                alerts.append(
+                    ExposureAlertItem(
+                        alert_type=ExposureAlert.OVER_CONCENTRATION,
+                        severity="high",
+                        description=f"Asset class '{cls_key}' has {frac:.0%} of gross exposure.",
+                        instruments=[
+                            fc.instrument
+                            for fc in forecasts
+                            if self._registry.get(fc.instrument)
+                            and self._registry.get(fc.instrument).asset_class.value == cls_key
+                        ],
+                        value=frac,
+                    )
+                )
 
         # Over-concentration: single instrument
         for sym, exp in by_instrument.items():
             frac = abs(exp) / gross
             if frac > self.SINGLE_INSTRUMENT_LIMIT:
-                alerts.append(ExposureAlertItem(
-                    alert_type=ExposureAlert.OVER_CONCENTRATION,
-                    severity="medium",
-                    description=f"Single instrument '{sym}' has {frac:.0%} of gross exposure.",
-                    instruments=[sym],
-                    value=frac,
-                ))
+                alerts.append(
+                    ExposureAlertItem(
+                        alert_type=ExposureAlert.OVER_CONCENTRATION,
+                        severity="medium",
+                        description=f"Single instrument '{sym}' has {frac:.0%} of gross exposure.",
+                        instruments=[sym],
+                        value=frac,
+                    )
+                )
 
         # USD overweight
         usd_exp = abs(by_currency.get("USD", 0.0))
         if usd_exp / gross > self.USD_NET_LIMIT:
-            alerts.append(ExposureAlertItem(
-                alert_type=ExposureAlert.USD_OVERWEIGHT,
-                severity="medium",
-                description=f"USD net exposure is {usd_exp/gross:.0%} of gross — above {self.USD_NET_LIMIT:.0%} limit.",
-                instruments=[],
-                value=usd_exp / gross,
-            ))
+            alerts.append(
+                ExposureAlertItem(
+                    alert_type=ExposureAlert.USD_OVERWEIGHT,
+                    severity="medium",
+                    description=f"USD net exposure is {usd_exp/gross:.0%} of gross — above {self.USD_NET_LIMIT:.0%} limit.",
+                    instruments=[],
+                    value=usd_exp / gross,
+                )
+            )
 
         # Conflicting exposure (same currency both sides)
         for curr, exp in by_currency.items():
             if curr == "USD":
                 continue
-            longs = [fc for fc in forecasts
-                     if self._registry.get(fc.instrument) and
-                     curr in self._registry.get(fc.instrument).currency_exposures() and
-                     fc.direction == "BUY"]
-            shorts = [fc for fc in forecasts
-                      if self._registry.get(fc.instrument) and
-                      curr in self._registry.get(fc.instrument).currency_exposures() and
-                      fc.direction == "SELL"]
+            longs = [
+                fc
+                for fc in forecasts
+                if self._registry.get(fc.instrument)
+                and curr in self._registry.get(fc.instrument).currency_exposures()
+                and fc.direction == "BUY"
+            ]
+            shorts = [
+                fc
+                for fc in forecasts
+                if self._registry.get(fc.instrument)
+                and curr in self._registry.get(fc.instrument).currency_exposures()
+                and fc.direction == "SELL"
+            ]
             if longs and shorts:
-                alerts.append(ExposureAlertItem(
-                    alert_type=ExposureAlert.CONFLICTING_EXPOSURE,
-                    severity="low",
-                    description=f"Currency '{curr}' has both long and short exposure.",
-                    instruments=[fc.instrument for fc in longs + shorts],
-                    value=abs(exp),
-                ))
+                alerts.append(
+                    ExposureAlertItem(
+                        alert_type=ExposureAlert.CONFLICTING_EXPOSURE,
+                        severity="low",
+                        description=f"Currency '{curr}' has both long and short exposure.",
+                        instruments=[fc.instrument for fc in longs + shorts],
+                        value=abs(exp),
+                    )
+                )
 
         # Duplicated exposure: two instruments with same base + same direction
-        instrument_dirs: Dict[str, List[str]] = {}
+        instrument_dirs: dict[str, list[str]] = {}
         for fc in forecasts:
             info = self._registry.get(fc.instrument)
             if info is None:
@@ -243,19 +261,22 @@ class ExposureEngine:
             instrument_dirs.setdefault(key, []).append(fc.instrument)
         for key, syms in instrument_dirs.items():
             if len(syms) >= 2:
-                alerts.append(ExposureAlertItem(
-                    alert_type=ExposureAlert.DUPLICATED_EXPOSURE,
-                    severity="low",
-                    description=f"Duplicated directional exposure for key '{key}'.",
-                    instruments=syms,
-                    value=float(len(syms)),
-                ))
+                alerts.append(
+                    ExposureAlertItem(
+                        alert_type=ExposureAlert.DUPLICATED_EXPOSURE,
+                        severity="low",
+                        description=f"Duplicated directional exposure for key '{key}'.",
+                        instruments=syms,
+                        value=float(len(syms)),
+                    )
+                )
 
         return alerts
 
     def exposure_breakdown(
-        self, forecasts: List[ModelForecast],
-        weights: Optional[Dict[str, float]] = None,
+        self,
+        forecasts: list[ModelForecast],
+        weights: dict[str, float] | None = None,
     ) -> dict:
         report = self.compute(forecasts, weights)
         return {
@@ -267,7 +288,8 @@ class ExposureEngine:
                 "diversification_ratio": report.diversification_ratio,
                 "long_short_ratio": (
                     round(report.long_exposure / max(report.short_exposure, 1e-9), 2)
-                    if report.short_exposure > 0 else None
+                    if report.short_exposure > 0
+                    else None
                 ),
             },
         }

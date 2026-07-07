@@ -8,16 +8,14 @@ Retracement Quality, Continuation Probability.
 
 from __future__ import annotations
 
-import math
-from typing import List
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.microstructure.micro_models import OHLCBar, MicrostructureFeatures
+from trainer.microstructure.micro_models import MicrostructureFeatures, OHLCBar
 
 
 def _safe_div(a: float, b: float, default: float = 0.0) -> float:
@@ -36,35 +34,35 @@ class PriceActionAnalyzer:
         rng = bar.range
         body = bar.body
 
-        body_ratio       = _clamp(_safe_div(body, rng, 0.0))
+        body_ratio = _clamp(_safe_div(body, rng, 0.0))
         upper_wick_ratio = _clamp(_safe_div(bar.high - max(bar.open, bar.close), rng, 0.0))
         lower_wick_ratio = _clamp(_safe_div(min(bar.open, bar.close) - bar.low, rng, 0.0))
-        close_position   = _clamp(_safe_div(bar.close - bar.low, rng, 0.5))
-        open_position    = _clamp(_safe_div(bar.open  - bar.low, rng, 0.5))
+        close_position = _clamp(_safe_div(bar.close - bar.low, rng, 0.5))
+        open_position = _clamp(_safe_div(bar.open - bar.low, rng, 0.5))
         candle_efficiency = body_ratio  # efficiency = body / full range
         directional_efficiency = (1.0 if bar.is_bullish else -1.0) * body_ratio
 
         # Compression: small range vs body (bar "compressed" = small body large wicks)
         compression = _clamp(1.0 - body_ratio)
         # Expansion: large clean body = expansion
-        expansion   = body_ratio
+        expansion = body_ratio
 
         impulse_strength = body_ratio  # 0–1, size of directional move
 
         return {
-            "body_ratio":             round(body_ratio, 4),
-            "upper_wick_ratio":       round(upper_wick_ratio, 4),
-            "lower_wick_ratio":       round(lower_wick_ratio, 4),
-            "close_position":         round(close_position, 4),
-            "open_position":          round(open_position, 4),
-            "candle_efficiency":      round(candle_efficiency, 4),
+            "body_ratio": round(body_ratio, 4),
+            "upper_wick_ratio": round(upper_wick_ratio, 4),
+            "lower_wick_ratio": round(lower_wick_ratio, 4),
+            "close_position": round(close_position, 4),
+            "open_position": round(open_position, 4),
+            "candle_efficiency": round(candle_efficiency, 4),
             "directional_efficiency": round(directional_efficiency, 4),
-            "compression":            round(compression, 4),
-            "expansion":              round(expansion, 4),
-            "impulse_strength":       round(impulse_strength, 4),
+            "compression": round(compression, 4),
+            "expansion": round(expansion, 4),
+            "impulse_strength": round(impulse_strength, 4),
         }
 
-    def retracement_quality(self, bars: List[OHLCBar]) -> float:
+    def retracement_quality(self, bars: list[OHLCBar]) -> float:
         """Measure quality of a retracement within a sequence of bars.
 
         High value = clean, shallow pullback (good quality).
@@ -85,7 +83,7 @@ class PriceActionAnalyzer:
         quality = _clamp(1.0 - retracement_depth)
         return round(quality, 4)
 
-    def continuation_probability(self, bars: List[OHLCBar]) -> float:
+    def continuation_probability(self, bars: list[OHLCBar]) -> float:
         """Estimate probability of trend continuation.
 
         Based on: close position in recent bars, directional persistence,
@@ -110,8 +108,8 @@ class PriceActionAnalyzer:
 
     def analyse_window(
         self,
-        bars:        List[OHLCBar],
-        features:    MicrostructureFeatures,
+        bars: list[OHLCBar],
+        features: MicrostructureFeatures,
     ) -> MicrostructureFeatures:
         """Compute all price-action features and write into the features object."""
         if not bars:
@@ -120,19 +118,19 @@ class PriceActionAnalyzer:
         current = bars[-1]
         bar_features = self.analyse_bar(current)
 
-        features.body_ratio             = bar_features["body_ratio"]
-        features.upper_wick_ratio       = bar_features["upper_wick_ratio"]
-        features.lower_wick_ratio       = bar_features["lower_wick_ratio"]
-        features.close_position         = bar_features["close_position"]
-        features.open_position          = bar_features["open_position"]
-        features.candle_efficiency      = bar_features["candle_efficiency"]
+        features.body_ratio = bar_features["body_ratio"]
+        features.upper_wick_ratio = bar_features["upper_wick_ratio"]
+        features.lower_wick_ratio = bar_features["lower_wick_ratio"]
+        features.close_position = bar_features["close_position"]
+        features.open_position = bar_features["open_position"]
+        features.candle_efficiency = bar_features["candle_efficiency"]
         features.directional_efficiency = bar_features["directional_efficiency"]
-        features.compression            = bar_features["compression"]
-        features.expansion              = bar_features["expansion"]
-        features.impulse_strength       = bar_features["impulse_strength"]
+        features.compression = bar_features["compression"]
+        features.expansion = bar_features["expansion"]
+        features.impulse_strength = bar_features["impulse_strength"]
 
         if len(bars) >= 2:
-            features.retracement_quality      = self.retracement_quality(bars)
+            features.retracement_quality = self.retracement_quality(bars)
             features.continuation_probability = self.continuation_probability(bars)
 
         return features

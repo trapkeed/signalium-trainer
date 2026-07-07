@@ -16,8 +16,6 @@ Reference:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -42,9 +40,7 @@ class TemperatureScaling(nn.Module):
         super().__init__()
         if init_temp <= 0:
             raise ValueError(f"init_temp must be > 0, got {init_temp}")
-        self.temperature = nn.Parameter(
-            torch.tensor([init_temp], dtype=torch.float32)
-        )
+        self.temperature = nn.Parameter(torch.tensor([init_temp], dtype=torch.float32))
 
     @property
     def T(self) -> float:
@@ -81,7 +77,7 @@ class TemperatureScaling(nn.Module):
         max_iter: int = 500,
         lr: float = 0.01,
         verbose: bool = False,
-    ) -> "TemperatureScaling":
+    ) -> TemperatureScaling:
         """Optimise temperature on a held-out calibration set.
 
         Args:

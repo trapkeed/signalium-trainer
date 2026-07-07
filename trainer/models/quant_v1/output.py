@@ -9,12 +9,11 @@ Backward compatibility is fully preserved:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import torch
 import torch.nn as nn
-
 
 # ---------------------------------------------------------------------------
 # Original output (unchanged — backward compatible)
@@ -147,32 +146,32 @@ class MultiTaskQuantModelOutput:
     no_trade_prob: torch.Tensor
 
     # ── Phase 14.5 optional ──────────────────────────────────────────────
-    expected_move: Optional[torch.Tensor] = None
-    stop_loss: Optional[torch.Tensor] = None
-    take_profit: Optional[torch.Tensor] = None
-    holding_time: Optional[torch.Tensor] = None
-    tp_probability: Optional[torch.Tensor] = None
+    expected_move: torch.Tensor | None = None
+    stop_loss: torch.Tensor | None = None
+    take_profit: torch.Tensor | None = None
+    holding_time: torch.Tensor | None = None
+    tp_probability: torch.Tensor | None = None
 
     # ── Phase 14.6 optional ──────────────────────────────────────────────
-    mfe: Optional[torch.Tensor] = None
-    mae_excursion: Optional[torch.Tensor] = None
-    trade_efficiency: Optional[torch.Tensor] = None
-    reward_risk: Optional[torch.Tensor] = None
-    trade_survival: Optional[torch.Tensor] = None
-    sl_resilience: Optional[torch.Tensor] = None
-    tp_achievability: Optional[torch.Tensor] = None
-    entry_quality: Optional[torch.Tensor] = None
-    exit_quality: Optional[torch.Tensor] = None
-    market_stability: Optional[torch.Tensor] = None
-    trade_decay: Optional[torch.Tensor] = None
-    profit_distribution: Optional[torch.Tensor] = None
-    loss_distribution: Optional[torch.Tensor] = None
-    position_size_quality: Optional[torch.Tensor] = None
-    uncertainty: Optional[torch.Tensor] = None
+    mfe: torch.Tensor | None = None
+    mae_excursion: torch.Tensor | None = None
+    trade_efficiency: torch.Tensor | None = None
+    reward_risk: torch.Tensor | None = None
+    trade_survival: torch.Tensor | None = None
+    sl_resilience: torch.Tensor | None = None
+    tp_achievability: torch.Tensor | None = None
+    entry_quality: torch.Tensor | None = None
+    exit_quality: torch.Tensor | None = None
+    market_stability: torch.Tensor | None = None
+    trade_decay: torch.Tensor | None = None
+    profit_distribution: torch.Tensor | None = None
+    loss_distribution: torch.Tensor | None = None
+    position_size_quality: torch.Tensor | None = None
+    uncertainty: torch.Tensor | None = None
 
     # ── Metadata ─────────────────────────────────────────────────────────
-    prediction_timestamp: Optional[str] = None
-    model_version: Optional[str] = None
+    prediction_timestamp: str | None = None
+    model_version: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return all non-None outputs as a plain dict."""
@@ -186,12 +185,28 @@ class MultiTaskQuantModelOutput:
             "no_trade_prob": self.no_trade_prob,
         }
         _opt_fields = [
-            "expected_move", "stop_loss", "take_profit", "holding_time",
-            "tp_probability", "mfe", "mae_excursion", "trade_efficiency",
-            "reward_risk", "trade_survival", "sl_resilience", "tp_achievability",
-            "entry_quality", "exit_quality", "market_stability", "trade_decay",
-            "profit_distribution", "loss_distribution", "position_size_quality",
-            "uncertainty", "prediction_timestamp", "model_version",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+            "mfe",
+            "mae_excursion",
+            "trade_efficiency",
+            "reward_risk",
+            "trade_survival",
+            "sl_resilience",
+            "tp_achievability",
+            "entry_quality",
+            "exit_quality",
+            "market_stability",
+            "trade_decay",
+            "profit_distribution",
+            "loss_distribution",
+            "position_size_quality",
+            "uncertainty",
+            "prediction_timestamp",
+            "model_version",
         ]
         for f in _opt_fields:
             val = getattr(self, f)
@@ -213,4 +228,4 @@ class MultiTaskQuantModelOutput:
 
     @staticmethod
     def _now_utc() -> str:
-        return datetime.now(tz=timezone.utc).isoformat()
+        return datetime.now(tz=UTC).isoformat()

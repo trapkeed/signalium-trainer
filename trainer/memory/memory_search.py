@@ -11,68 +11,68 @@ Institutional search over the decision memory:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
+from trainer.memory.decision_models import DecisionRecord
 from trainer.memory.decision_types import (
     DecisionType,
-    OutcomeType,
     MarketRegime,
-    POSITIVE_OUTCOMES,
-    NEGATIVE_OUTCOMES,
+    OutcomeType,
 )
-from trainer.memory.decision_models import DecisionRecord
 
 
 @dataclass
 class SearchQuery:
     """Structured search query parameters."""
-    # Text filter (applied to instrument, tags, reasoning)
-    text:          str   = ""
-    # Field filters
-    instrument:    Optional[str]          = None
-    decision_type: Optional[str]          = None   # DecisionType value
-    outcome_type:  Optional[str]          = None   # OutcomeType value
-    regime:        Optional[str]          = None
-    session:       Optional[str]          = None
-    grade:         Optional[str]          = None   # EXCELLENT | GOOD | ...
-    # Numeric ranges
-    min_confidence: float                 = 0.0
-    max_confidence: float                 = 1.0
-    min_pnl:       Optional[float]        = None
-    max_pnl:       Optional[float]        = None
-    # Flags
-    direction_correct: Optional[bool]     = None
-    hit_tp:        Optional[bool]         = None
-    hit_sl:        Optional[bool]         = None
-    profitable:    Optional[bool]         = None   # pnl > 0
-    # Result
-    limit:         int   = 100
-    sort_by:       str   = "timestamp"   # timestamp | confidence | pnl | quality
 
-    def to_dict(self) -> Dict:
+    # Text filter (applied to instrument, tags, reasoning)
+    text: str = ""
+    # Field filters
+    instrument: str | None = None
+    decision_type: str | None = None  # DecisionType value
+    outcome_type: str | None = None  # OutcomeType value
+    regime: str | None = None
+    session: str | None = None
+    grade: str | None = None  # EXCELLENT | GOOD | ...
+    # Numeric ranges
+    min_confidence: float = 0.0
+    max_confidence: float = 1.0
+    min_pnl: float | None = None
+    max_pnl: float | None = None
+    # Flags
+    direction_correct: bool | None = None
+    hit_tp: bool | None = None
+    hit_sl: bool | None = None
+    profitable: bool | None = None  # pnl > 0
+    # Result
+    limit: int = 100
+    sort_by: str = "timestamp"  # timestamp | confidence | pnl | quality
+
+    def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v is not None and v != ""}
 
 
 @dataclass
 class SearchResult:
     """Result of a memory search."""
-    query:        SearchQuery
-    total_found:  int
-    records:      List[DecisionRecord] = field(default_factory=list)
-    summary:      str                  = ""
 
-    def to_dict(self) -> Dict:
+    query: SearchQuery
+    total_found: int
+    records: list[DecisionRecord] = field(default_factory=list)
+    summary: str = ""
+
+    def to_dict(self) -> dict:
         return {
-            "query":       self.query.to_dict(),
+            "query": self.query.to_dict(),
             "total_found": self.total_found,
-            "records":     [r.summary() for r in self.records],
-            "summary":     self.summary,
+            "records": [r.summary() for r in self.records],
+            "summary": self.summary,
         }
 
 
@@ -81,12 +81,12 @@ class MemorySearch:
 
     def search(
         self,
-        records: List[DecisionRecord],
-        query:   SearchQuery,
+        records: list[DecisionRecord],
+        query: SearchQuery,
     ) -> SearchResult:
         """Execute a structured search over decision records."""
 
-        results = list(records)   # start with all
+        results = list(records)  # start with all
 
         # ── Field filters ─────────────────────────────────────────────────────
         if query.instrument:
@@ -124,7 +124,8 @@ class MemorySearch:
 
         if query.direction_correct is not None:
             results = [
-                r for r in results
+                r
+                for r in results
                 if r.has_outcome and r.outcome.actual_direction_correct == query.direction_correct
             ]
 
@@ -136,15 +137,20 @@ class MemorySearch:
 
         if query.profitable is not None:
             results = [
-                r for r in results
+                r
+                for r in results
                 if r.has_outcome and (r.outcome.actual_pnl > 0) == query.profitable
             ]
 
         if query.min_pnl is not None:
-            results = [r for r in results if r.has_outcome and r.outcome.actual_pnl >= query.min_pnl]
+            results = [
+                r for r in results if r.has_outcome and r.outcome.actual_pnl >= query.min_pnl
+            ]
 
         if query.max_pnl is not None:
-            results = [r for r in results if r.has_outcome and r.outcome.actual_pnl <= query.max_pnl]
+            results = [
+                r for r in results if r.has_outcome and r.outcome.actual_pnl <= query.max_pnl
+            ]
 
         # ── Text filter ───────────────────────────────────────────────────────
         if query.text:
@@ -152,13 +158,19 @@ class MemorySearch:
             filtered = []
             for r in results:
                 text_body = (
-                    r.instrument.lower() + " " +
-                    r.decision_type.value.lower() + " " +
-                    " ".join(r.tags).lower() + " " +
-                    r.snapshot.market_regime.lower() + " " +
-                    r.snapshot.session.lower() + " " +
-                    " ".join(r.reasoning.primary_reasons).lower() + " " +
-                    r.reasoning.final_rationale.lower()
+                    r.instrument.lower()
+                    + " "
+                    + r.decision_type.value.lower()
+                    + " "
+                    + " ".join(r.tags).lower()
+                    + " "
+                    + r.snapshot.market_regime.lower()
+                    + " "
+                    + r.snapshot.session.lower()
+                    + " "
+                    + " ".join(r.reasoning.primary_reasons).lower()
+                    + " "
+                    + r.reasoning.final_rationale.lower()
                 )
                 if q in text_body:
                     filtered.append(r)
@@ -177,15 +189,13 @@ class MemorySearch:
         total = len(results)
         results = results[: query.limit]
 
-        logger.debug(
-            f"MemorySearch: {total} records matched, returning {len(results)}"
-        )
+        logger.debug(f"MemorySearch: {total} records matched, returning {len(results)}")
 
         return SearchResult(
-            query       = query,
-            total_found = total,
-            records     = results,
-            summary     = (
+            query=query,
+            total_found=total,
+            records=results,
+            summary=(
                 f"Found {total} decisions matching query. "
                 f"Showing {len(results)} (limit={query.limit})."
             ),
@@ -194,44 +204,56 @@ class MemorySearch:
     # ── Convenience methods ───────────────────────────────────────────────────
 
     def incorrect_buys(
-        self, records: List[DecisionRecord], instrument: Optional[str] = None
+        self, records: list[DecisionRecord], instrument: str | None = None
     ) -> SearchResult:
-        return self.search(records, SearchQuery(
-            decision_type     = DecisionType.BUY.value,
-            direction_correct = False,
-            instrument        = instrument,
-        ))
+        return self.search(
+            records,
+            SearchQuery(
+                decision_type=DecisionType.BUY.value,
+                direction_correct=False,
+                instrument=instrument,
+            ),
+        )
 
-    def profitable_no_trades(self, records: List[DecisionRecord]) -> SearchResult:
+    def profitable_no_trades(self, records: list[DecisionRecord]) -> SearchResult:
         """Decisions where NO_TRADE was taken and market moved favourably (pnl=0 vs opportunity)."""
-        return self.search(records, SearchQuery(
-            decision_type = DecisionType.NO_TRADE.value,
-            outcome_type  = OutcomeType.MISSED_OPPORTUNITY.value,
-        ))
+        return self.search(
+            records,
+            SearchQuery(
+                decision_type=DecisionType.NO_TRADE.value,
+                outcome_type=OutcomeType.MISSED_OPPORTUNITY.value,
+            ),
+        )
 
     def high_confidence_decisions(
-        self, records: List[DecisionRecord], min_conf: float = 0.90
+        self, records: list[DecisionRecord], min_conf: float = 0.90
     ) -> SearchResult:
         return self.search(records, SearchQuery(min_confidence=min_conf))
 
     def decisions_by_regime_and_outcome(
         self,
-        records:  List[DecisionRecord],
-        regime:   str,
+        records: list[DecisionRecord],
+        regime: str,
         positive: bool = True,
     ) -> SearchResult:
         q = SearchQuery(regime=regime, profitable=positive)
         return self.search(records, q)
 
-    def failed_breakouts(self, records: List[DecisionRecord]) -> SearchResult:
-        return self.search(records, SearchQuery(
-            regime   = MarketRegime.BREAKOUT.value,
-            hit_sl   = True,
-        ))
+    def failed_breakouts(self, records: list[DecisionRecord]) -> SearchResult:
+        return self.search(
+            records,
+            SearchQuery(
+                regime=MarketRegime.BREAKOUT.value,
+                hit_sl=True,
+            ),
+        )
 
-    def successful_pullbacks(self, records: List[DecisionRecord]) -> SearchResult:
-        return self.search(records, SearchQuery(
-            text     = "pullback",
-            hit_tp   = True,
-            profitable = True,
-        ))
+    def successful_pullbacks(self, records: list[DecisionRecord]) -> SearchResult:
+        return self.search(
+            records,
+            SearchQuery(
+                text="pullback",
+                hit_tp=True,
+                profitable=True,
+            ),
+        )

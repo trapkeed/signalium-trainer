@@ -7,7 +7,7 @@ dynamic loading from YAML / dict configs.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Type
+from typing import Any
 
 from trainer.config.schema import TrainerConfig
 from trainer.models.base import BaseQuantModel
@@ -41,7 +41,7 @@ class ModelFactory:
         cls,
         name: str,
         trainer_config: TrainerConfig,
-        model_config: Optional[Any] = None,
+        model_config: Any | None = None,
     ) -> BaseQuantModel:
         """Instantiate a registered model by name.
 
@@ -104,12 +104,11 @@ class ModelFactory:
             Sorted list of model name strings.
         """
         from trainer.registry.registry import ModelRegistry
+
         return ModelRegistry.list_models()
 
     @classmethod
-    def _build_model_config(
-        cls, name: str, config_dict: dict[str, Any]
-    ) -> Optional[Any]:
+    def _build_model_config(cls, name: str, config_dict: dict[str, Any]) -> Any | None:
         """Build a model-specific config from a raw dict.
 
         Each model family handles its own config construction. This keeps
@@ -129,7 +128,7 @@ class ModelFactory:
         return None
 
     @classmethod
-    def _build_quant_v1_config(cls, d: dict[str, Any]) -> Optional[Any]:
+    def _build_quant_v1_config(cls, d: dict[str, Any]) -> Any | None:
         """Build a QuantV1Config from a flat/nested dict.
 
         Args:
@@ -141,8 +140,6 @@ class ModelFactory:
         from trainer.models.quant_v1.config import (
             BackboneConfig,
             BackboneType,
-            ClassificationHeadConfig,
-            ConfidenceHeadConfig,
             InputEncoderConfig,
             LossConfig,
             LossType,

@@ -27,8 +27,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Calibration report
@@ -55,7 +54,7 @@ class CalibrationReport:
     entity_id: str
     ece: float = 0.0
     mce: float = 0.0
-    reliability: List[Tuple[float, float, int]] = field(default_factory=list)
+    reliability: list[tuple[float, float, int]] = field(default_factory=list)
     avg_confidence: float = 0.0
     avg_accuracy: float = 0.0
     overconfidence: float = 0.0
@@ -67,15 +66,12 @@ class CalibrationReport:
     def is_well_calibrated(self) -> bool:
         return self.ece < 0.05
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entity_id": self.entity_id,
             "ece": self.ece,
             "mce": self.mce,
-            "reliability": [
-                {"bin_mid": b, "accuracy": a, "n": n}
-                for b, a, n in self.reliability
-            ],
+            "reliability": [{"bin_mid": b, "accuracy": a, "n": n} for b, a, n in self.reliability],
             "avg_confidence": self.avg_confidence,
             "avg_accuracy": self.avg_accuracy,
             "overconfidence": self.overconfidence,
@@ -100,11 +96,10 @@ class ExpertCalibrator:
 
     def __init__(self, n_bins: int = 10) -> None:
         self.n_bins = n_bins
-        self._data: Dict[str, List[Tuple[float, int]]] = {}
-        self._temperatures: Dict[str, float] = {}
+        self._data: dict[str, list[tuple[float, int]]] = {}
+        self._temperatures: dict[str, float] = {}
 
-    def update(self, entity_id: str, predicted_prob: float,
-               true_label: int) -> None:
+    def update(self, entity_id: str, predicted_prob: float, true_label: int) -> None:
         """Record one calibration sample.
 
         Args:
@@ -114,13 +109,11 @@ class ExpertCalibrator:
         """
         if entity_id not in self._data:
             self._data[entity_id] = []
-        self._data[entity_id].append((
-            max(0.0, min(1.0, float(predicted_prob))),
-            int(bool(true_label))
-        ))
+        self._data[entity_id].append(
+            (max(0.0, min(1.0, float(predicted_prob))), int(bool(true_label)))
+        )
 
-    def update_batch(self, entity_id: str,
-                     samples: List[Tuple[float, int]]) -> None:
+    def update_batch(self, entity_id: str, samples: list[tuple[float, int]]) -> None:
         """Record multiple calibration samples at once."""
         for prob, label in samples:
             self.update(entity_id, prob, label)
@@ -132,7 +125,7 @@ class ExpertCalibrator:
             return CalibrationReport(entity_id=entity_id)
 
         n = len(data)
-        bins: List[List[Tuple[float, int]]] = [[] for _ in range(self.n_bins)]
+        bins: list[list[tuple[float, int]]] = [[] for _ in range(self.n_bins)]
 
         for prob, label in data:
             idx = min(int(prob * self.n_bins), self.n_bins - 1)
@@ -176,9 +169,7 @@ class ExpertCalibrator:
             n_bins=self.n_bins,
         )
 
-    def fit_temperature(self, entity_id: str,
-                        n_steps: int = 50,
-                        lr: float = 0.1) -> float:
+    def fit_temperature(self, entity_id: str, n_steps: int = 50, lr: float = 0.1) -> float:
         """Fit temperature scaling via gradient descent on cross-entropy.
 
         Returns the optimal temperature T such that
@@ -214,11 +205,11 @@ class ExpertCalibrator:
         scaled = logit / T
         return 1 / (1 + math.exp(-scaled))
 
-    def all_reports(self) -> Dict[str, CalibrationReport]:
+    def all_reports(self) -> dict[str, CalibrationReport]:
         """Return calibration reports for all tracked entities."""
         return {eid: self.get_report(eid) for eid in self._data}
 
-    def entity_ids(self) -> List[str]:
+    def entity_ids(self) -> list[str]:
         return list(self._data.keys())
 
     def n_samples(self, entity_id: str) -> int:

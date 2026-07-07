@@ -34,9 +34,6 @@ from __future__ import annotations
 import pytest
 import torch
 import torch.nn as nn
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
 
 # ---------------------------------------------------------------------------
 # Minimal stub models (no real QuantModelV1 import needed)
@@ -337,12 +334,12 @@ class TestAttentionMap:
     def _make_map(self, seq_len=6, n_heads=2, n_layers=2):
         from trainer.explainability.attention import AttentionMap
 
-        weights = [
-            torch.rand(2, n_heads, seq_len, seq_len) for _ in range(n_layers)
-        ]
+        weights = [torch.rand(2, n_heads, seq_len, seq_len) for _ in range(n_layers)]
         return AttentionMap(
-            weights=weights, seq_len=seq_len, n_heads=n_heads,
-            layer_names=[f"layer{i}" for i in range(n_layers)]
+            weights=weights,
+            seq_len=seq_len,
+            n_heads=n_heads,
+            layer_names=[f"layer{i}" for i in range(n_layers)],
         )
 
     def test_n_layers(self):
@@ -657,6 +654,7 @@ class TestExplainabilityEngine:
 
     def test_to_dict_json_safe(self, linear_model, dummy_input):
         import json
+
         from trainer.explainability.explanation import ExplainabilityEngine
 
         engine = ExplainabilityEngine(attribution_method="gradient", extract_attention=False)
@@ -743,8 +741,7 @@ class TestVisualization:
         from trainer.explainability.visualization import AttentionMapChartData
 
         attn = AttentionMap(
-            weights=[torch.rand(1, 2, 6, 6)],
-            seq_len=6, n_heads=2, layer_names=["l0"]
+            weights=[torch.rand(1, 2, 6, 6)], seq_len=6, n_heads=2, layer_names=["l0"]
         )
         data = AttentionMapChartData.from_attention_map(attn)
         assert len(data.matrix) == 6
@@ -771,8 +768,7 @@ class TestVisualization:
         from trainer.explainability.visualization import AttentionMapVisualizer
 
         attn = AttentionMap(
-            weights=[torch.rand(1, 2, 8, 8)],
-            seq_len=8, n_heads=2, layer_names=["l0"]
+            weights=[torch.rand(1, 2, 8, 8)], seq_len=8, n_heads=2, layer_names=["l0"]
         )
         viz = AttentionMapVisualizer(width=20, height=5)
         result = viz.to_ascii(attn)
@@ -788,16 +784,8 @@ class TestFutureEncoderInterfaces:
     def test_all_interfaces_importable(self):
         from trainer.interfaces import (
             BaseExternalEncoder,
-            BaseReinforcementLearningInterface,
-            BaseCrossAssetEncoder,
-            BaseNewsEncoder,
-            BaseMacroEncoder,
-            BaseAlternativeDataEncoder,
-            BaseOrderBookEncoder,
-            BaseOptionsDataEncoder,
-            BaseSentimentEncoder,
-            BaseGraphNeuralNetworkInterface,
         )
+
         # All 10 names must be importable
         assert BaseExternalEncoder is not None
 
@@ -809,16 +797,17 @@ class TestFutureEncoderInterfaces:
 
     def test_future_encoder_names(self):
         from trainer.interfaces.future_encoders import (
-            BaseReinforcementLearningInterface,
-            BaseCrossAssetEncoder,
-            BaseNewsEncoder,
-            BaseMacroEncoder,
             BaseAlternativeDataEncoder,
-            BaseOrderBookEncoder,
-            BaseOptionsDataEncoder,
-            BaseSentimentEncoder,
+            BaseCrossAssetEncoder,
             BaseGraphNeuralNetworkInterface,
+            BaseMacroEncoder,
+            BaseNewsEncoder,
+            BaseOptionsDataEncoder,
+            BaseOrderBookEncoder,
+            BaseReinforcementLearningInterface,
+            BaseSentimentEncoder,
         )
+
         # Each concrete stub must declare a name property
         stubs = [
             BaseReinforcementLearningInterface,
@@ -833,7 +822,10 @@ class TestFutureEncoderInterfaces:
         ]
         for stub in stubs:
             # name is a property on the class but returns a string value
-            assert isinstance(stub.name.fget(None) if hasattr(stub.name, 'fget') else stub.name, str) or True
+            assert (
+                isinstance(stub.name.fget(None) if hasattr(stub.name, "fget") else stub.name, str)
+                or True
+            )
 
     def test_validate_output_method_exists(self):
         from trainer.interfaces.base import BaseExternalEncoder
@@ -847,11 +839,14 @@ class TestFutureEncoderInterfaces:
             @property
             def name(self):
                 return "stub"
+
             @property
             def output_dim(self):
                 return 8
+
             def forward(self, *a, **kw):
                 return torch.zeros(2, 8)
+
             def get_metadata(self):
                 return {"version": "0.0.0", "status": "test"}
 
@@ -886,11 +881,14 @@ class TestPluginRegistry:
             @property
             def name(self):
                 return name
+
             @property
             def output_dim(self):
                 return out_dim
+
             def forward(self, *a, **kw):
                 return torch.zeros(1, out_dim)
+
             def get_metadata(self):
                 return {"version": "1.0.0", "status": "test"}
 
@@ -1039,8 +1037,9 @@ class TestModelInfoExtensions:
         assert info.architecture == "QuantModelV1"
 
     def test_to_dict_includes_new_fields(self):
-        from trainer.traceability.metadata import ModelInfo
         from dataclasses import asdict
+
+        from trainer.traceability.metadata import ModelInfo
 
         info = ModelInfo(phase="14.9C", backbone_type="transformer")
         d = asdict(info)

@@ -19,7 +19,7 @@ Charts:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class MLOpsVisualizationBuilder:
@@ -31,15 +31,14 @@ class MLOpsVisualizationBuilder:
 
     def registry_status_chart(
         self,
-        models: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        models: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Pie/bar chart of model counts per lifecycle state."""
-        state_counts: Dict[str, int] = {}
+        state_counts: dict[str, int] = {}
         for m in models:
             state = m.get("lifecycle_state", "unknown")
             state_counts[state] = state_counts.get(state, 0) + 1
-        data = [{"state": k, "count": v}
-                for k, v in sorted(state_counts.items())]
+        data = [{"state": k, "count": v} for k, v in sorted(state_counts.items())]
         return {
             "chart_type": "bar",
             "title": "Model Registry — Lifecycle State Distribution",
@@ -56,12 +55,16 @@ class MLOpsVisualizationBuilder:
 
     def model_health_chart(
         self,
-        health_reports: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        health_reports: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Grouped bar chart of drift scores per model."""
         drift_keys = [
-            "confidence_drift", "prediction_drift", "calibration_drift",
-            "performance_degradation", "latency_degradation", "distribution_drift",
+            "confidence_drift",
+            "prediction_drift",
+            "calibration_drift",
+            "performance_degradation",
+            "latency_degradation",
+            "distribution_drift",
         ]
         series = []
         for key in drift_keys:
@@ -77,8 +80,9 @@ class MLOpsVisualizationBuilder:
             "y_label": "Drift Score",
             "series": series,
             "n_models": len(health_reports),
-            "unhealthy": [mid for mid, r in health_reports.items()
-                          if not r.get("is_healthy", True)],
+            "unhealthy": [
+                mid for mid, r in health_reports.items() if not r.get("is_healthy", True)
+            ],
         }
 
     # -----------------------------------------------------------------------
@@ -87,12 +91,12 @@ class MLOpsVisualizationBuilder:
 
     def deployment_history_chart(
         self,
-        deployments: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        deployments: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Line/bar chart of deployment events over time."""
-        by_type: Dict[str, int] = {}
-        by_target: Dict[str, int] = {}
-        by_status: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        by_target: dict[str, int] = {}
+        by_status: dict[str, int] = {}
         timeline = []
         for d in deployments:
             t = d.get("deploy_type", "manual")
@@ -101,13 +105,15 @@ class MLOpsVisualizationBuilder:
             by_type[t] = by_type.get(t, 0) + 1
             by_target[tgt] = by_target.get(tgt, 0) + 1
             by_status[st] = by_status.get(st, 0) + 1
-            timeline.append({
-                "deployed_at": d.get("deployed_at", ""),
-                "model_id": d.get("model_id", ""),
-                "target": tgt,
-                "status": st,
-                "type": t,
-            })
+            timeline.append(
+                {
+                    "deployed_at": d.get("deployed_at", ""),
+                    "model_id": d.get("model_id", ""),
+                    "target": tgt,
+                    "status": st,
+                    "type": t,
+                }
+            )
         return {
             "chart_type": "timeline",
             "title": "Deployment History",
@@ -124,8 +130,8 @@ class MLOpsVisualizationBuilder:
 
     def champion_comparison_chart(
         self,
-        comparison: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        comparison: dict[str, Any],
+    ) -> dict[str, Any]:
         """Grouped bar chart comparing champion vs challenger metrics."""
         metrics = comparison.get("metrics", {})
         model_a = comparison.get("model_a", {})
@@ -133,20 +139,24 @@ class MLOpsVisualizationBuilder:
         data_a = []
         data_b = []
         for metric, vals in metrics.items():
-            data_a.append({
-                "metric": metric,
-                "value": vals.get("model_a"),
-                "is_winner": vals.get("winner") == model_a.get("model_id"),
-            })
-            data_b.append({
-                "metric": metric,
-                "value": vals.get("model_b"),
-                "is_winner": vals.get("winner") == model_b.get("model_id"),
-            })
+            data_a.append(
+                {
+                    "metric": metric,
+                    "value": vals.get("model_a"),
+                    "is_winner": vals.get("winner") == model_a.get("model_id"),
+                }
+            )
+            data_b.append(
+                {
+                    "metric": metric,
+                    "value": vals.get("model_b"),
+                    "is_winner": vals.get("winner") == model_b.get("model_id"),
+                }
+            )
         return {
             "chart_type": "bar_grouped",
             "title": f"Champion Comparison: {model_a.get('name', 'A')} vs "
-                     f"{model_b.get('name', 'B')}",
+            f"{model_b.get('name', 'B')}",
             "x_label": "Metric",
             "y_label": "Value",
             "series": [
@@ -162,19 +172,19 @@ class MLOpsVisualizationBuilder:
 
     def alert_distribution_chart(
         self,
-        alerts: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        alerts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Stacked bar chart of alert counts by category and level."""
-        by_category: Dict[str, int] = {}
-        by_level: Dict[str, int] = {}
+        by_category: dict[str, int] = {}
+        by_level: dict[str, int] = {}
         for a in alerts:
             cat = a.get("category", "unknown")
             lvl = a.get("level", "WARNING")
             by_category[cat] = by_category.get(cat, 0) + 1
             by_level[lvl] = by_level.get(lvl, 0) + 1
-        cat_data = [{"category": k, "count": v}
-                    for k, v in sorted(by_category.items(),
-                                       key=lambda x: -x[1])]
+        cat_data = [
+            {"category": k, "count": v} for k, v in sorted(by_category.items(), key=lambda x: -x[1])
+        ]
         return {
             "chart_type": "bar_stacked",
             "title": "Alert Distribution by Category",
@@ -193,16 +203,15 @@ class MLOpsVisualizationBuilder:
     def confidence_trend_chart(
         self,
         model_id: str,
-        confidence_history: List[float],
+        confidence_history: list[float],
         window: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Rolling confidence line chart for a single model."""
         data = []
         for i, conf in enumerate(confidence_history):
-            w = confidence_history[max(0, i - window):i + 1]
+            w = confidence_history[max(0, i - window) : i + 1]
             avg = sum(w) / len(w)
-            data.append({"idx": i, "raw_confidence": round(conf, 4),
-                          "rolling_avg": round(avg, 4)})
+            data.append({"idx": i, "raw_confidence": round(conf, 4), "rolling_avg": round(avg, 4)})
         return {
             "chart_type": "line",
             "title": f"Confidence Trend — {model_id[:8]}",
@@ -210,10 +219,14 @@ class MLOpsVisualizationBuilder:
             "x_label": "Prediction Index",
             "y_label": "Confidence",
             "series": [
-                {"name": "Raw Confidence", "data": [{"idx": d["idx"],
-                  "value": d["raw_confidence"]} for d in data]},
-                {"name": f"Rolling Avg (w={window})", "data": [{"idx": d["idx"],
-                  "value": d["rolling_avg"]} for d in data]},
+                {
+                    "name": "Raw Confidence",
+                    "data": [{"idx": d["idx"], "value": d["raw_confidence"]} for d in data],
+                },
+                {
+                    "name": f"Rolling Avg (w={window})",
+                    "data": [{"idx": d["idx"], "value": d["rolling_avg"]} for d in data],
+                },
             ],
             "n_points": len(data),
         }
@@ -224,19 +237,20 @@ class MLOpsVisualizationBuilder:
 
     def drift_heatmap(
         self,
-        health_reports: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        health_reports: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Heatmap of drift scores: models × drift types."""
         drift_types = [
-            "confidence_drift", "prediction_drift", "calibration_drift",
-            "performance_degradation", "latency_degradation", "distribution_drift",
+            "confidence_drift",
+            "prediction_drift",
+            "calibration_drift",
+            "performance_degradation",
+            "latency_degradation",
+            "distribution_drift",
         ]
         model_ids = list(health_reports.keys())
         matrix = {
-            mid: {
-                dtype: round(health_reports[mid].get(dtype, 0.0), 4)
-                for dtype in drift_types
-            }
+            mid: {dtype: round(health_reports[mid].get(dtype, 0.0), 4) for dtype in drift_types}
             for mid in model_ids
         }
         return {
@@ -254,8 +268,8 @@ class MLOpsVisualizationBuilder:
 
     def latency_chart(
         self,
-        monitoring_snapshots: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        monitoring_snapshots: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Bar chart of avg/p95/p99 latency per model."""
         data = [
             {
@@ -273,12 +287,24 @@ class MLOpsVisualizationBuilder:
             "x_label": "Model",
             "y_label": "Latency (ms)",
             "series": [
-                {"name": "Avg", "data": [{"model_id": d["model_id"],
-                  "value": d["avg_latency_ms"]} for d in data]},
-                {"name": "P95", "data": [{"model_id": d["model_id"],
-                  "value": d["p95_latency_ms"]} for d in data]},
-                {"name": "P99", "data": [{"model_id": d["model_id"],
-                  "value": d["p99_latency_ms"]} for d in data]},
+                {
+                    "name": "Avg",
+                    "data": [
+                        {"model_id": d["model_id"], "value": d["avg_latency_ms"]} for d in data
+                    ],
+                },
+                {
+                    "name": "P95",
+                    "data": [
+                        {"model_id": d["model_id"], "value": d["p95_latency_ms"]} for d in data
+                    ],
+                },
+                {
+                    "name": "P99",
+                    "data": [
+                        {"model_id": d["model_id"], "value": d["p99_latency_ms"]} for d in data
+                    ],
+                },
             ],
             "alerts": [d["model_id"] for d in data if d["latency_alert"]],
         }
@@ -289,15 +315,15 @@ class MLOpsVisualizationBuilder:
 
     def full_dashboard(
         self,
-        models: List[Dict[str, Any]],
-        health_reports: Dict[str, Dict[str, Any]],
-        deployments: List[Dict[str, Any]],
-        comparison: Optional[Dict[str, Any]],
-        alerts: List[Dict[str, Any]],
-        monitoring_snapshots: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        models: list[dict[str, Any]],
+        health_reports: dict[str, dict[str, Any]],
+        deployments: list[dict[str, Any]],
+        comparison: dict[str, Any] | None,
+        alerts: list[dict[str, Any]],
+        monitoring_snapshots: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Build all dashboard charts in one call."""
-        charts: Dict[str, Any] = {}
+        charts: dict[str, Any] = {}
         charts["registry_status"] = self.registry_status_chart(models)
         charts["model_health"] = self.model_health_chart(health_reports)
         charts["deployment_history"] = self.deployment_history_chart(deployments)

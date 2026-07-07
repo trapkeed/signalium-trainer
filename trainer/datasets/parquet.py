@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ class ParquetDataset(BaseDataset):
         self,
         root: Path,
         split: str = "train",
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
         label_column: str = "label",
         transform: Any = None,
         dtype: torch.dtype = torch.float32,
@@ -90,7 +90,7 @@ class StreamingParquetDataset(BaseDataset):
         self,
         root: Path,
         split: str = "train",
-        feature_columns: Optional[list[str]] = None,
+        feature_columns: list[str] | None = None,
         label_column: str = "label",
         transform: Any = None,
     ) -> None:
@@ -127,12 +127,10 @@ class StreamingParquetDataset(BaseDataset):
         return self._length
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-        import pyarrow as pa
 
         # Locate row group and row within group
         row_group_sizes = [
-            self._pf.metadata.row_group(i).num_rows
-            for i in range(self._pf.metadata.num_row_groups)
+            self._pf.metadata.row_group(i).num_rows for i in range(self._pf.metadata.num_row_groups)
         ]
         cumulative = 0
         for rg_idx, rg_size in enumerate(row_group_sizes):
@@ -144,9 +142,7 @@ class StreamingParquetDataset(BaseDataset):
                 row = batch.slice(local_idx, 1)
                 x_arr = row.select(self._feature_columns).to_pydict()
                 y_arr = row.column(self._label_column)[0].as_py()
-                x = torch.tensor(
-                    [x_arr[c][0] for c in self._feature_columns], dtype=torch.float32
-                )
+                x = torch.tensor([x_arr[c][0] for c in self._feature_columns], dtype=torch.float32)
                 y = torch.tensor(y_arr)
                 if self._transform is not None:
                     x = self._transform(x)

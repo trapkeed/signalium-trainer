@@ -14,7 +14,6 @@ Provides per-head metric computation:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import torch
 
@@ -27,24 +26,24 @@ class MultiTaskMetrics:
     are not available in the evaluation dataset.
     """
 
-    direction_accuracy: Optional[float] = None
+    direction_accuracy: float | None = None
 
-    move_mae: Optional[float] = None
-    move_rmse: Optional[float] = None
+    move_mae: float | None = None
+    move_rmse: float | None = None
 
-    sl_mae: Optional[float] = None
-    sl_rmse: Optional[float] = None
+    sl_mae: float | None = None
+    sl_rmse: float | None = None
 
-    tp_mae: Optional[float] = None
-    tp_rmse: Optional[float] = None
+    tp_mae: float | None = None
+    tp_rmse: float | None = None
 
-    holding_time_mae: Optional[float] = None
-    holding_time_rmse: Optional[float] = None
+    holding_time_mae: float | None = None
+    holding_time_rmse: float | None = None
 
-    tp_prob_roc_auc: Optional[float] = None
+    tp_prob_roc_auc: float | None = None
 
-    confidence_ece: Optional[float] = None
-    confidence_reliability: Optional[float] = None
+    confidence_ece: float | None = None
+    confidence_reliability: float | None = None
 
     def to_dict(self) -> dict[str, float]:
         """Return non-None metrics as a plain dict for logging/export."""
@@ -55,9 +54,7 @@ class MultiTaskMetrics:
         return result
 
 
-def compute_direction_accuracy(
-    logits: torch.Tensor, targets: torch.Tensor
-) -> float:
+def compute_direction_accuracy(logits: torch.Tensor, targets: torch.Tensor) -> float:
     """Compute direction classification accuracy.
 
     Args:
@@ -71,9 +68,7 @@ def compute_direction_accuracy(
     return float((preds == targets.long()).float().mean().item())
 
 
-def compute_regression_metrics(
-    preds: torch.Tensor, targets: torch.Tensor
-) -> tuple[float, float]:
+def compute_regression_metrics(preds: torch.Tensor, targets: torch.Tensor) -> tuple[float, float]:
     """Compute MAE and RMSE for a regression head.
 
     Args:
@@ -90,9 +85,7 @@ def compute_regression_metrics(
     return mae, rmse
 
 
-def compute_tp_prob_roc_auc(
-    preds: torch.Tensor, targets: torch.Tensor
-) -> Optional[float]:
+def compute_tp_prob_roc_auc(preds: torch.Tensor, targets: torch.Tensor) -> float | None:
     """Compute ROC-AUC for the TP-before-SL binary head.
 
     Requires scikit-learn.  Returns None if only one class is present in
@@ -261,18 +254,14 @@ class MultiTaskMetricsTracker:
         if self._dir_logits:
             all_logits = torch.cat(self._dir_logits)
             all_targets = torch.cat(self._dir_targets)
-            metrics.direction_accuracy = compute_direction_accuracy(
-                all_logits, all_targets
-            )
+            metrics.direction_accuracy = compute_direction_accuracy(all_logits, all_targets)
 
             if self._conf:
                 all_conf = torch.cat(self._conf)
                 preds_cls = all_logits.argmax(dim=-1)
                 correct = (preds_cls == all_targets.long()).float()
                 metrics.confidence_ece = compute_confidence_ece(all_conf, correct)
-                metrics.confidence_reliability = compute_confidence_reliability(
-                    all_conf, correct
-                )
+                metrics.confidence_reliability = compute_confidence_reliability(all_conf, correct)
 
         def _reg(preds: list, tgts: list, prefix: str) -> None:
             if preds:

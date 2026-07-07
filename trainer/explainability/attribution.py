@@ -16,12 +16,10 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
-from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -47,9 +45,9 @@ class AttributionResult:
     method: str
     target_class: int
     feature_names: list[str] = field(default_factory=list)
-    aggregated: Optional[torch.Tensor] = None
+    aggregated: torch.Tensor | None = None
 
-    def aggregate(self, reduction: str = "mean") -> "AttributionResult":
+    def aggregate(self, reduction: str = "mean") -> AttributionResult:
         """Reduce the sequence (time) dimension.
 
         Args:
@@ -93,8 +91,7 @@ class AttributionResult:
         n = min(k, len(scores_1d))
         top_idx = rank_key.topk(n).indices.tolist()
         names = (
-            self.feature_names if self.feature_names
-            else [f"f{i}" for i in range(len(scores_1d))]
+            self.feature_names if self.feature_names else [f"f{i}" for i in range(len(scores_1d))]
         )
         return [(names[i], float(scores_1d[i])) for i in top_idx]
 
@@ -160,8 +157,8 @@ class IntegratedGradients:
         input_tensor: torch.Tensor,
         target_class: int = 0,
         steps: int = 50,
-        baseline: Optional[torch.Tensor] = None,
-        feature_names: Optional[list[str]] = None,
+        baseline: torch.Tensor | None = None,
+        feature_names: list[str] | None = None,
     ) -> AttributionResult:
         """Compute Integrated Gradients attributions.
 
@@ -220,7 +217,7 @@ class GradientAttribution:
         model: nn.Module,
         input_tensor: torch.Tensor,
         target_class: int = 0,
-        feature_names: Optional[list[str]] = None,
+        feature_names: list[str] | None = None,
     ) -> AttributionResult:
         """Compute Gradient × Input attributions.
 
@@ -276,7 +273,7 @@ class SmoothGrad:
         model: nn.Module,
         input_tensor: torch.Tensor,
         target_class: int = 0,
-        feature_names: Optional[list[str]] = None,
+        feature_names: list[str] | None = None,
     ) -> AttributionResult:
         """Compute SmoothGrad attributions.
 

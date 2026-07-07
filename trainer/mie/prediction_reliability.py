@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from typing import List
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import clamp
 from trainer.mie.mie_models import MarketInput, PredictionReliabilityResult
+from trainer.mie.mie_types import clamp
 
 
 class PredictionReliabilityEngine:
@@ -37,18 +36,18 @@ class PredictionReliabilityEngine:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def evaluate(self, inp: MarketInput) -> PredictionReliabilityResult:
-        conf      = clamp(inp.prediction_confidence, 0.0, 1.0)
-        calib     = clamp(inp.calibration_score, 0.0, 1.0)
-        health    = clamp(inp.model_health, 0.0, 1.0)
-        win_rate  = clamp(inp.historical_win_rate, 0.0, 1.0)
+        conf = clamp(inp.prediction_confidence, 0.0, 1.0)
+        calib = clamp(inp.calibration_score, 0.0, 1.0)
+        health = clamp(inp.model_health, 0.0, 1.0)
+        win_rate = clamp(inp.historical_win_rate, 0.0, 1.0)
 
-        conf_score  = self._score_confidence(conf)
-        cons_score  = self._score_consistency(conf, calib)
+        conf_score = self._score_confidence(conf)
+        cons_score = self._score_consistency(conf, calib)
         health_score = health * 25.0
-        wr_score    = self._score_win_rate(win_rate)
+        wr_score = self._score_win_rate(win_rate)
 
         reliability = conf_score + cons_score + health_score + wr_score
-        reasons     = self._generate_reasons(conf, calib, health, win_rate)
+        reasons = self._generate_reasons(conf, calib, health, win_rate)
 
         logger.debug(
             f"[PR] conf={conf:.3f} calib={calib:.3f} health={health:.3f} "
@@ -72,15 +71,15 @@ class PredictionReliabilityEngine:
         if conf > self._max_conf:
             return clamp((1.0 - conf) / (1.0 - self._max_conf) * 15.0, 0.0, 15.0)
         # Smooth bell-peak at 0.70
-        peak   = 0.70
+        peak = 0.70
         spread = self._max_conf - self._min_conf
-        dist   = abs(conf - peak) / max(spread / 2.0, 1e-9)
+        dist = abs(conf - peak) / max(spread / 2.0, 1e-9)
         return clamp(25.0 * (1.0 - dist * 0.5), 0.0, 25.0)
 
     def _score_consistency(self, conf: float, calib: float) -> float:
         """Rewards calibration and agreement between confidence and calib (0-25)."""
         calib_bonus = calib * 15.0
-        agreement   = 1.0 - abs(conf - calib)
+        agreement = 1.0 - abs(conf - calib)
         agree_bonus = agreement * 10.0
         return clamp(calib_bonus + agree_bonus, 0.0, 25.0)
 
@@ -92,12 +91,12 @@ class PredictionReliabilityEngine:
 
     def _generate_reasons(
         self,
-        conf:     float,
-        calib:    float,
-        health:   float,
+        conf: float,
+        calib: float,
+        health: float,
         win_rate: float,
-    ) -> List[str]:
-        reasons: List[str] = []
+    ) -> list[str]:
+        reasons: list[str] = []
         if conf < self._min_conf:
             reasons.append(f"Low prediction confidence ({conf:.0%})")
         if conf > self._max_conf:

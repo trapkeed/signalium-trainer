@@ -12,19 +12,20 @@ for each trigger type:
 
 from __future__ import annotations
 
-import time
 from collections import deque
-from typing import Any, Callable, Deque, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import WorkerTrigger
-from trainer.mie.mie_models import MarketInput, MarketIntelligenceReport, WorkerJob
 from trainer.mie.mie_api import MIEAPI
+from trainer.mie.mie_models import MarketInput, WorkerJob
+from trainer.mie.mie_types import WorkerTrigger
 
 
 class MIEWorker:
@@ -39,16 +40,16 @@ class MIEWorker:
 
     def __init__(
         self,
-        api:           Optional[MIEAPI] = None,
-        max_queue:     int              = 100,
-        on_complete:   Optional[Callable[[WorkerJob], None]] = None,
+        api: MIEAPI | None = None,
+        max_queue: int = 100,
+        on_complete: Callable[[WorkerJob], None] | None = None,
     ) -> None:
-        self._api        = api or MIEAPI()
-        self._queue:     Deque[WorkerJob] = deque(maxlen=max_queue)
-        self._history:   List[WorkerJob]  = []
+        self._api = api or MIEAPI()
+        self._queue: deque[WorkerJob] = deque(maxlen=max_queue)
+        self._history: list[WorkerJob] = []
         self._on_complete = on_complete
-        self._processed  = 0
-        self._failed     = 0
+        self._processed = 0
+        self._failed = 0
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -60,36 +61,42 @@ class MIEWorker:
 
     def submit_candle(self, inp: MarketInput) -> str:
         """Convenience: enqueue a NEW_CANDLE job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.NEW_CANDLE,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.NEW_CANDLE,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
     def submit_prediction(self, inp: MarketInput) -> str:
         """Convenience: enqueue a NEW_PREDICTION job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.NEW_PREDICTION,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.NEW_PREDICTION,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
     def submit_manual(self, inp: MarketInput) -> str:
         """Convenience: enqueue a MANUAL_REFRESH job."""
-        return self.submit(WorkerJob(
-            trigger=WorkerTrigger.MANUAL_REFRESH,
-            symbol=inp.symbol,
-            payload={"input": inp},
-        ))
+        return self.submit(
+            WorkerJob(
+                trigger=WorkerTrigger.MANUAL_REFRESH,
+                symbol=inp.symbol,
+                payload={"input": inp},
+            )
+        )
 
-    def process_next(self) -> Optional[WorkerJob]:
+    def process_next(self) -> WorkerJob | None:
         """Process one job from the queue. Returns the processed job or None."""
         if not self._queue:
             return None
         job = self._queue.popleft()
         job.status = "RUNNING"
         try:
-            inp: Optional[MarketInput] = job.payload.get("input")
+            inp: MarketInput | None = job.payload.get("input")
             if inp is None:
                 raise ValueError("WorkerJob payload missing 'input' MarketInput")
             report = self._api.recalculate(inp)
@@ -97,9 +104,7 @@ class MIEWorker:
             job.status = "DONE"
             self._processed += 1
             t_score = f"{report.tradeability.score:.1f}" if report.tradeability else "N/A"
-            logger.info(
-                f"[Worker] ✓ {job.job_id} {job.trigger.value} → tradeability={t_score}"
-            )
+            logger.info(f"[Worker] ✓ {job.job_id} {job.trigger.value} → tradeability={t_score}")
         except Exception as exc:
             job.status = "FAILED"
             job.payload["error"] = str(exc)
@@ -111,9 +116,9 @@ class MIEWorker:
                 self._on_complete(job)
         return job
 
-    def process_all(self) -> List[WorkerJob]:
+    def process_all(self) -> list[WorkerJob]:
         """Drain the queue and process every pending job."""
-        results: List[WorkerJob] = []
+        results: list[WorkerJob] = []
         while self._queue:
             job = self.process_next()
             if job:
@@ -132,13 +137,13 @@ class MIEWorker:
     def failed(self) -> int:
         return self._failed
 
-    def get_history(self, limit: int = 20) -> List[WorkerJob]:
+    def get_history(self, limit: int = 20) -> list[WorkerJob]:
         return self._history[-limit:]
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "queue_size": self.queue_size,
-            "processed":  self.processed,
-            "failed":     self.failed,
-            "history":    len(self._history),
+            "processed": self.processed,
+            "failed": self.failed,
+            "history": len(self._history),
         }

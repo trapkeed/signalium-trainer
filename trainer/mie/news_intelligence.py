@@ -2,28 +2,27 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import NewsImpact, NEWS_IMPACT_PENALTY, clamp
 from trainer.mie.mie_models import MarketInput, NewsIntelligenceResult
+from trainer.mie.mie_types import NewsImpact, clamp
 
 # Expected dict keys from news_events list items
-_IMPACT_KEY   = "impact"    # HIGH | MEDIUM | LOW | NONE
-_TIMING_KEY   = "timing"    # upcoming | recent | past
-_LABEL_KEY    = "label"     # human-readable event name
+_IMPACT_KEY = "impact"  # HIGH | MEDIUM | LOW | NONE
+_TIMING_KEY = "timing"  # upcoming | recent | past
+_LABEL_KEY = "label"  # human-readable event name
 
 
 def _parse_impact(raw: str) -> NewsImpact:
     mapping = {
-        "HIGH":   NewsImpact.HIGH,
+        "HIGH": NewsImpact.HIGH,
         "MEDIUM": NewsImpact.MEDIUM,
-        "LOW":    NewsImpact.LOW,
+        "LOW": NewsImpact.LOW,
     }
     return mapping.get(str(raw).upper(), NewsImpact.NONE)
 
@@ -41,31 +40,31 @@ class NewsIntelligenceEngine:
     - LOW any         : 2 pts each
     """
 
-    _WEIGHTS: Dict[str, float] = {
-        "HIGH_upcoming":   25.0,
-        "HIGH_recent":     15.0,
-        "HIGH_past":       8.0,
+    _WEIGHTS: dict[str, float] = {
+        "HIGH_upcoming": 25.0,
+        "HIGH_recent": 15.0,
+        "HIGH_past": 8.0,
         "MEDIUM_upcoming": 10.0,
-        "MEDIUM_recent":   5.0,
-        "MEDIUM_past":     2.0,
-        "LOW_upcoming":    2.0,
-        "LOW_recent":      1.0,
-        "LOW_past":        0.5,
+        "MEDIUM_recent": 5.0,
+        "MEDIUM_past": 2.0,
+        "LOW_upcoming": 2.0,
+        "LOW_recent": 1.0,
+        "LOW_past": 0.5,
     }
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def evaluate(self, inp: MarketInput) -> NewsIntelligenceResult:
-        events    = inp.news_events or []
-        score     = 0.0
+        events = inp.news_events or []
+        score = 0.0
         upcoming_high = 0
-        recent_high   = 0
-        details: List[str] = []
+        recent_high = 0
+        details: list[str] = []
 
         for event in events:
             impact_str = str(event.get(_IMPACT_KEY, "NONE")).upper()
             timing_str = str(event.get(_TIMING_KEY, "past")).lower()
-            label      = str(event.get(_LABEL_KEY, "unknown"))
+            label = str(event.get(_LABEL_KEY, "unknown"))
 
             key = f"{impact_str}_{timing_str}"
             pts = self._WEIGHTS.get(key, 0.0)
@@ -83,9 +82,7 @@ class NewsIntelligenceEngine:
         score = clamp(score, 0.0, 100.0)
         impact = self._classify_impact(score, upcoming_high, recent_high)
 
-        logger.debug(
-            f"[NI] {inp.symbol} events={len(events)} score={score:.1f} → {impact.value}"
-        )
+        logger.debug(f"[NI] {inp.symbol} events={len(events)} score={score:.1f} → {impact.value}")
         return NewsIntelligenceResult(
             impact=impact,
             impact_score=score,
@@ -99,9 +96,9 @@ class NewsIntelligenceEngine:
 
     def _classify_impact(
         self,
-        score:        float,
+        score: float,
         upcoming_high: int,
-        recent_high:   int,
+        recent_high: int,
     ) -> NewsImpact:
         if upcoming_high >= 1 or score >= 50:
             return NewsImpact.HIGH

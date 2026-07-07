@@ -37,11 +37,10 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Trade result container
@@ -249,20 +248,19 @@ class TradingMetricsEngine:
         # ── 12. Sharpe Ratio
         returns = pnls / max(abs(pnls.max()), 1.0)
         excess = returns - self._rfr
-        sharpe = (float(excess.mean()) * np.sqrt(self._ann)
-                  / (float(excess.std()) + 1e-9))
+        sharpe = float(excess.mean()) * np.sqrt(self._ann) / (float(excess.std()) + 1e-9)
 
         # ── 13. Sortino Ratio
         downside = excess[excess < 0]
         downside_std = float(downside.std()) + 1e-9
-        sortino = (float(excess.mean()) * np.sqrt(self._ann) / downside_std)
+        sortino = float(excess.mean()) * np.sqrt(self._ann) / downside_std
 
         # ── 14. Calmar Ratio
         annualised_return = float(returns.mean()) * self._ann
         calmar = annualised_return / max_drawdown if max_drawdown > 0 else float("inf")
 
         # ── 15. Ulcer Index
-        ulcer = float(np.sqrt(np.mean(drawdowns ** 2)))
+        ulcer = float(np.sqrt(np.mean(drawdowns**2)))
 
         # ── 16. MAR Ratio (same as Calmar but uses actual total return)
         mar = annualised_return / max_drawdown if max_drawdown > 0 else float("inf")
@@ -283,8 +281,9 @@ class TradingMetricsEngine:
 
         # ── 21. TP-before-SL Accuracy
         tp_sl_trades = [t for t in active_trades if t.tp_hit or t.sl_hit]
-        tp_acc = (sum(1 for t in tp_sl_trades if t.tp_hit) / len(tp_sl_trades)
-                  if tp_sl_trades else 0.0)
+        tp_acc = (
+            sum(1 for t in tp_sl_trades if t.tp_hit) / len(tp_sl_trades) if tp_sl_trades else 0.0
+        )
 
         return TradingMetrics(
             win_rate=win_rate,
@@ -313,9 +312,7 @@ class TradingMetricsEngine:
         )
 
     @staticmethod
-    def _estimate_risk_of_ruin(
-        win_rate: float, avg_win: float, avg_loss: float
-    ) -> float:
+    def _estimate_risk_of_ruin(win_rate: float, avg_win: float, avg_loss: float) -> float:
         """Closed-form Risk of Ruin estimate (Kelly-derived).
 
         R = ((1 - edge) / (1 + edge)) ^ (ruin_fraction / risk_per_trade)
@@ -334,13 +331,13 @@ class TradingMetricsEngine:
     def _skewness(x: np.ndarray) -> float:
         mean = x.mean()
         std = x.std() + 1e-9
-        return float(((x - mean) ** 3).mean() / std ** 3)
+        return float(((x - mean) ** 3).mean() / std**3)
 
     @staticmethod
     def _kurtosis(x: np.ndarray) -> float:
         mean = x.mean()
         std = x.std() + 1e-9
-        return float(((x - mean) ** 4).mean() / std ** 4) - 3.0  # excess kurtosis
+        return float(((x - mean) ** 4).mean() / std**4) - 3.0  # excess kurtosis
 
 
 # ---------------------------------------------------------------------------
@@ -380,8 +377,8 @@ class TradeSimulator:
         self,
         probs: np.ndarray,
         ohlcv: np.ndarray,
-        timestamps: Optional[np.ndarray] = None,
-        slippage_pips: Optional[np.ndarray] = None,
+        timestamps: np.ndarray | None = None,
+        slippage_pips: np.ndarray | None = None,
     ) -> list[TradeResult]:
         """Simulate trades from class probabilities and price data.
 
@@ -450,20 +447,22 @@ class TradeSimulator:
 
             pnl = direction * (exit_price - actual_entry) / self._pip
 
-            trades.append(TradeResult(
-                direction=direction,
-                entry_price=actual_entry,
-                exit_price=exit_price,
-                stop_loss=sl_level,
-                take_profit=tp_level,
-                holding_bars=holding,
-                pnl_pips=pnl,
-                mfe_pips=mfe,
-                mae_pips=mae,
-                tp_hit=tp_hit,
-                sl_hit=sl_hit,
-                confidence=confidence,
-                timestamp=float(timestamps[i]) if timestamps is not None else 0.0,
-            ))
+            trades.append(
+                TradeResult(
+                    direction=direction,
+                    entry_price=actual_entry,
+                    exit_price=exit_price,
+                    stop_loss=sl_level,
+                    take_profit=tp_level,
+                    holding_bars=holding,
+                    pnl_pips=pnl,
+                    mfe_pips=mfe,
+                    mae_pips=mae,
+                    tp_hit=tp_hit,
+                    sl_hit=sl_hit,
+                    confidence=confidence,
+                    timestamp=float(timestamps[i]) if timestamps is not None else 0.0,
+                )
+            )
 
         return trades

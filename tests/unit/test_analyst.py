@@ -17,147 +17,166 @@ ROOT = Path(__file__).parent.parent.parent
 def _load(name: str, rel: str):
     path = ROOT / "trainer" / rel
     spec = importlib.util.spec_from_file_location(name, path)
-    mod  = importlib.util.module_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 # Load in dependency order
-at   = _load("trainer.analyst.analyst_types",        "analyst/analyst_types.py")
-am   = _load("trainer.analyst.analyst_models",       "analyst/analyst_models.py")
-llm  = _load("trainer.analyst.llm_provider",         "analyst/llm_provider.py")
-ki   = _load("trainer.analyst.knowledge_index",      "analyst/knowledge_index.py")
-re_  = _load("trainer.analyst.retrieval_engine",     "analyst/retrieval_engine.py")
-pe   = _load("trainer.analyst.prompt_engine",        "analyst/prompt_engine.py")
-ce   = _load("trainer.analyst.citation_engine",      "analyst/citation_engine.py")
-rc   = _load("trainer.analyst.research_chat",        "analyst/research_chat.py")
-rs   = _load("trainer.analyst.research_search",      "analyst/research_search.py")
-mc   = _load("trainer.analyst.model_comparator",     "analyst/model_comparator.py")
-rg   = _load("trainer.analyst.report_generator",     "analyst/report_generator.py")
-rce  = _load("trainer.analyst.recommendation_engine","analyst/recommendation_engine.py")
-adb  = _load("trainer.analyst.analyst_database",     "analyst/analyst_database.py")
-adash = _load("trainer.analyst.analyst_dashboard",   "analyst/analyst_dashboard.py")
-aapi  = _load("trainer.analyst.analyst_api",         "analyst/analyst_api.py")
+at = _load("trainer.analyst.analyst_types", "analyst/analyst_types.py")
+am = _load("trainer.analyst.analyst_models", "analyst/analyst_models.py")
+llm = _load("trainer.analyst.llm_provider", "analyst/llm_provider.py")
+ki = _load("trainer.analyst.knowledge_index", "analyst/knowledge_index.py")
+re_ = _load("trainer.analyst.retrieval_engine", "analyst/retrieval_engine.py")
+pe = _load("trainer.analyst.prompt_engine", "analyst/prompt_engine.py")
+ce = _load("trainer.analyst.citation_engine", "analyst/citation_engine.py")
+rc = _load("trainer.analyst.research_chat", "analyst/research_chat.py")
+rs = _load("trainer.analyst.research_search", "analyst/research_search.py")
+mc = _load("trainer.analyst.model_comparator", "analyst/model_comparator.py")
+rg = _load("trainer.analyst.report_generator", "analyst/report_generator.py")
+rce = _load("trainer.analyst.recommendation_engine", "analyst/recommendation_engine.py")
+adb = _load("trainer.analyst.analyst_database", "analyst/analyst_database.py")
+adash = _load("trainer.analyst.analyst_dashboard", "analyst/analyst_dashboard.py")
+aapi = _load("trainer.analyst.analyst_api", "analyst/analyst_api.py")
 
 # Aliases
-QueryType        = at.QueryType
-ReportType       = at.ReportType
-Permission       = at.Permission
-Role             = at.Role
-LLMProviderType  = at.LLMProviderType
-CitationType     = at.CitationType
+QueryType = at.QueryType
+ReportType = at.ReportType
+Permission = at.Permission
+Role = at.Role
+LLMProviderType = at.LLMProviderType
+CitationType = at.CitationType
 RecommendationType = at.RecommendationType
 KnowledgeSourceType = at.KnowledgeSourceType
-has_permission   = at.has_permission
+has_permission = at.has_permission
 is_safe_response = at.is_safe_response
 PROHIBITED_PATTERNS = at.PROHIBITED_PATTERNS
 
-KnowledgeChunk   = am.KnowledgeChunk
-Citation         = am.Citation
-LLMResponse      = am.LLMResponse
-ResearchQuery    = am.ResearchQuery
-ChatMessage      = am.ChatMessage
-ChatSession      = am.ChatSession
-ResearchReport   = am.ResearchReport
-Recommendation   = am.Recommendation
+KnowledgeChunk = am.KnowledgeChunk
+Citation = am.Citation
+LLMResponse = am.LLMResponse
+ResearchQuery = am.ResearchQuery
+ChatMessage = am.ChatMessage
+ChatSession = am.ChatSession
+ResearchReport = am.ResearchReport
+Recommendation = am.Recommendation
 
-LLMProvider      = llm.LLMProvider
-MockLLMProvider  = llm.MockLLMProvider
-OpenAIProvider   = llm.OpenAIProvider
+LLMProvider = llm.LLMProvider
+MockLLMProvider = llm.MockLLMProvider
+OpenAIProvider = llm.OpenAIProvider
 AnthropicProvider = llm.AnthropicProvider
-GeminiProvider   = llm.GeminiProvider
-OllamaProvider   = llm.OllamaProvider
+GeminiProvider = llm.GeminiProvider
+OllamaProvider = llm.OllamaProvider
 AzureOpenAIProvider = llm.AzureOpenAIProvider
-create_provider  = llm.create_provider
+create_provider = llm.create_provider
 
-KnowledgeIndex   = ki.KnowledgeIndex
-RetrievalEngine  = re_.RetrievalEngine
-PromptEngine     = pe.PromptEngine
-CitationEngine   = ce.CitationEngine
-ResearchChat     = rc.ResearchChat
-ResearchSearch   = rs.ResearchSearch
-ModelComparator  = mc.ModelComparator
-ReportGenerator  = rg.ReportGenerator
+KnowledgeIndex = ki.KnowledgeIndex
+RetrievalEngine = re_.RetrievalEngine
+PromptEngine = pe.PromptEngine
+CitationEngine = ce.CitationEngine
+ResearchChat = rc.ResearchChat
+ResearchSearch = rs.ResearchSearch
+ModelComparator = mc.ModelComparator
+ReportGenerator = rg.ReportGenerator
 RecommendationEngine = rce.RecommendationEngine
-AnalystDatabase  = adb.AnalystDatabase
+AnalystDatabase = adb.AnalystDatabase
 AnalystDashboard = adash.AnalystDashboard
-AnalystAPI       = aapi.AnalystAPI
+AnalystAPI = aapi.AnalystAPI
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def make_chunk(
     source_type: KnowledgeSourceType = None,
     artifact_id: str = "EXP-001",
     title: str = "EURUSD Transformer Experiment",
     content: str = "Sharpe 2.3, max_drawdown 8.5%, accuracy 0.72, status PASSED. "
-                   "Model EXP-001 used Transformer architecture with dataset DATASET-v18.",
+    "Model EXP-001 used Transformer architecture with dataset DATASET-v18.",
     tags: list = None,
     metadata: dict = None,
 ) -> KnowledgeChunk:
     import uuid
+
     return KnowledgeChunk(
-        chunk_id    = str(uuid.uuid4())[:12],
-        source_type = source_type or KnowledgeSourceType.EXPERIMENT,
-        artifact_id = artifact_id,
-        title       = title,
-        content     = content,
-        tags        = tags or ["eurusd", "transformer", "sharpe"],
-        timestamp   = time.time(),
-        metadata    = metadata or {"sharpe": 2.3, "max_drawdown": 8.5, "status": "PASSED"},
+        chunk_id=str(uuid.uuid4())[:12],
+        source_type=source_type or KnowledgeSourceType.EXPERIMENT,
+        artifact_id=artifact_id,
+        title=title,
+        content=content,
+        tags=tags or ["eurusd", "transformer", "sharpe"],
+        timestamp=time.time(),
+        metadata=metadata or {"sharpe": 2.3, "max_drawdown": 8.5, "status": "PASSED"},
     )
 
 
 def make_index_with_data() -> KnowledgeIndex:
     idx = KnowledgeIndex()
     idx.index(make_chunk(artifact_id="EXP-001"))
-    idx.index(make_chunk(
-        artifact_id = "MODEL-42",
-        title       = "Transformer Model 42 — Champion",
-        content     = "MODEL-42 is the current champion. Sharpe 2.8, drawdown 6.2%. "
-                       "Trained on DATASET-v18. REPORT-Q2 validation passed.",
-        tags        = ["model", "champion", "transformer"],
-        source_type = KnowledgeSourceType.MODEL_REGISTRY,
-        metadata    = {"sharpe": 2.8, "max_drawdown": 6.2, "status": "CHAMPION"},
-    ))
-    idx.index(make_chunk(
-        artifact_id = "MODEL-37",
-        title       = "Model 37 — Challenger",
-        content     = "MODEL-37 achieved Sharpe 1.9, drawdown 11.1%. "
-                       "Calibration deteriorated in Q3. EXP-042 validation failed.",
-        tags        = ["model", "challenger"],
-        source_type = KnowledgeSourceType.MODEL_REGISTRY,
-        metadata    = {"sharpe": 1.9, "max_drawdown": 11.1, "status": "FAILED"},
-    ))
-    idx.index(make_chunk(
-        artifact_id = "DATASET-v18",
-        title       = "Dataset v18 — Training Data",
-        content     = "Dataset version 18. Covers Jan 2022–Dec 2023. Includes ranging and trending regimes. "
-                       "Limited volatile regime coverage noted in REPORT-Q2.",
-        tags        = ["dataset", "v18"],
-        source_type = KnowledgeSourceType.DATASET_VERSION,
-        metadata    = {"version": "v18", "sharpe": None, "status": "ACTIVE"},
-    ))
-    idx.index(make_chunk(
-        artifact_id = "REPORT-Q2",
-        title       = "Q2 Research Report",
-        content     = "Quarterly review. Champion MODEL-42 maintained performance. "
-                       "Recommendation: collect more volatile regime data. "
-                       "Feature RSI instability detected. Calibration stable.",
-        tags        = ["report", "quarterly"],
-        source_type = KnowledgeSourceType.RESEARCH_REPORT,
-        metadata    = {"period": "Q2", "status": "COMPLETE"},
-    ))
+    idx.index(
+        make_chunk(
+            artifact_id="MODEL-42",
+            title="Transformer Model 42 — Champion",
+            content="MODEL-42 is the current champion. Sharpe 2.8, drawdown 6.2%. "
+            "Trained on DATASET-v18. REPORT-Q2 validation passed.",
+            tags=["model", "champion", "transformer"],
+            source_type=KnowledgeSourceType.MODEL_REGISTRY,
+            metadata={"sharpe": 2.8, "max_drawdown": 6.2, "status": "CHAMPION"},
+        )
+    )
+    idx.index(
+        make_chunk(
+            artifact_id="MODEL-37",
+            title="Model 37 — Challenger",
+            content="MODEL-37 achieved Sharpe 1.9, drawdown 11.1%. "
+            "Calibration deteriorated in Q3. EXP-042 validation failed.",
+            tags=["model", "challenger"],
+            source_type=KnowledgeSourceType.MODEL_REGISTRY,
+            metadata={"sharpe": 1.9, "max_drawdown": 11.1, "status": "FAILED"},
+        )
+    )
+    idx.index(
+        make_chunk(
+            artifact_id="DATASET-v18",
+            title="Dataset v18 — Training Data",
+            content="Dataset version 18. Covers Jan 2022–Dec 2023. Includes ranging and trending regimes. "
+            "Limited volatile regime coverage noted in REPORT-Q2.",
+            tags=["dataset", "v18"],
+            source_type=KnowledgeSourceType.DATASET_VERSION,
+            metadata={"version": "v18", "sharpe": None, "status": "ACTIVE"},
+        )
+    )
+    idx.index(
+        make_chunk(
+            artifact_id="REPORT-Q2",
+            title="Q2 Research Report",
+            content="Quarterly review. Champion MODEL-42 maintained performance. "
+            "Recommendation: collect more volatile regime data. "
+            "Feature RSI instability detected. Calibration stable.",
+            tags=["report", "quarterly"],
+            source_type=KnowledgeSourceType.RESEARCH_REPORT,
+            metadata={"period": "Q2", "status": "COMPLETE"},
+        )
+    )
     return idx
 
 
 # ── Tests: Types ──────────────────────────────────────────────────────────────
 
+
 class TestAnalystTypes(unittest.TestCase):
     def test_query_types(self):
         vals = {q.value for q in QueryType}
-        for v in ("CHAT","COMPARISON","ANALYSIS","SEARCH","SUMMARY","RECOMMENDATION","REPORT"):
+        for v in (
+            "CHAT",
+            "COMPARISON",
+            "ANALYSIS",
+            "SEARCH",
+            "SUMMARY",
+            "RECOMMENDATION",
+            "REPORT",
+        ):
             self.assertIn(v, vals)
 
     def test_report_types_count(self):
@@ -165,7 +184,7 @@ class TestAnalystTypes(unittest.TestCase):
 
     def test_permissions(self):
         perms = {p.value for p in Permission}
-        for v in ("READ","EXPORT","SUMMARIZE","COMPARE","AUDIT"):
+        for v in ("READ", "EXPORT", "SUMMARIZE", "COMPARE", "AUDIT"):
             self.assertIn(v, perms)
 
     def test_roles(self):
@@ -175,7 +194,7 @@ class TestAnalystTypes(unittest.TestCase):
 
     def test_llm_provider_types(self):
         vals = {p.value for p in LLMProviderType}
-        for v in ("MOCK","OPENAI","ANTHROPIC","GEMINI","OLLAMA","AZURE"):
+        for v in ("MOCK", "OPENAI", "ANTHROPIC", "GEMINI", "OLLAMA", "AZURE"):
             self.assertIn(v, vals)
 
     def test_has_permission_admin(self):
@@ -209,11 +228,12 @@ class TestAnalystTypes(unittest.TestCase):
 
     def test_citation_types(self):
         vals = {c.value for c in CitationType}
-        for v in ("EXPERIMENT","MODEL","DATASET","FEATURE","VALIDATION","REPORT"):
+        for v in ("EXPERIMENT", "MODEL", "DATASET", "FEATURE", "VALIDATION", "REPORT"):
             self.assertIn(v, vals)
 
 
 # ── Tests: Models ─────────────────────────────────────────────────────────────
+
 
 class TestAnalystModels(unittest.TestCase):
     def test_knowledge_chunk_to_dict(self):
@@ -294,6 +314,7 @@ class TestAnalystModels(unittest.TestCase):
 
 # ── Tests: LLM Providers ──────────────────────────────────────────────────────
 
+
 class TestLLMProviders(unittest.TestCase):
     def setUp(self):
         self.provider = MockLLMProvider()
@@ -368,6 +389,7 @@ class TestLLMProviders(unittest.TestCase):
 
 # ── Tests: Knowledge Index ────────────────────────────────────────────────────
 
+
 class TestKnowledgeIndex(unittest.TestCase):
     def setUp(self):
         self.idx = make_index_with_data()
@@ -436,10 +458,11 @@ class TestKnowledgeIndex(unittest.TestCase):
 
 # ── Tests: Retrieval Engine ───────────────────────────────────────────────────
 
+
 class TestRetrievalEngine(unittest.TestCase):
     def setUp(self):
-        self.idx      = make_index_with_data()
-        self.engine   = RetrievalEngine(self.idx, top_k=5)
+        self.idx = make_index_with_data()
+        self.engine = RetrievalEngine(self.idx, top_k=5)
 
     def test_retrieve_returns_results(self):
         results = self.engine.retrieve("Transformer model performance")
@@ -470,10 +493,7 @@ class TestRetrievalEngine(unittest.TestCase):
         self.assertIsInstance(ctx, str)
 
     def test_retrieve_with_source_filter(self):
-        results = self.engine.retrieve(
-            "model",
-            source_type=KnowledgeSourceType.MODEL_REGISTRY
-        )
+        results = self.engine.retrieve("model", source_type=KnowledgeSourceType.MODEL_REGISTRY)
         for r in results:
             self.assertEqual(r.source_type, KnowledgeSourceType.MODEL_REGISTRY)
 
@@ -484,6 +504,7 @@ class TestRetrievalEngine(unittest.TestCase):
 
 
 # ── Tests: Prompt Engine ──────────────────────────────────────────────────────
+
 
 class TestPromptEngine(unittest.TestCase):
     def setUp(self):
@@ -500,8 +521,7 @@ class TestPromptEngine(unittest.TestCase):
 
     def test_build_report_prompt(self):
         prompt = self.engine.build(
-            QueryType.REPORT, "generate report", "context",
-            report_type=ReportType.WEEKLY_REPORT
+            QueryType.REPORT, "generate report", "context", report_type=ReportType.WEEKLY_REPORT
         )
         self.assertIsInstance(prompt, str)
         self.assertGreater(len(prompt), 100)
@@ -530,6 +550,7 @@ class TestPromptEngine(unittest.TestCase):
 
 # ── Tests: Citation Engine ────────────────────────────────────────────────────
 
+
 class TestCitationEngine(unittest.TestCase):
     def setUp(self):
         self.engine = CitationEngine()
@@ -556,24 +577,24 @@ class TestCitationEngine(unittest.TestCase):
 
     def test_validate_boosts_known_chunk(self):
         chunk = make_chunk(artifact_id="EXP-001")
-        cit   = Citation(CitationType.EXPERIMENT, "EXP-001", "test", 0.5)
+        cit = Citation(CitationType.EXPERIMENT, "EXP-001", "test", 0.5)
         validated = self.engine.validate([cit], [chunk])
         self.assertEqual(validated[0].relevance, 1.0)
 
     def test_validate_lowers_unknown(self):
         chunk = make_chunk(artifact_id="MODEL-42")
-        cit   = Citation(CitationType.EXPERIMENT, "EXP-999", "test", 1.0)
+        cit = Citation(CitationType.EXPERIMENT, "EXP-999", "test", 1.0)
         validated = self.engine.validate([cit], [chunk])
         self.assertEqual(validated[0].relevance, 0.60)
 
     def test_add_from_chunks(self):
         chunk = make_chunk(artifact_id="EXP-001")
-        cits  = self.engine.add_from_chunks([], [chunk])
+        cits = self.engine.add_from_chunks([], [chunk])
         self.assertGreater(len(cits), 0)
 
     def test_format_bibliography(self):
         cits = [Citation(CitationType.EXPERIMENT, "EXP-001", "description", 0.9)]
-        bib  = self.engine.format_bibliography(cits)
+        bib = self.engine.format_bibliography(cits)
         self.assertIn("EXP-001", bib)
         self.assertIn("References", bib)
 
@@ -591,9 +612,10 @@ class TestCitationEngine(unittest.TestCase):
 
 # ── Tests: Research Chat ──────────────────────────────────────────────────────
 
+
 class TestResearchChat(unittest.TestCase):
     def setUp(self):
-        self.idx  = make_index_with_data()
+        self.idx = make_index_with_data()
         self.chat = ResearchChat(self.idx)
 
     def test_new_session(self):
@@ -608,7 +630,7 @@ class TestResearchChat(unittest.TestCase):
 
     def test_end_session(self):
         session = self.chat.new_session()
-        result  = self.chat.end_session(session.session_id)
+        result = self.chat.end_session(session.session_id)
         self.assertTrue(result)
         self.assertFalse(session.active)
 
@@ -620,10 +642,10 @@ class TestResearchChat(unittest.TestCase):
 
     def test_chat_valid_query(self):
         session = self.chat.new_session()
-        query   = ResearchQuery(
-            text       = "Why did Model 42 outperform Model 37?",
-            query_type = QueryType.ANALYSIS,
-            role       = Role.RESEARCHER,
+        query = ResearchQuery(
+            text="Why did Model 42 outperform Model 37?",
+            query_type=QueryType.ANALYSIS,
+            role=Role.RESEARCHER,
         )
         response = self.chat.chat(query, session.session_id)
         self.assertIsInstance(response, LLMResponse)
@@ -631,10 +653,10 @@ class TestResearchChat(unittest.TestCase):
 
     def test_chat_signal_request_rejected(self):
         session = self.chat.new_session()
-        query   = ResearchQuery(
-            text       = "Should I buy EURUSD now?",
-            query_type = QueryType.CHAT,
-            role       = Role.RESEARCHER,
+        query = ResearchQuery(
+            text="Should I buy EURUSD now?",
+            query_type=QueryType.CHAT,
+            role=Role.RESEARCHER,
         )
         response = self.chat.chat(query, session.session_id)
         self.assertTrue(response.safe)
@@ -642,9 +664,9 @@ class TestResearchChat(unittest.TestCase):
 
     def test_chat_access_denied_no_permission(self):
         session = self.chat.new_session()
-        query   = ResearchQuery(
-            text  = "show experiments",
-            role  = Role.VIEWER,  # only has READ permission
+        query = ResearchQuery(
+            text="show experiments",
+            role=Role.VIEWER,  # only has READ permission
         )
         # Viewer has READ — should succeed
         query2 = ResearchQuery(text="show experiments", role=Role.VIEWER)
@@ -653,7 +675,7 @@ class TestResearchChat(unittest.TestCase):
 
     def test_session_records_messages(self):
         session = self.chat.new_session()
-        query   = ResearchQuery(text="What is the Sharpe of Model 42?", role=Role.RESEARCHER)
+        query = ResearchQuery(text="What is the Sharpe of Model 42?", role=Role.RESEARCHER)
         self.chat.chat(query, session.session_id)
         # User + assistant messages
         self.assertGreaterEqual(session.message_count, 2)
@@ -673,20 +695,21 @@ class TestResearchChat(unittest.TestCase):
 
 # ── Tests: Research Search ────────────────────────────────────────────────────
 
+
 class TestResearchSearch(unittest.TestCase):
     def setUp(self):
-        self.idx    = make_index_with_data()
+        self.idx = make_index_with_data()
         self.search = ResearchSearch(self.idx)
 
     def test_search_returns_results(self):
-        query  = ResearchQuery(text="Transformer experiments", role=Role.RESEARCHER)
+        query = ResearchQuery(text="Transformer experiments", role=Role.RESEARCHER)
         result = self.search.search(query)
         self.assertIn("results", result)
         self.assertIsInstance(result["results"], list)
 
     def test_search_denied_for_no_permission(self):
         # Viewer has READ — search should work
-        query  = ResearchQuery(text="model", role=Role.VIEWER)
+        query = ResearchQuery(text="model", role=Role.VIEWER)
         result = self.search.search(query)
         self.assertNotIn("error", result)
 
@@ -717,71 +740,73 @@ class TestResearchSearch(unittest.TestCase):
 
 # ── Tests: Model Comparator ───────────────────────────────────────────────────
 
+
 class TestModelComparator(unittest.TestCase):
     def setUp(self):
-        self.idx  = make_index_with_data()
+        self.idx = make_index_with_data()
         self.comp = ModelComparator(self.idx)
 
     def test_compare_returns_dict(self):
-        query  = ResearchQuery(text="compare models", role=Role.RESEARCHER)
+        query = ResearchQuery(text="compare models", role=Role.RESEARCHER)
         result = self.comp.compare(query, "MODEL-42", "MODEL-37")
         self.assertIn("artifact_a", result)
         self.assertIn("artifact_b", result)
         self.assertIn("analysis", result)
 
     def test_compare_denied_for_viewer(self):
-        query  = ResearchQuery(text="compare", role=Role.VIEWER)
+        query = ResearchQuery(text="compare", role=Role.VIEWER)
         result = self.comp.compare(query, "MODEL-42", "MODEL-37")
         self.assertIn("error", result)
 
     def test_compare_table_has_metrics(self):
-        query  = ResearchQuery(text="compare", role=Role.RESEARCHER)
+        query = ResearchQuery(text="compare", role=Role.RESEARCHER)
         result = self.comp.compare(query, "MODEL-42", "MODEL-37")
         self.assertIn("table", result)
 
     def test_compare_batch(self):
-        query  = ResearchQuery(text="rank models", role=Role.RESEARCHER)
+        query = ResearchQuery(text="rank models", role=Role.RESEARCHER)
         result = self.comp.compare_batch(query, ["MODEL-42", "MODEL-37"])
         self.assertIn("artifacts", result)
         self.assertIn("analysis", result)
 
     def test_ranking_by_sharpe(self):
-        query  = ResearchQuery(text="rank", role=Role.RESEARCHER)
+        query = ResearchQuery(text="rank", role=Role.RESEARCHER)
         ranked = self.comp.ranking(query, ["MODEL-42", "MODEL-37"], metric="sharpe")
         if len(ranked) >= 2:
             self.assertLessEqual(ranked[0]["rank"], ranked[1]["rank"])
 
     def test_ranking_denied_viewer(self):
-        query  = ResearchQuery(text="rank", role=Role.VIEWER)
+        query = ResearchQuery(text="rank", role=Role.VIEWER)
         result = self.comp.ranking(query, ["MODEL-42"], metric="sharpe")
         self.assertEqual(result, [])
 
 
 # ── Tests: Report Generator ───────────────────────────────────────────────────
 
+
 class TestReportGenerator(unittest.TestCase):
     def setUp(self):
-        self.idx    = make_index_with_data()
-        self.gen    = ReportGenerator(self.idx)
+        self.idx = make_index_with_data()
+        self.gen = ReportGenerator(self.idx)
 
     def test_generate_daily_summary(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         report = self.gen.generate(query, ReportType.DAILY_SUMMARY)
         self.assertIsInstance(report, ResearchReport)
         self.assertEqual(report.report_type, ReportType.DAILY_SUMMARY)
 
     def test_generate_report_has_title(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         report = self.gen.generate(query, ReportType.WEEKLY_REPORT)
         self.assertGreater(len(report.title), 0)
 
     def test_generate_report_has_content(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         report = self.gen.generate(query, ReportType.MODEL_HEALTH)
         self.assertGreater(len(report.content), 0)
 
     def test_generate_denied_viewer_no_summarize(self):
-        query  = ResearchQuery(role=Role.VIEWER)
+        query = ResearchQuery(role=Role.VIEWER)
         report = self.gen.generate(query, ReportType.DAILY_SUMMARY)
         # VIEWER lacks SUMMARIZE permission; message contains "permission" or "denied"
         content_lower = report.content.lower()
@@ -791,13 +816,13 @@ class TestReportGenerator(unittest.TestCase):
         )
 
     def test_list_reports(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         self.gen.generate(query, ReportType.DAILY_SUMMARY)
         reports = self.gen.list_reports()
         self.assertEqual(len(reports), 1)
 
     def test_get_report_by_id(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         report = self.gen.generate(query, ReportType.WEEKLY_REPORT)
         fetched = self.gen.get_report(report.report_id)
         self.assertIsNotNone(fetched)
@@ -809,12 +834,13 @@ class TestReportGenerator(unittest.TestCase):
         self.assertGreaterEqual(len(types), 12)
 
     def test_generate_with_period(self):
-        query  = ResearchQuery(role=Role.RESEARCHER)
+        query = ResearchQuery(role=Role.RESEARCHER)
         report = self.gen.generate(query, ReportType.MONTHLY_REPORT, period="2025-01")
         self.assertIn("2025-01", report.title)
 
 
 # ── Tests: Recommendation Engine ─────────────────────────────────────────────
+
 
 class TestRecommendationEngine(unittest.TestCase):
     def setUp(self):
@@ -823,18 +849,18 @@ class TestRecommendationEngine(unittest.TestCase):
 
     def test_recommend_returns_list(self):
         query = ResearchQuery(text="What should we improve?", role=Role.RESEARCHER)
-        recs  = self.eng.recommend(query)
+        recs = self.eng.recommend(query)
         self.assertIsInstance(recs, list)
 
     def test_recommend_non_empty_with_index(self):
         query = ResearchQuery(text="suggest improvements to calibration", role=Role.RESEARCHER)
-        recs  = self.eng.recommend(query)
+        recs = self.eng.recommend(query)
         self.assertGreater(len(recs), 0)
 
     def test_recommend_empty_for_no_permission(self):
         # Viewer has READ — still allowed to see recommendations
         query = ResearchQuery(text="suggest", role=Role.VIEWER)
-        recs  = self.eng.recommend(query)
+        recs = self.eng.recommend(query)
         self.assertIsInstance(recs, list)
 
     def test_auto_recommend_scans_index(self):
@@ -849,13 +875,13 @@ class TestRecommendationEngine(unittest.TestCase):
 
     def test_pending_initially_all_pending(self):
         query = ResearchQuery(text="suggest next experiment", role=Role.RESEARCHER)
-        recs  = self.eng.recommend(query)
+        recs = self.eng.recommend(query)
         pending = self.eng.pending()
         self.assertEqual(len(pending), len(self.eng.history()))
 
     def test_mark_implemented(self):
         query = ResearchQuery(text="calibration improvement", role=Role.RESEARCHER)
-        recs  = self.eng.recommend(query)
+        recs = self.eng.recommend(query)
         if recs:
             result = self.eng.mark_implemented(recs[0].rec_id)
             self.assertTrue(result)
@@ -867,6 +893,7 @@ class TestRecommendationEngine(unittest.TestCase):
 
 
 # ── Tests: Analyst Database ───────────────────────────────────────────────────
+
 
 class TestAnalystDatabase(unittest.TestCase):
     def setUp(self):
@@ -899,8 +926,12 @@ class TestAnalystDatabase(unittest.TestCase):
 
     def test_reports_by_type(self):
         for _ in range(2):
-            self.db.save_report(ResearchReport(report_type=ReportType.DAILY_SUMMARY, title="R", content=""))
-        self.db.save_report(ResearchReport(report_type=ReportType.WEEKLY_REPORT, title="W", content=""))
+            self.db.save_report(
+                ResearchReport(report_type=ReportType.DAILY_SUMMARY, title="R", content="")
+            )
+        self.db.save_report(
+            ResearchReport(report_type=ReportType.WEEKLY_REPORT, title="W", content="")
+        )
         daily = self.db.reports_by_type("DAILY_SUMMARY")
         self.assertEqual(len(daily), 2)
 
@@ -940,9 +971,10 @@ class TestAnalystDatabase(unittest.TestCase):
 
 # ── Tests: Analyst Dashboard ──────────────────────────────────────────────────
 
+
 class TestAnalystDashboard(unittest.TestCase):
     def setUp(self):
-        self.dash  = AnalystDashboard()
+        self.dash = AnalystDashboard()
         self.chunks = list(make_index_with_data().all_chunks())
         session = ChatSession(researcher="alice")
         session.add_message("user", "Why did Model 42 outperform?")
@@ -952,8 +984,12 @@ class TestAnalystDashboard(unittest.TestCase):
             ResearchReport(report_type=ReportType.DAILY_SUMMARY, title="Daily", content="body"),
         ]
         self.recs = [
-            Recommendation(rec_type=RecommendationType.DATA_COLLECTION, title="Collect data", priority="HIGH"),
-            Recommendation(rec_type=RecommendationType.CALIBRATION, title="Calibrate", priority="LOW"),
+            Recommendation(
+                rec_type=RecommendationType.DATA_COLLECTION, title="Collect data", priority="HIGH"
+            ),
+            Recommendation(
+                rec_type=RecommendationType.CALIBRATION, title="Calibrate", priority="LOW"
+            ),
         ]
 
     def test_research_chat_view(self):
@@ -1002,24 +1038,33 @@ class TestAnalystDashboard(unittest.TestCase):
 
 # ── Tests: Analyst API ────────────────────────────────────────────────────────
 
+
 class TestAnalystAPI(unittest.TestCase):
     def setUp(self):
         self.api = AnalystAPI(db_path=":memory:")
         # Seed knowledge
         self.api.index_document(
-            KnowledgeSourceType.EXPERIMENT, "EXP-001",
-            "EURUSD Experiment", "Sharpe 2.3 MODEL-42 DATASET-v18",
+            KnowledgeSourceType.EXPERIMENT,
+            "EXP-001",
+            "EURUSD Experiment",
+            "Sharpe 2.3 MODEL-42 DATASET-v18",
             tags=["eurusd", "transformer"],
         )
         self.api.index_document(
-            KnowledgeSourceType.MODEL_REGISTRY, "MODEL-42",
-            "Champion Model", "Sharpe 2.8 max drawdown 6.2% calibration stable",
-            tags=["champion"], metadata={"sharpe": 2.8, "max_drawdown": 6.2},
+            KnowledgeSourceType.MODEL_REGISTRY,
+            "MODEL-42",
+            "Champion Model",
+            "Sharpe 2.8 max drawdown 6.2% calibration stable",
+            tags=["champion"],
+            metadata={"sharpe": 2.8, "max_drawdown": 6.2},
         )
         self.api.index_document(
-            KnowledgeSourceType.MODEL_REGISTRY, "MODEL-37",
-            "Challenger Model", "Sharpe 1.9 calibration deteriorated EXP-042 failed",
-            tags=["challenger"], metadata={"sharpe": 1.9, "max_drawdown": 11.1},
+            KnowledgeSourceType.MODEL_REGISTRY,
+            "MODEL-37",
+            "Challenger Model",
+            "Sharpe 1.9 calibration deteriorated EXP-042 failed",
+            tags=["challenger"],
+            metadata={"sharpe": 1.9, "max_drawdown": 11.1},
         )
 
     def test_new_session(self):
@@ -1038,8 +1083,8 @@ class TestAnalystAPI(unittest.TestCase):
 
     def test_chat_continues_session(self):
         sid = self.api.new_session()
-        r1  = self.api.chat("First question", session_id=sid)
-        r2  = self.api.chat("Follow-up question", session_id=sid)
+        r1 = self.api.chat("First question", session_id=sid)
+        r2 = self.api.chat("Follow-up question", session_id=sid)
         self.assertEqual(r1["session_id"], r2["session_id"])
 
     def test_search_returns_results(self):
@@ -1099,8 +1144,7 @@ class TestAnalystAPI(unittest.TestCase):
 
     def test_index_document_returns_chunk_id(self):
         result = self.api.index_document(
-            KnowledgeSourceType.RESEARCH_REPORT, "REPORT-001",
-            "Q1 Research Report", "Findings..."
+            KnowledgeSourceType.RESEARCH_REPORT, "REPORT-001", "Q1 Research Report", "Findings..."
         )
         self.assertTrue(result["indexed"])
         self.assertIn("chunk_id", result)

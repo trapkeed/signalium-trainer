@@ -18,16 +18,15 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Dict, Generator, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
-    logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import LifecycleState
+    logger = logging.getLogger(__name__)
 
 
 _DDL = """
@@ -122,7 +121,7 @@ class LifecycleDatabase:
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
         if db_path == ":memory:":
-            self._persistent_conn: Optional[sqlite3.Connection] = sqlite3.connect(":memory:")
+            self._persistent_conn: sqlite3.Connection | None = sqlite3.connect(":memory:")
             self._persistent_conn.row_factory = sqlite3.Row
         else:
             self._persistent_conn = None
@@ -147,7 +146,7 @@ class LifecycleDatabase:
 
     # ── Trade Lifecycle ───────────────────────────────────────────────────────
 
-    def upsert_lifecycle(self, summary: Dict) -> None:
+    def upsert_lifecycle(self, summary: dict) -> None:
         sql = """
         INSERT INTO trade_lifecycle
             (trade_id, instrument, direction, current_state, confidence,
@@ -170,27 +169,27 @@ class LifecycleDatabase:
             updated_at       = excluded.updated_at
         """
         row = {
-            "trade_id":        summary.get("trade_id", ""),
-            "instrument":      summary.get("instrument", ""),
-            "direction":       summary.get("direction", "BUY"),
-            "current_state":   summary.get("state", summary.get("current_state", "IDEA")),
-            "confidence":      summary.get("confidence", 0.0),
-            "is_terminal":     int(summary.get("is_terminal", False)),
+            "trade_id": summary.get("trade_id", ""),
+            "instrument": summary.get("instrument", ""),
+            "direction": summary.get("direction", "BUY"),
+            "current_state": summary.get("state", summary.get("current_state", "IDEA")),
+            "confidence": summary.get("confidence", 0.0),
+            "is_terminal": int(summary.get("is_terminal", False)),
             "is_position_open": int(summary.get("is_position_open", False)),
-            "age_hours":       summary.get("age_hours", 0.0),
-            "state_count":     summary.get("state_count", 0),
-            "event_count":     summary.get("event_count", 0),
-            "tags":            json.dumps(summary.get("tags", [])),
-            "notes":           summary.get("notes", ""),
-            "created_at":      summary.get("created_at", time.time()),
-            "updated_at":      summary.get("updated_at", time.time()),
+            "age_hours": summary.get("age_hours", 0.0),
+            "state_count": summary.get("state_count", 0),
+            "event_count": summary.get("event_count", 0),
+            "tags": json.dumps(summary.get("tags", [])),
+            "notes": summary.get("notes", ""),
+            "created_at": summary.get("created_at", time.time()),
+            "updated_at": summary.get("updated_at", time.time()),
         }
         with self._conn() as conn:
             conn.execute(sql, row)
             if self._persistent_conn:
                 conn.commit()
 
-    def get_lifecycle(self, trade_id: str) -> Optional[Dict]:
+    def get_lifecycle(self, trade_id: str) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM trade_lifecycle WHERE trade_id = ?", (trade_id,)
@@ -199,15 +198,17 @@ class LifecycleDatabase:
 
     def list_lifecycles(
         self,
-        state:      Optional[str] = None,
-        instrument: Optional[str] = None,
-        limit:      int           = 100,
-    ) -> List[Dict]:
+        state: str | None = None,
+        instrument: str | None = None,
+        limit: int = 100,
+    ) -> list[dict]:
         conditions, params = [], []
         if state:
-            conditions.append("current_state = ?"); params.append(state)
+            conditions.append("current_state = ?")
+            params.append(state)
         if instrument:
-            conditions.append("instrument = ?"); params.append(instrument)
+            conditions.append("instrument = ?")
+            params.append(instrument)
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         sql = f"SELECT * FROM trade_lifecycle {where} ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
@@ -217,7 +218,7 @@ class LifecycleDatabase:
 
     # ── Events ────────────────────────────────────────────────────────────────
 
-    def insert_event(self, event_dict: Dict) -> None:
+    def insert_event(self, event_dict: dict) -> None:
         sql = """
         INSERT OR IGNORE INTO lifecycle_events
             (event_id, trade_id, event_type, state, timestamp, description, severity, data)
@@ -231,7 +232,7 @@ class LifecycleDatabase:
             if self._persistent_conn:
                 conn.commit()
 
-    def get_events_for_trade(self, trade_id: str) -> List[Dict]:
+    def get_events_for_trade(self, trade_id: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM lifecycle_events WHERE trade_id = ? ORDER BY timestamp",
@@ -239,7 +240,7 @@ class LifecycleDatabase:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_critical_events(self, limit: int = 50) -> List[Dict]:
+    def get_critical_events(self, limit: int = 50) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM lifecycle_events WHERE severity = 'CRITICAL' "
@@ -250,7 +251,7 @@ class LifecycleDatabase:
 
     # ── State History ─────────────────────────────────────────────────────────
 
-    def insert_state_record(self, trade_id: str, record: Dict) -> None:
+    def insert_state_record(self, trade_id: str, record: dict) -> None:
         sql = """
         INSERT INTO state_history
             (trade_id, state, timestamp, confidence, reason, duration_h, market_ctx, position_mtr)
@@ -258,20 +259,23 @@ class LifecycleDatabase:
             (:trade_id, :state, :timestamp, :confidence, :reason, :duration_h, :market_ctx, :position_mtr)
         """
         with self._conn() as conn:
-            conn.execute(sql, {
-                "trade_id":    trade_id,
-                "state":       record.get("state", ""),
-                "timestamp":   record.get("timestamp", time.time()),
-                "confidence":  record.get("confidence", 0.0),
-                "reason":      record.get("reason", ""),
-                "duration_h":  record.get("duration_h", 0.0),
-                "market_ctx":  json.dumps(record.get("market_context") or {}),
-                "position_mtr": json.dumps(record.get("position_metrics") or {}),
-            })
+            conn.execute(
+                sql,
+                {
+                    "trade_id": trade_id,
+                    "state": record.get("state", ""),
+                    "timestamp": record.get("timestamp", time.time()),
+                    "confidence": record.get("confidence", 0.0),
+                    "reason": record.get("reason", ""),
+                    "duration_h": record.get("duration_h", 0.0),
+                    "market_ctx": json.dumps(record.get("market_context") or {}),
+                    "position_mtr": json.dumps(record.get("position_metrics") or {}),
+                },
+            )
             if self._persistent_conn:
                 conn.commit()
 
-    def get_state_history(self, trade_id: str) -> List[Dict]:
+    def get_state_history(self, trade_id: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM state_history WHERE trade_id = ? ORDER BY timestamp",
@@ -281,7 +285,7 @@ class LifecycleDatabase:
 
     # ── Transition Rules ──────────────────────────────────────────────────────
 
-    def upsert_transition_rule(self, rule: Dict) -> None:
+    def upsert_transition_rule(self, rule: dict) -> None:
         sql = """
         INSERT INTO transition_rules
             (from_state, to_state, entry_conditions, exit_conditions, validation_rules,
@@ -300,29 +304,32 @@ class LifecycleDatabase:
             description       = excluded.description
         """
         with self._conn() as conn:
-            conn.execute(sql, {
-                "from_state":       rule.get("from_state", ""),
-                "to_state":         rule.get("to_state", ""),
-                "entry_conditions": json.dumps(rule.get("entry_conditions", [])),
-                "exit_conditions":  json.dumps(rule.get("exit_conditions", [])),
-                "validation_rules": json.dumps(rule.get("validation_rules", [])),
-                "timeout_hours":    rule.get("timeout_hours", 0.0),
-                "base_confidence":  rule.get("base_confidence", 0.0),
-                "expected_benefit": rule.get("expected_benefit", 0.0),
-                "risk_rating":      rule.get("risk_rating", "MEDIUM"),
-                "description":      rule.get("description", ""),
-            })
+            conn.execute(
+                sql,
+                {
+                    "from_state": rule.get("from_state", ""),
+                    "to_state": rule.get("to_state", ""),
+                    "entry_conditions": json.dumps(rule.get("entry_conditions", [])),
+                    "exit_conditions": json.dumps(rule.get("exit_conditions", [])),
+                    "validation_rules": json.dumps(rule.get("validation_rules", [])),
+                    "timeout_hours": rule.get("timeout_hours", 0.0),
+                    "base_confidence": rule.get("base_confidence", 0.0),
+                    "expected_benefit": rule.get("expected_benefit", 0.0),
+                    "risk_rating": rule.get("risk_rating", "MEDIUM"),
+                    "description": rule.get("description", ""),
+                },
+            )
             if self._persistent_conn:
                 conn.commit()
 
-    def get_transition_rules(self) -> List[Dict]:
+    def get_transition_rules(self) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute("SELECT * FROM transition_rules").fetchall()
         return [dict(r) for r in rows]
 
     # ── Analytics ─────────────────────────────────────────────────────────────
 
-    def save_analytics_snapshot(self, analytics: Dict) -> int:
+    def save_analytics_snapshot(self, analytics: dict) -> int:
         sql = """
         INSERT INTO lifecycle_analytics
             (snapshot_ts, total_trades, completed_trades, failed_trades,
@@ -336,27 +343,30 @@ class LifecycleDatabase:
              :state_analytics, :transition_matrix, :top_paths)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, {
-                "snapshot_ts":       time.time(),
-                "total_trades":      analytics.get("total_trades", 0),
-                "completed_trades":  analytics.get("completed_trades", 0),
-                "failed_trades":     analytics.get("failed_trades", 0),
-                "cancelled_trades":  analytics.get("cancelled_trades", 0),
-                "expired_trades":    analytics.get("expired_trades", 0),
-                "invalidated_trades": analytics.get("invalidated_trades", 0),
-                "avg_lifecycle_h":   analytics.get("avg_lifecycle_h", 0.0),
-                "failure_rate":      analytics.get("failure_rate", 0.0),
-                "cancellation_rate": analytics.get("cancellation_rate", 0.0),
-                "expiration_rate":   analytics.get("expiration_rate", 0.0),
-                "state_analytics":   json.dumps(analytics.get("state_analytics", {})),
-                "transition_matrix": json.dumps(analytics.get("transition_matrix", {})),
-                "top_paths":         json.dumps(analytics.get("top_paths", [])),
-            })
+            cur = conn.execute(
+                sql,
+                {
+                    "snapshot_ts": time.time(),
+                    "total_trades": analytics.get("total_trades", 0),
+                    "completed_trades": analytics.get("completed_trades", 0),
+                    "failed_trades": analytics.get("failed_trades", 0),
+                    "cancelled_trades": analytics.get("cancelled_trades", 0),
+                    "expired_trades": analytics.get("expired_trades", 0),
+                    "invalidated_trades": analytics.get("invalidated_trades", 0),
+                    "avg_lifecycle_h": analytics.get("avg_lifecycle_h", 0.0),
+                    "failure_rate": analytics.get("failure_rate", 0.0),
+                    "cancellation_rate": analytics.get("cancellation_rate", 0.0),
+                    "expiration_rate": analytics.get("expiration_rate", 0.0),
+                    "state_analytics": json.dumps(analytics.get("state_analytics", {})),
+                    "transition_matrix": json.dumps(analytics.get("transition_matrix", {})),
+                    "top_paths": json.dumps(analytics.get("top_paths", [])),
+                },
+            )
             if self._persistent_conn:
                 conn.commit()
             return cur.lastrowid or 0
 
-    def get_latest_analytics(self) -> Optional[Dict]:
+    def get_latest_analytics(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM lifecycle_analytics ORDER BY snapshot_ts DESC LIMIT 1"
@@ -365,7 +375,7 @@ class LifecycleDatabase:
 
     # ── Optimisation ──────────────────────────────────────────────────────────
 
-    def save_optimisation(self, result: Dict) -> int:
+    def save_optimisation(self, result: dict) -> int:
         sql = """
         INSERT INTO optimisation_results
             (analysed_at, total_analysed, findings, summary, key_insight, top_priority)
@@ -373,19 +383,22 @@ class LifecycleDatabase:
             (:analysed_at, :total_analysed, :findings, :summary, :key_insight, :top_priority)
         """
         with self._conn() as conn:
-            cur = conn.execute(sql, {
-                "analysed_at":    time.time(),
-                "total_analysed": result.get("total_analysed", 0),
-                "findings":       json.dumps(result.get("findings", [])),
-                "summary":        result.get("summary", ""),
-                "key_insight":    result.get("key_insight", ""),
-                "top_priority":   result.get("top_priority") or "",
-            })
+            cur = conn.execute(
+                sql,
+                {
+                    "analysed_at": time.time(),
+                    "total_analysed": result.get("total_analysed", 0),
+                    "findings": json.dumps(result.get("findings", [])),
+                    "summary": result.get("summary", ""),
+                    "key_insight": result.get("key_insight", ""),
+                    "top_priority": result.get("top_priority") or "",
+                },
+            )
             if self._persistent_conn:
                 conn.commit()
             return cur.lastrowid or 0
 
-    def get_optimisation_results(self, limit: int = 10) -> List[Dict]:
+    def get_optimisation_results(self, limit: int = 10) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM optimisation_results ORDER BY analysed_at DESC LIMIT ?",
@@ -395,19 +408,19 @@ class LifecycleDatabase:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         with self._conn() as conn:
-            tl  = conn.execute("SELECT COUNT(*) FROM trade_lifecycle").fetchone()[0]
-            ev  = conn.execute("SELECT COUNT(*) FROM lifecycle_events").fetchone()[0]
-            sh  = conn.execute("SELECT COUNT(*) FROM state_history").fetchone()[0]
-            tr  = conn.execute("SELECT COUNT(*) FROM transition_rules").fetchone()[0]
-            an  = conn.execute("SELECT COUNT(*) FROM lifecycle_analytics").fetchone()[0]
+            tl = conn.execute("SELECT COUNT(*) FROM trade_lifecycle").fetchone()[0]
+            ev = conn.execute("SELECT COUNT(*) FROM lifecycle_events").fetchone()[0]
+            sh = conn.execute("SELECT COUNT(*) FROM state_history").fetchone()[0]
+            tr = conn.execute("SELECT COUNT(*) FROM transition_rules").fetchone()[0]
+            an = conn.execute("SELECT COUNT(*) FROM lifecycle_analytics").fetchone()[0]
             opt = conn.execute("SELECT COUNT(*) FROM optimisation_results").fetchone()[0]
         return {
-            "trade_lifecycle":     tl,
-            "lifecycle_events":    ev,
-            "state_history":       sh,
-            "transition_rules":    tr,
+            "trade_lifecycle": tl,
+            "lifecycle_events": ev,
+            "state_history": sh,
+            "transition_rules": tr,
             "lifecycle_analytics": an,
             "optimisation_results": opt,
         }

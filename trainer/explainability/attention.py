@@ -26,12 +26,11 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # AttentionMap — result container
@@ -166,11 +165,13 @@ class AttentionExtractor:
 
     def _hook_fn(self, name: str):
         """Build a hook closure that captures attention weights by layer name."""
+
         def fn(module, inp, output):
             if isinstance(output, tuple) and len(output) > 1:
                 attn_weights = output[1]
                 if attn_weights is not None:
                     self._captured.append((name, attn_weights.detach().cpu()))
+
         return fn
 
     @contextlib.contextmanager
@@ -187,6 +188,16 @@ class AttentionExtractor:
 
         for name, module in model.named_modules():
             if isinstance(module, nn.MultiheadAttention):
+                # Force need_weights=True so output[1] carries the attention weights.
+                # TransformerEncoderLayer calls MHA with need_weights=False by default;
+                # we override it via a forward_pre_hook that sets the kwarg.
+                def _pre_hook(mod, args, kwargs, _name=name):
+                    kwargs["need_weights"] = True
+                    kwargs["average_attn_weights"] = False
+                    return args, kwargs
+
+                pre_hook = module.register_forward_pre_hook(_pre_hook, with_kwargs=True)
+                self._hooks.append(pre_hook)
                 hook = module.register_forward_hook(self._hook_fn(name))
                 self._hooks.append(hook)
 
@@ -258,9 +269,8 @@ class AttentionExtractor:
         was_training = model.training
         model.eval()
         try:
-            with extractor.register(model):
-                with torch.no_grad():
-                    model(input_tensor)
+            with extractor.register(model), torch.no_grad():
+                model(input_tensor)
             return extractor.get_last_attention_map()
         finally:
             if was_training:

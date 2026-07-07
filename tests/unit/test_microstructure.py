@@ -19,78 +19,85 @@ MS_DIR = ROOT / "trainer" / "microstructure"
 def _load(name: str, rel: str):
     path = ROOT / "trainer" / rel
     spec = importlib.util.spec_from_file_location(name, path)
-    mod  = importlib.util.module_from_spec(spec)
+    mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 # Load in dependency order
-mt   = _load("trainer.microstructure.micro_types",        "microstructure/micro_types.py")
-mm   = _load("trainer.microstructure.micro_models",       "microstructure/micro_models.py")
-pa   = _load("trainer.microstructure.price_action",       "microstructure/price_action.py")
-vm   = _load("trainer.microstructure.volatility_micro",   "microstructure/volatility_micro.py")
-mom  = _load("trainer.microstructure.momentum_micro",     "microstructure/momentum_micro.py")
-lp   = _load("trainer.microstructure.liquidity_proxy",    "microstructure/liquidity_proxy.py")
-me   = _load("trainer.microstructure.market_efficiency",  "microstructure/market_efficiency.py")
-ti   = _load("trainer.microstructure.tick_interface",     "microstructure/tick_interface.py")
-ofi  = _load("trainer.microstructure.order_flow_interface","microstructure/order_flow_interface.py")
-emb  = _load("trainer.microstructure.micro_embeddings",   "microstructure/micro_embeddings.py")
-sc   = _load("trainer.microstructure.state_classifier",   "microstructure/state_classifier.py")
-ms_  = _load("trainer.microstructure.micro_scorer",       "microstructure/micro_scorer.py")
-mdb  = _load("trainer.microstructure.micro_database",     "microstructure/micro_database.py")
-mdash = _load("trainer.microstructure.micro_dashboard",   "microstructure/micro_dashboard.py")
-mapi  = _load("trainer.microstructure.micro_api",         "microstructure/micro_api.py")
+mt = _load("trainer.microstructure.micro_types", "microstructure/micro_types.py")
+mm = _load("trainer.microstructure.micro_models", "microstructure/micro_models.py")
+pa = _load("trainer.microstructure.price_action", "microstructure/price_action.py")
+vm = _load("trainer.microstructure.volatility_micro", "microstructure/volatility_micro.py")
+mom = _load("trainer.microstructure.momentum_micro", "microstructure/momentum_micro.py")
+lp = _load("trainer.microstructure.liquidity_proxy", "microstructure/liquidity_proxy.py")
+me = _load("trainer.microstructure.market_efficiency", "microstructure/market_efficiency.py")
+ti = _load("trainer.microstructure.tick_interface", "microstructure/tick_interface.py")
+ofi = _load("trainer.microstructure.order_flow_interface", "microstructure/order_flow_interface.py")
+emb = _load("trainer.microstructure.micro_embeddings", "microstructure/micro_embeddings.py")
+sc = _load("trainer.microstructure.state_classifier", "microstructure/state_classifier.py")
+ms_ = _load("trainer.microstructure.micro_scorer", "microstructure/micro_scorer.py")
+mdb = _load("trainer.microstructure.micro_database", "microstructure/micro_database.py")
+mdash = _load("trainer.microstructure.micro_dashboard", "microstructure/micro_dashboard.py")
+mapi = _load("trainer.microstructure.micro_api", "microstructure/micro_api.py")
 
 # Aliases
-MarketState           = mt.MarketState
-MomentumState         = mt.MomentumState
-VolatilityState       = mt.VolatilityState
-LiquidityState        = mt.LiquidityState
-TrendStrength         = mt.TrendStrength
-DataGranularity       = mt.DataGranularity
-EMBEDDING_TOTAL       = mt.EMBEDDING_TOTAL
+MarketState = mt.MarketState
+MomentumState = mt.MomentumState
+VolatilityState = mt.VolatilityState
+LiquidityState = mt.LiquidityState
+TrendStrength = mt.TrendStrength
+DataGranularity = mt.DataGranularity
+EMBEDDING_TOTAL = mt.EMBEDDING_TOTAL
 trend_strength_from_score = mt.trend_strength_from_score
 
-OHLCBar               = mm.OHLCBar
+OHLCBar = mm.OHLCBar
 MicrostructureFeatures = mm.MicrostructureFeatures
-MicrostructureScore   = mm.MicrostructureScore
-MarketStateRecord     = mm.MarketStateRecord
+MicrostructureScore = mm.MicrostructureScore
+MarketStateRecord = mm.MarketStateRecord
 MicrostructureEmbedding = mm.MicrostructureEmbedding
 
-PriceActionAnalyzer   = pa.PriceActionAnalyzer
+PriceActionAnalyzer = pa.PriceActionAnalyzer
 VolatilityMicrostructure = vm.VolatilityMicrostructure
 MomentumMicrostructure = mom.MomentumMicrostructure
-LiquidityProxy        = lp.LiquidityProxy
-MarketEfficiency      = me.MarketEfficiency
-TickInterface         = ti.TickInterface
-TickBar               = ti.TickBar
-OrderFlowInterface    = ofi.OrderFlowInterface
-OrderBookLevel        = ofi.OrderBookLevel
-OrderFlowBar          = ofi.OrderFlowBar
+LiquidityProxy = lp.LiquidityProxy
+MarketEfficiency = me.MarketEfficiency
+TickInterface = ti.TickInterface
+TickBar = ti.TickBar
+OrderFlowInterface = ofi.OrderFlowInterface
+OrderBookLevel = ofi.OrderBookLevel
+OrderFlowBar = ofi.OrderFlowBar
 MicrostructureEmbedder = emb.MicrostructureEmbedder
 MarketStateClassifier = sc.MarketStateClassifier
-MicrostructureScorer  = ms_.MicrostructureScorer
+MicrostructureScorer = ms_.MicrostructureScorer
 MicrostructureDatabase = mdb.MicrostructureDatabase
 MicrostructureDashboard = mdash.MicrostructureDashboard
-MicrostructureAPI     = mapi.MicrostructureAPI
+MicrostructureAPI = mapi.MicrostructureAPI
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_bar(
-    ts=None, o=1.10000, h=1.10200, l=1.09800, c=1.10150,
-    vol=1000.0, tf="H1", instrument="EURUSD",
+    ts=None,
+    o=1.10000,
+    h=1.10200,
+    l=1.09800,
+    c=1.10150,
+    vol=1000.0,
+    tf="H1",
+    instrument="EURUSD",
 ) -> OHLCBar:
     return OHLCBar(
-        timestamp  = ts or time.time(),
-        open       = o,
-        high       = h,
-        low        = l,
-        close      = c,
-        volume     = vol,
-        timeframe  = tf,
-        instrument = instrument,
+        timestamp=ts or time.time(),
+        open=o,
+        high=h,
+        low=l,
+        close=c,
+        volume=vol,
+        timeframe=tf,
+        instrument=instrument,
     )
 
 
@@ -111,7 +118,7 @@ def make_trending_bars(n=20, direction=1, base=1.10000, step=0.00050) -> list:
 def make_ranging_bars(n=20, base=1.10000, amplitude=0.00100) -> list:
     bars = []
     ts = time.time() - n * 3600
-    import math
+
     for i in range(n):
         mid = base + amplitude * math.sin(i * 0.8)
         o = mid - 0.00020
@@ -167,6 +174,7 @@ def make_features(
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 class TestMicroTypes(unittest.TestCase):
     def test_market_states_count(self):
         states = list(MarketState)
@@ -174,14 +182,25 @@ class TestMicroTypes(unittest.TestCase):
 
     def test_all_market_states(self):
         values = {s.value for s in MarketState}
-        for v in ("TRENDING","STRONG_TREND","WEAK_TREND","RANGE","COMPRESSION",
-                   "EXPANSION","BREAKOUT","FAKE_BREAKOUT","REVERSAL",
-                   "HIGH_VOLATILITY","LOW_VOLATILITY","TRANSITION"):
+        for v in (
+            "TRENDING",
+            "STRONG_TREND",
+            "WEAK_TREND",
+            "RANGE",
+            "COMPRESSION",
+            "EXPANSION",
+            "BREAKOUT",
+            "FAKE_BREAKOUT",
+            "REVERSAL",
+            "HIGH_VOLATILITY",
+            "LOW_VOLATILITY",
+            "TRANSITION",
+        ):
             self.assertIn(v, values)
 
     def test_momentum_states(self):
         vals = {s.value for s in MomentumState}
-        for v in ("ACCELERATING","DECELERATING","EXHAUSTED","NEUTRAL","REVERSING"):
+        for v in ("ACCELERATING", "DECELERATING", "EXHAUSTED", "NEUTRAL", "REVERSING"):
             self.assertIn(v, vals)
 
     def test_volatility_states(self):
@@ -385,7 +404,7 @@ class TestVolatilityMicrostructure(unittest.TestCase):
     def test_volatility_shock_high_for_large_bar(self):
         # Make bars with one very large candle at the end
         bars = make_ranging_bars(n=14)
-        large_bar = make_bar(h=1.15000, l=1.08000)   # huge range
+        large_bar = make_bar(h=1.15000, l=1.08000)  # huge range
         bars.append(large_bar)
         f = MicrostructureFeatures()
         result = self.engine.analyse_window(bars, f)
@@ -538,9 +557,7 @@ class TestMarketEfficiency(unittest.TestCase):
         bars = make_trending_bars(n=15)
         f = MicrostructureFeatures()
         result = self.engine.analyse_window(bars, f)
-        self.assertAlmostEqual(
-            result.trend_efficiency + result.randomness_index, 1.0, places=4
-        )
+        self.assertAlmostEqual(result.trend_efficiency + result.randomness_index, 1.0, places=4)
 
     def test_fractal_dimension_bounds(self):
         bars = make_trending_bars(n=15)
@@ -604,8 +621,7 @@ class TestTickInterface(unittest.TestCase):
 
     def test_tick_imbalance_balanced(self):
         ticks = [
-            TickBar(time.time() + i, 1.10, 1.0, "BUY" if i % 2 == 0 else "SELL")
-            for i in range(10)
+            TickBar(time.time() + i, 1.10, 1.0, "BUY" if i % 2 == 0 else "SELL") for i in range(10)
         ]
         imb = self.ti.tick_imbalance(ticks)
         self.assertIsNotNone(imb)
@@ -620,8 +636,7 @@ class TestTickInterface(unittest.TestCase):
 
     def test_tick_entropy_balanced(self):
         ticks = [
-            TickBar(time.time() + i, 1.10, 1.0, "BUY" if i % 2 == 0 else "SELL")
-            for i in range(10)
+            TickBar(time.time() + i, 1.10, 1.0, "BUY" if i % 2 == 0 else "SELL") for i in range(10)
         ]
         ent = self.ti.tick_entropy(ticks)
         self.assertIsNotNone(ent)
@@ -746,22 +761,37 @@ class TestMicrostructureScorer(unittest.TestCase):
     def test_all_scores_bounded(self):
         f = make_features()
         s = self.scorer.score(f)
-        for attr in ("trend_score","liquidity_score","momentum_score",
-                     "efficiency_score","volatility_score","compression_score",
-                     "expansion_score","overall_score"):
+        for attr in (
+            "trend_score",
+            "liquidity_score",
+            "momentum_score",
+            "efficiency_score",
+            "volatility_score",
+            "compression_score",
+            "expansion_score",
+            "overall_score",
+        ):
             v = getattr(s, attr)
             self.assertGreaterEqual(v, 0.0, msg=f"{attr} < 0")
             self.assertLessEqual(v, 1.0, msg=f"{attr} > 1")
 
     def test_trending_features_high_trend_score(self):
-        f = make_features(trend_energy=0.90, directional_persistence=0.90,
-                          candle_efficiency=0.80, directional_efficiency=0.85)
+        f = make_features(
+            trend_energy=0.90,
+            directional_persistence=0.90,
+            candle_efficiency=0.80,
+            directional_efficiency=0.85,
+        )
         s = self.scorer.score(f)
         self.assertGreater(s.trend_score, 0.60)
 
     def test_compressed_features_high_compression(self):
-        f = make_features(atr_compression=0.80, compression_zone_score=0.75,
-                          range_compression=1.0, trend_energy=0.10)
+        f = make_features(
+            atr_compression=0.80,
+            compression_zone_score=0.75,
+            range_compression=1.0,
+            trend_energy=0.10,
+        )
         s = self.scorer.score(f)
         self.assertGreater(s.compression_score, 0.50)
 
@@ -784,7 +814,7 @@ class TestMicrostructureScorer(unittest.TestCase):
 
 class TestMarketStateClassifier(unittest.TestCase):
     def setUp(self):
-        self.scorer     = MicrostructureScorer()
+        self.scorer = MicrostructureScorer()
         self.classifier = MarketStateClassifier()
 
     def _classify(self, features):
@@ -792,24 +822,37 @@ class TestMarketStateClassifier(unittest.TestCase):
         return self.classifier.classify(features, score)
 
     def test_strong_trend_classification(self):
-        f = make_features(trend_energy=0.95, directional_persistence=0.90,
-                          candle_efficiency=0.90, directional_efficiency=0.90)
+        f = make_features(
+            trend_energy=0.95,
+            directional_persistence=0.90,
+            candle_efficiency=0.90,
+            directional_efficiency=0.90,
+        )
         record = self._classify(f)
         self.assertIn(record.state, (MarketState.STRONG_TREND, MarketState.TRENDING))
 
     def test_compression_classification(self):
         f = make_features(
-            trend_energy=0.05, directional_persistence=0.40,
-            atr_compression=0.90, compression_zone_score=0.85,
-            range_compression=1.0, atr_expansion=0.02,
-            volatility_shock=0.0, breakout_strength=0.05,
+            trend_energy=0.05,
+            directional_persistence=0.40,
+            atr_compression=0.90,
+            compression_zone_score=0.85,
+            range_compression=1.0,
+            atr_expansion=0.02,
+            volatility_shock=0.0,
+            breakout_strength=0.05,
             reversal_strength=0.05,
         )
         record = self._classify(f)
-        self.assertIn(record.state, (
-            MarketState.COMPRESSION, MarketState.LOW_VOLATILITY,
-            MarketState.RANGE, MarketState.TRANSITION,
-        ))
+        self.assertIn(
+            record.state,
+            (
+                MarketState.COMPRESSION,
+                MarketState.LOW_VOLATILITY,
+                MarketState.RANGE,
+                MarketState.TRANSITION,
+            ),
+        )
 
     def test_confidence_in_range(self):
         record = self._classify(make_features())
@@ -837,23 +880,32 @@ class TestMarketStateClassifier(unittest.TestCase):
 
     def test_high_volatility_classification(self):
         f = make_features(
-            atr_expansion=0.95, volatility_shock=1.0,
-            volatility_clustering=0.90, noise_ratio=0.80,
+            atr_expansion=0.95,
+            volatility_shock=1.0,
+            volatility_clustering=0.90,
+            noise_ratio=0.80,
         )
         record = self._classify(f)
         self.assertEqual(record.state, MarketState.HIGH_VOLATILITY)
 
     def test_breakout_classification(self):
         f = make_features(
-            breakout_strength=0.90, atr_expansion=0.80,
-            range_expansion=0.85, impulse_strength=0.90,
+            breakout_strength=0.90,
+            atr_expansion=0.80,
+            range_expansion=0.85,
+            impulse_strength=0.90,
             directional_persistence=0.80,
         )
         record = self._classify(f)
-        self.assertIn(record.state, (
-            MarketState.BREAKOUT, MarketState.STRONG_TREND,
-            MarketState.HIGH_VOLATILITY, MarketState.EXPANSION,
-        ))
+        self.assertIn(
+            record.state,
+            (
+                MarketState.BREAKOUT,
+                MarketState.STRONG_TREND,
+                MarketState.HIGH_VOLATILITY,
+                MarketState.EXPANSION,
+            ),
+        )
 
 
 class TestMicrostructureDatabase(unittest.TestCase):
@@ -872,10 +924,13 @@ class TestMicrostructureDatabase(unittest.TestCase):
 
     def test_save_embedding(self):
         emb = MicrostructureEmbedding(
-            timestamp=time.time(), embedding=[0.5] * 32,
-            price_action_state=[0.5]*8, liquidity_state=[0.5]*6,
-            momentum_state=[0.5]*6, volatility_state=[0.5]*6,
-            efficiency_state=[0.5]*6,
+            timestamp=time.time(),
+            embedding=[0.5] * 32,
+            price_action_state=[0.5] * 8,
+            liquidity_state=[0.5] * 6,
+            momentum_state=[0.5] * 6,
+            volatility_state=[0.5] * 6,
+            efficiency_state=[0.5] * 6,
         )
         self.db.save_embedding(emb)
         self.assertEqual(self.db.count_embeddings(), 1)
@@ -934,14 +989,14 @@ class TestMicrostructureDatabase(unittest.TestCase):
 
 class TestMicrostructureDashboard(unittest.TestCase):
     def setUp(self):
-        self.dash    = MicrostructureDashboard()
-        self.scorer  = MicrostructureScorer()
-        self.clf     = MarketStateClassifier()
+        self.dash = MicrostructureDashboard()
+        self.scorer = MicrostructureScorer()
+        self.clf = MarketStateClassifier()
         self.embedder = MicrostructureEmbedder()
         bars = make_trending_bars(n=10)
         self.features = []
-        self.scores   = []
-        self.states   = []
+        self.scores = []
+        self.states = []
         self.embeddings = []
         for b in bars:
             f = MicrostructureFeatures(timestamp=b.timestamp)
@@ -989,9 +1044,7 @@ class TestMicrostructureDashboard(unittest.TestCase):
         self.assertEqual(d["total"], len(self.embeddings))
 
     def test_all_dashboards_7_views(self):
-        all_d = self.dash.all_dashboards(
-            self.features, self.scores, self.states, self.embeddings
-        )
+        all_d = self.dash.all_dashboards(self.features, self.scores, self.states, self.embeddings)
         self.assertEqual(len(all_d), 7)
 
     def test_empty_returns_gracefully(self):
@@ -1001,7 +1054,7 @@ class TestMicrostructureDashboard(unittest.TestCase):
 
 class TestMicrostructureAPI(unittest.TestCase):
     def setUp(self):
-        self.api  = MicrostructureAPI(db_path=":memory:")
+        self.api = MicrostructureAPI(db_path=":memory:")
         self.bars = make_trending_bars(n=20)
 
     def test_analyse_returns_all_keys(self):

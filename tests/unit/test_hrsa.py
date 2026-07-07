@@ -21,12 +21,23 @@ if "loguru" not in sys.modules:
     _loguru = types.ModuleType("loguru")
 
     class _Logger:
-        def debug(self, *a, **kw): pass
-        def info(self, *a, **kw): pass
-        def warning(self, *a, **kw): pass
-        def error(self, *a, **kw): pass
-        def exception(self, *a, **kw): pass
-        def bind(self, **kw): return self
+        def debug(self, *a, **kw):
+            pass
+
+        def info(self, *a, **kw):
+            pass
+
+        def warning(self, *a, **kw):
+            pass
+
+        def error(self, *a, **kw):
+            pass
+
+        def exception(self, *a, **kw):
+            pass
+
+        def bind(self, **kw):
+            return self
 
     _loguru.logger = _Logger()
     sys.modules["loguru"] = _loguru
@@ -49,22 +60,23 @@ def _load(mod_key: str, filename: str):
 
 
 # Load in strict dependency order
-_raw_metrics     = _load("trainer.research.raw_metrics",        "raw_metrics.py")
-_normalization   = _load("trainer.research.normalization",      "normalization.py")
-_hrsa_grades     = _load("trainer.research.hrsa_grades",        "hrsa_grades.py")
-_hrsa_categories = _load("trainer.research.hrsa_categories",    "hrsa_categories.py")
-_hrsa_scorer     = _load("trainer.research.hrsa_scorer",        "hrsa_scorer.py")
-_hrsa_benchmarks = _load("trainer.research.hrsa_benchmarks",    "hrsa_benchmarks.py")
-_hrsa_trends     = _load("trainer.research.hrsa_trends",        "hrsa_trends.py")
-_hrsa_explanations = _load("trainer.research.hrsa_explanations","hrsa_explanations.py")
-_hrsa_whatif     = _load("trainer.research.hrsa_whatif",        "hrsa_whatif.py")
-_hrsa_database   = _load("trainer.research.hrsa_database",      "hrsa_database.py")
-_hrsa_api        = _load("trainer.research.hrsa_api",           "hrsa_api.py")
-_hrsa_dashboard  = _load("trainer.research.hrsa_dashboard",     "hrsa_dashboard.py")
+_raw_metrics = _load("trainer.research.raw_metrics", "raw_metrics.py")
+_normalization = _load("trainer.research.normalization", "normalization.py")
+_hrsa_grades = _load("trainer.research.hrsa_grades", "hrsa_grades.py")
+_hrsa_categories = _load("trainer.research.hrsa_categories", "hrsa_categories.py")
+_hrsa_scorer = _load("trainer.research.hrsa_scorer", "hrsa_scorer.py")
+_hrsa_benchmarks = _load("trainer.research.hrsa_benchmarks", "hrsa_benchmarks.py")
+_hrsa_trends = _load("trainer.research.hrsa_trends", "hrsa_trends.py")
+_hrsa_explanations = _load("trainer.research.hrsa_explanations", "hrsa_explanations.py")
+_hrsa_whatif = _load("trainer.research.hrsa_whatif", "hrsa_whatif.py")
+_hrsa_database = _load("trainer.research.hrsa_database", "hrsa_database.py")
+_hrsa_api = _load("trainer.research.hrsa_api", "hrsa_api.py")
+_hrsa_dashboard = _load("trainer.research.hrsa_dashboard", "hrsa_dashboard.py")
 
 
 def _mod(name: str):
     return sys.modules[f"trainer.research.{name}"]
+
 
 # ---------------------------------------------------------------------------
 # Test runner
@@ -74,7 +86,7 @@ _passed = 0
 _failed = 0
 
 
-def test(fn):
+def _register(fn):
     _tests.append(fn)
     return fn
 
@@ -86,8 +98,9 @@ def run_tests():
             fn()
             print(f"  PASS  {fn.__name__}")
             _passed += 1
-        except Exception as exc:
+        except Exception:
             import traceback
+
             print(f"  FAIL  {fn.__name__}: ")
             traceback.print_exc()
             _failed += 1
@@ -99,6 +112,7 @@ def run_tests():
 # ===========================================================================
 # Fixtures
 # ===========================================================================
+
 
 def _make_bundle(experiment_id="exp_001", full=False):
     rm = _mod("raw_metrics")
@@ -243,13 +257,15 @@ def _score(bundle=None, full=False, **kwargs):
 # 1. RawMetricsRegistry
 # ===========================================================================
 
-@test
+
+@_register
 def test_registry_default_has_metrics():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
     assert reg.total() >= 80
 
-@test
+
+@_register
 def test_registry_get_known_metric():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
@@ -258,32 +274,38 @@ def test_registry_get_known_metric():
     assert defn.direction == "higher_is_better"
     assert defn.category == "trading_performance"
 
-@test
+
+@_register
 def test_registry_for_category():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
     cats = reg.for_category("trading_performance")
     assert len(cats) >= 8
 
-@test
+
+@_register
 def test_registry_all_categories_15():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
     cats = reg.all_categories()
     assert len(cats) == 15
 
-@test
+
+@_register
 def test_registry_register_custom():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
-    reg.register(rm.MetricDefinition(
-        name="my_custom_metric",
-        direction="higher_is_better",
-        category="trading_performance",
-    ))
+    reg.register(
+        rm.MetricDefinition(
+            name="my_custom_metric",
+            direction="higher_is_better",
+            category="trading_performance",
+        )
+    )
     assert reg.get("my_custom_metric") is not None
 
-@test
+
+@_register
 def test_registry_to_dict():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
@@ -291,7 +313,8 @@ def test_registry_to_dict():
     assert "sharpe_ratio" in d
     assert d["sharpe_ratio"]["direction"] == "higher_is_better"
 
-@test
+
+@_register
 def test_registry_get_required_raises():
     rm = _mod("raw_metrics")
     reg = rm.RawMetricsRegistry.default()
@@ -301,48 +324,56 @@ def test_registry_get_required_raises():
     except KeyError:
         pass
 
+
 # ===========================================================================
 # 2. RawMetricsBundle
 # ===========================================================================
 
-@test
+
+@_register
 def test_bundle_set_and_get():
     bundle = _make_bundle()
     assert bundle.get("sharpe_ratio") == 1.82
 
-@test
+
+@_register
 def test_bundle_has():
     bundle = _make_bundle()
     assert bundle.has("sharpe_ratio")
     assert not bundle.has("nonexistent_xyz")
 
-@test
+
+@_register
 def test_bundle_for_category():
     bundle = _make_bundle()
     vals = bundle.for_category("trading_performance")
     assert "sharpe_ratio" in vals
     assert "max_drawdown" in vals
 
-@test
+
+@_register
 def test_bundle_coverage():
     bundle = _make_bundle()
     cov = bundle.coverage_for_category("validation_quality")
     assert 0.0 < cov <= 1.0
 
-@test
+
+@_register
 def test_bundle_all_categories_covered():
     bundle = _make_bundle(full=True)
     cats = bundle.all_categories_covered()
     assert len(cats) >= 8
 
-@test
+
+@_register
 def test_bundle_to_dict():
     bundle = _make_bundle()
     d = bundle.to_dict()
     assert "metrics" in d
     assert "sharpe_ratio" in d["metrics"]
 
-@test
+
+@_register
 def test_bundle_from_dict():
     rm = _mod("raw_metrics")
     bundle = _make_bundle()
@@ -350,7 +381,8 @@ def test_bundle_from_dict():
     b2 = rm.RawMetricsBundle.from_dict(d)
     assert b2.get("sharpe_ratio") == 1.82
 
-@test
+
+@_register
 def test_bundle_set_many():
     rm = _mod("raw_metrics")
     bundle = rm.RawMetricsBundle("test")
@@ -358,139 +390,148 @@ def test_bundle_set_many():
     assert bundle.get("a") == 1.0
     assert bundle.get("b") == 2.0
 
+
 # ===========================================================================
 # 3. Normalisation
 # ===========================================================================
 
-@test
+
+@_register
 def test_normaliser_min_max():
     n = _mod("normalization")
     norm = n.Normaliser()
-    r = norm.normalise(1.5, lo=0.5, hi=2.5, method="min_max",
-                       direction="higher_is_better")
+    r = norm.normalise(1.5, lo=0.5, hi=2.5, method="min_max", direction="higher_is_better")
     assert abs(r.normalised - 0.5) < 1e-9
     assert abs(r.score_100 - 50.0) < 1e-9
 
-@test
+
+@_register
 def test_normaliser_lower_is_better():
     n = _mod("normalization")
     norm = n.Normaliser()
-    r = norm.normalise(0.05, lo=0.03, hi=0.25, method="min_max",
-                       direction="lower_is_better")
+    r = norm.normalise(0.05, lo=0.03, hi=0.25, method="min_max", direction="lower_is_better")
     # raw norm would be (0.05-0.03)/(0.25-0.03) ≈ 0.091, flipped → 0.909
     assert r.normalised > 0.85
 
-@test
+
+@_register
 def test_normaliser_clamped():
     n = _mod("normalization")
     norm = n.Normaliser()
-    r = norm.normalise(10.0, lo=0.5, hi=2.5, method="min_max",
-                       direction="higher_is_better")
+    r = norm.normalise(10.0, lo=0.5, hi=2.5, method="min_max", direction="higher_is_better")
     assert r.normalised == 1.0
 
-@test
+
+@_register
 def test_normaliser_z_score():
     n = _mod("normalization")
     norm = n.Normaliser()
     dist = [1.0, 2.0, 3.0, 4.0, 5.0]
-    r = norm.normalise(3.0, method="z_score", direction="higher_is_better",
-                       distribution=dist)
-    assert abs(r.normalised - 0.5) < 0.05   # mean → ~0.5
+    r = norm.normalise(3.0, method="z_score", direction="higher_is_better", distribution=dist)
+    assert abs(r.normalised - 0.5) < 0.05  # mean → ~0.5
 
-@test
+
+@_register
 def test_normaliser_percentile():
     n = _mod("normalization")
     norm = n.Normaliser()
     dist = [1.0, 2.0, 3.0, 4.0, 5.0]
-    r = norm.normalise(3.0, method="percentile", direction="higher_is_better",
-                       distribution=dist)
+    r = norm.normalise(3.0, method="percentile", direction="higher_is_better", distribution=dist)
     assert 0.4 <= r.normalised <= 0.7
 
-@test
+
+@_register
 def test_normaliser_robust():
     n = _mod("normalization")
     norm = n.Normaliser()
     dist = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
-    r = norm.normalise(4.0, method="robust_scaling", direction="higher_is_better",
-                       distribution=dist)
+    r = norm.normalise(
+        4.0, method="robust_scaling", direction="higher_is_better", distribution=dist
+    )
     assert 0.0 <= r.normalised <= 1.0
 
-@test
+
+@_register
 def test_normaliser_custom():
     n = _mod("normalization")
     norm = n.Normaliser()
-    r = norm.normalise(0.75, method="custom", direction="higher_is_better",
-                       custom_fn=lambda x: x)
+    r = norm.normalise(0.75, method="custom", direction="higher_is_better", custom_fn=lambda x: x)
     assert abs(r.normalised - 0.75) < 1e-9
 
-@test
+
+@_register
 def test_normaliser_batch():
     n = _mod("normalization")
     norm = n.Normaliser()
-    results = norm.normalise_batch([0.5, 1.0, 1.5, 2.0, 2.5],
-                                   lo=0.5, hi=2.5,
-                                   method="min_max",
-                                   direction="higher_is_better")
+    results = norm.normalise_batch(
+        [0.5, 1.0, 1.5, 2.0, 2.5], lo=0.5, hi=2.5, method="min_max", direction="higher_is_better"
+    )
     assert len(results) == 5
     assert results[0].normalised < results[-1].normalised
 
-@test
+
+@_register
 def test_norm_result_to_dict():
     n = _mod("normalization")
     norm = n.Normaliser()
-    r = norm.normalise(1.5, lo=0.5, hi=2.5, method="min_max",
-                       direction="higher_is_better")
+    r = norm.normalise(1.5, lo=0.5, hi=2.5, method="min_max", direction="higher_is_better")
     d = r.to_dict()
     assert "raw_value" in d
     assert "normalised" in d
     assert "score_100" in d
 
-@test
+
+@_register
 def test_category_normaliser():
     n = _mod("normalization")
     rm = _mod("raw_metrics")
     cn = n.CategoryNormaliser()
     reg = rm.RawMetricsRegistry.default()
     metric_defs = reg.for_category("trading_performance")
-    values = {"sharpe_ratio": 1.82, "max_drawdown": 0.067,
-              "profit_factor": 1.65, "win_rate": 0.554}
+    values = {"sharpe_ratio": 1.82, "max_drawdown": 0.067, "profit_factor": 1.65, "win_rate": 0.554}
     score, results = cn.normalise_category(values, metric_defs, method="min_max")
     assert 0.0 <= score <= 100.0
     assert len(results) == 4
+
 
 # ===========================================================================
 # 4. HRSA Grade Engine
 # ===========================================================================
 
-@test
+
+@_register
 def test_grade_institutional_elite():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     g = engine.assign_institutional(97.0)
     assert g.label == "Institutional Elite"
 
-@test
+
+@_register
 def test_grade_production_ready():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     g = engine.assign_institutional(86.0)
     assert g.label == "Production Ready"
 
-@test
+
+@_register
 def test_grade_research_only():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     g = engine.assign_institutional(55.0)
     assert g.label == "Research Only"
 
-@test
+
+@_register
 def test_grade_research_grade():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     g = engine.assign_research(85.0, confidence=0.90)
     assert "Research" in g.label
 
-@test
+
+@_register
 def test_grade_promotion_go():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
@@ -498,7 +539,8 @@ def test_grade_promotion_go():
     promo = engine.assign_promotion(87.0, inst)
     assert promo == ge.PromotionRecommendation.GO
 
-@test
+
+@_register
 def test_grade_promotion_no():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
@@ -506,31 +548,43 @@ def test_grade_promotion_no():
     promo = engine.assign_promotion(55.0, inst)
     assert promo == ge.PromotionRecommendation.NO
 
-@test
+
+@_register
 def test_grade_risk_low():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
-    cat_scores = {"robustness": 88.0, "risk_management": 85.0,
-                  "model_stability": 82.0, "calibration": 84.0}
+    cat_scores = {
+        "robustness": 88.0,
+        "risk_management": 85.0,
+        "model_stability": 82.0,
+        "calibration": 84.0,
+    }
     assert engine.assign_risk(cat_scores) == ge.RiskRating.LOW
 
-@test
+
+@_register
 def test_grade_risk_high():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     # avg = (55+50+48+52)/4 = 51.25  → >= 45 and < 65 → HIGH
-    cat_scores = {"robustness": 55.0, "risk_management": 50.0,
-                  "model_stability": 48.0, "calibration": 52.0}
+    cat_scores = {
+        "robustness": 55.0,
+        "risk_management": 50.0,
+        "model_stability": 48.0,
+        "calibration": 52.0,
+    }
     assert engine.assign_risk(cat_scores) == ge.RiskRating.HIGH
 
-@test
+
+@_register
 def test_grade_future_potential_strong():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
     fp = engine.assign_future_potential(trend_slope=2.0, score=80.0)
     assert fp == ge.FuturePotential.STRONG
 
-@test
+
+@_register
 def test_grade_custom():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
@@ -538,7 +592,8 @@ def test_grade_custom():
     g = engine.assign_institutional(99.0)
     assert g.label == "Platinum"
 
-@test
+
+@_register
 def test_full_assessment():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
@@ -554,7 +609,8 @@ def test_full_assessment():
     assert assessment.risk_rating in ("LOW", "MEDIUM", "HIGH", "VERY_HIGH")
     assert assessment.future_potential in ("STRONG", "MODERATE", "LIMITED", "DECLINING")
 
-@test
+
+@_register
 def test_full_assessment_to_dict():
     ge = _mod("hrsa_grades")
     engine = ge.HRSAGradeEngine.default()
@@ -563,17 +619,20 @@ def test_full_assessment_to_dict():
     assert "institutional_grade" in d
     assert "promotion_recommendation" in d
 
+
 # ===========================================================================
 # 5. HRSA Category Scorer
 # ===========================================================================
 
-@test
+
+@_register
 def test_category_scorer_default_15_cats():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
     assert len(scorer.category_names()) == 15
 
-@test
+
+@_register
 def test_category_scorer_score_one():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
@@ -583,7 +642,8 @@ def test_category_scorer_score_one():
     assert 0.0 <= result.confidence <= 1.0
     assert result.grade != ""
 
-@test
+
+@_register
 def test_category_scorer_score_all():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
@@ -593,7 +653,8 @@ def test_category_scorer_score_all():
     for cat, result in results.items():
         assert 0.0 <= result.score <= 100.0
 
-@test
+
+@_register
 def test_category_result_to_dict():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
@@ -605,7 +666,8 @@ def test_category_result_to_dict():
     assert "grade" in d
     assert "metric_scores" in d
 
-@test
+
+@_register
 def test_category_coverage():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
@@ -613,7 +675,8 @@ def test_category_coverage():
     result = scorer.score_category(bundle, "validation_quality")
     assert result.coverage > 0.5
 
-@test
+
+@_register
 def test_category_with_no_metrics_zero_score():
     rm = _mod("raw_metrics")
     hc = _mod("hrsa_categories")
@@ -623,50 +686,59 @@ def test_category_with_no_metrics_zero_score():
     assert result.metric_count == 0
     assert result.score == 0.0
 
-@test
+
+@_register
 def test_category_weight_sum_close_to_1():
     hc = _mod("hrsa_categories")
     scorer = hc.HRSACategoryScorer.default()
     total = scorer.total_weight()
     assert abs(total - 1.0) < 0.001
 
+
 # ===========================================================================
 # 6. Hierarchical Research Scorer (Level 3)
 # ===========================================================================
 
-@test
+
+@_register
 def test_scorer_returns_hierarchical_score():
     hs = _mod("hrsa_scorer")
     result = _score()
     assert isinstance(result, hs.HierarchicalScore)
 
-@test
+
+@_register
 def test_scorer_composite_in_range():
     result = _score()
     assert 0.0 <= result.level3_composite <= 100.0
 
-@test
+
+@_register
 def test_scorer_composite_positive_for_good_inputs():
     result = _score()
     assert result.level3_composite > 20.0
 
-@test
+
+@_register
 def test_scorer_confidence_in_range():
     result = _score()
     assert 0.0 <= result.confidence <= 1.0
 
-@test
+
+@_register
 def test_scorer_level2_has_all_categories():
     result = _score()
     assert len(result.level2_categories) == 15
 
-@test
+
+@_register
 def test_scorer_grade_assessment_present():
     result = _score()
     assert result.grade_assessment is not None
     assert result.institutional_grade != ""
 
-@test
+
+@_register
 def test_scorer_strongest_weakest():
     result = _score(full=True)
     strong = result.strongest_categories(3)
@@ -678,7 +750,8 @@ def test_scorer_strongest_weakest():
     weak_scores = [result.category_score(c) for c in weak]
     assert min(strong_scores) >= max(weak_scores) - 5.0  # allow small overlap
 
-@test
+
+@_register
 def test_scorer_to_dict():
     result = _score()
     d = result.to_dict()
@@ -687,21 +760,24 @@ def test_scorer_to_dict():
     assert "level2_categories" in d
     assert "grade_assessment" in d
 
-@test
+
+@_register
 def test_scorer_summary():
     result = _score(name="test_model")
     summary = result.summary()
     assert "test_model" in summary
     assert "/100" in summary
 
-@test
+
+@_register
 def test_scorer_full_bundle_higher_than_partial():
     partial = _score()
     full = _score(full=True)
     # Full bundle (more categories filled) should have higher or equal composite
     assert full.level3_composite >= partial.level3_composite - 5.0
 
-@test
+
+@_register
 def test_scorer_metadata_attached():
     result = _score(name="mymodel", instrument="ES", timeframe="1H", backbone="xgb")
     assert result.name == "mymodel"
@@ -709,14 +785,16 @@ def test_scorer_metadata_attached():
     assert result.timeframe == "1H"
     assert result.backbone == "xgb"
 
-@test
+
+@_register
 def test_scorer_category_scores_dict():
     result = _score()
     d = result.category_scores_dict()
     assert "trading_performance" in d
     assert "validation_quality" in d
 
-@test
+
+@_register
 def test_scorer_sensitivity():
     hs_mod = _mod("hrsa_scorer")
     scorer = hs_mod.HierarchicalResearchScorer()
@@ -725,7 +803,8 @@ def test_scorer_sensitivity():
     assert "estimated_delta" in analysis
     assert analysis["estimated_delta"] >= 0.0
 
-@test
+
+@_register
 def test_scorer_breakdown():
     hs_mod = _mod("hrsa_scorer")
     scorer = hs_mod.HierarchicalResearchScorer()
@@ -734,11 +813,13 @@ def test_scorer_breakdown():
     assert "hierarchical_score" in breakdown
     assert "scoring_pipeline" in breakdown
 
+
 # ===========================================================================
 # 7. HRSA Benchmarks
 # ===========================================================================
 
-@test
+
+@_register
 def test_benchmarks_register_and_retrieve():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
@@ -747,7 +828,8 @@ def test_benchmarks_register_and_retrieve():
     assert engine.champion_record() is not None
     assert engine.champion_record().composite == result.level3_composite
 
-@test
+
+@_register
 def test_benchmarks_champion_demotion():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
@@ -759,18 +841,20 @@ def test_benchmarks_champion_demotion():
     assert engine._prev_champion_id == "v1"
     assert engine._records["v1"].role == bm.BenchmarkRole.PREV_CHAMPION
 
-@test
+
+@_register
 def test_benchmarks_compare():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
     r_champ = _score(name="champion")
-    r_cand  = _score(name="candidate")
+    r_cand = _score(name="candidate")
     engine.register("champion", r_champ, role="champion")
     suite = engine.compare("candidate", r_cand)
     assert suite.subject_id == "candidate"
     assert len(suite.deltas) >= 2  # champion + hist average
 
-@test
+
+@_register
 def test_benchmarks_delta_improved():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
@@ -787,7 +871,8 @@ def test_benchmarks_delta_improved():
     assert d is not None
     assert d.improved  # good model beats weak baseline
 
-@test
+
+@_register
 def test_benchmarks_full_report():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
@@ -797,7 +882,8 @@ def test_benchmarks_full_report():
     assert "champion_id" in report
     assert "ranking" in report
 
-@test
+
+@_register
 def test_benchmark_record_from_hierarchical_score():
     bm = _mod("hrsa_benchmarks")
     hs = _score(name="test")
@@ -805,7 +891,8 @@ def test_benchmark_record_from_hierarchical_score():
     assert rec.composite == hs.level3_composite
     assert rec.role == "candidate"
 
-@test
+
+@_register
 def test_benchmark_delta_to_dict():
     bm = _mod("hrsa_benchmarks")
     engine = bm.HRSABenchmarkEngine()
@@ -818,11 +905,13 @@ def test_benchmark_delta_to_dict():
     d = delta.to_dict()
     assert "composite_delta" in d
 
+
 # ===========================================================================
 # 8. HRSA Trends
 # ===========================================================================
 
-@test
+
+@_register
 def test_trends_record_and_composite():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -831,7 +920,8 @@ def test_trends_record_and_composite():
     comp = engine.composite_trend()
     assert comp.n == 5
 
-@test
+
+@_register
 def test_trends_category_trends():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -840,7 +930,8 @@ def test_trends_category_trends():
     cat_trends = engine.category_trends()
     assert len(cat_trends) > 0
 
-@test
+
+@_register
 def test_trends_improvement_rate():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -849,7 +940,8 @@ def test_trends_improvement_rate():
     rate = engine.improvement_rate(window=5)
     assert isinstance(rate, float)
 
-@test
+
+@_register
 def test_trends_regression_detection_no_alert():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -858,7 +950,8 @@ def test_trends_regression_detection_no_alert():
     alerts = engine.detect_regressions(threshold=50.0)  # high threshold
     assert isinstance(alerts, list)
 
-@test
+
+@_register
 def test_trends_stability():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -868,7 +961,8 @@ def test_trends_stability():
     assert "composite" in stab
     assert stab["composite"] >= 0.0
 
-@test
+
+@_register
 def test_trends_trend_report():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -879,7 +973,8 @@ def test_trends_trend_report():
     assert "category_trends" in report
     assert "regression_alerts" in report
 
-@test
+
+@_register
 def test_trends_history():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -888,7 +983,8 @@ def test_trends_history():
     history = engine.history()
     assert len(history) == 3
 
-@test
+
+@_register
 def test_trends_trend_result_to_dict():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -900,7 +996,8 @@ def test_trends_trend_result_to_dict():
     assert "trend_label" in d
     assert "points" in d
 
-@test
+
+@_register
 def test_trends_linreg_slope():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -910,7 +1007,8 @@ def test_trends_linreg_slope():
     trend = engine.composite_trend()
     assert trend.slope > 0  # improving
 
-@test
+
+@_register
 def test_trends_regression_alert():
     ht = _mod("hrsa_trends")
     engine = ht.HRSATrendEngine()
@@ -921,11 +1019,13 @@ def test_trends_regression_alert():
     assert len(alerts) >= 1
     assert alerts[0].drop >= 5.0
 
+
 # ===========================================================================
 # 9. HRSA Explanations
 # ===========================================================================
 
-@test
+
+@_register
 def test_explanation_returns_object():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -933,7 +1033,8 @@ def test_explanation_returns_object():
     explanation = explainer.explain(hs)
     assert isinstance(explanation, he.ScoreExplanation)
 
-@test
+
+@_register
 def test_explanation_has_summary():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -942,7 +1043,8 @@ def test_explanation_has_summary():
     summary = explanation.summary()
     assert "mymodel" in summary or "mymodel" in explanation.experiment_id
 
-@test
+
+@_register
 def test_explanation_recommendations_nonempty():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -950,7 +1052,8 @@ def test_explanation_recommendations_nonempty():
     explanation = explainer.explain(hs)
     assert len(explanation.recommendations) > 0
 
-@test
+
+@_register
 def test_explanation_to_dict():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -961,7 +1064,8 @@ def test_explanation_to_dict():
     assert "recommendations" in d
     assert "weakest_categories" in d
 
-@test
+
+@_register
 def test_explanation_strongest_weakest():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -970,7 +1074,8 @@ def test_explanation_strongest_weakest():
     assert len(explanation.strongest_categories) >= 1
     assert len(explanation.weakest_categories) >= 1
 
-@test
+
+@_register
 def test_explanation_improvement_potential_positive():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -978,7 +1083,8 @@ def test_explanation_improvement_potential_positive():
     explanation = explainer.explain(hs)
     assert explanation.improvement_potential >= 0.0
 
-@test
+
+@_register
 def test_explanation_compare():
     he = _mod("hrsa_explanations")
     explainer = he.HRSAExplainer()
@@ -988,7 +1094,8 @@ def test_explanation_compare():
     assert "composite_delta" in comp
     assert "verdict" in comp
 
-@test
+
+@_register
 def test_explanation_recommendation_priority():
     he = _mod("hrsa_explanations")
     valid_priorities = {"critical", "high", "medium", "low"}
@@ -998,11 +1105,13 @@ def test_explanation_recommendation_priority():
     for rec in explanation.recommendations:
         assert rec.priority in valid_priorities
 
+
 # ===========================================================================
 # 10. HRSA What-If Simulator
 # ===========================================================================
 
-@test
+
+@_register
 def test_whatif_simulate_category():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1012,7 +1121,8 @@ def test_whatif_simulate_category():
     assert result.original_composite == hs.level3_composite
     assert result.simulated_composite >= 0.0
 
-@test
+
+@_register
 def test_whatif_improvement_increases_score():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1023,7 +1133,8 @@ def test_whatif_improvement_increases_score():
         result = sim.simulate_category(hs, weak_cat, new_score=90.0)
         assert result.delta >= 0.0
 
-@test
+
+@_register
 def test_whatif_deterioration_decreases_score():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1033,18 +1144,23 @@ def test_whatif_deterioration_decreases_score():
     result = sim.simulate_category(hs, strong_cat, new_score=max(0, current - 30))
     assert result.delta <= 0.05  # should decrease or stay same
 
-@test
+
+@_register
 def test_whatif_multiple_categories():
     hw = _mod("hrsa_whatif")
     hs = _score()
     sim = hw.HRSAWhatIfSimulator()
-    result = sim.simulate_categories(hs, {
-        "calibration": 88.0,
-        "robustness":  85.0,
-    })
+    result = sim.simulate_categories(
+        hs,
+        {
+            "calibration": 88.0,
+            "robustness": 85.0,
+        },
+    )
     assert result.delta >= 0.0
 
-@test
+
+@_register
 def test_whatif_optimal_improvements():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1054,7 +1170,8 @@ def test_whatif_optimal_improvements():
     for r in results:
         assert isinstance(r, hw.SimulationResult)
 
-@test
+
+@_register
 def test_whatif_batch():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1067,7 +1184,8 @@ def test_whatif_batch():
     assert len(results) == 2
     assert results[0].scenario_name == "s1"
 
-@test
+
+@_register
 def test_whatif_to_dict():
     hw = _mod("hrsa_whatif")
     hs = _score()
@@ -1078,7 +1196,8 @@ def test_whatif_to_dict():
     assert "delta" in d
     assert "improved" in d
 
-@test
+
+@_register
 def test_whatif_grade_change_detected():
     hw = _mod("hrsa_whatif")
     # Create a model near a grade boundary
@@ -1089,15 +1208,19 @@ def test_whatif_grade_change_detected():
     hs = _make_scorer().score(bundle)
     sim = hw.HRSAWhatIfSimulator()
     # Dramatic improvement
-    result = sim.simulate_categories(hs, {
-        "validation_quality": 95.0,
-        "trading_performance": 95.0,
-        "robustness": 95.0,
-    })
+    result = sim.simulate_categories(
+        hs,
+        {
+            "validation_quality": 95.0,
+            "trading_performance": 95.0,
+            "robustness": 95.0,
+        },
+    )
     # grade_change may or may not trigger depending on current grade
     assert result is not None
 
-@test
+
+@_register
 def test_whatif_metric_level_no_scorer():
     hw = _mod("hrsa_whatif")
     bundle = _make_bundle()
@@ -1107,7 +1230,8 @@ def test_whatif_metric_level_no_scorer():
     # Without scorer, falls back to approximate (composite unchanged)
     assert result.original_composite == hs.level3_composite
 
-@test
+
+@_register
 def test_whatif_metric_level_with_scorer():
     hw = _mod("hrsa_whatif")
     hs_mod = _mod("hrsa_scorer")
@@ -1119,11 +1243,13 @@ def test_whatif_metric_level_with_scorer():
     assert isinstance(result.simulated_composite, float)
     assert 0.0 <= result.simulated_composite <= 100.0
 
+
 # ===========================================================================
 # 11. HRSA Database
 # ===========================================================================
 
-@test
+
+@_register
 def test_db_save_and_retrieve():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1133,7 +1259,8 @@ def test_db_save_and_retrieve():
     assert row is not None
     assert abs(row["composite"] - hs.level3_composite) < 0.01
 
-@test
+
+@_register
 def test_db_get_latest():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1143,7 +1270,8 @@ def test_db_get_latest():
     assert latest is not None
     assert latest["experiment_id"] == hs.experiment_id
 
-@test
+
+@_register
 def test_db_category_scores():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1153,7 +1281,8 @@ def test_db_category_scores():
     assert len(cats) > 0
     assert any(c["category"] == "trading_performance" for c in cats)
 
-@test
+
+@_register
 def test_db_composite_history():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1163,7 +1292,8 @@ def test_db_composite_history():
     history = db.composite_history(hs.experiment_id)
     assert len(history) >= 1
 
-@test
+
+@_register
 def test_db_leaderboard():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1173,7 +1303,8 @@ def test_db_leaderboard():
     lb = db.leaderboard(top_n=3)
     assert len(lb) <= 3
 
-@test
+
+@_register
 def test_db_save_explanation():
     hd = _mod("hrsa_database")
     he = _mod("hrsa_explanations")
@@ -1186,7 +1317,8 @@ def test_db_save_explanation():
     assert retrieved is not None
     assert "overall_summary" in retrieved
 
-@test
+
+@_register
 def test_db_save_whatif():
     hd = _mod("hrsa_database")
     hw = _mod("hrsa_whatif")
@@ -1198,7 +1330,8 @@ def test_db_save_whatif():
     history = db.whatif_history(hs.experiment_id)
     assert len(history) == 1
 
-@test
+
+@_register
 def test_db_stats():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
@@ -1208,17 +1341,20 @@ def test_db_stats():
     assert stats["total_scores"] == 3
     assert stats["average_composite"] is not None
 
-@test
+
+@_register
 def test_db_get_missing_score():
     hd = _mod("hrsa_database")
     db = hd.HRSADatabase(":memory:")
     assert db.get_score("nonexistent-uuid") is None
 
+
 # ===========================================================================
 # 12. HRSA API
 # ===========================================================================
 
-@test
+
+@_register
 def test_api_score():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1227,7 +1363,8 @@ def test_api_score():
     assert resp["status"] == "ok"
     assert "level3_composite" in resp["data"]
 
-@test
+
+@_register
 def test_api_get_score():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1238,14 +1375,16 @@ def test_api_get_score():
     assert retrieved["status"] == "ok"
     assert retrieved["data"]["score_id"] == score_id
 
-@test
+
+@_register
 def test_api_get_missing_score():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
     resp = api.get_score("nonexistent-uuid")
     assert resp["status"] == "error"
 
-@test
+
+@_register
 def test_api_category_scores():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1256,7 +1395,8 @@ def test_api_category_scores():
     assert cats["status"] == "ok"
     assert len(cats["data"]["categories"]) > 0
 
-@test
+
+@_register
 def test_api_leaderboard():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1267,7 +1407,8 @@ def test_api_leaderboard():
     assert lb["status"] == "ok"
     assert len(lb["data"]["leaderboard"]) <= 3
 
-@test
+
+@_register
 def test_api_trend_report():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1277,19 +1418,19 @@ def test_api_trend_report():
     assert report["status"] == "ok"
     assert "composite_trend" in report["data"]
 
-@test
+
+@_register
 def test_api_what_if():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
     bundle = _make_bundle("exp_sim")
     api.score(bundle, name="sim_model")
-    resp = api.what_if("exp_sim", [
-        {"name": "improve_calib", "changes": {"calibration": 85.0}}
-    ])
+    resp = api.what_if("exp_sim", [{"name": "improve_calib", "changes": {"calibration": 85.0}}])
     assert resp["status"] == "ok"
     assert len(resp["data"]["simulations"]) == 1
 
-@test
+
+@_register
 def test_api_what_if_optimal():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1299,7 +1440,8 @@ def test_api_what_if_optimal():
     assert resp["status"] == "ok"
     assert "optimal_improvements" in resp["data"]
 
-@test
+
+@_register
 def test_api_compare():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1309,7 +1451,8 @@ def test_api_compare():
     assert resp["status"] == "ok"
     assert "comparison" in resp["data"]
 
-@test
+
+@_register
 def test_api_registry_info():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1317,7 +1460,8 @@ def test_api_registry_info():
     assert resp["status"] == "ok"
     assert resp["data"]["total_metrics"] >= 80
 
-@test
+
+@_register
 def test_api_grade_system():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1325,7 +1469,8 @@ def test_api_grade_system():
     assert resp["status"] == "ok"
     assert len(resp["data"]["institutional_grades"]) >= 6
 
-@test
+
+@_register
 def test_api_system_stats():
     ha = _mod("hrsa_api")
     api = ha.HRSAApi()
@@ -1334,11 +1479,13 @@ def test_api_system_stats():
     assert resp["status"] == "ok"
     assert resp["data"]["database"]["total_scores"] == 1
 
+
 # ===========================================================================
 # 13. HRSA Dashboard
 # ===========================================================================
 
-@test
+
+@_register
 def test_dashboard_hierarchical_tree():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1349,7 +1496,8 @@ def test_dashboard_hierarchical_tree():
     assert "level2_nodes" in tree
     assert tree["root"]["score"] == round(hs.level3_composite, 1)
 
-@test
+
+@_register
 def test_dashboard_radar_chart():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1358,7 +1506,8 @@ def test_dashboard_radar_chart():
     assert radar["type"] == "radar_chart"
     assert len(radar["axes"]) > 0
 
-@test
+
+@_register
 def test_dashboard_category_heatmap():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1367,7 +1516,8 @@ def test_dashboard_category_heatmap():
     assert heatmap["type"] == "category_heatmap"
     assert len(heatmap["cells"]) > 0
 
-@test
+
+@_register
 def test_dashboard_metric_heatmap():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1376,7 +1526,8 @@ def test_dashboard_metric_heatmap():
     assert heatmap["type"] == "metric_heatmap"
     assert heatmap["total_metrics"] > 0
 
-@test
+
+@_register
 def test_dashboard_metric_heatmap_filtered():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1384,14 +1535,16 @@ def test_dashboard_metric_heatmap_filtered():
     heatmap = dash.metric_heatmap(hs, category="trading_performance")
     assert all(r["category"] == "Trading Performance" for r in heatmap["rows"])
 
-@test
+
+@_register
 def test_dashboard_score_timeline_no_db():
     hd = _mod("hrsa_dashboard")
     dash = hd.HRSADashboard()
     result = dash.score_timeline("exp_no_db")
     assert result["type"] == "score_timeline"
 
-@test
+
+@_register
 def test_dashboard_score_timeline_with_db():
     hdb = _mod("hrsa_database")
     hd = _mod("hrsa_dashboard")
@@ -1403,7 +1556,8 @@ def test_dashboard_score_timeline_with_db():
     assert result["type"] == "score_timeline"
     assert len(result["points"]) == 1
 
-@test
+
+@_register
 def test_dashboard_improvement_timeline():
     hdb = _mod("hrsa_database")
     hd = _mod("hrsa_dashboard")
@@ -1419,20 +1573,20 @@ def test_dashboard_improvement_timeline():
     result = dash.improvement_timeline(exp_id)
     assert result["type"] == "improvement_timeline"
 
-@test
+
+@_register
 def test_dashboard_benchmark_comparison():
     hd = _mod("hrsa_dashboard")
     hb = _mod("hrsa_benchmarks")
     hs = _score(name="subject")
-    ref_rec = hb.BenchmarkRecord.from_hierarchical_score(
-        _score(name="champion"), role="champion"
-    )
+    ref_rec = hb.BenchmarkRecord.from_hierarchical_score(_score(name="champion"), role="champion")
     dash = hd.HRSADashboard()
     result = dash.benchmark_comparison(hs, [ref_rec])
     assert result["type"] == "benchmark_comparison"
     assert len(result["bars"]) == 2
 
-@test
+
+@_register
 def test_dashboard_score_breakdown():
     hd = _mod("hrsa_dashboard")
     hs = _score()
@@ -1442,7 +1596,8 @@ def test_dashboard_score_breakdown():
     assert len(result["segments"]) > 0
     assert abs(result["total_contribution"] - hs.level3_composite) < 1.0
 
-@test
+
+@_register
 def test_dashboard_build_all():
     hdb = _mod("hrsa_database")
     hd = _mod("hrsa_dashboard")
@@ -1452,9 +1607,14 @@ def test_dashboard_build_all():
     dash = hd.HRSADashboard(db=db)
     all_charts = dash.build_all(hs)
     expected = [
-        "hierarchical_tree", "radar_chart", "category_heatmap",
-        "metric_heatmap", "score_timeline", "improvement_timeline",
-        "benchmark_comparison", "score_breakdown"
+        "hierarchical_tree",
+        "radar_chart",
+        "category_heatmap",
+        "metric_heatmap",
+        "score_timeline",
+        "improvement_timeline",
+        "benchmark_comparison",
+        "score_breakdown",
     ]
     for chart in expected:
         assert chart in all_charts

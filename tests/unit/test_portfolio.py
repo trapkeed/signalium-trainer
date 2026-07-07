@@ -9,23 +9,46 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 # ── Stub loguru before any imports ──────────────────────────────────────────
 
 _loguru = types.ModuleType("loguru")
+
+
 class _Logger:
-    def info(self, *a, **k): pass
-    def debug(self, *a, **k): pass
-    def error(self, *a, **k): pass
-    def warning(self, *a, **k): pass
-    def warn(self, *a, **k): pass
-    def success(self, *a, **k): pass
-    def trace(self, *a, **k): pass
-    def critical(self, *a, **k): pass
-    def exception(self, *a, **k): pass
-    def bind(self, **k): return self
+    def info(self, *a, **k):
+        pass
+
+    def debug(self, *a, **k):
+        pass
+
+    def error(self, *a, **k):
+        pass
+
+    def warning(self, *a, **k):
+        pass
+
+    def warn(self, *a, **k):
+        pass
+
+    def success(self, *a, **k):
+        pass
+
+    def trace(self, *a, **k):
+        pass
+
+    def critical(self, *a, **k):
+        pass
+
+    def exception(self, *a, **k):
+        pass
+
+    def bind(self, **k):
+        return self
+
+
 _loguru.logger = _Logger()
 sys.modules.setdefault("loguru", _loguru)
 
@@ -42,36 +65,38 @@ def _load(mod_key: str, filename: str):
 
 
 # Load in dependency order
-_pi   = _load("trainer.portfolio.portfolio_instruments", "portfolio_instruments.py")
-_ce   = _load("trainer.portfolio.correlation_engine",     "correlation_engine.py")
-_ee   = _load("trainer.portfolio.exposure_engine",        "exposure_engine.py")
-_dg   = _load("trainer.portfolio.dependency_graph",       "dependency_graph.py")
-_rd   = _load("trainer.portfolio.regime_detector",        "regime_detector.py")
-_rb   = _load("trainer.portfolio.risk_budget",            "risk_budget.py")
-_cr   = _load("trainer.portfolio.conflict_resolver",      "conflict_resolver.py")
-_ps   = _load("trainer.portfolio.portfolio_scorer",       "portfolio_scorer.py")
-_pa   = _load("trainer.portfolio.position_allocator",     "position_allocator.py")
-_sa   = _load("trainer.portfolio.scenario_analysis",      "scenario_analysis.py")
-_op   = _load("trainer.portfolio.optimizer",              "optimizer.py")
-_pdb  = _load("trainer.portfolio.portfolio_database",     "portfolio_database.py")
-_dash = _load("trainer.portfolio.portfolio_dashboard",    "portfolio_dashboard.py")
-_api  = _load("trainer.portfolio.portfolio_api",          "portfolio_api.py")
+_pi = _load("trainer.portfolio.portfolio_instruments", "portfolio_instruments.py")
+_ce = _load("trainer.portfolio.correlation_engine", "correlation_engine.py")
+_ee = _load("trainer.portfolio.exposure_engine", "exposure_engine.py")
+_dg = _load("trainer.portfolio.dependency_graph", "dependency_graph.py")
+_rd = _load("trainer.portfolio.regime_detector", "regime_detector.py")
+_rb = _load("trainer.portfolio.risk_budget", "risk_budget.py")
+_cr = _load("trainer.portfolio.conflict_resolver", "conflict_resolver.py")
+_ps = _load("trainer.portfolio.portfolio_scorer", "portfolio_scorer.py")
+_pa = _load("trainer.portfolio.position_allocator", "position_allocator.py")
+_sa = _load("trainer.portfolio.scenario_analysis", "scenario_analysis.py")
+_op = _load("trainer.portfolio.optimizer", "optimizer.py")
+_pdb = _load("trainer.portfolio.portfolio_database", "portfolio_database.py")
+_dash = _load("trainer.portfolio.portfolio_dashboard", "portfolio_dashboard.py")
+_api = _load("trainer.portfolio.portfolio_api", "portfolio_api.py")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _make_forecasts(n: int = 4):
-    symbols = ["EURUSD", "GBPUSD", "XAUUSD", "NAS100", "BTCUSD",
-               "USDJPY", "AUDUSD", "SPX500"][:n]
-    dirs    = ["BUY", "BUY", "BUY", "SELL", "BUY", "SELL", "BUY", "SELL"][:n]
+    symbols = ["EURUSD", "GBPUSD", "XAUUSD", "NAS100", "BTCUSD", "USDJPY", "AUDUSD", "SPX500"][:n]
+    dirs = ["BUY", "BUY", "BUY", "SELL", "BUY", "SELL", "BUY", "SELL"][:n]
     returns = [0.08, 0.07, 0.12, 0.18, 0.25, 0.06, 0.09, 0.15][:n]
-    risks   = [0.10, 0.12, 0.15, 0.22, 0.35, 0.08, 0.11, 0.20][:n]
-    confs   = [0.72, 0.65, 0.80, 0.60, 0.55, 0.70, 0.68, 0.62][:n]
+    risks = [0.10, 0.12, 0.15, 0.22, 0.35, 0.08, 0.11, 0.20][:n]
+    confs = [0.72, 0.65, 0.80, 0.60, 0.55, 0.70, 0.68, 0.62][:n]
     MF = _pi.ModelForecast
-    return [MF(sym, d, c, r, risk) for sym, d, c, r, risk in zip(symbols, dirs, confs, returns, risks)]
+    return [
+        MF(sym, d, c, r, risk) for sym, d, c, r, risk in zip(symbols, dirs, confs, returns, risks)
+    ]
 
 
-def _make_api() -> "_api.PortfolioApi":
+def _make_api() -> _api.PortfolioApi:
     return _api.PortfolioApi(db_path=":memory:")
 
 
@@ -174,13 +199,16 @@ class TestCorrelationEngine(unittest.TestCase):
     def setUp(self):
         self.eng = _ce.CorrelationEngine(window=20)
         import random
+
         rng = random.Random(42)
         for _ in range(30):
-            self.eng.add_observations({
-                "EURUSD": rng.gauss(0, 0.01),
-                "GBPUSD": rng.gauss(0, 0.01),
-                "XAUUSD": rng.gauss(0, 0.01),
-            })
+            self.eng.add_observations(
+                {
+                    "EURUSD": rng.gauss(0, 0.01),
+                    "GBPUSD": rng.gauss(0, 0.01),
+                    "XAUUSD": rng.gauss(0, 0.01),
+                }
+            )
 
     def test_rolling_correlation_returns_result(self):
         r = self.eng.rolling_correlation("EURUSD", "GBPUSD")
@@ -280,14 +308,17 @@ class TestDependencyGraph(unittest.TestCase):
     def _make_matrix(self):
         eng = _ce.CorrelationEngine(window=20)
         import random
+
         rng = random.Random(99)
         for _ in range(25):
-            eng.add_observations({
-                "EURUSD": rng.gauss(0, 0.01),
-                "GBPUSD": rng.gauss(0, 0.01),
-                "XAUUSD": rng.gauss(0, 0.01),
-                "NAS100": rng.gauss(0, 0.01),
-            })
+            eng.add_observations(
+                {
+                    "EURUSD": rng.gauss(0, 0.01),
+                    "GBPUSD": rng.gauss(0, 0.01),
+                    "XAUUSD": rng.gauss(0, 0.01),
+                    "NAS100": rng.gauss(0, 0.01),
+                }
+            )
         return eng.compute_matrix()
 
     def test_build_returns_snapshot(self):
@@ -335,6 +366,7 @@ class TestRegimeDetector(unittest.TestCase):
     def setUp(self):
         self.det = _rd.RegimeDetector()
         import random
+
         rng = random.Random(7)
         for sym in ["EURUSD", "GBPUSD", "NAS100", "XAUUSD", "BTCUSD"]:
             for _ in range(50):
@@ -515,8 +547,13 @@ class TestPortfolioScorer(unittest.TestCase):
     def test_to_dict_has_keys(self):
         m = self.scorer.score(self.fcs)
         d = m.to_dict()
-        for key in ["expected_return", "expected_volatility", "expected_sharpe",
-                    "expected_sortino", "diversification_score"]:
+        for key in [
+            "expected_return",
+            "expected_volatility",
+            "expected_sharpe",
+            "expected_sortino",
+            "diversification_score",
+        ]:
             self.assertIn(key, d)
 
     def test_empty_forecasts_returns_zeros(self):
@@ -688,33 +725,49 @@ class TestPortfolioDatabase(unittest.TestCase):
         self.db = _pdb.PortfolioDatabase(":memory:")
 
     def test_save_and_get_recommendation(self):
-        self.db.save_recommendation({
-            "rec_id": "R001", "timestamp": "2025-01-01T00:00:00",
-            "instrument_count": 4, "expected_return": 0.10,
-            "expected_volatility": 0.12, "expected_sharpe": 0.83,
-            "diversification_score": 0.65, "regime": "trending",
-            "method": "hybrid", "weights": {"EURUSD": 0.25},
-            "metrics": {},
-        })
+        self.db.save_recommendation(
+            {
+                "rec_id": "R001",
+                "timestamp": "2025-01-01T00:00:00",
+                "instrument_count": 4,
+                "expected_return": 0.10,
+                "expected_volatility": 0.12,
+                "expected_sharpe": 0.83,
+                "diversification_score": 0.65,
+                "regime": "trending",
+                "method": "hybrid",
+                "weights": {"EURUSD": 0.25},
+                "metrics": {},
+            }
+        )
         r = self.db.get_recommendation("R001")
         self.assertIsNotNone(r)
         self.assertAlmostEqual(r["expected_sharpe"], 0.83)
 
     def test_recommendations_history(self):
         for i in range(3):
-            self.db.save_recommendation({
-                "rec_id": f"R{i:03d}", "timestamp": f"2025-01-{i+1:02d}T00:00:00",
-                "instrument_count": 4, "expected_return": 0.10,
-                "expected_volatility": 0.12, "expected_sharpe": 0.83,
-                "diversification_score": 0.65, "regime": "trending",
-                "method": "hybrid", "weights": {}, "metrics": {},
-            })
+            self.db.save_recommendation(
+                {
+                    "rec_id": f"R{i:03d}",
+                    "timestamp": f"2025-01-{i+1:02d}T00:00:00",
+                    "instrument_count": 4,
+                    "expected_return": 0.10,
+                    "expected_volatility": 0.12,
+                    "expected_sharpe": 0.83,
+                    "diversification_score": 0.65,
+                    "regime": "trending",
+                    "method": "hybrid",
+                    "weights": {},
+                    "metrics": {},
+                }
+            )
         history = self.db.recommendations_history(limit=5)
         self.assertEqual(len(history), 3)
 
     def test_save_and_get_correlation_matrix(self):
-        self.db.save_correlation_matrix("M001", "2025-01-01", "rolling",
-                                         ["EURUSD", "GBPUSD"], {"EURUSD_GBPUSD": 0.75})
+        self.db.save_correlation_matrix(
+            "M001", "2025-01-01", "rolling", ["EURUSD", "GBPUSD"], {"EURUSD_GBPUSD": 0.75}
+        )
         m = self.db.get_correlation_matrix("M001")
         self.assertIsNotNone(m)
         self.assertIn("EURUSD", m["instruments"])
@@ -726,49 +779,77 @@ class TestPortfolioDatabase(unittest.TestCase):
         self.assertIsNotNone(latest)
 
     def test_save_and_get_exposure(self):
-        self.db.save_exposure({
-            "exp_id": "E001", "timestamp": "2025-01-01",
-            "gross_exposure": 1.0, "net_exposure": 0.1,
-            "long_exposure": 0.55, "short_exposure": 0.45,
-            "diversification_ratio": 0.70, "alert_count": 2,
-            "by_asset_class": {"forex": 0.6}, "by_currency": {"USD": -0.3},
-            "by_region": {}, "alerts": [],
-        })
+        self.db.save_exposure(
+            {
+                "exp_id": "E001",
+                "timestamp": "2025-01-01",
+                "gross_exposure": 1.0,
+                "net_exposure": 0.1,
+                "long_exposure": 0.55,
+                "short_exposure": 0.45,
+                "diversification_ratio": 0.70,
+                "alert_count": 2,
+                "by_asset_class": {"forex": 0.6},
+                "by_currency": {"USD": -0.3},
+                "by_region": {},
+                "alerts": [],
+            }
+        )
         history = self.db.exposure_history(limit=5)
         self.assertEqual(len(history), 1)
         self.assertAlmostEqual(history[0]["gross_exposure"], 1.0)
 
     def test_save_and_get_optimization(self):
-        self.db.save_optimization({
-            "opt_id": "O001", "timestamp": "2025-01-01",
-            "objective": "max_sharpe", "expected_sharpe": 1.20,
-            "expected_return": 0.15, "expected_volatility": 0.12,
-            "diversification_score": 0.70, "iterations": 50,
-            "converged": True, "weights": {}, "metrics": {},
-        })
+        self.db.save_optimization(
+            {
+                "opt_id": "O001",
+                "timestamp": "2025-01-01",
+                "objective": "max_sharpe",
+                "expected_sharpe": 1.20,
+                "expected_return": 0.15,
+                "expected_volatility": 0.12,
+                "diversification_score": 0.70,
+                "iterations": 50,
+                "converged": True,
+                "weights": {},
+                "metrics": {},
+            }
+        )
         history = self.db.optimization_history()
         self.assertEqual(len(history), 1)
 
     def test_save_and_get_scenario(self):
-        self.db.save_scenario({
-            "scenario_id": "S001", "timestamp": "2025-01-01",
-            "scenario_type": "risk_off", "base_sharpe": 1.0,
-            "stressed_sharpe": 0.5, "return_impact": -0.05,
-            "volatility_impact": 0.08, "resilience_score": 0.65,
-            "instrument_impacts": {"EURUSD": -0.01},
-        })
+        self.db.save_scenario(
+            {
+                "scenario_id": "S001",
+                "timestamp": "2025-01-01",
+                "scenario_type": "risk_off",
+                "base_sharpe": 1.0,
+                "stressed_sharpe": 0.5,
+                "return_impact": -0.05,
+                "volatility_impact": 0.08,
+                "resilience_score": 0.65,
+                "instrument_impacts": {"EURUSD": -0.01},
+            }
+        )
         history = self.db.scenario_history()
         self.assertEqual(len(history), 1)
         self.assertEqual(history[0]["scenario_type"], "risk_off")
 
     def test_save_and_get_allocation(self):
-        self.db.save_allocation({
-            "alloc_id": "A001", "timestamp": "2025-01-01",
-            "method": "hybrid", "regime": "trending",
-            "instrument_count": 4, "expected_return": 0.10,
-            "expected_sharpe": 0.90, "budget_feasible": True,
-            "weights": {"EURUSD": 0.25},
-        })
+        self.db.save_allocation(
+            {
+                "alloc_id": "A001",
+                "timestamp": "2025-01-01",
+                "method": "hybrid",
+                "regime": "trending",
+                "instrument_count": 4,
+                "expected_return": 0.10,
+                "expected_sharpe": 0.90,
+                "budget_feasible": True,
+                "weights": {"EURUSD": 0.25},
+            }
+        )
         history = self.db.allocation_history()
         self.assertEqual(len(history), 1)
 
@@ -793,14 +874,17 @@ class TestPortfolioDashboard(unittest.TestCase):
     def _make_matrix(self):
         eng = _ce.CorrelationEngine(window=20)
         import random
+
         rng = random.Random(77)
         for _ in range(25):
-            eng.add_observations({
-                "EURUSD": rng.gauss(0, 0.01),
-                "GBPUSD": rng.gauss(0, 0.01),
-                "XAUUSD": rng.gauss(0, 0.01),
-                "NAS100": rng.gauss(0, 0.01),
-            })
+            eng.add_observations(
+                {
+                    "EURUSD": rng.gauss(0, 0.01),
+                    "GBPUSD": rng.gauss(0, 0.01),
+                    "XAUUSD": rng.gauss(0, 0.01),
+                    "NAS100": rng.gauss(0, 0.01),
+                }
+            )
         return eng.compute_matrix()
 
     def test_correlation_heatmap(self):
@@ -853,9 +937,14 @@ class TestPortfolioDashboard(unittest.TestCase):
     def test_build_all(self):
         charts = self.dash.build_all(self.fcs, None, self.metrics, None, None, None)
         expected_keys = [
-            "correlation_heatmap", "exposure_chart", "risk_allocation",
-            "dependency_graph", "portfolio_timeline", "optimization_dashboard",
-            "scenario_dashboard", "portfolio_scorecard",
+            "correlation_heatmap",
+            "exposure_chart",
+            "risk_allocation",
+            "dependency_graph",
+            "portfolio_timeline",
+            "optimization_dashboard",
+            "scenario_dashboard",
+            "portfolio_scorecard",
         ]
         for k in expected_keys:
             self.assertIn(k, charts)

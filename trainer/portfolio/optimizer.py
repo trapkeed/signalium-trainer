@@ -13,14 +13,12 @@ Implements grid-search + gradient-free optimization.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 
-from trainer.portfolio.portfolio_instruments import ModelForecast
-from trainer.portfolio.portfolio_scorer import PortfolioScorer, PortfolioMetrics
 from trainer.portfolio.correlation_engine import CorrelationMatrix
+from trainer.portfolio.portfolio_instruments import ModelForecast
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics, PortfolioScorer
 from trainer.portfolio.risk_budget import RiskBudgetConfig, RiskBudgetEngine
 
 
@@ -35,12 +33,12 @@ class OptimizationObjective(str, Enum):
 @dataclass
 class OptimizationResult:
     objective: str
-    optimal_weights: Dict[str, float]
+    optimal_weights: dict[str, float]
     optimal_metrics: PortfolioMetrics
     iterations: int
     converged: bool
     objective_value: float
-    weight_history: List[Tuple[int, float]] = field(default_factory=list)
+    weight_history: list[tuple[int, float]] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -63,7 +61,7 @@ class PortfolioOptimizer:
     def __init__(
         self,
         risk_free_rate: float = 0.045,
-        budget_config: Optional[RiskBudgetConfig] = None,
+        budget_config: RiskBudgetConfig | None = None,
     ) -> None:
         self._rfr = risk_free_rate
         self._scorer = PortfolioScorer(risk_free_rate=risk_free_rate)
@@ -71,9 +69,9 @@ class PortfolioOptimizer:
 
     def optimize(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         objective: OptimizationObjective = OptimizationObjective.MAX_SHARPE,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
+        correlation_matrix: CorrelationMatrix | None = None,
         long_only: bool = True,
         max_weight: float = 0.40,
         min_weight: float = 0.01,
@@ -138,9 +136,9 @@ class PortfolioOptimizer:
 
     def compare_objectives(
         self,
-        forecasts: List[ModelForecast],
-        correlation_matrix: Optional[CorrelationMatrix] = None,
-    ) -> Dict[str, OptimizationResult]:
+        forecasts: list[ModelForecast],
+        correlation_matrix: CorrelationMatrix | None = None,
+    ) -> dict[str, OptimizationResult]:
         results = {}
         for obj in OptimizationObjective:
             results[obj.value] = self.optimize(forecasts, obj, correlation_matrix)
@@ -148,10 +146,10 @@ class PortfolioOptimizer:
 
     def efficient_frontier(
         self,
-        forecasts: List[ModelForecast],
+        forecasts: list[ModelForecast],
         n_points: int = 10,
-        correlation_matrix: Optional[CorrelationMatrix] = None,
-    ) -> List[dict]:
+        correlation_matrix: CorrelationMatrix | None = None,
+    ) -> list[dict]:
         active = [f for f in forecasts if f.direction != "NEUTRAL"]
         if not active:
             return []
@@ -162,7 +160,7 @@ class PortfolioOptimizer:
             risk_weight = 1.0 - i / max(n_points - 1, 1)
             return_weight = i / max(n_points - 1, 1)
 
-            weights: Dict[str, float] = {}
+            weights: dict[str, float] = {}
             for fc in active:
                 inv_risk = 1.0 / max(fc.expected_risk, 1e-4)
                 ret_score = max(fc.signed_return() * fc.confidence, 1e-6)
@@ -172,24 +170,26 @@ class PortfolioOptimizer:
             total = sum(weights.values())
             norm_w = {k: v / max(total, 1e-9) for k, v in weights.items()}
             metrics = self._scorer.score(active, norm_w, correlation_matrix)
-            frontier.append({
-                "point": i,
-                "risk_weight": round(risk_weight, 3),
-                "return_weight": round(return_weight, 3),
-                "expected_return": round(metrics.expected_return, 4),
-                "expected_volatility": round(metrics.expected_volatility, 4),
-                "expected_sharpe": round(metrics.expected_sharpe, 4),
-            })
+            frontier.append(
+                {
+                    "point": i,
+                    "risk_weight": round(risk_weight, 3),
+                    "return_weight": round(return_weight, 3),
+                    "expected_return": round(metrics.expected_return, 4),
+                    "expected_volatility": round(metrics.expected_volatility, 4),
+                    "expected_sharpe": round(metrics.expected_sharpe, 4),
+                }
+            )
         return frontier
 
     # ── Objective functions ────────────────────────────────────────────────
 
     def _objective_value(
         self,
-        forecasts: List[ModelForecast],
-        weights: Dict[str, float],
+        forecasts: list[ModelForecast],
+        weights: dict[str, float],
         objective: OptimizationObjective,
-        matrix: Optional[CorrelationMatrix],
+        matrix: CorrelationMatrix | None,
     ) -> float:
         metrics = self._scorer.score(forecasts, weights, matrix)
         if objective == OptimizationObjective.MAX_SHARPE:
@@ -211,16 +211,16 @@ class PortfolioOptimizer:
         return metrics.expected_sharpe
 
     @staticmethod
-    def _renorm(weights: Dict[str, float], changed: str,
-                min_w: float, max_w: float) -> Dict[str, float]:
+    def _renorm(
+        weights: dict[str, float], changed: str, min_w: float, max_w: float
+    ) -> dict[str, float]:
         total = sum(weights.values())
         if total < 1e-9:
             n = len(weights)
             return {k: 1.0 / n for k in weights}
         return {k: max(min_w, min(max_w, v / total)) for k, v in weights.items()}
 
-    def _budget_feasible(self, weights: Dict[str, float],
-                          forecasts: List[ModelForecast]) -> bool:
+    def _budget_feasible(self, weights: dict[str, float], forecasts: list[ModelForecast]) -> bool:
         result = self._budget_engine.check(weights, forecasts)
         return result.is_feasible()
 

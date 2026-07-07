@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Optional
 
 
-def get_git_commit() -> Optional[str]:
+def get_git_commit() -> str | None:
     """Return the current HEAD commit hash.
 
     Returns:

@@ -67,31 +67,38 @@ from trainer.research.benchmark import (
     BenchmarkRunner,
     ModelRunResult,
 )
+from trainer.research.benchmarking import (
+    BenchmarkComparison,
+    BenchmarkRecord,
+    IRSEBenchmarker,
+    ModelRole,
+)
+from trainer.research.categories import (
+    CalibrationInputs,
+    CalibrationScorer,
+    EfficiencyInputs,
+    EfficiencyScorer,
+    ExplainabilityInputs,
+    ExplainabilityScorer,
+    GeneralizationInputs,
+    GeneralizationScorer,
+    OperationalReadinessInputs,
+    OperationalReadinessScorer,
+    RobustnessInputs,
+    RobustnessScorer,
+    TradingPerformanceInputs,
+    TradingPerformanceScorer,
+    ValidationQualityInputs,
+    ValidationQualityScorer,
+)
 from trainer.research.champion import ChampionRegistry, ModelEntry, ModelStatus
-from trainer.research.experiment import ExperimentRecord, ExperimentTracker
-from trainer.research.hyperparameter import HyperparameterRecord
-from trainer.research.leaderboard import Leaderboard, LeaderboardEntry, ScoringWeights
-from trainer.research.report import ReportConfig, ReportGenerator
-from trainer.research.validation import (
-    RollingFold,
-    RollingWindowValidator,
-    ValidationFold,
-    WalkForwardValidator,
+from trainer.research.confidence import (
+    ConfidenceCalculator,
+    ConfidenceInputs,
+    ConfidenceResult,
 )
-
-# Phase 19.1 — Experiment Lineage & Reproducibility
-from trainer.research.reproducibility import EnvironmentSnapshot
-from trainer.research.snapshots import (
-    DatasetSnapshot,
-    FeatureSnapshot,
-    ModelSnapshot,
-    ValidationSnapshot,
-)
-from trainer.research.lineage import (
-    ExperimentStatus,
-    LineageNode,
-    LineageTree,
-)
+from trainer.research.cost_tracker import CostTracker, ExperimentCost
+from trainer.research.dashboard import DashboardBuilder
 from trainer.research.differencing import (
     DatasetDiff,
     ExperimentDiff,
@@ -100,6 +107,59 @@ from trainer.research.differencing import (
     ModelDiff,
     ValidationDiff,
 )
+from trainer.research.experiment import ExperimentRecord, ExperimentTracker
+from trainer.research.export import ResearchExporter
+from trainer.research.grades import Grade, GradeResult, GradeSystem
+from trainer.research.hrsa_api import HRSAApi
+from trainer.research.hrsa_benchmarks import (
+    BenchmarkDelta,
+    BenchmarkRole,
+    BenchmarkSuite,
+    HRSABenchmarkEngine,
+    HRSABenchmarkRecord,
+)
+from trainer.research.hrsa_categories import (
+    CategoryDefinition,
+    CategoryResult,
+    HRSACategoryScorer,
+    MetricMapping,
+)
+from trainer.research.hrsa_dashboard import HRSADashboard
+from trainer.research.hrsa_database import HRSADatabase
+from trainer.research.hrsa_explanations import (
+    CategoryNarrative,
+    HRSAExplainer,
+    MetricContributor,
+    Recommendation,
+    ScoreExplanation,
+)
+from trainer.research.hrsa_grades import (
+    FuturePotential,
+    GradeAssessment,
+    HRSAGrade,
+    HRSAGradeDefinition,
+    HRSAGradeEngine,
+    PromotionRecommendation,
+    ResearchGrade,
+    ResearchGradeDefinition,
+    RiskRating,
+)
+from trainer.research.hrsa_scorer import (
+    HierarchicalResearchScorer,
+    HierarchicalScore,
+    SensitivityResult,
+)
+from trainer.research.hrsa_trends import (
+    HRSATrendEngine,
+    RegressionEvent,
+    TrendPoint,
+    TrendResult,
+)
+from trainer.research.hrsa_whatif import (
+    HRSAWhatIfSimulator,
+    SimulationResult,
+)
+from trainer.research.hyperparameter import HyperparameterRecord
 from trainer.research.knowledge_graph import (
     EdgeType,
     GraphEdge,
@@ -107,132 +167,72 @@ from trainer.research.knowledge_graph import (
     KnowledgeGraph,
     NodeType,
 )
-from trainer.research.timeline import (
-    ResearchTimeline,
-    TimelineEvent,
-    TimelineEventType,
-)
-from trainer.research.cost_tracker import CostTracker, ExperimentCost
-from trainer.research.dashboard import DashboardBuilder
-from trainer.research.export import ResearchExporter
-from trainer.research.lineage_database import LineageDatabase
-from trainer.research.lineage_api import LineageAPI
-
-# Phase 19.2 — Institutional Research Scoring Engine (IRSE)
-from trainer.research.weights import ScoringWeights as IRSEScoringWeights
-from trainer.research.grades import GradeSystem, Grade, GradeResult
-from trainer.research.categories import (
-    ValidationQualityInputs,
-    ValidationQualityScorer,
-    TradingPerformanceInputs,
-    TradingPerformanceScorer,
-    RobustnessInputs,
-    RobustnessScorer,
-    CalibrationInputs,
-    CalibrationScorer,
-    GeneralizationInputs,
-    GeneralizationScorer,
-    EfficiencyInputs,
-    EfficiencyScorer,
-    ExplainabilityInputs,
-    ExplainabilityScorer,
-    OperationalReadinessInputs,
-    OperationalReadinessScorer,
-)
-from trainer.research.confidence import (
-    ConfidenceInputs,
-    ConfidenceResult,
-    ConfidenceCalculator,
-)
-from trainer.research.scorer import (
-    ResearchScoreInputs,
-    CategoryScore,
-    ResearchScore,
-    ResearchScorer,
-)
-from trainer.research.trends import (
-    ScoreTrendTracker,
-    ScoreSnapshot,
-    ChampionChange,
-    RegressionAlert,
-)
+from trainer.research.leaderboard import Leaderboard, LeaderboardEntry, ScoringWeights
 from trainer.research.leaderboard_irse import (
     IRSELeaderboard,
     IRSELeaderboardEntry,
 )
-from trainer.research.benchmarking import (
-    IRSEBenchmarker,
-    ModelRole,
-    BenchmarkRecord,
-    BenchmarkComparison,
+from trainer.research.lineage import (
+    ExperimentStatus,
+    LineageNode,
+    LineageTree,
 )
-from trainer.research.score_database import IRSEScoreDatabase
-from trainer.research.score_api import IRSEApi
-from trainer.research.score_dashboard import IRSEScoreDashboard
-from trainer.research.score_export import IRSEScoreExporter
+from trainer.research.lineage_api import LineageAPI
+from trainer.research.lineage_database import LineageDatabase
+from trainer.research.normalization import (
+    CategoryNormaliser,
+    NormalisationResult,
+    Normaliser,
+    NormMethod,
+)
 
 # ── Phase 19.3 — Hierarchical Research Scoring Architecture (HRSA) ────────────
 from trainer.research.raw_metrics import (
     MetricDefinition,
     MetricDirection,
-    RawMetricsRegistry,
     RawMetricsBundle,
+    RawMetricsRegistry,
 )
-from trainer.research.normalization import (
-    NormMethod,
-    NormalisationResult,
-    Normaliser,
-    CategoryNormaliser,
+from trainer.research.report import ReportConfig, ReportGenerator
+
+# Phase 19.1 — Experiment Lineage & Reproducibility
+from trainer.research.reproducibility import EnvironmentSnapshot
+from trainer.research.score_api import IRSEApi
+from trainer.research.score_dashboard import IRSEScoreDashboard
+from trainer.research.score_database import IRSEScoreDatabase
+from trainer.research.score_export import IRSEScoreExporter
+from trainer.research.scorer import (
+    CategoryScore,
+    ResearchScore,
+    ResearchScoreInputs,
+    ResearchScorer,
 )
-from trainer.research.hrsa_grades import (
-    HRSAGrade,
-    HRSAGradeDefinition,
-    ResearchGrade,
-    ResearchGradeDefinition,
-    PromotionRecommendation,
-    RiskRating,
-    FuturePotential,
-    GradeAssessment,
-    HRSAGradeEngine,
+from trainer.research.snapshots import (
+    DatasetSnapshot,
+    FeatureSnapshot,
+    ModelSnapshot,
+    ValidationSnapshot,
 )
-from trainer.research.hrsa_categories import (
-    MetricMapping,
-    CategoryDefinition,
-    CategoryResult,
-    HRSACategoryScorer,
+from trainer.research.timeline import (
+    ResearchTimeline,
+    TimelineEvent,
+    TimelineEventType,
 )
-from trainer.research.hrsa_scorer import (
-    HierarchicalScore,
-    SensitivityResult,
-    HierarchicalResearchScorer,
+from trainer.research.trends import (
+    ChampionChange,
+    RegressionAlert,
+    ScoreSnapshot,
+    ScoreTrendTracker,
 )
-from trainer.research.hrsa_benchmarks import (
-    BenchmarkRole,
-    HRSABenchmarkRecord,
-    BenchmarkDelta,
-    BenchmarkSuite,
-    HRSABenchmarkEngine,
+from trainer.research.validation import (
+    RollingFold,
+    RollingWindowValidator,
+    ValidationFold,
+    WalkForwardValidator,
 )
-from trainer.research.hrsa_trends import (
-    TrendPoint,
-    TrendResult,
-    RegressionEvent,
-    HRSATrendEngine,
-)
-from trainer.research.hrsa_explanations import (
-    MetricContributor,
-    Recommendation,
-    CategoryNarrative,
-    ScoreExplanation,
-    HRSAExplainer,
-)
-from trainer.research.hrsa_whatif import (
-    SimulationResult,
-    HRSAWhatIfSimulator,
-)
-from trainer.research.hrsa_database import HRSADatabase
-from trainer.research.hrsa_api import HRSAApi
-from trainer.research.hrsa_dashboard import HRSADashboard
+
+# Phase 19.2 — Institutional Research Scoring Engine (IRSE)
+from trainer.research.weights import ScoringWeights as IRSEScoringWeights
 
 __all__ = [
     # Experiment (legacy)

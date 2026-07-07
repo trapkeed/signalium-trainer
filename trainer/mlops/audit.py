@@ -34,9 +34,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Audit event types
@@ -44,33 +43,48 @@ from typing import Any, Dict, List, Optional
 
 
 class AuditEventType:
-    TRAINING            = "training"
-    VALIDATION          = "validation"
-    PROMOTION           = "promotion"
-    DEPLOYMENT          = "deployment"
-    ROLLBACK            = "rollback"
-    RETIREMENT          = "retirement"
-    CONFIG_CHANGE       = "config_change"
-    INFERENCE_ERROR     = "inference_error"
-    MANUAL_APPROVAL     = "manual_approval"
-    MANUAL_REJECTION    = "manual_rejection"
+    TRAINING = "training"
+    VALIDATION = "validation"
+    PROMOTION = "promotion"
+    DEPLOYMENT = "deployment"
+    ROLLBACK = "rollback"
+    RETIREMENT = "retirement"
+    CONFIG_CHANGE = "config_change"
+    INFERENCE_ERROR = "inference_error"
+    MANUAL_APPROVAL = "manual_approval"
+    MANUAL_REJECTION = "manual_rejection"
     RETRAINING_RECOMMENDATION = "retraining_recommendation"
-    CHAMPION_CHANGE     = "champion_change"
+    CHAMPION_CHANGE = "champion_change"
     LIFECYCLE_TRANSITION = "lifecycle_transition"
-    ALERT_EMITTED       = "alert_emitted"
-    ALERT_ACKNOWLEDGED  = "alert_acknowledged"
-    ALERT_RESOLVED      = "alert_resolved"
-    REGISTRY_REGISTER   = "registry_register"
-    REGISTRY_REMOVE     = "registry_remove"
-    GOVERNANCE          = "governance"
-    SYSTEM              = "system"
+    ALERT_EMITTED = "alert_emitted"
+    ALERT_ACKNOWLEDGED = "alert_acknowledged"
+    ALERT_RESOLVED = "alert_resolved"
+    REGISTRY_REGISTER = "registry_register"
+    REGISTRY_REMOVE = "registry_remove"
+    GOVERNANCE = "governance"
+    SYSTEM = "system"
 
     ALL = [
-        TRAINING, VALIDATION, PROMOTION, DEPLOYMENT, ROLLBACK, RETIREMENT,
-        CONFIG_CHANGE, INFERENCE_ERROR, MANUAL_APPROVAL, MANUAL_REJECTION,
-        RETRAINING_RECOMMENDATION, CHAMPION_CHANGE, LIFECYCLE_TRANSITION,
-        ALERT_EMITTED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED,
-        REGISTRY_REGISTER, REGISTRY_REMOVE, GOVERNANCE, SYSTEM,
+        TRAINING,
+        VALIDATION,
+        PROMOTION,
+        DEPLOYMENT,
+        ROLLBACK,
+        RETIREMENT,
+        CONFIG_CHANGE,
+        INFERENCE_ERROR,
+        MANUAL_APPROVAL,
+        MANUAL_REJECTION,
+        RETRAINING_RECOMMENDATION,
+        CHAMPION_CHANGE,
+        LIFECYCLE_TRANSITION,
+        ALERT_EMITTED,
+        ALERT_ACKNOWLEDGED,
+        ALERT_RESOLVED,
+        REGISTRY_REGISTER,
+        REGISTRY_REMOVE,
+        GOVERNANCE,
+        SYSTEM,
     ]
 
 
@@ -101,13 +115,11 @@ class AuditEvent:
     model_id: str = ""
     description: str = ""
     outcome: str = "success"
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    session_id: Optional[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    session_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_type": self.event_type,
@@ -137,10 +149,10 @@ class AuditSystem:
 
     def __init__(self, max_events: int = 100_000) -> None:
         self.max_events = max_events
-        self._events: List[AuditEvent] = []
-        self._session_id: Optional[str] = None
+        self._events: list[AuditEvent] = []
+        self._session_id: str | None = None
 
-    def start_session(self, session_id: Optional[str] = None) -> str:
+    def start_session(self, session_id: str | None = None) -> str:
         """Start a grouped audit session. Returns session_id."""
         self._session_id = session_id or str(uuid.uuid4())
         return self._session_id
@@ -154,34 +166,44 @@ class AuditSystem:
             event.session_id = self._session_id
         self._events.append(event)
         if len(self._events) > self.max_events:
-            self._events = self._events[-self.max_events:]
+            self._events = self._events[-self.max_events :]
         return event
 
-    def log(self, event_type: str, actor: str = "system",
-            model_id: str = "", description: str = "",
-            outcome: str = "success",
-            metadata: Optional[Dict[str, Any]] = None) -> AuditEvent:
+    def log(
+        self,
+        event_type: str,
+        actor: str = "system",
+        model_id: str = "",
+        description: str = "",
+        outcome: str = "success",
+        metadata: dict[str, Any] | None = None,
+    ) -> AuditEvent:
         """Convenience method to create and record an event."""
-        return self.record(AuditEvent(
-            event_type=event_type,
-            actor=actor,
-            model_id=model_id,
-            description=description,
-            outcome=outcome,
-            metadata=metadata or {},
-        ))
+        return self.record(
+            AuditEvent(
+                event_type=event_type,
+                actor=actor,
+                model_id=model_id,
+                description=description,
+                outcome=outcome,
+                metadata=metadata or {},
+            )
+        )
 
-    def get(self, event_id: str) -> Optional[AuditEvent]:
+    def get(self, event_id: str) -> AuditEvent | None:
         for e in reversed(self._events):
             if e.event_id == event_id:
                 return e
         return None
 
-    def query(self, event_type: Optional[str] = None,
-              model_id: Optional[str] = None,
-              actor: Optional[str] = None,
-              limit: int = 100,
-              most_recent_first: bool = True) -> List[Dict[str, Any]]:
+    def query(
+        self,
+        event_type: str | None = None,
+        model_id: str | None = None,
+        actor: str | None = None,
+        limit: int = 100,
+        most_recent_first: bool = True,
+    ) -> list[dict[str, Any]]:
         """Query audit events with optional filters."""
         events = list(self._events)
         if event_type:
@@ -194,18 +216,20 @@ class AuditSystem:
             events = list(reversed(events))
         return [e.to_dict() for e in events[:limit]]
 
-    def model_history(self, model_id: str) -> List[Dict[str, Any]]:
+    def model_history(self, model_id: str) -> list[dict[str, Any]]:
         """Return all events for a specific model, oldest first."""
         return [e.to_dict() for e in self._events if e.model_id == model_id]
 
-    def get_report(self, model_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_report(self, model_id: str | None = None) -> dict[str, Any]:
         """Generate an audit report."""
-        events = self._events if model_id is None else [
-            e for e in self._events if e.model_id == model_id
-        ]
-        by_type: Dict[str, int] = {}
-        by_actor: Dict[str, int] = {}
-        by_outcome: Dict[str, int] = {}
+        events = (
+            self._events
+            if model_id is None
+            else [e for e in self._events if e.model_id == model_id]
+        )
+        by_type: dict[str, int] = {}
+        by_actor: dict[str, int] = {}
+        by_outcome: dict[str, int] = {}
         for e in events:
             by_type[e.event_type] = by_type.get(e.event_type, 0) + 1
             by_actor[e.actor] = by_actor.get(e.actor, 0) + 1
@@ -220,7 +244,7 @@ class AuditSystem:
             "last_event": events[-1].to_dict() if events else None,
         }
 
-    def export_all(self) -> List[Dict[str, Any]]:
+    def export_all(self) -> list[dict[str, Any]]:
         """Export all audit events as a list of dicts."""
         return [e.to_dict() for e in self._events]
 
@@ -228,8 +252,8 @@ class AuditSystem:
     def n_events(self) -> int:
         return len(self._events)
 
-    def stats(self) -> Dict[str, Any]:
-        by_type: Dict[str, int] = {}
+    def stats(self) -> dict[str, Any]:
+        by_type: dict[str, int] = {}
         for e in self._events:
             by_type[e.event_type] = by_type.get(e.event_type, 0) + 1
         return {

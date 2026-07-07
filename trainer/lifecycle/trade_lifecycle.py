@@ -11,36 +11,33 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_states import (
-    LifecycleState,
-    is_terminal,
-    can_transition,
-    POSITION_OPEN_STATES,
-    STATE_EXPECTED_DURATION_HOURS,
-)
+from trainer.lifecycle.ai_reasoning import AiReasoningEngine, ReasoningReport
+from trainer.lifecycle.event_engine import EventEngine
+from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
 from trainer.lifecycle.lifecycle_models import (
+    LifecycleConfidence,
+    LifecycleEvent,
     MarketContext,
     PositionMetrics,
     StateRecord,
-    LifecycleEvent,
-    TransitionResult,
-    LifecycleConfidence,
-    EventType,
 )
+from trainer.lifecycle.lifecycle_states import (
+    POSITION_OPEN_STATES,
+    LifecycleState,
+    can_transition,
+    is_terminal,
+)
+from trainer.lifecycle.position_monitor import PositionManagementPlan, PositionMonitor
 from trainer.lifecycle.state_machine import StateMachine
 from trainer.lifecycle.transition_engine import TransitionEngine, TransitionRecommendation
-from trainer.lifecycle.position_monitor import PositionMonitor, PositionManagementPlan
-from trainer.lifecycle.lifecycle_confidence import LifecycleConfidenceEngine
-from trainer.lifecycle.event_engine import EventEngine
-from trainer.lifecycle.ai_reasoning import AiReasoningEngine, ReasoningReport
 
 
 @dataclass
@@ -53,55 +50,57 @@ class TradeLifecycle:
     Does NOT place trades.
     """
 
-    trade_id:    str
-    instrument:  str
-    direction:   str            # BUY | SELL
-    created_at:  float
+    trade_id: str
+    instrument: str
+    direction: str  # BUY | SELL
+    created_at: float
 
     # Current state
     current_state: LifecycleState = LifecycleState.IDEA
-    confidence:    float          = 0.50
+    confidence: float = 0.50
 
     # History and events
-    state_history: List[StateRecord]    = field(default_factory=list)
-    events:        List[LifecycleEvent] = field(default_factory=list)
+    state_history: list[StateRecord] = field(default_factory=list)
+    events: list[LifecycleEvent] = field(default_factory=list)
 
     # Latest context
-    last_context:  Optional[MarketContext]  = None
-    last_metrics:  Optional[PositionMetrics] = None
+    last_context: MarketContext | None = None
+    last_metrics: PositionMetrics | None = None
 
     # Metadata
-    tags:     List[str] = field(default_factory=list)
-    notes:    str       = ""
-    updated_at: float   = field(default_factory=time.time)
+    tags: list[str] = field(default_factory=list)
+    notes: str = ""
+    updated_at: float = field(default_factory=time.time)
 
     @classmethod
     def new(
         cls,
-        instrument:  str,
-        direction:   str,
-        confidence:  float = 0.50,
-        context:     Optional[MarketContext] = None,
-        tags:        Optional[List[str]] = None,
-    ) -> "TradeLifecycle":
+        instrument: str,
+        direction: str,
+        confidence: float = 0.50,
+        context: MarketContext | None = None,
+        tags: list[str] | None = None,
+    ) -> TradeLifecycle:
         trade_id = str(uuid.uuid4())[:12]
         tl = cls(
-            trade_id   = trade_id,
-            instrument = instrument,
-            direction  = direction,
-            created_at = time.time(),
-            confidence = confidence,
-            last_context = context,
+            trade_id=trade_id,
+            instrument=instrument,
+            direction=direction,
+            created_at=time.time(),
+            confidence=confidence,
+            last_context=context,
         )
         tl.tags = tags or []
         # Record initial state
-        tl.state_history.append(StateRecord(
-            state          = LifecycleState.IDEA,
-            timestamp      = tl.created_at,
-            confidence     = confidence,
-            reason         = "Trade idea created",
-            market_context = context,
-        ))
+        tl.state_history.append(
+            StateRecord(
+                state=LifecycleState.IDEA,
+                timestamp=tl.created_at,
+                confidence=confidence,
+                reason="Trade idea created",
+                market_context=context,
+            )
+        )
         logger.info(f"TradeLifecycle created: {trade_id} {instrument} {direction}")
         return tl
 
@@ -109,12 +108,12 @@ class TradeLifecycle:
 
     def transition_to(
         self,
-        new_state:  LifecycleState,
-        reason:     str,
-        confidence: Optional[float]          = None,
-        context:    Optional[MarketContext]  = None,
-        metrics:    Optional[PositionMetrics] = None,
-        sm:         Optional[StateMachine]   = None,
+        new_state: LifecycleState,
+        reason: str,
+        confidence: float | None = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        sm: StateMachine | None = None,
     ) -> bool:
         """Attempt a state transition. Returns True if successful."""
 
@@ -135,7 +134,8 @@ class TradeLifecycle:
         # Validate with state machine if provided
         if sm is not None:
             result = sm.validate_transition(
-                self.current_state, new_state,
+                self.current_state,
+                new_state,
                 context or self.last_context,
                 confidence or self.confidence,
             )
@@ -147,8 +147,8 @@ class TradeLifecycle:
                 return False
 
         prev_state = self.current_state
-        new_conf   = confidence if confidence is not None else self.confidence
-        now        = time.time()
+        new_conf = confidence if confidence is not None else self.confidence
+        now = time.time()
 
         # Close out the last state record duration
         if self.state_history:
@@ -157,26 +157,28 @@ class TradeLifecycle:
 
         # Update lifecycle
         self.current_state = new_state
-        self.confidence    = new_conf
-        self.last_context  = context or self.last_context
-        self.last_metrics  = metrics or self.last_metrics
-        self.updated_at    = now
+        self.confidence = new_conf
+        self.last_context = context or self.last_context
+        self.last_metrics = metrics or self.last_metrics
+        self.updated_at = now
 
         # Record state
-        self.state_history.append(StateRecord(
-            state           = new_state,
-            timestamp       = now,
-            confidence      = new_conf,
-            reason          = reason,
-            market_context  = context or self.last_context,
-            position_metrics = metrics or self.last_metrics,
-        ))
+        self.state_history.append(
+            StateRecord(
+                state=new_state,
+                timestamp=now,
+                confidence=new_conf,
+                reason=reason,
+                market_context=context or self.last_context,
+                position_metrics=metrics or self.last_metrics,
+            )
+        )
 
         # Emit state-change event
         ev_engine = EventEngine()
-        self.events.append(ev_engine.emit_state_change(
-            self.trade_id, prev_state, new_state, reason, new_conf
-        ))
+        self.events.append(
+            ev_engine.emit_state_change(self.trade_id, prev_state, new_state, reason, new_conf)
+        )
 
         logger.info(
             f"TradeLifecycle {self.trade_id}: {prev_state.value} → {new_state.value} "
@@ -188,8 +190,8 @@ class TradeLifecycle:
 
     def recommend_transition(
         self,
-        context:    Optional[MarketContext] = None,
-        te:         Optional[TransitionEngine] = None,
+        context: MarketContext | None = None,
+        te: TransitionEngine | None = None,
     ) -> TransitionRecommendation:
         """Ask the transition engine for the best next state."""
         engine = te or TransitionEngine()
@@ -201,9 +203,9 @@ class TradeLifecycle:
 
     def position_management(
         self,
-        context: Optional[MarketContext]  = None,
-        metrics: Optional[PositionMetrics] = None,
-        pm:      Optional[PositionMonitor] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        pm: PositionMonitor | None = None,
     ) -> PositionManagementPlan:
         """Get position management recommendation for current state."""
         monitor = pm or PositionMonitor()
@@ -217,8 +219,8 @@ class TradeLifecycle:
 
     def lifecycle_confidence(
         self,
-        context: Optional[MarketContext] = None,
-        lce:     Optional[LifecycleConfidenceEngine] = None,
+        context: MarketContext | None = None,
+        lce: LifecycleConfidenceEngine | None = None,
     ) -> LifecycleConfidence:
         """Get confidence assessment for current state."""
         engine = lce or LifecycleConfidenceEngine()
@@ -230,12 +232,12 @@ class TradeLifecycle:
 
     def detect_events(
         self,
-        context:      Optional[MarketContext] = None,
-        metrics:      Optional[PositionMetrics] = None,
-        prev_context: Optional[MarketContext] = None,
-        prev_conf:    float = 0.65,
-        ee:           Optional[EventEngine] = None,
-    ) -> List[LifecycleEvent]:
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_context: MarketContext | None = None,
+        prev_conf: float = 0.65,
+        ee: EventEngine | None = None,
+    ) -> list[LifecycleEvent]:
         """Detect events and add to history."""
         engine = ee or EventEngine()
         new_events = engine.detect_events(
@@ -252,16 +254,16 @@ class TradeLifecycle:
 
     def reasoning(
         self,
-        context:      Optional[MarketContext] = None,
-        metrics:      Optional[PositionMetrics] = None,
-        prev_conf:    float = 0.65,
-        are:          Optional[AiReasoningEngine] = None,
-        lce:          Optional[LifecycleConfidenceEngine] = None,
+        context: MarketContext | None = None,
+        metrics: PositionMetrics | None = None,
+        prev_conf: float = 0.65,
+        are: AiReasoningEngine | None = None,
+        lce: LifecycleConfidenceEngine | None = None,
     ) -> ReasoningReport:
         """Generate institutional explanation for current state."""
-        engine    = are or AiReasoningEngine()
-        conf_eng  = lce or LifecycleConfidenceEngine()
-        lc_conf   = conf_eng.compute(
+        engine = are or AiReasoningEngine()
+        conf_eng = lce or LifecycleConfidenceEngine()
+        lc_conf = conf_eng.compute(
             self.current_state,
             self.confidence,
             context or self.last_context,
@@ -307,41 +309,41 @@ class TradeLifecycle:
         return len(self.events)
 
     @property
-    def critical_events(self) -> List[LifecycleEvent]:
+    def critical_events(self) -> list[LifecycleEvent]:
         return [e for e in self.events if e.severity == "CRITICAL"]
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
-            "trade_id":      self.trade_id,
-            "instrument":    self.instrument,
-            "direction":     self.direction,
+            "trade_id": self.trade_id,
+            "instrument": self.instrument,
+            "direction": self.direction,
             "current_state": self.current_state.value,
-            "confidence":    round(self.confidence, 4),
-            "is_terminal":   self.is_terminal,
+            "confidence": round(self.confidence, 4),
+            "is_terminal": self.is_terminal,
             "is_position_open": self.is_position_open,
-            "age_hours":     self.age_hours,
+            "age_hours": self.age_hours,
             "time_in_state_h": self.time_in_current_state_hours,
-            "state_count":   self.state_count,
-            "event_count":   self.event_count,
+            "state_count": self.state_count,
+            "event_count": self.event_count,
             "critical_events": len(self.critical_events),
-            "created_at":    round(self.created_at, 3),
-            "updated_at":    round(self.updated_at, 3),
-            "tags":          self.tags,
+            "created_at": round(self.created_at, 3),
+            "updated_at": round(self.updated_at, 3),
+            "tags": self.tags,
             "state_history": [r.to_dict() for r in self.state_history],
-            "events":        [e.to_dict() for e in self.events],
+            "events": [e.to_dict() for e in self.events],
         }
 
-    def summary(self) -> Dict:
+    def summary(self) -> dict:
         """Compact summary for dashboard display."""
         return {
-            "trade_id":      self.trade_id,
-            "instrument":    self.instrument,
-            "direction":     self.direction,
-            "state":         self.current_state.value,
-            "confidence":    round(self.confidence, 4),
-            "age_hours":     self.age_hours,
-            "state_count":   self.state_count,
-            "event_count":   self.event_count,
+            "trade_id": self.trade_id,
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "state": self.current_state.value,
+            "confidence": round(self.confidence, 4),
+            "age_hours": self.age_hours,
+            "state_count": self.state_count,
+            "event_count": self.event_count,
             "critical_events": len(self.critical_events),
-            "is_terminal":   self.is_terminal,
+            "is_terminal": self.is_terminal,
         }

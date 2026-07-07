@@ -41,25 +41,30 @@ Usage::
 from __future__ import annotations
 
 import time
-import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
-from trainer.automl.search_space import SearchSpace, build_standard_space, BaseParameter
-from trainer.automl.objectives import ObjectiveScorer, build_research_scorer, compute_composite_research_score
-from trainer.automl.pruning import BasePruner, NoPruner, build_pruner
-from trainer.automl.strategies import BaseStrategy, build_strategy, Suggestion
-from trainer.automl.experiment import Trial, SearchJob, ExperimentRecord, TrialStatus
-from trainer.automl.resource_manager import ResourceManager
-from trainer.automl.backbone_search import BackboneCatalog, BackboneSpec, BackboneEvalResult, BackboneSearcher
-from trainer.automl.ranking import ExperimentRanker, RankingResult
-from trainer.automl.database import AutoMLDatabase
-from trainer.automl.visualization import AutoMLVisualizationBuilder
 from trainer.automl.api import AutoMLAPI
-
+from trainer.automl.backbone_search import (
+    BackboneCatalog,
+    BackboneSpec,
+)
+from trainer.automl.database import AutoMLDatabase
+from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial, TrialStatus
+from trainer.automl.objectives import (
+    ObjectiveScorer,
+    build_research_scorer,
+    compute_composite_research_score,
+)
+from trainer.automl.pruning import BasePruner, build_pruner
+from trainer.automl.ranking import ExperimentRanker, RankingResult
+from trainer.automl.resource_manager import ResourceManager
+from trainer.automl.search_space import SearchSpace, build_standard_space
+from trainer.automl.strategies import BaseStrategy, build_strategy
+from trainer.automl.visualization import AutoMLVisualizationBuilder
 
 # ---------------------------------------------------------------------------
 # Engine result
@@ -82,12 +87,12 @@ class AutoMLResult:
     """
 
     job: SearchJob
-    champion_trial: Optional[Trial] = None
-    champion_record: Optional[Dict[str, Any]] = None
-    ranking: Optional[RankingResult] = None
-    dashboard: Optional[Dict[str, Any]] = None
-    promotion_eligible_trials: List[str] = field(default_factory=list)
-    report: Dict[str, Any] = field(default_factory=dict)
+    champion_trial: Trial | None = None
+    champion_record: dict[str, Any] | None = None
+    ranking: RankingResult | None = None
+    dashboard: dict[str, Any] | None = None
+    promotion_eligible_trials: list[str] = field(default_factory=list)
+    report: dict[str, Any] = field(default_factory=dict)
     total_duration_seconds: float = 0.0
 
     def summary(self) -> str:
@@ -105,7 +110,7 @@ class AutoMLResult:
         ]
         return "\n".join(lines)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "job": self.job.summary(),
             "champion_trial_id": self.champion_trial.trial_id if self.champion_trial else None,
@@ -133,21 +138,21 @@ class AutoMLConfig:
     name: str = "automl_search"
     strategy: str = "random"
     n_trials: int = 20
-    seed: Optional[int] = None
+    seed: int | None = None
 
     objective: str = "composite_research_score"
-    objectives: List[str] = field(default_factory=list)
+    objectives: list[str] = field(default_factory=list)
 
-    backbones: List[str] = field(default_factory=list)
+    backbones: list[str] = field(default_factory=list)
     search_space_name: str = "signalium_standard"
-    custom_search_space: Optional[Dict[str, Any]] = None
+    custom_search_space: dict[str, Any] | None = None
 
     pruner: str = "median"
-    pruner_config: Dict[str, Any] = field(default_factory=dict)
+    pruner_config: dict[str, Any] = field(default_factory=dict)
 
     budget_type: str = "trials"
-    budget_seconds: Optional[float] = None
-    target_score: Optional[float] = None
+    budget_seconds: float | None = None
+    target_score: float | None = None
 
     max_workers: int = 1
     gpu_memory_gb: float = 0.0
@@ -164,14 +169,14 @@ class AutoMLConfig:
     git_commit: str = ""
     hardware: str = "CPU"
 
-    promotion_thresholds: Dict[str, Any] = field(default_factory=dict)
+    promotion_thresholds: dict[str, Any] = field(default_factory=dict)
     auto_promote: bool = False
     require_validation: bool = True
 
-    strategy_config: Dict[str, Any] = field(default_factory=dict)
+    strategy_config: dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "AutoMLConfig":
+    def from_dict(d: dict[str, Any]) -> AutoMLConfig:
         cfg = AutoMLConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -179,16 +184,17 @@ class AutoMLConfig:
         return cfg
 
     @staticmethod
-    def from_yaml(path: str) -> "AutoMLConfig":
+    def from_yaml(path: str) -> AutoMLConfig:
         try:
             import yaml
-            with open(path, "r") as f:
+
+            with open(path) as f:
                 data = yaml.safe_load(f)
             return AutoMLConfig.from_dict(data.get("automl", data))
         except ImportError:
             raise ImportError("PyYAML is required for YAML config loading.")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "strategy": self.strategy,
@@ -230,13 +236,15 @@ class AutoMLEngine:
         database: Custom AutoMLDatabase (overrides config).
     """
 
-    def __init__(self,
-                 config: Optional[AutoMLConfig] = None,
-                 search_space: Optional[SearchSpace] = None,
-                 pruner: Optional[BasePruner] = None,
-                 resource_manager: Optional[ResourceManager] = None,
-                 scorer: Optional[ObjectiveScorer] = None,
-                 database: Optional[AutoMLDatabase] = None) -> None:
+    def __init__(
+        self,
+        config: AutoMLConfig | None = None,
+        search_space: SearchSpace | None = None,
+        pruner: BasePruner | None = None,
+        resource_manager: ResourceManager | None = None,
+        scorer: ObjectiveScorer | None = None,
+        database: AutoMLDatabase | None = None,
+    ) -> None:
         self.config = config or AutoMLConfig()
         self.search_space = search_space or self._build_space()
         self.pruner = pruner or self._build_pruner()
@@ -249,13 +257,13 @@ class AutoMLEngine:
         self.api = AutoMLAPI(self.db, self.ranker, self.scorer, self.viz)
 
     @staticmethod
-    def from_yaml(yaml_path: str) -> "AutoMLEngine":
+    def from_yaml(yaml_path: str) -> AutoMLEngine:
         """Instantiate engine from a YAML configuration file."""
         config = AutoMLConfig.from_yaml(yaml_path)
         return AutoMLEngine(config=config)
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "AutoMLEngine":
+    def from_dict(d: dict[str, Any]) -> AutoMLEngine:
         """Instantiate engine from a config dict."""
         config = AutoMLConfig.from_dict(d)
         return AutoMLEngine(config=config)
@@ -313,10 +321,12 @@ class AutoMLEngine:
     # Main run
     # -----------------------------------------------------------------------
 
-    def run(self,
-            train_fn: Optional[Callable[[Dict[str, Any], BackboneSpec], Dict[str, Any]]] = None,
-            model_id: str = "automl_model",
-            validation_engine: Optional[Any] = None) -> AutoMLResult:
+    def run(
+        self,
+        train_fn: Callable[[dict[str, Any], BackboneSpec], dict[str, Any]] | None = None,
+        model_id: str = "automl_model",
+        validation_engine: Any | None = None,
+    ) -> AutoMLResult:
         """Execute the full AutoML search pipeline.
 
         Args:
@@ -333,16 +343,17 @@ class AutoMLEngine:
         wall_start = time.monotonic()
         cfg = self.config
 
-        logger.info(f"AutoML Engine starting: {cfg.name} [{cfg.strategy}] "
-                    f"n_trials={cfg.n_trials}")
+        logger.info(
+            f"AutoML Engine starting: {cfg.name} [{cfg.strategy}] " f"n_trials={cfg.n_trials}"
+        )
 
         job = self._build_job()
         job.start()
         self.db.save_job(job)
 
         strategy = self._build_strategy()
-        trial_history: Dict[str, List[tuple]] = {}
-        records: List[ExperimentRecord] = []
+        trial_history: dict[str, list[tuple]] = {}
+        records: list[ExperimentRecord] = []
 
         budget_start = time.monotonic()
 
@@ -372,14 +383,18 @@ class AutoMLEngine:
                 if cfg.backbones and backbone_name not in cfg.backbones:
                     backbone_name = cfg.backbones[0]
                 trial.backbone = backbone_name
-                backbone_spec = self.backbone_catalog.from_config({
-                    "name": backbone_name,
-                    **trial.config,
-                })
+                backbone_spec = self.backbone_catalog.from_config(
+                    {
+                        "name": backbone_name,
+                        **trial.config,
+                    }
+                )
 
                 trial.start()
-                logger.info(f"Trial {trial_num + 1}/{cfg.n_trials} "
-                            f"[{trial.trial_id[:8]}] backbone={backbone_name}")
+                logger.info(
+                    f"Trial {trial_num + 1}/{cfg.n_trials} "
+                    f"[{trial.trial_id[:8]}] backbone={backbone_name}"
+                )
 
                 train_start = time.monotonic()
                 metrics = self._evaluate_trial(
@@ -403,19 +418,19 @@ class AutoMLEngine:
                     trial_id=trial.trial_id,
                     step=trial_num,
                     score=float(primary_score),
-                    history={
-                        k: v for k, v in trial_history.items()
-                        if k != trial.trial_id
-                    },
+                    history={k: v for k, v in trial_history.items() if k != trial.trial_id},
                 )
 
                 if pruning_decision.prune:
                     trial.prune(trial_num, pruning_decision.reason)
                     self.db.save_pruning_decision(
-                        trial_id=trial.trial_id, job_id=job.job_id,
-                        step=trial_num, score=float(primary_score),
+                        trial_id=trial.trial_id,
+                        job_id=job.job_id,
+                        step=trial_num,
+                        score=float(primary_score),
                         threshold=pruning_decision.threshold,
-                        prune=True, reason=pruning_decision.reason,
+                        prune=True,
+                        reason=pruning_decision.reason,
                     )
                 else:
                     trial.complete(
@@ -446,15 +461,12 @@ class AutoMLEngine:
                 job.add_trial(trial)
 
             record = ExperimentRecord.from_trial(
-                trial, job,
+                trial,
+                job,
                 validation_results=trial.metrics,
             )
-            record.composite_research_score = compute_composite_research_score(
-                trial.metrics
-            )
-            record.per_objective_scores = self.scorer.per_objective_scores(
-                trial.metrics
-            )
+            record.composite_research_score = compute_composite_research_score(trial.metrics)
+            record.per_objective_scores = self.scorer.per_objective_scores(trial.metrics)
             self.db.save_record(record)
             records.append(record)
 
@@ -468,9 +480,7 @@ class AutoMLEngine:
         ranking_result = self._compute_ranking(records)
         self._apply_ranks(records, ranking_result)
 
-        promotion_eligible = [
-            r.trial_id for r in records if r.promotion_eligible
-        ]
+        promotion_eligible = [r.trial_id for r in records if r.promotion_eligible]
 
         if cfg.auto_promote and promotion_eligible:
             self._auto_promote(job, promotion_eligible)
@@ -481,9 +491,11 @@ class AutoMLEngine:
         report = self._build_report(job, ranking_result, records, dashboard)
 
         wall_duration = time.monotonic() - wall_start
-        logger.info(f"AutoML search complete: best={job.best_score}, "
-                    f"champion={job.champion_trial_id}, "
-                    f"duration={wall_duration:.1f}s")
+        logger.info(
+            f"AutoML search complete: best={job.best_score}, "
+            f"champion={job.champion_trial_id}, "
+            f"duration={wall_duration:.1f}s"
+        )
 
         return AutoMLResult(
             job=job,
@@ -500,10 +512,14 @@ class AutoMLEngine:
     # Trial evaluation
     # -----------------------------------------------------------------------
 
-    def _evaluate_trial(self, trial: Trial, backbone_spec: BackboneSpec,
-                        train_fn: Optional[Callable],
-                        validation_engine: Optional[Any],
-                        model_id: str) -> Dict[str, Any]:
+    def _evaluate_trial(
+        self,
+        trial: Trial,
+        backbone_spec: BackboneSpec,
+        train_fn: Callable | None,
+        validation_engine: Any | None,
+        model_id: str,
+    ) -> dict[str, Any]:
         """Run training + optional Phase 15 validation for one trial."""
         if train_fn is not None:
             metrics = train_fn(trial.config, backbone_spec)
@@ -519,21 +535,21 @@ class AutoMLEngine:
                 if isinstance(val_result, dict):
                     metrics.update(val_result)
             except Exception as e:
-                logger.warning(f"Phase 15 validation failed for trial "
-                               f"{trial.trial_id[:8]}: {e}")
+                logger.warning(
+                    f"Phase 15 validation failed for trial " f"{trial.trial_id[:8]}: {e}"
+                )
 
         return metrics
 
-    def _mock_evaluate(self, config: Dict[str, Any],
-                       backbone: BackboneSpec) -> Dict[str, Any]:
+    def _mock_evaluate(self, config: dict[str, Any], backbone: BackboneSpec) -> dict[str, Any]:
         """Deterministic mock evaluator for testing/dry runs.
 
         Returns plausible but random-seeded metrics based on config hash.
         """
-        import hashlib, math
-        seed = int(hashlib.md5(
-            str(sorted(config.items())).encode()
-        ).hexdigest()[:8], 16)
+        import hashlib
+        import math
+
+        seed = int(hashlib.md5(str(sorted(config.items())).encode()).hexdigest()[:8], 16)
         rng_val = (seed % 1000) / 1000.0
 
         lr = float(config.get("learning_rate", 1e-3))
@@ -545,9 +561,7 @@ class AutoMLEngine:
         size_factor = min(hidden / 512, 1.0) * 0.1
         dropout_factor = 1.0 - dropout * 0.3
 
-        validation_score = min(0.95, max(0.30,
-            base * lr_factor * dropout_factor + size_factor
-        ))
+        validation_score = min(0.95, max(0.30, base * lr_factor * dropout_factor + size_factor))
         sharpe = (validation_score - 0.5) * 4.0
         pf = 1.0 + max(0.0, sharpe * 0.5)
         drawdown = max(0.01, 0.30 - validation_score * 0.2)
@@ -570,22 +584,19 @@ class AutoMLEngine:
     # Budget check
     # -----------------------------------------------------------------------
 
-    def _within_budget(self, budget_start: float,
-                       trial_num: int, job: SearchJob) -> bool:
+    def _within_budget(self, budget_start: float, trial_num: int, job: SearchJob) -> bool:
         cfg = self.config
         if cfg.budget_type == "time" and cfg.budget_seconds:
             return (time.monotonic() - budget_start) < cfg.budget_seconds
         if cfg.budget_type == "metric" and cfg.target_score:
-            return (job.best_score is None or
-                    job.best_score < cfg.target_score)
+            return job.best_score is None or job.best_score < cfg.target_score
         return True
 
     # -----------------------------------------------------------------------
     # Promotion eligibility
     # -----------------------------------------------------------------------
 
-    def _check_promotion(self, metrics: Dict[str, Any],
-                         thresholds: Dict[str, Any]) -> bool:
+    def _check_promotion(self, metrics: dict[str, Any], thresholds: dict[str, Any]) -> bool:
         """Check if metrics meet all configured promotion thresholds."""
         if not thresholds:
             defaults = {
@@ -613,7 +624,7 @@ class AutoMLEngine:
     # Auto promotion
     # -----------------------------------------------------------------------
 
-    def _auto_promote(self, job: SearchJob, eligible_ids: List[str]) -> None:
+    def _auto_promote(self, job: SearchJob, eligible_ids: list[str]) -> None:
         """Automatically promote the best eligible trial."""
         best_eligible = None
         best_score = -1e9
@@ -635,19 +646,19 @@ class AutoMLEngine:
                 rules=[],
                 notes=f"Auto-promoted by AutoML engine. Score: {best_score:.4f}",
             )
-            logger.info(f"Auto-promoted trial {best_eligible.trial_id[:8]} "
-                        f"(score={best_score:.4f})")
+            logger.info(
+                f"Auto-promoted trial {best_eligible.trial_id[:8]} " f"(score={best_score:.4f})"
+            )
 
     # -----------------------------------------------------------------------
     # Ranking
     # -----------------------------------------------------------------------
 
-    def _compute_ranking(self, records: List[ExperimentRecord]) -> RankingResult:
+    def _compute_ranking(self, records: list[ExperimentRecord]) -> RankingResult:
         record_dicts = [r.to_dict() for r in records]
         return self.ranker.full_ranking(record_dicts)
 
-    def _apply_ranks(self, records: List[ExperimentRecord],
-                     ranking: RankingResult) -> None:
+    def _apply_ranks(self, records: list[ExperimentRecord], ranking: RankingResult) -> None:
         rank_map = {e.trial_id: e.rank for e in ranking.overall}
         for r in records:
             rank = rank_map.get(r.trial_id)
@@ -659,9 +670,13 @@ class AutoMLEngine:
     # Report
     # -----------------------------------------------------------------------
 
-    def _build_report(self, job: SearchJob, ranking: RankingResult,
-                      records: List[ExperimentRecord],
-                      dashboard: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_report(
+        self,
+        job: SearchJob,
+        ranking: RankingResult,
+        records: list[ExperimentRecord],
+        dashboard: dict[str, Any],
+    ) -> dict[str, Any]:
         completed = [r for r in records if r.status == TrialStatus.COMPLETED]
         backbone_summary = self.db.backbone_summary(job.job_id)
         champion = ranking.champion
@@ -678,18 +693,12 @@ class AutoMLEngine:
             "n_failed": job.n_failed,
             "best_score": job.best_score,
             "champion_trial_id": job.champion_trial_id,
-            "champion_backbone": (
-                job.champion_trial.backbone if job.champion_trial else None
-            ),
-            "champion_metrics": (
-                job.champion_trial.metrics if job.champion_trial else {}
-            ),
+            "champion_backbone": (job.champion_trial.backbone if job.champion_trial else None),
+            "champion_metrics": (job.champion_trial.metrics if job.champion_trial else {}),
             "top_5_ranking": [e.to_dict() for e in ranking.overall[:5]],
             "backbone_summary": backbone_summary,
             "resource_usage": self.resource_manager.usage_report(),
-            "promotion_decisions": self.db.get_promotion_history(
-                job_id=job.job_id, limit=20
-            ),
+            "promotion_decisions": self.db.get_promotion_history(job_id=job.job_id, limit=20),
             "db_stats": self.db.stats(),
             "search_convergence": dashboard.get("search_convergence", {}),
             "created_at": job.created_at,

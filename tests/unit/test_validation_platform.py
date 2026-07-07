@@ -27,55 +27,63 @@ Coverage targets:
 from __future__ import annotations
 
 import json
-import math
-import tempfile
 import uuid
-from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pytest
 import torch
 import torch.nn as nn
 
-# ── Imports under test ────────────────────────────────────────────────────
-
-from trainer.validation.windows import (
-    SlidingWindowValidator, ExpandingWindowValidator,
-    AnchoredWalkForward, NestedValidator, WindowFold,
+from trainer.validation.api import ValidationAPI, _error, _ok
+from trainer.validation.calibration_validator import CalibrationReport, CalibrationValidator
+from trainer.validation.comparison import (
+    ComparisonReport,
+    ModelComparison,
+    ModelSnapshot,
 )
-from trainer.validation.leakage import LeakageDetector, LeakageReport, LeakageDetected
-from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
+from trainer.validation.database import ValidationDatabase, ValidationRunRecord
+from trainer.validation.drift import DriftAnalyzer
+from trainer.validation.engine import (
+    EngineConfig,
+    InstitutionalValidationEngine,
+    ValidationResult,
+)
+from trainer.validation.export import ExportConfig, ReportExporter
+from trainer.validation.failure_analysis import FailureAnalyzer
+from trainer.validation.head_validator import PredictionHeadValidator
 from trainer.validation.instrument import (
-    INSTRUMENTS, TIMEFRAMES, register_instrument, register_timeframe,
-    get_all_instruments, get_all_timeframes,
-    InstrumentResult, MultiAssetValidationResult, MultiAssetValidator,
+    INSTRUMENTS,
+    TIMEFRAMES,
+    get_all_instruments,
+    get_all_timeframes,
+    register_instrument,
+    register_timeframe,
 )
+from trainer.validation.leaderboard import InstitutionalLeaderboard, LeaderboardEntry
+from trainer.validation.leakage import LeakageDetected, LeakageDetector, LeakageReport
+from trainer.validation.monte_carlo import MonteCarloResult, MonteCarloValidator
+from trainer.validation.promotion import PromotionPolicy, PromotionRule
+from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
+from trainer.validation.robustness import RobustnessReport, RobustnessTester
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
 from trainer.validation.trading import (
-    TradeResult, TradingMetrics, TradingMetricsEngine, TradeSimulator,
+    TradeResult,
+    TradeSimulator,
+    TradingMetricsEngine,
 )
-from trainer.validation.monte_carlo import MonteCarloValidator, MonteCarloResult
-from trainer.validation.robustness import RobustnessTester, RobustnessReport
-from trainer.validation.calibration_validator import CalibrationValidator, CalibrationReport
-from trainer.validation.drift import DriftAnalyzer, DriftReport
-from trainer.validation.comparison import (
-    ModelSnapshot, ModelComparison, ComparisonReport,
-)
-from trainer.validation.leaderboard import LeaderboardEntry, InstitutionalLeaderboard
-from trainer.validation.promotion import PromotionRule, PromotionPolicy, PromotionDecision
-from trainer.validation.failure_analysis import FailureAnalyzer, FailureReport, WorstPerformer
-from trainer.validation.database import ValidationDatabase, ValidationRunRecord
-from trainer.validation.head_validator import PredictionHeadValidator, HeadResult
 from trainer.validation.visualization import VisualizationDataBuilder
-from trainer.validation.export import ReportExporter, ExportConfig
-from trainer.validation.api import ValidationAPI, _ok, _error
-from trainer.validation.engine import (
-    InstitutionalValidationEngine, EngineConfig, ValidationResult,
+from trainer.validation.windows import (
+    AnchoredWalkForward,
+    ExpandingWindowValidator,
+    NestedValidator,
+    SlidingWindowValidator,
 )
+
+# ── Imports under test ────────────────────────────────────────────────────
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def small_xy():
@@ -116,20 +124,22 @@ def trade_list():
         pnl = float(rng.normal(5.0, 20.0))
         tp = pnl > 0
         sl = not tp
-        trades.append(TradeResult(
-            direction=int(rng.choice([1, -1])),
-            entry_price=1.1000,
-            exit_price=1.1050 if pnl > 0 else 1.0980,
-            stop_loss=1.0980,
-            take_profit=1.1050,
-            holding_bars=int(rng.integers(1, 50)),
-            pnl_pips=pnl,
-            mfe_pips=abs(pnl) + 2,
-            mae_pips=abs(pnl) * 0.3,
-            tp_hit=tp,
-            sl_hit=sl,
-            confidence=float(rng.uniform(0.55, 0.90)),
-        ))
+        trades.append(
+            TradeResult(
+                direction=int(rng.choice([1, -1])),
+                entry_price=1.1000,
+                exit_price=1.1050 if pnl > 0 else 1.0980,
+                stop_loss=1.0980,
+                take_profit=1.1050,
+                holding_bars=int(rng.integers(1, 50)),
+                pnl_pips=pnl,
+                mfe_pips=abs(pnl) + 2,
+                mae_pips=abs(pnl) * 0.3,
+                tp_hit=tp,
+                sl_hit=sl,
+                confidence=float(rng.uniform(0.55, 0.90)),
+            )
+        )
     return trades
 
 
@@ -148,6 +158,7 @@ def tmp_lb(tmp_path):
 # ══════════════════════════════════════════════════════════════════════════
 # 1 — Windows validators
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestSlidingWindowValidator:
     def test_generates_correct_folds(self, small_xy):
@@ -239,8 +250,12 @@ class TestNestedValidator:
     def test_generates_nested_folds(self, small_xy):
         x, y = small_xy
         v = NestedValidator(
-            outer_min_train=300, outer_val_size=100, outer_step=100,
-            inner_train_size=150, inner_val_size=50, inner_step=50,
+            outer_min_train=300,
+            outer_val_size=100,
+            outer_step=100,
+            inner_train_size=150,
+            inner_val_size=50,
+            inner_step=50,
         )
         folds = list(v.split(x, y))
         assert len(folds) > 0
@@ -251,6 +266,7 @@ class TestNestedValidator:
 # ══════════════════════════════════════════════════════════════════════════
 # 2 — Leakage Detector
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestLeakageDetector:
     def test_clean_data_passes(self, small_xy):
@@ -302,6 +318,7 @@ class TestLeakageDetector:
 # 3 — Market Regime Classifier
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestMarketRegimeClassifier:
     @pytest.fixture
     def synthetic_ohlcv(self):
@@ -350,6 +367,7 @@ class TestMarketRegimeClassifier:
 # 4 — Instrument Registry
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestInstrumentRegistry:
     def test_canonical_instruments(self):
         assert len(INSTRUMENTS) == 14
@@ -380,6 +398,7 @@ class TestInstrumentRegistry:
 # 5 — Statistical Metrics Engine
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestStatisticalMetricsEngine:
     def test_all_17_metrics_present(self, probs_3class):
         probs, labels = probs_3class
@@ -388,10 +407,23 @@ class TestStatisticalMetricsEngine:
         assert isinstance(m, StatisticalMetrics)
         d = m.to_dict()
         required = [
-            "accuracy", "precision_macro", "recall_macro", "f1_macro",
-            "roc_auc", "pr_auc", "log_loss", "cross_entropy", "mae", "rmse",
-            "mape", "r_squared", "ece", "brier_score", "prediction_entropy",
-            "confidence_mean", "mce",
+            "accuracy",
+            "precision_macro",
+            "recall_macro",
+            "f1_macro",
+            "roc_auc",
+            "pr_auc",
+            "log_loss",
+            "cross_entropy",
+            "mae",
+            "rmse",
+            "mape",
+            "r_squared",
+            "ece",
+            "brier_score",
+            "prediction_entropy",
+            "confidence_mean",
+            "mce",
         ]
         for key in required:
             assert key in d, f"Missing metric: {key}"
@@ -441,17 +473,33 @@ class TestStatisticalMetricsEngine:
 # 6 — Trading Metrics Engine
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestTradingMetricsEngine:
     def test_21_metrics_present(self, trade_list):
         m = TradingMetricsEngine().compute(trade_list)
         d = m.to_dict()
         required = [
-            "win_rate", "profit_factor", "avg_rr", "avg_holding_bars",
-            "trade_frequency", "avg_mfe_pips", "avg_mae_pips", "expectancy",
-            "max_drawdown", "avg_drawdown", "recovery_factor",
-            "sharpe_ratio", "sortino_ratio", "calmar_ratio", "ulcer_index",
-            "mar_ratio", "risk_of_ruin", "capital_efficiency",
-            "return_skewness", "return_kurtosis", "tail_risk_cvar5",
+            "win_rate",
+            "profit_factor",
+            "avg_rr",
+            "avg_holding_bars",
+            "trade_frequency",
+            "avg_mfe_pips",
+            "avg_mae_pips",
+            "expectancy",
+            "max_drawdown",
+            "avg_drawdown",
+            "recovery_factor",
+            "sharpe_ratio",
+            "sortino_ratio",
+            "calmar_ratio",
+            "ulcer_index",
+            "mar_ratio",
+            "risk_of_ruin",
+            "capital_efficiency",
+            "return_skewness",
+            "return_kurtosis",
+            "tail_risk_cvar5",
             "tp_before_sl_accuracy",
         ]
         for key in required:
@@ -508,6 +556,7 @@ class TestTradeSimulator:
 # 7 — Monte Carlo Validator
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestMonteCarloValidator:
     def test_runs_and_returns_result(self, trade_list):
         mc = MonteCarloValidator(n_simulations=50, seed=0)
@@ -554,6 +603,7 @@ class TestMonteCarloValidator:
 # 8 — Robustness Tester
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestRobustnessTester:
     def test_returns_report(self, simple_model, small_xy):
         x, y = small_xy
@@ -587,6 +637,7 @@ class TestRobustnessTester:
 # ══════════════════════════════════════════════════════════════════════════
 # 9 — Calibration Validator
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestCalibrationValidator:
     def test_evaluate_returns_report(self, probs_3class):
@@ -632,6 +683,7 @@ class TestCalibrationValidator:
 # 10 — Drift Analyzer
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestDriftAnalyzer:
     def test_no_drift_on_identical(self, small_xy):
         x, y = small_xy
@@ -672,6 +724,7 @@ class TestDriftAnalyzer:
 # 11 — Model Comparison
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestModelComparison:
     @pytest.fixture
     def two_snapshots(self, probs_3class, trade_list):
@@ -679,12 +732,18 @@ class TestModelComparison:
         stat = StatisticalMetricsEngine(n_classes=3).compute(probs, labels)
         trading = TradingMetricsEngine().compute(trade_list)
         snap_a = ModelSnapshot(
-            name="champion", statistical=stat, trading=trading,
-            inference_latency_ms=5.0, model_size_mb=10.0,
+            name="champion",
+            statistical=stat,
+            trading=trading,
+            inference_latency_ms=5.0,
+            model_size_mb=10.0,
         )
         snap_b = ModelSnapshot(
-            name="candidate", statistical=stat, trading=trading,
-            inference_latency_ms=4.0, model_size_mb=8.0,
+            name="candidate",
+            statistical=stat,
+            trading=trading,
+            inference_latency_ms=4.0,
+            model_size_mb=8.0,
         )
         return snap_a, snap_b
 
@@ -735,12 +794,19 @@ class TestModelComparison:
 # 12 — Institutional Leaderboard
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestInstitutionalLeaderboard:
     def _make_entry(self, model_id="m1", acc=0.60, sharpe=1.2):
         return LeaderboardEntry(
-            model_id=model_id, model_name=f"Model-{model_id}",
-            validation_accuracy=acc, sharpe_ratio=sharpe, profit_factor=1.5,
-            max_drawdown=0.10, win_rate=0.55, validation_f1=0.60, ece=0.05,
+            model_id=model_id,
+            model_name=f"Model-{model_id}",
+            validation_accuracy=acc,
+            sharpe_ratio=sharpe,
+            profit_factor=1.5,
+            max_drawdown=0.10,
+            win_rate=0.55,
+            validation_f1=0.60,
+            ece=0.05,
         )
 
     def test_add_and_retrieve(self, tmp_lb):
@@ -796,11 +862,14 @@ class TestInstitutionalLeaderboard:
 # 13 — Promotion Policy
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestPromotionPolicy:
     def test_all_rules_pass(self):
         policy = PromotionPolicy(
-            min_accuracy=0.50, min_sharpe=0.5,
-            max_drawdown=0.30, require_manual_approval=False,
+            min_accuracy=0.50,
+            min_sharpe=0.5,
+            max_drawdown=0.30,
+            require_manual_approval=False,
         )
         decision = policy.evaluate(
             "m1",
@@ -863,6 +932,7 @@ class TestPromotionPolicy:
 # 14 — Failure Analyzer
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestFailureAnalyzer:
     def test_analyze_with_regimes(self):
         regime_perf = {
@@ -897,6 +967,7 @@ class TestFailureAnalyzer:
 # ══════════════════════════════════════════════════════════════════════════
 # 15 — Validation Database
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidationDatabase:
     def _make_record(self, model_id="test_model"):
@@ -969,6 +1040,7 @@ class TestValidationDatabase:
 # 16 — Prediction Head Validator
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestPredictionHeadValidator:
     def test_returns_dict(self, simple_model, small_xy):
         x, y = small_xy
@@ -1004,6 +1076,7 @@ class TestPredictionHeadValidator:
 # ══════════════════════════════════════════════════════════════════════════
 # 17 — Visualization Data Builder
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestVisualizationDataBuilder:
     def test_walk_forward_timeline(self, small_xy):
@@ -1043,6 +1116,7 @@ class TestVisualizationDataBuilder:
 # 18 — Report Exporter
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestReportExporter:
     def _make_record(self):
         r = ValidationRunRecord(run_id=str(uuid.uuid4()), model_id="test")
@@ -1054,8 +1128,9 @@ class TestReportExporter:
         return r
 
     def test_exports_json(self, tmp_path):
-        exporter = ReportExporter(output_dir=tmp_path,
-                                  config=ExportConfig(formats=["json"], output_dir=tmp_path))
+        exporter = ReportExporter(
+            output_dir=tmp_path, config=ExportConfig(formats=["json"], output_dir=tmp_path)
+        )
         paths = exporter.export_all(self._make_record())
         assert len(paths) == 1
         assert paths[0].suffix == ".json"
@@ -1063,15 +1138,17 @@ class TestReportExporter:
         assert "run_id" in data
 
     def test_exports_csv(self, tmp_path):
-        exporter = ReportExporter(output_dir=tmp_path,
-                                  config=ExportConfig(formats=["csv"], output_dir=tmp_path))
+        exporter = ReportExporter(
+            output_dir=tmp_path, config=ExportConfig(formats=["csv"], output_dir=tmp_path)
+        )
         paths = exporter.export_all(self._make_record())
         assert len(paths) == 1
         assert paths[0].suffix == ".csv"
 
     def test_exports_html(self, tmp_path):
-        exporter = ReportExporter(output_dir=tmp_path,
-                                  config=ExportConfig(formats=["html"], output_dir=tmp_path))
+        exporter = ReportExporter(
+            output_dir=tmp_path, config=ExportConfig(formats=["html"], output_dir=tmp_path)
+        )
         paths = exporter.export_all(self._make_record())
         assert any(p.suffix == ".html" for p in paths)
         content = paths[0].read_text()
@@ -1081,6 +1158,7 @@ class TestReportExporter:
 # ══════════════════════════════════════════════════════════════════════════
 # 19 — Validation API
 # ══════════════════════════════════════════════════════════════════════════
+
 
 class TestValidationAPI:
     @pytest.fixture
@@ -1152,6 +1230,7 @@ class TestValidationAPI:
 # 20 — Integration: Full Engine Pipeline
 # ══════════════════════════════════════════════════════════════════════════
 
+
 class TestInstitutionalValidationEngine:
     def test_full_pipeline_completes(self, simple_model, small_xy, tmp_path):
         x, y = small_xy
@@ -1162,13 +1241,16 @@ class TestInstitutionalValidationEngine:
             policy=policy,
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
         result = engine.validate(
             model=simple_model,
-            x=x, y=y,
+            x=x,
+            y=y,
             model_id="integration_test",
             model_version="1.0.0",
         )
@@ -1183,7 +1265,9 @@ class TestInstitutionalValidationEngine:
             db_path=tmp_path / "v.db",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
@@ -1198,7 +1282,9 @@ class TestInstitutionalValidationEngine:
             db_path=tmp_path / "v.db",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
@@ -1214,7 +1300,9 @@ class TestInstitutionalValidationEngine:
             leaderboard_path=tmp_path / "lb.json",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
@@ -1228,7 +1316,9 @@ class TestInstitutionalValidationEngine:
             db_path=tmp_path / "v.db",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
@@ -1244,7 +1334,9 @@ class TestInstitutionalValidationEngine:
             db_path=tmp_path / "v.db",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )
@@ -1272,7 +1364,9 @@ class TestInstitutionalValidationEngine:
             db_path=tmp_path / "v.db",
             export_dir=tmp_path / "reports",
             config=EngineConfig(
-                min_train_size=300, val_size=100, step_size=100,
+                min_train_size=300,
+                val_size=100,
+                step_size=100,
                 n_mc_simulations=10,
             ),
         )

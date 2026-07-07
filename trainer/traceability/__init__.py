@@ -13,6 +13,8 @@ Prediction values are NEVER modified.  Metadata rides alongside them
 in a ``TracedPrediction`` container.
 """
 
+from trainer.traceability.context import InferenceContext
+from trainer.traceability.hasher import hash_config, hash_schema, hash_string
 from trainer.traceability.metadata import (
     InferenceInfo,
     ModelInfo,
@@ -20,17 +22,15 @@ from trainer.traceability.metadata import (
     ReproducibilityInfo,
     SchemaVersions,
 )
-from trainer.traceability.context import InferenceContext
-from trainer.traceability.hasher import hash_config, hash_schema, hash_string
 from trainer.traceability.traced_output import TracedPrediction
 
 __all__ = [
-    "PredictionMetadata",
-    "ModelInfo",
+    "InferenceContext",
     "InferenceInfo",
+    "ModelInfo",
+    "PredictionMetadata",
     "ReproducibilityInfo",
     "SchemaVersions",
-    "InferenceContext",
     "TracedPrediction",
     "hash_config",
     "hash_schema",

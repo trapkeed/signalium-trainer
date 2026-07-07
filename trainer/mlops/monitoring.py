@@ -30,15 +30,11 @@ Usage::
 
 from __future__ import annotations
 
-import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
-
-from loguru import logger
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Inference record
@@ -48,10 +44,11 @@ from loguru import logger
 @dataclass
 class InferenceRecord:
     """One inference event for production monitoring."""
+
     model_id: str
     latency_ms: float = 0.0
     api_response_ms: float = 0.0
-    throughput_hint: float = 1.0      # predictions submitted in this batch
+    throughput_hint: float = 1.0  # predictions submitted in this batch
     cpu_pct: float = 0.0
     gpu_pct: float = 0.0
     memory_mb: float = 0.0
@@ -64,11 +61,9 @@ class InferenceRecord:
     instrument: str = ""
     timeframe: str = ""
     regime: str = ""
-    is_signal: bool = False           # True if predicted != no_trade
+    is_signal: bool = False  # True if predicted != no_trade
     unix_ts: float = field(default_factory=time.time)
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -122,18 +117,16 @@ class MonitoringSnapshot:
     avg_confidence: float = 0.5
     avg_uncertainty: float = 0.5
     confidence_trend: str = "insufficient"
-    distribution: Dict[str, float] = field(default_factory=dict)
+    distribution: dict[str, float] = field(default_factory=dict)
     signal_rate: float = 0.0
     buy_rate: float = 0.0
     sell_rate: float = 0.0
     no_trade_rate: float = 0.0
     latency_alert: bool = False
     memory_alert: bool = False
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model_id": self.model_id,
             "window": self.window,
@@ -177,32 +170,38 @@ class ProductionMonitor:
         confidence_alert_threshold: Avg confidence below this → alert.
     """
 
-    def __init__(self, window: int = 500,
-                 latency_alert_ms: float = 100.0,
-                 memory_alert_mb: float = 8192.0,
-                 confidence_alert_threshold: float = 0.40) -> None:
+    def __init__(
+        self,
+        window: int = 500,
+        latency_alert_ms: float = 100.0,
+        memory_alert_mb: float = 8192.0,
+        confidence_alert_threshold: float = 0.40,
+    ) -> None:
         self.window = window
         self.latency_alert_ms = latency_alert_ms
         self.memory_alert_mb = memory_alert_mb
         self.confidence_alert_threshold = confidence_alert_threshold
-        self._buffers: Dict[str, Deque[InferenceRecord]] = {}
-        self._all_records: Dict[str, List[InferenceRecord]] = {}
+        self._buffers: dict[str, deque[InferenceRecord]] = {}
+        self._all_records: dict[str, list[InferenceRecord]] = {}
 
-    def record_inference(self, model_id: str,
-                          latency_ms: float = 0.0,
-                          api_response_ms: float = 0.0,
-                          confidence: float = 0.5,
-                          uncertainty: float = 0.5,
-                          predicted_class: str = "no_trade",
-                          buy_prob: float = 0.33,
-                          sell_prob: float = 0.33,
-                          no_trade_prob: float = 0.34,
-                          cpu_pct: float = 0.0,
-                          gpu_pct: float = 0.0,
-                          memory_mb: float = 0.0,
-                          instrument: str = "",
-                          timeframe: str = "",
-                          regime: str = "") -> InferenceRecord:
+    def record_inference(
+        self,
+        model_id: str,
+        latency_ms: float = 0.0,
+        api_response_ms: float = 0.0,
+        confidence: float = 0.5,
+        uncertainty: float = 0.5,
+        predicted_class: str = "no_trade",
+        buy_prob: float = 0.33,
+        sell_prob: float = 0.33,
+        no_trade_prob: float = 0.34,
+        cpu_pct: float = 0.0,
+        gpu_pct: float = 0.0,
+        memory_mb: float = 0.0,
+        instrument: str = "",
+        timeframe: str = "",
+        regime: str = "",
+    ) -> InferenceRecord:
         """Record one inference event."""
         is_signal = predicted_class in ("buy", "sell")
         rec = InferenceRecord(
@@ -291,8 +290,7 @@ class ProductionMonitor:
             avg_confidence=round(avg_conf, 4),
             avg_uncertainty=round(avg_unc, 4),
             confidence_trend=trend,
-            distribution={"buy": n_buy / n, "sell": n_sell / n,
-                          "no_trade": n_nt / n},
+            distribution={"buy": n_buy / n, "sell": n_sell / n, "no_trade": n_nt / n},
             signal_rate=round(signal_rate, 4),
             buy_rate=round(n_buy / n, 4),
             sell_rate=round(n_sell / n, 4),
@@ -301,7 +299,7 @@ class ProductionMonitor:
             memory_alert=peak_mem > self.memory_alert_mb,
         )
 
-    def all_snapshots(self) -> Dict[str, MonitoringSnapshot]:
+    def all_snapshots(self) -> dict[str, MonitoringSnapshot]:
         return {mid: self.get_snapshot(mid) for mid in self._buffers}
 
     def n_inferences(self, model_id: str) -> int:
@@ -310,26 +308,26 @@ class ProductionMonitor:
     def total_inferences(self) -> int:
         return sum(len(v) for v in self._all_records.values())
 
-    def latency_trend(self, model_id: str, recent: int = 50) -> Dict[str, Any]:
+    def latency_trend(self, model_id: str, recent: int = 50) -> dict[str, Any]:
         """Return latency trend data for a model."""
         buf = list(self._buffers.get(model_id, []))[-recent:]
         return {
             "chart_type": "line",
             "model_id": model_id,
             "data": [
-                {"idx": i, "latency_ms": round(r.latency_ms, 2),
-                 "timestamp": r.timestamp}
+                {"idx": i, "latency_ms": round(r.latency_ms, 2), "timestamp": r.timestamp}
                 for i, r in enumerate(buf)
             ],
         }
 
-    def confidence_trend_chart(self, model_id: str, recent: int = 100,
-                                window: int = 20) -> Dict[str, Any]:
+    def confidence_trend_chart(
+        self, model_id: str, recent: int = 100, window: int = 20
+    ) -> dict[str, Any]:
         """Return rolling confidence chart data."""
         buf = list(self._buffers.get(model_id, []))[-recent:]
         data = []
         for i in range(len(buf)):
-            w = buf[max(0, i - window):i + 1]
+            w = buf[max(0, i - window) : i + 1]
             avg = sum(r.confidence for r in w) / len(w)
             data.append({"idx": i, "rolling_confidence": round(avg, 4)})
         return {

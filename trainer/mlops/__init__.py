@@ -33,26 +33,59 @@ Quickstart::
 
 from __future__ import annotations
 
-# Registry
-from trainer.mlops.registry import (
-    LifecycleState,
-    ApprovalRecord,
-    ModelRecord,
-    ModelRegistry,
+# Alerting
+from trainer.mlops.alerting import (
+    Alert,
+    AlertCategory,
+    AlertingSystem,
+    AlertLevel,
+)
+
+# API
+from trainer.mlops.api import MLOpsAPI
+
+# Audit
+from trainer.mlops.audit import (
+    AuditEvent,
+    AuditEventType,
+    AuditSystem,
+)
+
+# Champion
+from trainer.mlops.champion import (
+    ChampionChallengerManager,
+    ChampionEvent,
+)
+
+# Database
+from trainer.mlops.database import MLOpsDatabase
+
+# Engine
+from trainer.mlops.engine import MLOpsConfig, MLOpsEngine
+
+# Export
+from trainer.mlops.export import MLOpsExporter
+
+# Governance
+from trainer.mlops.governance import (
+    DeploymentGovernance,
+    DeploymentRecord,
+    GovernanceConfig,
+)
+
+# Health
+from trainer.mlops.health import (
+    DriftThresholds,
+    HealthRecord,
+    HealthReport,
+    ModelHealthMonitor,
 )
 
 # Lifecycle
 from trainer.mlops.lifecycle import (
-    LifecycleTransition,
     LifecycleError,
     LifecycleManager,
-)
-
-# Governance
-from trainer.mlops.governance import (
-    DeploymentRecord,
-    GovernanceConfig,
-    DeploymentGovernance,
+    LifecycleTransition,
 )
 
 # Monitoring
@@ -62,59 +95,25 @@ from trainer.mlops.monitoring import (
     ProductionMonitor,
 )
 
-# Health
-from trainer.mlops.health import (
-    HealthRecord,
-    HealthReport,
-    DriftThresholds,
-    ModelHealthMonitor,
-)
-
-# Alerting
-from trainer.mlops.alerting import (
-    AlertLevel,
-    AlertCategory,
-    Alert,
-    AlertingSystem,
-)
-
-# Champion
-from trainer.mlops.champion import (
-    ChampionEvent,
-    ChampionChallengerManager,
-)
-
-# Audit
-from trainer.mlops.audit import (
-    AuditEventType,
-    AuditEvent,
-    AuditSystem,
+# Registry
+from trainer.mlops.registry import (
+    ApprovalRecord,
+    LifecycleState,
+    ModelRecord,
+    ModelRegistry,
 )
 
 # Retraining
 from trainer.mlops.retraining import (
-    RetrainingTrigger,
     RetrainingPolicy,
-    RetrainingRecommendation,
     RetrainingPolicyManager,
+    RetrainingRecommendation,
+    RetrainingTrigger,
     build_default_policies,
 )
 
-# Database
-from trainer.mlops.database import MLOpsDatabase
-
-# API
-from trainer.mlops.api import MLOpsAPI
-
 # Visualization
 from trainer.mlops.visualization import MLOpsVisualizationBuilder
-
-# Export
-from trainer.mlops.export import MLOpsExporter
-
-# Engine
-from trainer.mlops.engine import MLOpsConfig, MLOpsEngine
-
 
 __all__ = [
     # Registry

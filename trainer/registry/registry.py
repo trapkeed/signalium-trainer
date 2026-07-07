@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Type
+from typing import Any
 
 from trainer.models.base import BaseQuantModel
 
@@ -39,14 +39,14 @@ class ModelRegistry:
         spec = ModelRegistry.get_spec("my_model")
     """
 
-    _registry: dict[str, Type[BaseQuantModel]] = {}
+    _registry: dict[str, type[BaseQuantModel]] = {}
     _specs: dict[str, Any] = {}  # stores ModelSpec objects (typed as Any to avoid circular import)
 
     @classmethod
     def register(
         cls,
         name: str,
-        spec: Optional[Any] = None,
+        spec: Any | None = None,
     ) -> Any:
         """Class decorator that registers a model under the given name.
 
@@ -58,17 +58,19 @@ class ModelRegistry:
         Returns:
             Decorator function.
         """
-        def decorator(model_cls: Type[BaseQuantModel]) -> Type[BaseQuantModel]:
+
+        def decorator(model_cls: type[BaseQuantModel]) -> type[BaseQuantModel]:
             if name in cls._registry:
                 raise KeyError(f"Model '{name}' is already registered.")
             cls._registry[name] = model_cls
             if spec is not None:
                 cls._specs[name] = spec
             return model_cls
+
         return decorator
 
     @classmethod
-    def get(cls, name: str) -> Type[BaseQuantModel]:
+    def get(cls, name: str) -> type[BaseQuantModel]:
         """Retrieve a model class by name.
 
         Args:
@@ -86,7 +88,7 @@ class ModelRegistry:
         return cls._registry[name]
 
     @classmethod
-    def get_spec(cls, name: str) -> Optional[Any]:
+    def get_spec(cls, name: str) -> Any | None:
         """Retrieve the ModelSpec for a registered model.
 
         Args:
@@ -130,13 +132,15 @@ class ModelRegistry:
         for name in cls.list_models():
             model_cls = cls._registry[name]
             spec = cls._specs.get(name)
-            rows.append({
-                "name": name,
-                "class": model_cls.__name__,
-                "version": spec.version if spec else None,
-                "architecture": spec.architecture if spec else None,
-                "has_spec": spec is not None,
-            })
+            rows.append(
+                {
+                    "name": name,
+                    "class": model_cls.__name__,
+                    "version": spec.version if spec else None,
+                    "architecture": spec.architecture if spec else None,
+                    "has_spec": spec is not None,
+                }
+            )
         return rows
 
     @classmethod

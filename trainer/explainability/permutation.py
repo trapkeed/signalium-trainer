@@ -17,14 +17,13 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -121,12 +120,10 @@ class PermutationImportance:
         self,
         metric: str = "accuracy",
         n_repeats: int = 5,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> None:
         if metric not in self._VALID_METRICS:
-            raise ValueError(
-                f"metric must be one of {sorted(self._VALID_METRICS)}, got {metric!r}"
-            )
+            raise ValueError(f"metric must be one of {sorted(self._VALID_METRICS)}, got {metric!r}")
         self._metric = metric
         self._n_repeats = n_repeats
         self._seed = seed
@@ -136,7 +133,7 @@ class PermutationImportance:
         model: nn.Module,
         inputs: torch.Tensor,
         labels: torch.Tensor,
-        feature_names: Optional[list[str]] = None,
+        feature_names: list[str] | None = None,
     ) -> FeatureImportanceResult:
         """Compute permutation importance for all input features.
 
@@ -153,9 +150,7 @@ class PermutationImportance:
         n_features = inputs.shape[-1]
         names = feature_names or [f"feature_{i}" for i in range(n_features)]
         if len(names) != n_features:
-            raise ValueError(
-                f"feature_names length ({len(names)}) != n_features ({n_features})"
-            )
+            raise ValueError(f"feature_names length ({len(names)}) != n_features ({n_features})")
 
         rng = np.random.default_rng(self._seed)
         was_training = model.training

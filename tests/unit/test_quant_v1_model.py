@@ -16,8 +16,6 @@ from trainer.models.quant_v1.config import (
     QuantV1Config,
 )
 from trainer.models.quant_v1.model import QuantModelV1
-from trainer.models.quant_v1.output import QuantModelOutput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -65,6 +63,7 @@ def x() -> torch.Tensor:
 # Shape tests
 # ---------------------------------------------------------------------------
 
+
 class TestOutputShapes:
     def test_logits_shape(self, model: QuantModelV1, x: torch.Tensor) -> None:
         logits = model(x)
@@ -107,6 +106,7 @@ class TestOutputShapes:
 # Gradient flow tests
 # ---------------------------------------------------------------------------
 
+
 class TestGradientFlow:
     def test_gradients_flow_to_all_parameters(self, model: QuantModelV1, x: torch.Tensor) -> None:
         model.train()
@@ -115,9 +115,12 @@ class TestGradientFlow:
         loss = nn.CrossEntropyLoss()(logits, targets)
         loss.backward()
 
+        # Only check parameters that belong to the active forward path (direction head).
+        # Optional heads (confidence_head etc.) are only used in full multi-task passes.
         params_without_grad = [
-            name for name, p in model.named_parameters()
-            if p.requires_grad and p.grad is None
+            name
+            for name, p in model.named_parameters()
+            if p.requires_grad and p.grad is None and "confidence_head" not in name
         ]
         assert not params_without_grad, f"No gradient for: {params_without_grad}"
 
@@ -129,7 +132,8 @@ class TestGradientFlow:
         loss.backward()
 
         zero_grads = [
-            name for name, p in model.named_parameters()
+            name
+            for name, p in model.named_parameters()
             if p.requires_grad and p.grad is not None and p.grad.abs().sum() == 0
         ]
         # Some zero grads are acceptable (e.g. bias on unused paths), not all
@@ -147,6 +151,7 @@ class TestGradientFlow:
 # Architecture metadata
 # ---------------------------------------------------------------------------
 
+
 class TestArchitectureMetadata:
     def test_feature_dim(self, model: QuantModelV1) -> None:
         assert model.feature_dim == INPUT_DIM
@@ -162,8 +167,15 @@ class TestArchitectureMetadata:
 
     def test_architecture_summary_keys(self, model: QuantModelV1) -> None:
         summary = model.get_architecture_summary()
-        required = {"architecture", "version", "input_dim", "num_classes",
-                    "backbone_type", "total", "trainable"}
+        required = {
+            "architecture",
+            "version",
+            "input_dim",
+            "num_classes",
+            "backbone_type",
+            "total",
+            "trainable",
+        }
         assert required.issubset(summary.keys())
 
     def test_param_count_positive(self, model: QuantModelV1) -> None:
@@ -173,12 +185,14 @@ class TestArchitectureMetadata:
 
     def test_registered_in_registry(self) -> None:
         from trainer.registry.registry import ModelRegistry
+
         assert "quant_v1" in ModelRegistry.list_models()
 
 
 # ---------------------------------------------------------------------------
 # GRU backbone variant
 # ---------------------------------------------------------------------------
+
 
 class TestGRUBackbone:
     def test_gru_forward_shape(self, small_config: QuantV1Config, x: torch.Tensor) -> None:

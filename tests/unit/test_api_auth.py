@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from trainer.api.auth import APIKeyAuth, BearerAuth, resolve_auth
@@ -13,6 +11,7 @@ from trainer.api.exceptions import APIAuthenticationError
 def test_bearer_auth_sets_header() -> None:
     auth = BearerAuth("my-token")
     import requests
+
     req = requests.Request("GET", "https://example.com").prepare()
     result = auth(req)
     assert result.headers["Authorization"] == "Bearer my-token"
@@ -21,6 +20,7 @@ def test_bearer_auth_sets_header() -> None:
 def test_api_key_auth_sets_header() -> None:
     auth = APIKeyAuth("my-key")
     import requests
+
     req = requests.Request("GET", "https://example.com").prepare()
     result = auth(req)
     assert result.headers["X-API-Key"] == "my-key"

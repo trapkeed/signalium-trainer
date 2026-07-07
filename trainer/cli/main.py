@@ -31,6 +31,7 @@ app.add_typer(commands.doctor_app, name="doctor")
 def version_cmd() -> None:
     """Print the trainer version."""
     from trainer import __version__
+
     console.print(f"signalium-trainer [bold green]{__version__}[/bold green]")
 
 

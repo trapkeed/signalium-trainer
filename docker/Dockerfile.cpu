@@ -1,0 +1,83 @@
+# =============================================================================
+# Signalium Trainer — CPU-only image
+# =============================================================================
+# Purpose : CI validation and CPU-only inference / evaluation.
+#           Does NOT require an NVIDIA runtime or physical GPU.
+# GPU use : For GPU-accelerated training use docker/Dockerfile instead.
+# =============================================================================
+
+FROM python:3.12-slim
+
+LABEL maintainer="Signalium <engineering@signalium.io>"
+LABEL description="Signalium Trainer — CPU-only container (CI / inference)"
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# ---------------------------------------------------------------------------
+# System dependencies
+# ---------------------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        curl \
+        ca-certificates \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade --no-cache-dir pip setuptools wheel
+
+# ---------------------------------------------------------------------------
+# PyTorch (CPU wheel) — installed first so that `pip install -e "."` finds
+# torch already satisfied and does not pull the default CUDA wheel from PyPI.
+#
+# IMPORTANT: --index-url scopes ALL packages in the same RUN to the PyTorch
+# wheel server, which does not host torchmetrics.  Install torch alone here,
+# then fetch torchmetrics from PyPI in the next step.
+# ---------------------------------------------------------------------------
+RUN pip install --no-cache-dir "torch>=2.3.0" \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --timeout 120 --retries 3 || \
+    pip install --no-cache-dir "torch>=2.3.0" --timeout 120 --retries 3
+
+# torchmetrics lives on PyPI, not the PyTorch wheel server
+RUN pip install --no-cache-dir "torchmetrics>=1.4.0"
+
+# ---------------------------------------------------------------------------
+# Project dependencies (no [cuda] extra)
+# ---------------------------------------------------------------------------
+WORKDIR /app
+
+COPY pyproject.toml ./
+
+RUN pip install --no-cache-dir -e "." \
+        --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ---------------------------------------------------------------------------
+# Application source
+# ---------------------------------------------------------------------------
+COPY . .
+
+# Re-install editable now that the full source tree is present
+RUN pip install --no-cache-dir -e "." \
+        --extra-index-url https://download.pytorch.org/whl/cpu
+
+# ---------------------------------------------------------------------------
+# Runtime configuration
+# ---------------------------------------------------------------------------
+VOLUME ["/app/data", "/app/checkpoints", "/app/exports", "/app/logs", "/app/mlruns"]
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV TORCH_HOME=/app/.torch
+ENV MLFLOW_TRACKING_URI=/app/mlruns
+
+# Explicitly mark this image as CPU-only so code can gate GPU paths
+ENV SIGNALIUM_DEVICE=cpu
+
+# ---------------------------------------------------------------------------
+# Health check — validates imports only, no GPU assertion
+# ---------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import torch; import trainer; print('OK')" || exit 1
+
+ENTRYPOINT ["trainer"]
+CMD ["doctor"]

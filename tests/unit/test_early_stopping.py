@@ -9,11 +9,11 @@ from trainer.training.early_stopping import EarlyStopping
 
 def test_triggers_after_patience_epochs() -> None:
     es = EarlyStopping(patience=3, mode="min")
-    es.step(1.0)   # improved
-    es.step(1.1)   # no improvement
-    es.step(1.2)   # no improvement
+    es.step(1.0)  # improved
+    es.step(1.1)  # no improvement
+    es.step(1.2)  # no improvement
     assert not es.should_stop
-    es.step(1.3)   # 3 non-improvements → trigger
+    es.step(1.3)  # 3 non-improvements → trigger
     assert es.should_stop
 
 
@@ -21,7 +21,7 @@ def test_improvement_resets_counter() -> None:
     es = EarlyStopping(patience=3, mode="min")
     es.step(1.0)
     es.step(1.1)
-    es.step(0.9)   # improvement — counter resets
+    es.step(0.9)  # improvement — counter resets
     es.step(1.1)
     es.step(1.2)
     assert not es.should_stop
@@ -29,9 +29,9 @@ def test_improvement_resets_counter() -> None:
 
 def test_mode_max() -> None:
     es = EarlyStopping(patience=2, mode="max")
-    es.step(0.5)   # improved
-    es.step(0.4)   # no improvement
-    es.step(0.3)   # no improvement → trigger
+    es.step(0.5)  # improved
+    es.step(0.4)  # no improvement
+    es.step(0.3)  # no improvement → trigger
     assert es.should_stop
 
 
@@ -46,7 +46,7 @@ def test_best_score_tracked() -> None:
 def test_reset_clears_state() -> None:
     es = EarlyStopping(patience=1, mode="min")
     es.step(1.0)
-    es.step(1.1)   # triggers
+    es.step(1.1)  # triggers
     assert es.should_stop
     es.reset()
     assert not es.should_stop

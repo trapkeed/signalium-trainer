@@ -27,11 +27,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Alert level
@@ -39,8 +38,8 @@ from loguru import logger
 
 
 class AlertLevel:
-    INFO     = "INFO"
-    WARNING  = "WARNING"
+    INFO = "INFO"
+    WARNING = "WARNING"
     CRITICAL = "CRITICAL"
 
     ALL = [INFO, WARNING, CRITICAL]
@@ -52,29 +51,40 @@ class AlertLevel:
 
 
 class AlertCategory:
-    CONFIDENCE_DRIFT    = "confidence_drift"
-    PREDICTION_DRIFT    = "prediction_drift"
-    DISTRIBUTION_DRIFT  = "distribution_drift"
-    CALIBRATION_DRIFT   = "calibration_drift"
-    LATENCY_SPIKE       = "latency_spike"
-    LOW_CONFIDENCE      = "low_confidence"
-    MEMORY_EXHAUSTION   = "memory_exhaustion"
-    API_FAILURE         = "api_failure"
-    MODEL_FAILURE       = "model_failure"
-    PREDICTION_ANOMALY  = "prediction_anomaly"
+    CONFIDENCE_DRIFT = "confidence_drift"
+    PREDICTION_DRIFT = "prediction_drift"
+    DISTRIBUTION_DRIFT = "distribution_drift"
+    CALIBRATION_DRIFT = "calibration_drift"
+    LATENCY_SPIKE = "latency_spike"
+    LOW_CONFIDENCE = "low_confidence"
+    MEMORY_EXHAUSTION = "memory_exhaustion"
+    API_FAILURE = "api_failure"
+    MODEL_FAILURE = "model_failure"
+    PREDICTION_ANOMALY = "prediction_anomaly"
     PERFORMANCE_DEGRADATION = "performance_degradation"
-    RETRAINING_RECOMMENDED  = "retraining_recommended"
-    DEPLOYMENT          = "deployment"
-    ROLLBACK            = "rollback"
-    LIFECYCLE           = "lifecycle"
-    SYSTEM              = "system"
+    RETRAINING_RECOMMENDED = "retraining_recommended"
+    DEPLOYMENT = "deployment"
+    ROLLBACK = "rollback"
+    LIFECYCLE = "lifecycle"
+    SYSTEM = "system"
 
     ALL = [
-        CONFIDENCE_DRIFT, PREDICTION_DRIFT, DISTRIBUTION_DRIFT,
-        CALIBRATION_DRIFT, LATENCY_SPIKE, LOW_CONFIDENCE,
-        MEMORY_EXHAUSTION, API_FAILURE, MODEL_FAILURE, PREDICTION_ANOMALY,
-        PERFORMANCE_DEGRADATION, RETRAINING_RECOMMENDED,
-        DEPLOYMENT, ROLLBACK, LIFECYCLE, SYSTEM,
+        CONFIDENCE_DRIFT,
+        PREDICTION_DRIFT,
+        DISTRIBUTION_DRIFT,
+        CALIBRATION_DRIFT,
+        LATENCY_SPIKE,
+        LOW_CONFIDENCE,
+        MEMORY_EXHAUSTION,
+        API_FAILURE,
+        MODEL_FAILURE,
+        PREDICTION_ANOMALY,
+        PERFORMANCE_DEGRADATION,
+        RETRAINING_RECOMMENDED,
+        DEPLOYMENT,
+        ROLLBACK,
+        LIFECYCLE,
+        SYSTEM,
     ]
 
 
@@ -107,13 +117,11 @@ class Alert:
     category: str = AlertCategory.SYSTEM
     message: str = ""
     status: str = "active"
-    acknowledged_by: Optional[str] = None
-    acknowledged_at: Optional[str] = None
-    resolved_at: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    acknowledged_by: str | None = None
+    acknowledged_at: str | None = None
+    resolved_at: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @property
     def is_active(self) -> bool:
@@ -123,7 +131,7 @@ class Alert:
     def is_critical(self) -> bool:
         return self.level == AlertLevel.CRITICAL
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "alert_id": self.alert_id,
             "level": self.level,
@@ -153,17 +161,22 @@ class AlertingSystem:
         dedup_window_seconds: Suppress duplicate alerts within this window.
     """
 
-    def __init__(self, max_alerts: int = 10_000,
-                 dedup_window_seconds: int = 300) -> None:
+    def __init__(self, max_alerts: int = 10_000, dedup_window_seconds: int = 300) -> None:
         self.max_alerts = max_alerts
         self.dedup_window = dedup_window_seconds
-        self._alerts: Dict[str, Alert] = {}
-        self._order: List[str] = []
-        self._dedup_keys: Dict[str, str] = {}  # dedup_key → alert_id
+        self._alerts: dict[str, Alert] = {}
+        self._order: list[str] = []
+        self._dedup_keys: dict[str, str] = {}  # dedup_key → alert_id
 
-    def emit(self, level: str, model_id: str, category: str,
-             message: str, metadata: Optional[Dict[str, Any]] = None,
-             dedup: bool = True) -> Alert:
+    def emit(
+        self,
+        level: str,
+        model_id: str,
+        category: str,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+        dedup: bool = True,
+    ) -> Alert:
         """Create and store a new alert.
 
         Args:
@@ -219,7 +232,7 @@ class AlertingSystem:
             return False
         alert.status = "acknowledged"
         alert.acknowledged_by = ack_by
-        alert.acknowledged_at = datetime.now(timezone.utc).isoformat()
+        alert.acknowledged_at = datetime.now(UTC).isoformat()
         dedup_key = f"{alert.model_id}:{alert.category}"
         self._dedup_keys.pop(dedup_key, None)
         return True
@@ -230,7 +243,7 @@ class AlertingSystem:
         if alert is None:
             return False
         alert.status = "resolved"
-        alert.resolved_at = datetime.now(timezone.utc).isoformat()
+        alert.resolved_at = datetime.now(UTC).isoformat()
         dedup_key = f"{alert.model_id}:{alert.category}"
         self._dedup_keys.pop(dedup_key, None)
         return True
@@ -243,34 +256,37 @@ class AlertingSystem:
         alert.status = "suppressed"
         return True
 
-    def active_alerts(self, model_id: Optional[str] = None,
-                       level: Optional[str] = None) -> List[Dict[str, Any]]:
+    def active_alerts(
+        self, model_id: str | None = None, level: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return all active alerts, optionally filtered."""
-        alerts = [self._alerts[aid] for aid in self._order
-                  if aid in self._alerts and self._alerts[aid].is_active]
+        alerts = [
+            self._alerts[aid]
+            for aid in self._order
+            if aid in self._alerts and self._alerts[aid].is_active
+        ]
         if model_id:
             alerts = [a for a in alerts if a.model_id == model_id]
         if level:
             alerts = [a for a in alerts if a.level == level]
         return [a.to_dict() for a in reversed(alerts)]
 
-    def all_alerts(self, limit: int = 100,
-                   model_id: Optional[str] = None,
-                   category: Optional[str] = None) -> List[Dict[str, Any]]:
+    def all_alerts(
+        self, limit: int = 100, model_id: str | None = None, category: str | None = None
+    ) -> list[dict[str, Any]]:
         """Return all alerts, optionally filtered, most recent first."""
-        alerts = [self._alerts[aid] for aid in reversed(self._order)
-                  if aid in self._alerts]
+        alerts = [self._alerts[aid] for aid in reversed(self._order) if aid in self._alerts]
         if model_id:
             alerts = [a for a in alerts if a.model_id == model_id]
         if category:
             alerts = [a for a in alerts if a.category == category]
         return [a.to_dict() for a in alerts[:limit]]
 
-    def critical_count(self, model_id: Optional[str] = None) -> int:
+    def critical_count(self, model_id: str | None = None) -> int:
         alerts = self.active_alerts(model_id=model_id, level=AlertLevel.CRITICAL)
         return len(alerts)
 
-    def emit_from_health_report(self, health_report: Any) -> List[Alert]:
+    def emit_from_health_report(self, health_report: Any) -> list[Alert]:
         """Auto-emit alerts from a HealthReport object."""
         emitted = []
         for drift_msg in health_report.drift_alerts:
@@ -285,7 +301,7 @@ class AlertingSystem:
             emitted.append(a)
         return emitted
 
-    def emit_from_monitoring_snapshot(self, snapshot: Any) -> List[Alert]:
+    def emit_from_monitoring_snapshot(self, snapshot: Any) -> list[Alert]:
         """Auto-emit alerts from a MonitoringSnapshot object."""
         emitted = []
         if snapshot.latency_alert:
@@ -317,7 +333,7 @@ class AlertingSystem:
             emitted.append(a)
         return emitted
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         all_a = list(self._alerts.values())
         return {
             "total_alerts": len(all_a),

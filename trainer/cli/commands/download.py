@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -19,11 +18,11 @@ def download(
     output_dir: Path = typer.Option(
         Path("data/datasets"), "--output-dir", "-o", help="Local directory to save the dataset."
     ),
-    config: Optional[Path] = typer.Option(
+    config: Path | None = typer.Option(
         None, "--config", "-c", help="Path to a Hydra config override file."
     ),
     verify_checksums: bool = typer.Option(True, help="Verify SHA-256 checksums after download."),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None, "--api-key", envvar="SIGNALIUM_API_KEY", help="Signalium API key."
     ),
 ) -> None:

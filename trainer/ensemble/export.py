@@ -21,13 +21,13 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
-from trainer.ensemble.expert import ExpertModel, ExpertRegistry
+from trainer.ensemble.expert import ExpertRegistry
 from trainer.ensemble.meta_model import EnsembleMetaModel
 
 
@@ -44,7 +44,7 @@ class EnsembleExporter:
     def __init__(
         self,
         registry: ExpertRegistry,
-        meta_model: Optional[EnsembleMetaModel] = None,
+        meta_model: EnsembleMetaModel | None = None,
         strategy_name: str = "weighted_averaging",
         ensemble_version: str = "1.0.0",
     ) -> None:
@@ -53,7 +53,7 @@ class EnsembleExporter:
         self.strategy_name = strategy_name
         self.ensemble_version = ensemble_version
 
-    def export_expert(self, expert_id: str) -> Dict[str, Any]:
+    def export_expert(self, expert_id: str) -> dict[str, Any]:
         """Export one expert's metadata and configuration."""
         expert = self.registry.get_or_raise(expert_id)
         return {
@@ -75,24 +75,24 @@ class EnsembleExporter:
             "calibration_error": expert.calibration_error,
             "n_predictions": expert.n_predictions,
             "metadata": expert.metadata,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    def export_all_experts(self) -> List[Dict[str, Any]]:
+    def export_all_experts(self) -> list[dict[str, Any]]:
         """Export all experts."""
         return [self.export_expert(e.expert_id) for e in self.registry.all_experts()]
 
-    def export_meta_model(self) -> Optional[Dict[str, Any]]:
+    def export_meta_model(self) -> dict[str, Any] | None:
         """Export meta model state."""
         if self.meta_model is None:
             return None
         return {
             "export_type": "meta_model",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             **self.meta_model.to_dict(),
         }
 
-    def export_bundle(self) -> Dict[str, Any]:
+    def export_bundle(self) -> dict[str, Any]:
         """Export the complete ensemble bundle.
 
         Returns a JSON-serializable dict containing:
@@ -114,7 +114,7 @@ class EnsembleExporter:
             "meta_model": self.export_meta_model(),
             "registry_summary": self.registry.summary(),
             "inference_contract": self.export_inference_contract(),
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
         logger.info(
             f"Ensemble bundle {bundle_id} exported: "
@@ -122,7 +122,7 @@ class EnsembleExporter:
         )
         return bundle
 
-    def export_inference_contract(self) -> Dict[str, Any]:
+    def export_inference_contract(self) -> dict[str, Any]:
         """Export the inference contract for deployment.
 
         The inference contract documents the expected input/output interface,
@@ -156,8 +156,7 @@ class EnsembleExporter:
                     "no_trade_prob": {"type": "number", "minimum": 0, "maximum": 1},
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                     "uncertainty": {"type": "number", "minimum": 0, "maximum": 1},
-                    "predicted_class": {"type": "string",
-                                        "enum": ["buy", "sell", "no_trade"]},
+                    "predicted_class": {"type": "string", "enum": ["buy", "sell", "no_trade"]},
                     "institutional_forecast": {"type": "string"},
                     "strategy": {"type": "string"},
                     "n_experts": {"type": "integer"},
@@ -165,13 +164,12 @@ class EnsembleExporter:
                     "weight_map": {"type": "object"},
                 },
             },
-            "meta_model_active": self.meta_model is not None and
-                                  (self.meta_model.is_trained
-                                   if self.meta_model else False),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "meta_model_active": self.meta_model is not None
+            and (self.meta_model.is_trained if self.meta_model else False),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    def save_bundle(self, bundle: Dict[str, Any], path: str) -> str:
+    def save_bundle(self, bundle: dict[str, Any], path: str) -> str:
         """Save bundle dict to a JSON file. Returns the absolute path."""
         out_path = Path(path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,7 +179,7 @@ class EnsembleExporter:
         return str(out_path.absolute())
 
     @staticmethod
-    def load_bundle(path: str) -> Dict[str, Any]:
+    def load_bundle(path: str) -> dict[str, Any]:
         """Load a previously saved bundle from JSON."""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)

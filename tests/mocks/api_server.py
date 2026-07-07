@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
-
-import responses
 
 from trainer.api.client import SignaliumClient
 from trainer.config.schema import APIConfig

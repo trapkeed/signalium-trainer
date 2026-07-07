@@ -32,6 +32,7 @@ def doctor() -> None:
     # PyTorch
     try:
         import torch
+
         table.add_row("PyTorch", "[green]OK[/green]", torch.__version__)
         cuda = torch.cuda.is_available()
         table.add_row(
@@ -46,6 +47,7 @@ def doctor() -> None:
     # MLflow
     try:
         import mlflow
+
         table.add_row("MLflow", "[green]OK[/green]", mlflow.__version__)
     except ImportError:
         table.add_row("MLflow", "[red]MISSING[/red]", "pip install mlflow")
@@ -53,6 +55,7 @@ def doctor() -> None:
     # ONNX
     try:
         import onnx
+
         table.add_row("ONNX", "[green]OK[/green]", onnx.__version__)
     except ImportError:
         table.add_row("ONNX", "[yellow]Missing[/yellow]", "pip install onnx")
@@ -60,6 +63,7 @@ def doctor() -> None:
     # Hydra
     try:
         import hydra
+
         table.add_row("Hydra", "[green]OK[/green]", hydra.__version__)
     except ImportError:
         table.add_row("Hydra", "[red]MISSING[/red]", "pip install hydra-core")
@@ -67,6 +71,7 @@ def doctor() -> None:
     # Loguru
     try:
         import loguru
+
         table.add_row("Loguru", "[green]OK[/green]", loguru.__version__)
     except ImportError:
         table.add_row("Loguru", "[red]MISSING[/red]", "pip install loguru")
@@ -74,6 +79,7 @@ def doctor() -> None:
     # GPU info
     if cuda:
         from trainer.utils.gpu import get_gpu_info
+
         info = get_gpu_info()
         for dev in info.get("devices", []):
             table.add_row(
@@ -84,6 +90,7 @@ def doctor() -> None:
 
     # Env variables
     import os
+
     has_key = bool(os.getenv("SIGNALIUM_API_KEY") or os.getenv("SIGNALIUM_TOKEN"))
     table.add_row(
         "API credentials",

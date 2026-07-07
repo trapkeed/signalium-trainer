@@ -11,18 +11,21 @@
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_models import (
-    ChatSession, ResearchReport, Recommendation, KnowledgeChunk,
+    ChatSession,
+    KnowledgeChunk,
+    Recommendation,
+    ResearchReport,
 )
-from trainer.analyst.analyst_types import KnowledgeSourceType, RecommendationType
+from trainer.analyst.analyst_types import KnowledgeSourceType
 
 
 def _bucket(ts: float, granularity: str = "day") -> str:
@@ -41,9 +44,9 @@ class AnalystDashboard:
 
     def research_chat(
         self,
-        sessions:    List[ChatSession],
+        sessions: list[ChatSession],
         granularity: str = "day",
-    ) -> Dict:
+    ) -> dict:
         if not sessions:
             return {
                 "view": "RESEARCH_CHAT",
@@ -53,7 +56,7 @@ class AnalystDashboard:
                 "activity": {},
             }
 
-        activity: Dict[str, int] = {}
+        activity: dict[str, int] = {}
         total_messages = 0
 
         for session in sessions:
@@ -64,26 +67,26 @@ class AnalystDashboard:
             total_messages += session.message_count
 
         return {
-            "view":            "RESEARCH_CHAT",
-            "total_sessions":  len(sessions),
+            "view": "RESEARCH_CHAT",
+            "total_sessions": len(sessions),
             "active_sessions": sum(1 for s in sessions if s.active),
-            "total_messages":  total_messages,
-            "activity":        dict(sorted(activity.items())),
-            "researchers":     list({s.researcher for s in sessions if s.researcher}),
+            "total_messages": total_messages,
+            "activity": dict(sorted(activity.items())),
+            "researchers": list({s.researcher for s in sessions if s.researcher}),
         }
 
     # ── 2. Experiment Explorer ────────────────────────────────────────────────
 
     def experiment_explorer(
         self,
-        chunks: List[KnowledgeChunk],
-    ) -> Dict:
+        chunks: list[KnowledgeChunk],
+    ) -> dict:
         """Explore indexed experiment and model artifacts."""
         if not chunks:
             return {"view": "EXPERIMENT_EXPLORER", "artifacts": [], "source_breakdown": {}}
 
         # Group by source type
-        source_breakdown: Dict[str, int] = {}
+        source_breakdown: dict[str, int] = {}
         artifacts = []
 
         for chunk in chunks:
@@ -96,23 +99,28 @@ class AnalystDashboard:
                 KnowledgeSourceType.VALIDATION_REPORT,
                 KnowledgeSourceType.TRAINING_RUN,
             ):
-                artifacts.append({
-                    "artifact_id": chunk.artifact_id,
-                    "source_type": st,
-                    "title":       chunk.title,
-                    "tags":        chunk.tags,
-                    "timestamp":   round(chunk.timestamp, 3),
-                    **{k: v for k, v in chunk.metadata.items()
-                       if k in ("sharpe", "max_drawdown", "accuracy", "status")},
-                })
+                artifacts.append(
+                    {
+                        "artifact_id": chunk.artifact_id,
+                        "source_type": st,
+                        "title": chunk.title,
+                        "tags": chunk.tags,
+                        "timestamp": round(chunk.timestamp, 3),
+                        **{
+                            k: v
+                            for k, v in chunk.metadata.items()
+                            if k in ("sharpe", "max_drawdown", "accuracy", "status")
+                        },
+                    }
+                )
 
         # Sort by timestamp desc
         artifacts.sort(key=lambda x: x["timestamp"], reverse=True)
 
         return {
-            "view":             "EXPERIMENT_EXPLORER",
-            "total_artifacts":  len(artifacts),
-            "artifacts":        artifacts[:50],
+            "view": "EXPERIMENT_EXPLORER",
+            "total_artifacts": len(artifacts),
+            "artifacts": artifacts[:50],
             "source_breakdown": source_breakdown,
         }
 
@@ -120,28 +128,30 @@ class AnalystDashboard:
 
     def knowledge_graph(
         self,
-        chunks: List[KnowledgeChunk],
-    ) -> Dict:
+        chunks: list[KnowledgeChunk],
+    ) -> dict:
         """Map relationships between indexed knowledge artifacts."""
         if not chunks:
             return {"view": "KNOWLEDGE_GRAPH", "nodes": [], "edges": [], "clusters": {}}
 
         nodes = []
         edges = []
-        artifact_tags: Dict[str, set] = {}
+        artifact_tags: dict[str, set] = {}
 
         for chunk in chunks:
-            nodes.append({
-                "id":          chunk.chunk_id,
-                "artifact_id": chunk.artifact_id,
-                "source_type": chunk.source_type.value,
-                "title":       chunk.title[:60],
-                "tags":        chunk.tags,
-            })
+            nodes.append(
+                {
+                    "id": chunk.chunk_id,
+                    "artifact_id": chunk.artifact_id,
+                    "source_type": chunk.source_type.value,
+                    "title": chunk.title[:60],
+                    "tags": chunk.tags,
+                }
+            )
             artifact_tags.setdefault(chunk.artifact_id, set()).update(chunk.tags)
 
         # Build edges: chunks sharing tags are related
-        tag_to_chunks: Dict[str, List[str]] = {}
+        tag_to_chunks: dict[str, list[str]] = {}
         for chunk in chunks:
             for tag in chunk.tags:
                 tag_to_chunks.setdefault(tag, []).append(chunk.chunk_id)
@@ -153,23 +163,25 @@ class AnalystDashboard:
                     edge_key = tuple(sorted([chunk_ids[i], chunk_ids[j]]))
                     if edge_key not in seen_edges:
                         seen_edges.add(edge_key)
-                        edges.append({
-                            "from":   chunk_ids[i],
-                            "to":     chunk_ids[j],
-                            "via":    tag,
-                            "weight": 1,
-                        })
+                        edges.append(
+                            {
+                                "from": chunk_ids[i],
+                                "to": chunk_ids[j],
+                                "via": tag,
+                                "weight": 1,
+                            }
+                        )
 
         # Cluster by source type
-        clusters: Dict[str, List[str]] = {}
+        clusters: dict[str, list[str]] = {}
         for chunk in chunks:
             st = chunk.source_type.value
             clusters.setdefault(st, []).append(chunk.artifact_id)
 
         return {
-            "view":     "KNOWLEDGE_GRAPH",
-            "nodes":    nodes,
-            "edges":    edges[:200],   # cap edges for display
+            "view": "KNOWLEDGE_GRAPH",
+            "nodes": nodes,
+            "edges": edges[:200],  # cap edges for display
             "clusters": {k: list(set(v)) for k, v in clusters.items()},
             "total_nodes": len(nodes),
             "total_edges": len(edges),
@@ -179,8 +191,8 @@ class AnalystDashboard:
 
     def recommendation_queue(
         self,
-        recommendations: List[Recommendation],
-    ) -> Dict:
+        recommendations: list[Recommendation],
+    ) -> dict:
         if not recommendations:
             return {
                 "view": "RECOMMENDATION_QUEUE",
@@ -191,11 +203,11 @@ class AnalystDashboard:
                 "items": [],
             }
 
-        pending     = [r for r in recommendations if not r.implemented]
+        pending = [r for r in recommendations if not r.implemented]
         implemented = [r for r in recommendations if r.implemented]
 
-        by_priority: Dict[str, int] = {}
-        by_type:     Dict[str, int] = {}
+        by_priority: dict[str, int] = {}
+        by_type: dict[str, int] = {}
 
         for r in pending:
             by_priority[r.priority] = by_priority.get(r.priority, 0) + 1
@@ -206,23 +218,23 @@ class AnalystDashboard:
         pending_sorted = sorted(pending, key=lambda r: priority_order.get(r.priority, 3))
 
         return {
-            "view":        "RECOMMENDATION_QUEUE",
-            "pending":     len(pending),
+            "view": "RECOMMENDATION_QUEUE",
+            "pending": len(pending),
             "implemented": len(implemented),
             "by_priority": by_priority,
-            "by_type":     by_type,
-            "items":       [r.to_dict() for r in pending_sorted[:20]],
+            "by_type": by_type,
+            "items": [r.to_dict() for r in pending_sorted[:20]],
         }
 
     # ── 5. Executive Dashboard ────────────────────────────────────────────────
 
     def executive_dashboard(
         self,
-        sessions:        List[ChatSession],
-        reports:         List[ResearchReport],
-        recommendations: List[Recommendation],
-        chunks:          List[KnowledgeChunk],
-    ) -> Dict:
+        sessions: list[ChatSession],
+        reports: list[ResearchReport],
+        recommendations: list[Recommendation],
+        chunks: list[KnowledgeChunk],
+    ) -> dict:
         pending_recs = [r for r in recommendations if not r.implemented]
         high_priority = [r for r in pending_recs if r.priority == "HIGH"]
 
@@ -231,42 +243,43 @@ class AnalystDashboard:
         return {
             "view": "EXECUTIVE_DASHBOARD",
             "knowledge_base": {
-                "total_chunks":   len(chunks),
-                "source_types":   len({c.source_type for c in chunks}),
+                "total_chunks": len(chunks),
+                "source_types": len({c.source_type for c in chunks}),
             },
             "research_activity": {
-                "total_sessions":  len(sessions),
+                "total_sessions": len(sessions),
                 "active_sessions": sum(1 for s in sessions if s.active),
-                "total_queries":   sum(s.message_count // 2 for s in sessions),
+                "total_queries": sum(s.message_count // 2 for s in sessions),
             },
             "reports": {
                 "total_generated": len(reports),
-                "recent":          [{"title": r.title, "type": r.report_type.value}
-                                    for r in recent_reports],
+                "recent": [{"title": r.title, "type": r.report_type.value} for r in recent_reports],
             },
             "recommendations": {
-                "pending":       len(pending_recs),
+                "pending": len(pending_recs),
                 "high_priority": len(high_priority),
-                "implemented":   len([r for r in recommendations if r.implemented]),
+                "implemented": len([r for r in recommendations if r.implemented]),
             },
             "health": {
                 "knowledge_base_populated": len(chunks) > 0,
-                "active_sessions":          len(sessions) > 0,
-                "recent_reports":           len(recent_reports) > 0,
+                "active_sessions": len(sessions) > 0,
+                "recent_reports": len(recent_reports) > 0,
             },
         }
 
     def all_dashboards(
         self,
-        sessions:        List[ChatSession],
-        reports:         List[ResearchReport],
-        recommendations: List[Recommendation],
-        chunks:          List[KnowledgeChunk],
-    ) -> Dict:
+        sessions: list[ChatSession],
+        reports: list[ResearchReport],
+        recommendations: list[Recommendation],
+        chunks: list[KnowledgeChunk],
+    ) -> dict:
         return {
-            "research_chat":       self.research_chat(sessions),
+            "research_chat": self.research_chat(sessions),
             "experiment_explorer": self.experiment_explorer(chunks),
-            "knowledge_graph":     self.knowledge_graph(chunks),
+            "knowledge_graph": self.knowledge_graph(chunks),
             "recommendation_queue": self.recommendation_queue(recommendations),
-            "executive_dashboard": self.executive_dashboard(sessions, reports, recommendations, chunks),
+            "executive_dashboard": self.executive_dashboard(
+                sessions, reports, recommendations, chunks
+            ),
         }

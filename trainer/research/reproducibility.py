@@ -28,30 +28,49 @@ import subprocess
 import sys
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Allowed environment-variable prefixes (non-sensitive)
 # ---------------------------------------------------------------------------
 
-_ALLOWED_ENV_PREFIXES: List[str] = [
-    "LANG", "LC_", "TZ", "PATH", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE",
-    "CUDA_VISIBLE_DEVICES", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
-    "SIGNALIUM_", "TRAINER_", "TORCH_", "NCCL_",
-    "HOSTNAME", "SHELL", "TERM",
+_ALLOWED_ENV_PREFIXES: list[str] = [
+    "LANG",
+    "LC_",
+    "TZ",
+    "PATH",
+    "PYTHONPATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "CUDA_VISIBLE_DEVICES",
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "SIGNALIUM_",
+    "TRAINER_",
+    "TORCH_",
+    "NCCL_",
+    "HOSTNAME",
+    "SHELL",
+    "TERM",
 ]
 
-_SENSITIVE_SUBSTRINGS: List[str] = [
-    "SECRET", "TOKEN", "PASSWORD", "PASSWD", "KEY", "CREDENTIAL",
-    "API_KEY", "AUTH", "PRIVATE", "CERT",
+_SENSITIVE_SUBSTRINGS: list[str] = [
+    "SECRET",
+    "TOKEN",
+    "PASSWORD",
+    "PASSWD",
+    "KEY",
+    "CREDENTIAL",
+    "API_KEY",
+    "AUTH",
+    "PRIVATE",
+    "CERT",
 ]
 
 
-def _safe_env_vars() -> Dict[str, str]:
+def _safe_env_vars() -> dict[str, str]:
     """Return non-sensitive environment variables matching the allow-list."""
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     for key, val in os.environ.items():
         key_upper = key.upper()
         if any(s in key_upper for s in _SENSITIVE_SUBSTRINGS):
@@ -61,41 +80,54 @@ def _safe_env_vars() -> Dict[str, str]:
     return result
 
 
-def _git_info() -> Dict[str, str]:
+def _git_info() -> dict[str, str]:
     """Try to read git commit hash and branch; return empty strings on failure."""
-    info: Dict[str, str] = {"commit_hash": "", "branch": "", "repo_version": ""}
+    info: dict[str, str] = {"commit_hash": "", "branch": "", "repo_version": ""}
     try:
-        info["commit_hash"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["commit_hash"] = (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     try:
-        info["branch"] = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["branch"] = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     try:
-        info["repo_version"] = subprocess.check_output(
-            ["git", "describe", "--tags", "--always"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        info["repo_version"] = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--always"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
     except Exception:
         pass
     return info
 
 
-def _pytorch_info() -> Dict[str, str]:
+def _pytorch_info() -> dict[str, str]:
     """Try to read PyTorch and CUDA versions; return empty strings on failure."""
-    info: Dict[str, str] = {"pytorch_version": "", "cuda_version": ""}
+    info: dict[str, str] = {"pytorch_version": "", "cuda_version": ""}
     try:
         import torch  # type: ignore
+
         info["pytorch_version"] = torch.__version__
         if torch.cuda.is_available():
             info["cuda_version"] = torch.version.cuda or ""  # type: ignore[attr-defined]
@@ -107,11 +139,15 @@ def _pytorch_info() -> Dict[str, str]:
 def _gpu_info() -> str:
     """Try to read GPU model via nvidia-smi; return empty string on failure."""
     try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        ).decode().strip()
+        out = (
+            subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
         return out.split("\n")[0].strip()
     except Exception:
         return ""
@@ -120,7 +156,7 @@ def _gpu_info() -> str:
 def _cpu_info() -> str:
     """Read CPU model from /proc/cpuinfo or platform; return best-effort string."""
     try:
-        with open("/proc/cpuinfo", "r") as fh:
+        with open("/proc/cpuinfo") as fh:
             for line in fh:
                 if line.startswith("model name"):
                     return line.split(":", 1)[1].strip()
@@ -132,7 +168,7 @@ def _cpu_info() -> str:
 def _ram_gb() -> float:
     """Read total RAM in GB from /proc/meminfo; return 0.0 on failure."""
     try:
-        with open("/proc/meminfo", "r") as fh:
+        with open("/proc/meminfo") as fh:
             for line in fh:
                 if line.startswith("MemTotal:"):
                     kb = int(line.split()[1])
@@ -161,9 +197,7 @@ class EnvironmentSnapshot:
     """Complete environment snapshot for full experiment reproducibility."""
 
     snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captured_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    captured_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Repository
     git_commit_hash: str = ""
@@ -174,7 +208,7 @@ class EnvironmentSnapshot:
     python_version: str = ""
     pytorch_version: str = ""
     cuda_version: str = ""
-    random_seed: Optional[int] = None
+    random_seed: int | None = None
 
     # Hardware
     os_name: str = ""
@@ -187,14 +221,14 @@ class EnvironmentSnapshot:
     docker_image: str = ""
 
     # Environment variables (non-sensitive)
-    env_vars: Dict[str, str] = field(default_factory=dict)
+    env_vars: dict[str, str] = field(default_factory=dict)
 
     # Training metrics (filled after training)
     training_duration_seconds: float = 0.0
     training_cost_estimate_usd: float = 0.0
 
     @classmethod
-    def capture(cls, random_seed: Optional[int] = None) -> "EnvironmentSnapshot":
+    def capture(cls, random_seed: int | None = None) -> EnvironmentSnapshot:
         """Capture the current execution environment."""
         git = _git_info()
         torch_info = _pytorch_info()
@@ -219,9 +253,10 @@ class EnvironmentSnapshot:
         self,
         duration_seconds: float,
         cost_estimate_usd: float = 0.0,
-    ) -> "EnvironmentSnapshot":
+    ) -> EnvironmentSnapshot:
         """Return a copy with training duration and cost filled in."""
         from dataclasses import replace
+
         return replace(
             self,
             training_duration_seconds=duration_seconds,
@@ -259,7 +294,7 @@ class EnvironmentSnapshot:
             score += 0.05
         return min(1.0, score)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "snapshot_id": self.snapshot_id,
             "captured_at": self.captured_at,
@@ -282,10 +317,10 @@ class EnvironmentSnapshot:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "EnvironmentSnapshot":
+    def from_dict(cls, d: dict[str, Any]) -> EnvironmentSnapshot:
         return cls(
             snapshot_id=d.get("snapshot_id", str(uuid.uuid4())),
-            captured_at=d.get("captured_at", datetime.now(timezone.utc).isoformat()),
+            captured_at=d.get("captured_at", datetime.now(UTC).isoformat()),
             git_commit_hash=d.get("git_commit_hash", ""),
             git_branch=d.get("git_branch", ""),
             repo_version=d.get("repo_version", ""),

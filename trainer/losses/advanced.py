@@ -10,12 +10,9 @@ Provides:
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 
 # ---------------------------------------------------------------------------
 # Quantile (Pinball) Loss
@@ -225,9 +222,7 @@ class DynamicLossWeighting(nn.Module):
     def __init__(self, n_tasks: int, init_log_var: float = 0.0) -> None:
         super().__init__()
         self._n = n_tasks
-        self.log_vars = nn.Parameter(
-            torch.full((n_tasks,), init_log_var, dtype=torch.float32)
-        )
+        self.log_vars = nn.Parameter(torch.full((n_tasks,), init_log_var, dtype=torch.float32))
 
     def forward(self, losses: list[torch.Tensor]) -> torch.Tensor:
         """Compute the total weighted loss.
@@ -242,9 +237,7 @@ class DynamicLossWeighting(nn.Module):
             ValueError: If len(losses) != n_tasks.
         """
         if len(losses) != self._n:
-            raise ValueError(
-                f"Expected {self._n} task losses, got {len(losses)}"
-            )
+            raise ValueError(f"Expected {self._n} task losses, got {len(losses)}")
         total = torch.zeros(1, device=self.log_vars.device)
         for i, loss_i in enumerate(losses):
             precision = torch.exp(-self.log_vars[i])

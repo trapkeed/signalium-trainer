@@ -26,11 +26,9 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # BenchmarkRole constants
@@ -38,17 +36,26 @@ from typing import Any, Dict, List, Optional
 
 
 class BenchmarkRole:
-    CHAMPION          = "champion"
-    PREV_CHAMPION     = "previous_champion"
-    BASELINE          = "baseline"
-    CURRENT_GEN       = "current_generation"
-    PREV_GEN          = "previous_generation"
-    PUBLIC            = "public_benchmark"
-    INTERNAL          = "internal_benchmark"
-    CANDIDATE         = "candidate"
-    EXPERIMENTAL      = "experimental"
-    ALL = [CHAMPION, PREV_CHAMPION, BASELINE, CURRENT_GEN, PREV_GEN,
-           PUBLIC, INTERNAL, CANDIDATE, EXPERIMENTAL]
+    CHAMPION = "champion"
+    PREV_CHAMPION = "previous_champion"
+    BASELINE = "baseline"
+    CURRENT_GEN = "current_generation"
+    PREV_GEN = "previous_generation"
+    PUBLIC = "public_benchmark"
+    INTERNAL = "internal_benchmark"
+    CANDIDATE = "candidate"
+    EXPERIMENTAL = "experimental"
+    ALL = [
+        CHAMPION,
+        PREV_CHAMPION,
+        BASELINE,
+        CURRENT_GEN,
+        PREV_GEN,
+        PUBLIC,
+        INTERNAL,
+        CANDIDATE,
+        EXPERIMENTAL,
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -64,16 +71,12 @@ class BenchmarkRecord:
     composite: float
     confidence: float
     institutional_grade: str
-    category_scores: Dict[str, float]   # category → score (0–100)
+    category_scores: dict[str, float]  # category → score (0–100)
     generation: str = ""
-    registered_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    registered_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @classmethod
-    def from_hierarchical_score(
-        cls, hs: Any, role: str, generation: str = ""
-    ) -> "BenchmarkRecord":
+    def from_hierarchical_score(cls, hs: Any, role: str, generation: str = "") -> BenchmarkRecord:
         return cls(
             experiment_id=hs.experiment_id,
             name=hs.name,
@@ -85,7 +88,7 @@ class BenchmarkRecord:
             generation=generation,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "experiment_id": self.experiment_id,
             "name": self.name,
@@ -97,6 +100,10 @@ class BenchmarkRecord:
             "generation": self.generation,
             "registered_at": self.registered_at,
         }
+
+
+# Backward-compatible alias used by tests and external importers
+HRSABenchmarkRecord = BenchmarkRecord
 
 
 # ---------------------------------------------------------------------------
@@ -115,20 +122,24 @@ class BenchmarkDelta:
     reference_score: float
     composite_delta: float
     improved: bool
-    category_deltas: Dict[str, float]
-    stronger: List[str]    # categories where subject > reference + 2
-    weaker: List[str]      # categories where subject < reference - 2
-    compared_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    category_deltas: dict[str, float]
+    stronger: list[str]  # categories where subject > reference + 2
+    weaker: list[str]  # categories where subject < reference - 2
+    compared_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            "subject": {"id": self.subject_id, "name": self.subject_name,
-                        "score": round(self.subject_score, 2)},
-            "reference": {"id": self.reference_id, "name": self.reference_name,
-                          "role": self.reference_role,
-                          "score": round(self.reference_score, 2)},
+            "subject": {
+                "id": self.subject_id,
+                "name": self.subject_name,
+                "score": round(self.subject_score, 2),
+            },
+            "reference": {
+                "id": self.reference_id,
+                "name": self.reference_name,
+                "role": self.reference_role,
+                "score": round(self.reference_score, 2),
+            },
             "composite_delta": round(self.composite_delta, 3),
             "improved": self.improved,
             "category_deltas": {k: round(v, 3) for k, v in self.category_deltas.items()},
@@ -155,18 +166,16 @@ class BenchmarkSuite:
     subject_id: str
     subject_name: str
     subject_score: float
-    deltas: List[BenchmarkDelta] = field(default_factory=list)
-    generated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    deltas: list[BenchmarkDelta] = field(default_factory=list)
+    generated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def vs_champion(self) -> Optional[BenchmarkDelta]:
+    def vs_champion(self) -> BenchmarkDelta | None:
         for d in self.deltas:
             if d.reference_role == BenchmarkRole.CHAMPION:
                 return d
         return None
 
-    def vs_baseline(self) -> Optional[BenchmarkDelta]:
+    def vs_baseline(self) -> BenchmarkDelta | None:
         for d in self.deltas:
             if d.reference_role == BenchmarkRole.BASELINE:
                 return d
@@ -176,7 +185,7 @@ class BenchmarkSuite:
         d = self.vs_champion()
         return d is not None and d.improved
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "subject_id": self.subject_id,
             "subject_name": self.subject_name,
@@ -197,10 +206,10 @@ class HRSABenchmarkEngine:
     """Benchmark comparison engine for hierarchical research scores."""
 
     def __init__(self) -> None:
-        self._records: Dict[str, BenchmarkRecord] = {}
-        self._champion_id: Optional[str] = None
-        self._prev_champion_id: Optional[str] = None
-        self._historical_composites: List[float] = []
+        self._records: dict[str, BenchmarkRecord] = {}
+        self._champion_id: str | None = None
+        self._prev_champion_id: str | None = None
+        self._historical_composites: list[float] = []
 
     # ------------------------------------------------------------------
     # Registration
@@ -250,13 +259,11 @@ class HRSABenchmarkEngine:
     # Comparison
     # ------------------------------------------------------------------
 
-    def _make_delta(
-        self, subject: BenchmarkRecord, reference: BenchmarkRecord
-    ) -> BenchmarkDelta:
+    def _make_delta(self, subject: BenchmarkRecord, reference: BenchmarkRecord) -> BenchmarkDelta:
         delta = subject.composite - reference.composite
-        cat_deltas: Dict[str, float] = {}
-        stronger: List[str] = []
-        weaker: List[str] = []
+        cat_deltas: dict[str, float] = {}
+        stronger: list[str] = []
+        weaker: list[str] = []
         all_cats = set(subject.category_scores) | set(reference.category_scores)
         for cat in sorted(all_cats):
             s = subject.category_scores.get(cat, 0.0)
@@ -287,22 +294,25 @@ class HRSABenchmarkEngine:
         self,
         subject_id: str,
         hierarchical_score: Any,
-        roles: Optional[List[str]] = None,
+        roles: list[str] | None = None,
     ) -> BenchmarkSuite:
         """Compare subject against all registered references (optionally filtered by role)."""
         subject_rec = BenchmarkRecord.from_hierarchical_score(
             hierarchical_score, role=BenchmarkRole.CANDIDATE
         )
         roles_filter = set(roles) if roles else None
-        deltas: List[BenchmarkDelta] = []
+        deltas: list[BenchmarkDelta] = []
 
         # Historical average as a virtual record
-        if self._historical_composites and (roles_filter is None or "historical_average" in roles_filter):
+        if self._historical_composites and (
+            roles_filter is None or "historical_average" in roles_filter
+        ):
             avg = sum(self._historical_composites) / len(self._historical_composites)
             avg_cat_scores = {}
             if self._champion_id and self._champion_id in self._records:
-                avg_cat_scores = {k: v * 0.95 for k, v in
-                                  self._records[self._champion_id].category_scores.items()}
+                avg_cat_scores = {
+                    k: v * 0.95 for k, v in self._records[self._champion_id].category_scores.items()
+                }
             hist_rec = BenchmarkRecord(
                 experiment_id="historical_avg",
                 name="Historical Average",
@@ -328,7 +338,7 @@ class HRSABenchmarkEngine:
             deltas=deltas,
         )
 
-    def compare_ids(self, subject_id: str, reference_id: str) -> Optional[BenchmarkDelta]:
+    def compare_ids(self, subject_id: str, reference_id: str) -> BenchmarkDelta | None:
         """Compare two registered experiments."""
         sub = self._records.get(subject_id)
         ref = self._records.get(reference_id)
@@ -340,24 +350,23 @@ class HRSABenchmarkEngine:
     # Reports
     # ------------------------------------------------------------------
 
-    def champion_record(self) -> Optional[BenchmarkRecord]:
+    def champion_record(self) -> BenchmarkRecord | None:
         if self._champion_id:
             return self._records.get(self._champion_id)
         return None
 
-    def by_role(self, role: str) -> List[BenchmarkRecord]:
+    def by_role(self, role: str) -> list[BenchmarkRecord]:
         return [r for r in self._records.values() if r.role == role]
 
-    def full_report(self) -> Dict[str, Any]:
-        sorted_recs = sorted(
-            self._records.values(), key=lambda r: r.composite, reverse=True
-        )
+    def full_report(self) -> dict[str, Any]:
+        sorted_recs = sorted(self._records.values(), key=lambda r: r.composite, reverse=True)
         composites = [r.composite for r in sorted_recs]
         hist_avg = (
             sum(self._historical_composites) / len(self._historical_composites)
-            if self._historical_composites else None
+            if self._historical_composites
+            else None
         )
-        role_counts: Dict[str, int] = {}
+        role_counts: dict[str, int] = {}
         for r in self._records.values():
             role_counts[r.role] = role_counts.get(r.role, 0) + 1
 
@@ -375,5 +384,5 @@ class HRSABenchmarkEngine:
             },
         }
 
-    def all_records(self) -> List[BenchmarkRecord]:
+    def all_records(self) -> list[BenchmarkRecord]:
         return list(self._records.values())

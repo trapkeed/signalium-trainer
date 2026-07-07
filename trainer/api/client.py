@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from loguru import logger
 from tenacity import (
-    RetryError,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
@@ -75,8 +73,8 @@ class SignaliumClient:
     def __init__(
         self,
         config: APIConfig,
-        api_key: Optional[str] = None,
-        token: Optional[str] = None,
+        api_key: str | None = None,
+        token: str | None = None,
     ) -> None:
         self._config = config
         self._base_url = config.base_url.rstrip("/")
@@ -104,9 +102,7 @@ class SignaliumClient:
     def _get(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a GET request with error handling."""
         try:
-            response = self._session.get(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.get(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"GET {path} timed out") from exc
         _raise_for_status(response)
@@ -115,9 +111,7 @@ class SignaliumClient:
     def _post(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a POST request with error handling."""
         try:
-            response = self._session.post(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.post(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"POST {path} timed out") from exc
         _raise_for_status(response)
@@ -126,9 +120,7 @@ class SignaliumClient:
     def _put(self, path: str, **kwargs: Any) -> requests.Response:
         """Perform a PUT request with error handling."""
         try:
-            response = self._session.put(
-                self._url(path), timeout=self._config.timeout, **kwargs
-            )
+            response = self._session.put(self._url(path), timeout=self._config.timeout, **kwargs)
         except requests.Timeout as exc:
             raise APITimeoutError(f"PUT {path} timed out") from exc
         _raise_for_status(response)
@@ -169,7 +161,7 @@ class SignaliumClient:
         self,
         download_url: str,
         destination: Path,
-        expected_sha256: Optional[str] = None,
+        expected_sha256: str | None = None,
         show_progress: bool = True,
     ) -> Path:
         """Download a single dataset file with optional checksum verification.

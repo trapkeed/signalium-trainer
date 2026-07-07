@@ -28,10 +28,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
-from typing import Any, Dict, Generator, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # HRSADatabase
@@ -160,7 +160,7 @@ class HRSADatabase:
         self._is_memory = db_path == ":memory:"
         # For :memory: databases, keep a single persistent connection
         # to avoid losing the schema between calls.
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         if self._is_memory:
             self._persistent_conn = sqlite3.connect(":memory:", check_same_thread=False)
             self._persistent_conn.execute("PRAGMA journal_mode=WAL")
@@ -197,7 +197,7 @@ class HRSADatabase:
 
     def save(self, hs: Any) -> None:
         """Persist a complete HierarchicalScore (all tables)."""
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             # hrsa_score_history
             ga = hs.grade_assessment
@@ -212,13 +212,22 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    hs.score_id, hs.experiment_id, hs.name,
-                    hs.level3_composite, hs.confidence,
-                    hs.institutional_grade, hs.research_grade,
-                    hs.promotion_recommendation, hs.risk_rating,
-                    hs.future_potential, hs.instrument, hs.timeframe,
-                    hs.backbone, hs.model_family,
-                    hs.level1_metric_count, hs.total_weight_used,
+                    hs.score_id,
+                    hs.experiment_id,
+                    hs.name,
+                    hs.level3_composite,
+                    hs.confidence,
+                    hs.institutional_grade,
+                    hs.research_grade,
+                    hs.promotion_recommendation,
+                    hs.risk_rating,
+                    hs.future_potential,
+                    hs.instrument,
+                    hs.timeframe,
+                    hs.backbone,
+                    hs.model_family,
+                    hs.level1_metric_count,
+                    hs.total_weight_used,
                     hs.scored_at,
                 ),
             )
@@ -234,9 +243,16 @@ class HRSADatabase:
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
-                        hs.score_id, hs.experiment_id, cat, result.display_name,
-                        result.score, result.confidence, result.weight,
-                        result.grade, result.metric_count, result.coverage,
+                        hs.score_id,
+                        hs.experiment_id,
+                        cat,
+                        result.display_name,
+                        result.score,
+                        result.confidence,
+                        result.weight,
+                        result.grade,
+                        result.metric_count,
+                        result.coverage,
                         json.dumps(result.metric_scores),
                         json.dumps(result.raw_values),
                         ts,
@@ -266,15 +282,20 @@ class HRSADatabase:
                     VALUES (?,?,?,?,?,?,?,?,?)
                     """,
                     (
-                        hs.score_id, hs.experiment_id, hs.level3_composite,
-                        ga.institutional_grade, ga.research_grade,
-                        ga.promotion_recommendation, ga.risk_rating,
-                        ga.future_potential, ts,
+                        hs.score_id,
+                        hs.experiment_id,
+                        hs.level3_composite,
+                        ga.institutional_grade,
+                        ga.research_grade,
+                        ga.promotion_recommendation,
+                        ga.risk_rating,
+                        ga.future_potential,
+                        ts,
                     ),
                 )
 
     def save_explanation(self, explanation: Any) -> None:
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             conn.execute(
                 """
@@ -291,7 +312,7 @@ class HRSADatabase:
             )
 
     def save_whatif(self, experiment_id: str, sim: Any) -> None:
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             conn.execute(
                 """
@@ -302,14 +323,19 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?)
                 """,
                 (
-                    sim.simulation_id, experiment_id, sim.scenario_name,
-                    sim.original_composite, sim.simulated_composite, sim.delta,
-                    json.dumps(sim.to_dict()), ts,
+                    sim.simulation_id,
+                    experiment_id,
+                    sim.scenario_name,
+                    sim.original_composite,
+                    sim.simulated_composite,
+                    sim.delta,
+                    json.dumps(sim.to_dict()),
+                    ts,
                 ),
             )
 
     def save_benchmark(self, record: Any) -> None:
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         with self._conn() as conn:
             conn.execute(
                 """
@@ -319,9 +345,15 @@ class HRSADatabase:
                 VALUES (?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    record.experiment_id, record.name, record.role,
-                    record.composite, record.confidence, record.institutional_grade,
-                    json.dumps(record.category_scores), record.generation, ts,
+                    record.experiment_id,
+                    record.name,
+                    record.role,
+                    record.composite,
+                    record.confidence,
+                    record.institutional_grade,
+                    json.dumps(record.category_scores),
+                    record.generation,
+                    ts,
                 ),
             )
 
@@ -329,7 +361,7 @@ class HRSADatabase:
     # Retrieve
     # ------------------------------------------------------------------
 
-    def get_score(self, score_id: str) -> Optional[Dict[str, Any]]:
+    def get_score(self, score_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM hrsa_score_history WHERE score_id = ?", (score_id,)
@@ -338,7 +370,7 @@ class HRSADatabase:
                 return None
             return dict(row)
 
-    def get_latest(self, experiment_id: str) -> Optional[Dict[str, Any]]:
+    def get_latest(self, experiment_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute(
                 """
@@ -350,7 +382,7 @@ class HRSADatabase:
             ).fetchone()
             return dict(row) if row else None
 
-    def composite_history(self, experiment_id: str) -> List[Dict[str, Any]]:
+    def composite_history(self, experiment_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -362,9 +394,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def category_history(
-        self, experiment_id: str, category: str
-    ) -> List[Dict[str, Any]]:
+    def category_history(self, experiment_id: str, category: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -378,9 +408,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def metric_history(
-        self, experiment_id: str, metric_name: str
-    ) -> List[Dict[str, Any]]:
+    def metric_history(self, experiment_id: str, metric_name: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -396,11 +424,11 @@ class HRSADatabase:
     def leaderboard(
         self,
         top_n: int = 20,
-        instrument: Optional[str] = None,
+        instrument: str | None = None,
         min_confidence: float = 0.0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         filters = ["confidence >= ?"]
-        params: List[Any] = [min_confidence]
+        params: list[Any] = [min_confidence]
         if instrument:
             filters.append("instrument = ?")
             params.append(instrument)
@@ -420,7 +448,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def category_scores_for(self, score_id: str) -> List[Dict[str, Any]]:
+    def category_scores_for(self, score_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -438,7 +466,7 @@ class HRSADatabase:
                 result.append(d)
             return result
 
-    def whatif_history(self, experiment_id: str) -> List[Dict[str, Any]]:
+    def whatif_history(self, experiment_id: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -451,7 +479,7 @@ class HRSADatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_explanation(self, score_id: str) -> Optional[Dict[str, Any]]:
+    def get_explanation(self, score_id: str) -> dict[str, Any] | None:
         with self._conn() as conn:
             row = conn.execute(
                 """
@@ -464,7 +492,7 @@ class HRSADatabase:
                 return json.loads(row["explanation_json"])
             return None
 
-    def benchmarks_by_role(self, role: str) -> List[Dict[str, Any]]:
+    def benchmarks_by_role(self, role: str) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
                 """
@@ -481,26 +509,20 @@ class HRSADatabase:
     # Stats
     # ------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         with self._conn() as conn:
-            total = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_score_history"
-            ).fetchone()["n"]
+            total = conn.execute("SELECT COUNT(*) as n FROM hrsa_score_history").fetchone()["n"]
             avg_comp = conn.execute(
                 "SELECT AVG(composite) as a FROM hrsa_score_history"
             ).fetchone()["a"]
             max_comp = conn.execute(
                 "SELECT MAX(composite) as m FROM hrsa_score_history"
             ).fetchone()["m"]
-            simulations = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_whatif"
-            ).fetchone()["n"]
-            explanations = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_explanations"
-            ).fetchone()["n"]
-            benchmarks = conn.execute(
-                "SELECT COUNT(*) as n FROM hrsa_benchmarks"
-            ).fetchone()["n"]
+            simulations = conn.execute("SELECT COUNT(*) as n FROM hrsa_whatif").fetchone()["n"]
+            explanations = conn.execute("SELECT COUNT(*) as n FROM hrsa_explanations").fetchone()[
+                "n"
+            ]
+            benchmarks = conn.execute("SELECT COUNT(*) as n FROM hrsa_benchmarks").fetchone()["n"]
         return {
             "total_scores": total,
             "average_composite": round(avg_comp, 2) if avg_comp else None,

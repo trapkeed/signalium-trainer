@@ -11,35 +11,35 @@ from __future__ import annotations
 
 import math
 import statistics
-from typing import Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_models import PortfolioRisk
 
 
-def _mean(data: List[float]) -> float:
+def _mean(data: list[float]) -> float:
     return sum(data) / len(data) if data else 0.0
 
 
-def _std(data: List[float]) -> float:
+def _std(data: list[float]) -> float:
     if len(data) < 2:
         return 0.0
     return statistics.stdev(data)
 
 
-def _percentile(sorted_data: List[float], p: float) -> float:
+def _percentile(sorted_data: list[float], p: float) -> float:
     """p in [0, 100]. sorted_data must be ascending-sorted."""
     if not sorted_data:
         return 0.0
-    n   = len(sorted_data)
+    n = len(sorted_data)
     idx = (p / 100.0) * (n - 1)
-    lo  = int(idx)
-    hi  = min(lo + 1, n - 1)
+    lo = int(idx)
+    hi = min(lo + 1, n - 1)
     frac = idx - lo
     return sorted_data[lo] * (1 - frac) + sorted_data[hi] * frac
 
@@ -53,8 +53,8 @@ class PortfolioRiskEngine:
 
     def calculate(
         self,
-        returns: Dict[str, List[float]],    # instrument → list of daily returns
-        weights: Dict[str, float],           # instrument → weight (must sum ≤ 1)
+        returns: dict[str, list[float]],  # instrument → list of daily returns
+        weights: dict[str, float],  # instrument → weight (must sum ≤ 1)
     ) -> PortfolioRisk:
         """Calculate full portfolio risk metrics from historical returns."""
         if not returns or not weights:
@@ -75,16 +75,16 @@ class PortfolioRiskEngine:
 
         # CVaR / Expected Shortfall (mean of worst losses)
         cutoff_95 = _percentile(sorted_r, (1 - self._c95) * 100)
-        tail_95   = [r for r in sorted_r if r <= cutoff_95]
-        cvar_95   = -_mean(tail_95) if tail_95 else var_95
+        tail_95 = [r for r in sorted_r if r <= cutoff_95]
+        cvar_95 = -_mean(tail_95) if tail_95 else var_95
 
         # Portfolio volatility (annualised from daily)
         vol = _std(port_returns) * math.sqrt(252)
 
         # Max expected drawdown — approximation: 2 * daily_std * sqrt(T)
         daily_std = _std(port_returns)
-        max_dd    = 2.0 * daily_std * math.sqrt(max(len(port_returns), 1))
-        max_dd    = min(1.0, max_dd)
+        max_dd = 2.0 * daily_std * math.sqrt(max(len(port_returns), 1))
+        max_dd = min(1.0, max_dd)
 
         # Risk contribution: VaR_i / sum(VaR_i)
         risk_contribution = self._risk_contribution(returns, weights)
@@ -101,19 +101,19 @@ class PortfolioRiskEngine:
 
         # Risk concentration (Herfindahl index of risk contributions)
         rc_values = list(risk_contribution.values())
-        hhi = sum(v ** 2 for v in rc_values) if rc_values else 0.0
+        hhi = sum(v**2 for v in rc_values) if rc_values else 0.0
 
         result = PortfolioRisk(
-            var_95                = round(max(0.0, var_95), 4),
-            var_99                = round(max(0.0, var_99), 4),
-            cvar_95               = round(max(0.0, cvar_95), 4),
-            expected_shortfall    = round(max(0.0, cvar_95), 4),
-            max_expected_drawdown = round(max_dd, 4),
-            portfolio_volatility  = round(vol, 4),
-            risk_contribution     = {k: round(v, 4) for k, v in risk_contribution.items()},
-            marginal_risk         = {k: round(v, 4) for k, v in marginal_risk.items()},
-            diversification_ratio = round(div_ratio, 4),
-            risk_concentration    = round(hhi, 4),
+            var_95=round(max(0.0, var_95), 4),
+            var_99=round(max(0.0, var_99), 4),
+            cvar_95=round(max(0.0, cvar_95), 4),
+            expected_shortfall=round(max(0.0, cvar_95), 4),
+            max_expected_drawdown=round(max_dd, 4),
+            portfolio_volatility=round(vol, 4),
+            risk_contribution={k: round(v, 4) for k, v in risk_contribution.items()},
+            marginal_risk={k: round(v, 4) for k, v in marginal_risk.items()},
+            diversification_ratio=round(div_ratio, 4),
+            risk_concentration=round(hhi, 4),
         )
 
         logger.debug(
@@ -124,9 +124,9 @@ class PortfolioRiskEngine:
 
     def _portfolio_returns(
         self,
-        returns: Dict[str, List[float]],
-        weights: Dict[str, float],
-    ) -> List[float]:
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
+    ) -> list[float]:
         """Compute weighted portfolio return series (minimum common length)."""
         instruments = list(weights.keys())
         if not instruments:
@@ -138,32 +138,34 @@ class PortfolioRiskEngine:
 
         port = []
         for i in range(min_len):
-            r = sum(weights.get(ins, 0.0) * returns[ins][i] for ins in instruments if ins in returns)
+            r = sum(
+                weights.get(ins, 0.0) * returns[ins][i] for ins in instruments if ins in returns
+            )
             port.append(r)
         return port
 
     def _risk_contribution(
         self,
-        returns: Dict[str, List[float]],
-        weights: Dict[str, float],
-    ) -> Dict[str, float]:
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
+    ) -> dict[str, float]:
         """Risk contribution as fraction of total risk."""
         instruments = list(weights.keys())
-        indiv_vols  = {ins: _std(returns.get(ins, [0.0])) for ins in instruments}
-        total_risk  = sum(weights.get(ins, 0.0) * indiv_vols[ins] for ins in instruments)
+        indiv_vols = {ins: _std(returns.get(ins, [0.0])) for ins in instruments}
+        total_risk = sum(weights.get(ins, 0.0) * indiv_vols[ins] for ins in instruments)
         if total_risk == 0:
             return {ins: 0.0 for ins in instruments}
         return {ins: (weights.get(ins, 0.0) * indiv_vols[ins]) / total_risk for ins in instruments}
 
     def _marginal_risk(
         self,
-        returns: Dict[str, List[float]],
-        weights: Dict[str, float],
-    ) -> Dict[str, float]:
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
+    ) -> dict[str, float]:
         """Marginal risk contribution — change in portfolio vol per unit weight."""
-        instruments  = list(weights.keys())
+        instruments = list(weights.keys())
         port_returns = self._portfolio_returns(returns, weights)
-        port_vol     = _std(port_returns) if port_returns else 0.0
+        port_vol = _std(port_returns) if port_returns else 0.0
         if port_vol == 0:
             return {ins: 0.0 for ins in instruments}
 
@@ -189,7 +191,7 @@ class PortfolioRiskEngine:
         return round(base_var * stress_factor, 4)
 
 
-def _covariance(a: List[float], b: List[float]) -> float:
+def _covariance(a: list[float], b: list[float]) -> float:
     n = len(a)
     if n < 2:
         return 0.0

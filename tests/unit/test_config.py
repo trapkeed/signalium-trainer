@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from trainer.config.schema import (
     Environment,
     OptimizerType,
@@ -26,6 +24,7 @@ def test_trainer_config_defaults() -> None:
 def test_api_config_no_credentials() -> None:
     """APIConfig allows None credentials (resolved at runtime)."""
     from trainer.config.schema import APIConfig
+
     cfg = APIConfig()
     assert cfg.api_key is None
     assert cfg.token is None
@@ -34,6 +33,7 @@ def test_api_config_no_credentials() -> None:
 def test_gpu_config_auto_device() -> None:
     """Default GPU device is 'auto'."""
     from trainer.config.schema import GPUConfig
+
     cfg = GPUConfig()
     assert cfg.device == "auto"
 

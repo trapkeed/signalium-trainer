@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from trainer.datasets.parquet import ParquetDataset
 from tests.mocks.dataset import make_parquet_dataset
+from trainer.datasets.parquet import ParquetDataset
 
 
 @pytest.fixture()

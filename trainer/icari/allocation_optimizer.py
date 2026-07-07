@@ -9,30 +9,30 @@ from __future__ import annotations
 
 import math
 import statistics
-from typing import Dict, List, Optional, Tuple
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.icari.icari_types import OptimizationObjective
 from trainer.icari.icari_models import OptimizationResult
+from trainer.icari.icari_types import OptimizationObjective
 
 
-def _mean(data: List[float]) -> float:
+def _mean(data: list[float]) -> float:
     return sum(data) / len(data) if data else 0.0
 
 
-def _std(data: List[float]) -> float:
+def _std(data: list[float]) -> float:
     return statistics.stdev(data) if len(data) >= 2 else 0.0
 
 
 def _portfolio_returns(
-    returns: Dict[str, List[float]],
-    weights: Dict[str, float],
-) -> List[float]:
+    returns: dict[str, list[float]],
+    weights: dict[str, float],
+) -> list[float]:
     instruments = list(weights.keys())
     if not instruments:
         return []
@@ -45,20 +45,20 @@ def _portfolio_returns(
     ]
 
 
-def _sharpe(port_r: List[float], rfr: float = 0.0) -> float:
-    mu  = _mean(port_r) - rfr / 252
+def _sharpe(port_r: list[float], rfr: float = 0.0) -> float:
+    mu = _mean(port_r) - rfr / 252
     std = _std(port_r)
     return (mu / std * math.sqrt(252)) if std > 0 else 0.0
 
 
-def _sortino(port_r: List[float], rfr: float = 0.0) -> float:
-    mu       = _mean(port_r) - rfr / 252
+def _sortino(port_r: list[float], rfr: float = 0.0) -> float:
+    mu = _mean(port_r) - rfr / 252
     downside = [r for r in port_r if r < rfr / 252]
-    d_std    = _std(downside) if len(downside) >= 2 else _std(port_r)
+    d_std = _std(downside) if len(downside) >= 2 else _std(port_r)
     return (mu / d_std * math.sqrt(252)) if d_std > 0 else 0.0
 
 
-def _max_drawdown(port_r: List[float]) -> float:
+def _max_drawdown(port_r: list[float]) -> float:
     peak = trough = 0.0
     cumulative = 0.0
     max_dd = 0.0
@@ -73,18 +73,18 @@ def _max_drawdown(port_r: List[float]) -> float:
 
 
 def _diversification_ratio(
-    returns: Dict[str, List[float]],
-    weights: Dict[str, float],
+    returns: dict[str, list[float]],
+    weights: dict[str, float],
 ) -> float:
     instruments = list(weights.keys())
-    indiv_vols  = {ins: _std(returns.get(ins, [0.0])) for ins in instruments}
+    indiv_vols = {ins: _std(returns.get(ins, [0.0])) for ins in instruments}
     weighted_vol_sum = sum(weights.get(ins, 0.0) * indiv_vols[ins] for ins in instruments)
     port_r = _portfolio_returns(returns, weights)
     port_vol = _std(port_r)
     return weighted_vol_sum / max(port_vol, 1e-9)
 
 
-def _normalise(weights: Dict[str, float]) -> Dict[str, float]:
+def _normalise(weights: dict[str, float]) -> dict[str, float]:
     total = sum(weights.values())
     if total <= 0:
         n = max(len(weights), 1)
@@ -93,10 +93,10 @@ def _normalise(weights: Dict[str, float]) -> Dict[str, float]:
 
 
 def _grid_weights(
-    instruments: List[str],
-    steps:       int   = 5,
-    max_weight:  float = 1.0,
-) -> List[Dict[str, float]]:
+    instruments: list[str],
+    steps: int = 5,
+    max_weight: float = 1.0,
+) -> list[dict[str, float]]:
     """Generate a coarse grid of weight vectors for small N.
 
     `max_weight` caps the dominant share so generated candidates already
@@ -150,22 +150,22 @@ class AllocationOptimizer:
 
     def __init__(
         self,
-        risk_free_rate:  float = 0.045,   # annual
-        max_weight:      float = 0.50,    # max weight per instrument
-        min_weight:      float = 0.0,
-        grid_steps:      int   = 5,
+        risk_free_rate: float = 0.045,  # annual
+        max_weight: float = 0.50,  # max weight per instrument
+        min_weight: float = 0.0,
+        grid_steps: int = 5,
     ):
-        self._rfr        = risk_free_rate
-        self._max_w      = max_weight
-        self._min_w      = min_weight
+        self._rfr = risk_free_rate
+        self._max_w = max_weight
+        self._min_w = min_weight
         self._grid_steps = grid_steps
-        self._results: List[OptimizationResult] = []
+        self._results: list[OptimizationResult] = []
 
     def optimize(
         self,
-        objective:       OptimizationObjective,
-        returns:         Dict[str, List[float]],
-        initial_weights: Optional[Dict[str, float]] = None,
+        objective: OptimizationObjective,
+        returns: dict[str, list[float]],
+        initial_weights: dict[str, float] | None = None,
     ) -> OptimizationResult:
         """Find optimal weights for the given objective."""
         instruments = list(returns.keys())
@@ -180,9 +180,9 @@ class AllocationOptimizer:
             candidates.append(_normalise({k: initial_weights.get(k, 1.0) for k in instruments}))
 
         # Score each candidate
-        best_score  = None
-        best_w      = _normalise({ins: 1.0 for ins in instruments})
-        best_metrics: Dict[str, float] = {}
+        best_score = None
+        best_w = _normalise({ins: 1.0 for ins in instruments})
+        best_metrics: dict[str, float] = {}
         iters = 0
 
         for w in candidates:
@@ -207,16 +207,16 @@ class AllocationOptimizer:
             iters += 1
 
             if best_score is None or score > best_score:
-                best_score  = score
-                best_w      = w
+                best_score = score
+                best_w = w
                 best_metrics = metrics
 
         result = OptimizationResult(
-            objective  = objective,
-            weights    = {k: round(v, 4) for k, v in best_w.items()},
-            metrics    = {k: round(v, 4) for k, v in best_metrics.items()},
-            converged  = best_score is not None,
-            iterations = iters,
+            objective=objective,
+            weights={k: round(v, 4) for k, v in best_w.items()},
+            metrics={k: round(v, 4) for k, v in best_metrics.items()},
+            converged=best_score is not None,
+            iterations=iters,
         )
         self._results.append(result)
         logger.debug(f"AllocationOptimizer: {objective.value} score={best_score:.4f} iters={iters}")
@@ -225,57 +225,59 @@ class AllocationOptimizer:
     def _score(
         self,
         objective: OptimizationObjective,
-        port_r:    List[float],
-        returns:   Dict[str, List[float]],
-        weights:   Dict[str, float],
-    ) -> Tuple[float, Dict[str, float]]:
-        sh    = _sharpe(port_r, self._rfr)
-        so    = _sortino(port_r, self._rfr)
-        md    = _max_drawdown(port_r)
-        vol   = _std(port_r)
-        div   = _diversification_ratio(returns, weights)
-        mu    = _mean(port_r)
+        port_r: list[float],
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
+    ) -> tuple[float, dict[str, float]]:
+        sh = _sharpe(port_r, self._rfr)
+        so = _sortino(port_r, self._rfr)
+        md = _max_drawdown(port_r)
+        vol = _std(port_r)
+        div = _diversification_ratio(returns, weights)
+        mu = _mean(port_r)
 
         metrics = {
-            "sharpe":        sh,
-            "sortino":       so,
-            "max_drawdown":  md,
-            "volatility":    vol * math.sqrt(252),
+            "sharpe": sh,
+            "sortino": so,
+            "max_drawdown": md,
+            "volatility": vol * math.sqrt(252),
             "annual_return": mu * 252,
-            "div_ratio":     div,
+            "div_ratio": div,
         }
 
         score_map = {
-            OptimizationObjective.MAX_SHARPE:          sh,
-            OptimizationObjective.MAX_SORTINO:         so,
-            OptimizationObjective.MIN_DRAWDOWN:        -md,
+            OptimizationObjective.MAX_SHARPE: sh,
+            OptimizationObjective.MAX_SORTINO: so,
+            OptimizationObjective.MIN_DRAWDOWN: -md,
             OptimizationObjective.MAX_DIVERSIFICATION: div,
-            OptimizationObjective.RISK_PARITY:         -self._risk_parity_penalty(returns, weights),
-            OptimizationObjective.BALANCED:            0.4 * sh + 0.3 * (-md) + 0.3 * div,
+            OptimizationObjective.RISK_PARITY: -self._risk_parity_penalty(returns, weights),
+            OptimizationObjective.BALANCED: 0.4 * sh + 0.3 * (-md) + 0.3 * div,
             OptimizationObjective.CAPITAL_PRESERVATION: -md * 2 - vol * math.sqrt(252),
-            OptimizationObjective.EXPECTED_UTILITY:    mu * 252 - 0.5 * (vol ** 2) * 252,
+            OptimizationObjective.EXPECTED_UTILITY: mu * 252 - 0.5 * (vol**2) * 252,
         }
         return score_map.get(objective, sh), metrics
 
     def _risk_parity_penalty(
         self,
-        returns: Dict[str, List[float]],
-        weights: Dict[str, float],
+        returns: dict[str, list[float]],
+        weights: dict[str, float],
     ) -> float:
         """Minimize variance of risk contributions (proxy for risk parity)."""
         instruments = list(weights.keys())
-        vols = [statistics.stdev(returns.get(ins, [0.0])) if len(returns.get(ins, [])) >= 2 else 0.0
-                for ins in instruments]
+        vols = [
+            statistics.stdev(returns.get(ins, [0.0])) if len(returns.get(ins, [])) >= 2 else 0.0
+            for ins in instruments
+        ]
         rc = [weights.get(ins, 0.0) * v for ins, v in zip(instruments, vols)]
         mu_rc = _mean(rc)
         return sum((r - mu_rc) ** 2 for r in rc) if rc else 0.0
 
     def compare_objectives(
         self,
-        returns: Dict[str, List[float]],
-    ) -> Dict[str, OptimizationResult]:
+        returns: dict[str, list[float]],
+    ) -> dict[str, OptimizationResult]:
         """Optimize for all objectives and return comparison."""
         return {obj.value: self.optimize(obj, returns) for obj in OptimizationObjective}
 
-    def history(self, last_n: int = 20) -> List[OptimizationResult]:
+    def history(self, last_n: int = 20) -> list[OptimizationResult]:
         return self._results[-last_n:]

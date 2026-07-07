@@ -8,19 +8,22 @@ SQLite persistence for SAQRA.
 from __future__ import annotations
 
 import contextlib
-import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import ChatSession, ResearchQuery, ResearchReport, Recommendation
-
+from trainer.analyst.analyst_models import (
+    ChatSession,
+    Recommendation,
+    ResearchQuery,
+    ResearchReport,
+)
 
 _CREATE_TABLES = """
 CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -101,7 +104,7 @@ class AnalystDatabase:
 
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -136,9 +139,15 @@ class AnalystDatabase:
                 """INSERT OR REPLACE INTO chat_sessions
                    (session_id, researcher, role, message_count, active, created_at, updated_at)
                    VALUES (?,?,?,?,?,?,?)""",
-                (session.session_id, session.researcher, session.role.value,
-                 session.message_count, int(session.active),
-                 session.created_at, session.updated_at),
+                (
+                    session.session_id,
+                    session.researcher,
+                    session.role.value,
+                    session.message_count,
+                    int(session.active),
+                    session.created_at,
+                    session.updated_at,
+                ),
             )
             self._commit(conn)
 
@@ -146,11 +155,9 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM chat_sessions").fetchone()[0]
 
-    def active_session_ids(self) -> List[str]:
+    def active_session_ids(self) -> list[str]:
         with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT session_id FROM chat_sessions WHERE active=1"
-            ).fetchall()
+            rows = conn.execute("SELECT session_id FROM chat_sessions WHERE active=1").fetchall()
         return [r["session_id"] for r in rows]
 
     # ── Research queries ──────────────────────────────────────────────────────
@@ -161,9 +168,15 @@ class AnalystDatabase:
                 """INSERT OR REPLACE INTO research_queries
                    (query_id, session_id, text, query_type, role, timestamp, response_preview)
                    VALUES (?,?,?,?,?,?,?)""",
-                (query.query_id, query.session_id, query.text,
-                 query.query_type.value, query.role.value, query.timestamp,
-                 response_preview[:300]),
+                (
+                    query.query_id,
+                    query.session_id,
+                    query.text,
+                    query.query_type.value,
+                    query.role.value,
+                    query.timestamp,
+                    response_preview[:300],
+                ),
             )
             self._commit(conn)
 
@@ -171,7 +184,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM research_queries").fetchone()[0]
 
-    def recent_queries(self, limit: int = 20) -> List[Dict]:
+    def recent_queries(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM research_queries ORDER BY timestamp DESC LIMIT ?", (limit,)
@@ -187,9 +200,17 @@ class AnalystDatabase:
                    (report_id, report_type, title, period, word_count,
                     citation_count, grounded, generated_at, content)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (report.report_id, report.report_type.value, report.title,
-                 report.period, report.word_count, len(report.citations),
-                 int(report.grounded), report.generated_at, report.content[:2000]),
+                (
+                    report.report_id,
+                    report.report_type.value,
+                    report.title,
+                    report.period,
+                    report.word_count,
+                    len(report.citations),
+                    int(report.grounded),
+                    report.generated_at,
+                    report.content[:2000],
+                ),
             )
             self._commit(conn)
 
@@ -197,11 +218,11 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM generated_reports").fetchone()[0]
 
-    def reports_by_type(self, report_type: str) -> List[Dict]:
+    def reports_by_type(self, report_type: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM generated_reports WHERE report_type=? ORDER BY generated_at DESC",
-                (report_type,)
+                (report_type,),
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -214,8 +235,16 @@ class AnalystDatabase:
                    (rec_id, rec_type, title, description, priority,
                     implemented, citation_count, timestamp)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (rec.rec_id, rec.rec_type.value, rec.title, rec.description,
-                 rec.priority, int(rec.implemented), len(rec.citations), rec.timestamp),
+                (
+                    rec.rec_id,
+                    rec.rec_type.value,
+                    rec.title,
+                    rec.description,
+                    rec.priority,
+                    int(rec.implemented),
+                    len(rec.citations),
+                    rec.timestamp,
+                ),
             )
             self._commit(conn)
 
@@ -223,7 +252,7 @@ class AnalystDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM recommendation_history").fetchone()[0]
 
-    def pending_recommendations(self) -> List[Dict]:
+    def pending_recommendations(self) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM recommendation_history WHERE implemented=0 ORDER BY priority, timestamp"
@@ -251,14 +280,14 @@ class AnalystDatabase:
 
     def record_usage(
         self,
-        provider:        str,
-        model_name:      str,
-        prompt_tokens:   int,
+        provider: str,
+        model_name: str,
+        prompt_tokens: int,
         response_tokens: int,
-        latency_ms:      float,
-        grounded:        bool,
-        safe:            bool,
-        query_type:      str = "",
+        latency_ms: float,
+        grounded: bool,
+        safe: bool,
+        query_type: str = "",
     ) -> None:
         with self._conn() as conn:
             conn.execute(
@@ -266,8 +295,17 @@ class AnalystDatabase:
                    (provider, model_name, prompt_tokens, response_tokens,
                     latency_ms, grounded, safe, query_type, timestamp)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (provider, model_name, prompt_tokens, response_tokens,
-                 latency_ms, int(grounded), int(safe), query_type, time.time()),
+                (
+                    provider,
+                    model_name,
+                    prompt_tokens,
+                    response_tokens,
+                    latency_ms,
+                    int(grounded),
+                    int(safe),
+                    query_type,
+                    time.time(),
+                ),
             )
             self._commit(conn)
 
@@ -278,7 +316,7 @@ class AnalystDatabase:
             ).fetchone()
         return row[0] or 0
 
-    def usage_by_provider(self) -> Dict[str, int]:
+    def usage_by_provider(self) -> dict[str, int]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT provider, COUNT(*) as cnt FROM llm_usage GROUP BY provider"
@@ -287,12 +325,12 @@ class AnalystDatabase:
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
-            "sessions":        self.count_sessions(),
-            "queries":         self.count_queries(),
-            "reports":         self.count_reports(),
+            "sessions": self.count_sessions(),
+            "queries": self.count_queries(),
+            "reports": self.count_reports(),
             "recommendations": self.count_recommendations(),
-            "templates":       self.count_templates(),
-            "total_tokens":    self.total_tokens(),
+            "templates": self.count_templates(),
+            "total_tokens": self.total_tokens(),
         }

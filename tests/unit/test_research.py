@@ -8,7 +8,6 @@ ChampionRegistry, ModelStatus, ReportGenerator, and exporters.
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -16,28 +15,24 @@ import torch
 
 from trainer.research import (
     BenchmarkConditions,
-    BenchmarkResult,
     ChampionRegistry,
     ExperimentRecord,
     ExperimentTracker,
     HyperparameterRecord,
     Leaderboard,
-    ModelRunResult,
     ModelStatus,
     ReportConfig,
     ReportGenerator,
     RollingWindowValidator,
     ScoringWeights,
-    ValidationFold,
     WalkForwardValidator,
 )
 from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
-from trainer.research.leaderboard.leaderboard import LeaderboardEntry
-
 
 # -----------------------------------------------------------------------
 # ExperimentRecord
 # -----------------------------------------------------------------------
+
 
 class TestExperimentRecord:
     def test_creates_with_uuid(self) -> None:
@@ -87,6 +82,7 @@ class TestExperimentRecord:
 # -----------------------------------------------------------------------
 # ExperimentTracker
 # -----------------------------------------------------------------------
+
 
 class TestExperimentTracker:
     @pytest.fixture()
@@ -151,6 +147,7 @@ class TestExperimentTracker:
 # HyperparameterRecord
 # -----------------------------------------------------------------------
 
+
 class TestHyperparameterRecord:
     def test_defaults(self) -> None:
         h = HyperparameterRecord()
@@ -181,6 +178,7 @@ class TestHyperparameterRecord:
 # BenchmarkConditions
 # -----------------------------------------------------------------------
 
+
 class TestBenchmarkConditions:
     def test_validate_passes(self) -> None:
         BenchmarkConditions(train_ratio=0.7, val_ratio=0.15).validate()
@@ -202,24 +200,28 @@ class TestBenchmarkConditions:
 # Leaderboard
 # -----------------------------------------------------------------------
 
+
 def _make_benchmark_result(n_models: int = 3) -> BenchmarkResult:
     """Build a synthetic BenchmarkResult for testing."""
     import uuid
+
     runs = []
     for i in range(n_models):
-        runs.append(ModelRunResult(
-            model_name=f"model_{i}",
-            metrics={
-                "accuracy": 0.60 + i * 0.05,
-                "f1_macro": 0.58 + i * 0.05,
-                "f1_weighted": 0.59 + i * 0.05,
-                "calibration_error": 0.10 - i * 0.02,
-                "inference_latency_ms": 5.0 - i * 1.0,
-            },
-            training_time_seconds=30.0 + i * 10,
-            model_size_mb=1.5 + i * 0.5,
-            status="completed",
-        ))
+        runs.append(
+            ModelRunResult(
+                model_name=f"model_{i}",
+                metrics={
+                    "accuracy": 0.60 + i * 0.05,
+                    "f1_macro": 0.58 + i * 0.05,
+                    "f1_weighted": 0.59 + i * 0.05,
+                    "calibration_error": 0.10 - i * 0.02,
+                    "inference_latency_ms": 5.0 - i * 1.0,
+                },
+                training_time_seconds=30.0 + i * 10,
+                model_size_mb=1.5 + i * 0.5,
+                status="completed",
+            )
+        )
     return BenchmarkResult(
         benchmark_id=str(uuid.uuid4()),
         conditions=BenchmarkConditions(),
@@ -267,12 +269,16 @@ class TestLeaderboard:
 
     def test_failed_runs_appear_last(self) -> None:
         import uuid
+
         result = BenchmarkResult(
             benchmark_id=str(uuid.uuid4()),
             conditions=BenchmarkConditions(),
             runs=[
-                ModelRunResult("good", metrics={"accuracy": 0.8, "f1_macro": 0.75,
-                                                "f1_weighted": 0.76}, status="completed"),
+                ModelRunResult(
+                    "good",
+                    metrics={"accuracy": 0.8, "f1_macro": 0.75, "f1_weighted": 0.76},
+                    status="completed",
+                ),
                 ModelRunResult("bad", status="failed", error="OOM"),
             ],
         )
@@ -282,8 +288,9 @@ class TestLeaderboard:
         assert entries[-1].status == "failed"
 
     def test_custom_weights(self) -> None:
-        weights = ScoringWeights(accuracy=1.0, f1_macro=0.0, f1_weighted=0.0,
-                                  calibration_error=0.0, inference_speed=0.0)
+        weights = ScoringWeights(
+            accuracy=1.0, f1_macro=0.0, f1_weighted=0.0, calibration_error=0.0, inference_speed=0.0
+        )
         lb = Leaderboard(weights=weights)
         lb.ingest(_make_benchmark_result(3))
         # model_2 has highest accuracy so must be rank 1
@@ -293,6 +300,7 @@ class TestLeaderboard:
 # -----------------------------------------------------------------------
 # WalkForwardValidator
 # -----------------------------------------------------------------------
+
 
 class TestWalkForwardValidator:
     @pytest.fixture()
@@ -346,6 +354,7 @@ class TestWalkForwardValidator:
 # RollingWindowValidator
 # -----------------------------------------------------------------------
 
+
 class TestRollingWindowValidator:
     @pytest.fixture()
     def data(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -383,6 +392,7 @@ class TestRollingWindowValidator:
 # -----------------------------------------------------------------------
 # ChampionRegistry and ModelStatus
 # -----------------------------------------------------------------------
+
 
 class TestModelStatus:
     def test_champion_is_production_eligible(self) -> None:
@@ -467,6 +477,7 @@ class TestChampionRegistry:
 # Report exporters
 # -----------------------------------------------------------------------
 
+
 class TestReportExporters:
     @pytest.fixture()
     def sample_data(self) -> dict:
@@ -474,11 +485,21 @@ class TestReportExporters:
             "title": "Test Report",
             "generated_at": "2024-07-04T12:00:00",
             "leaderboard": [
-                {"rank": 1, "model_name": "quant_v1", "architecture": "LSTM",
-                 "accuracy": 0.75, "f1_macro": 0.72, "f1_weighted": 0.73,
-                 "calibration_error": 0.08, "inference_latency_ms": 3.2,
-                 "training_time_seconds": 45.0, "model_size_mb": 1.8,
-                 "overall_score": 0.81, "gpu_memory_mb": 0.0, "status": "completed"},
+                {
+                    "rank": 1,
+                    "model_name": "quant_v1",
+                    "architecture": "LSTM",
+                    "accuracy": 0.75,
+                    "f1_macro": 0.72,
+                    "f1_weighted": 0.73,
+                    "calibration_error": 0.08,
+                    "inference_latency_ms": 3.2,
+                    "training_time_seconds": 45.0,
+                    "model_size_mb": 1.8,
+                    "overall_score": 0.81,
+                    "gpu_memory_mb": 0.0,
+                    "status": "completed",
+                },
             ],
             "conditions": {"random_seed": 42, "max_epochs": 10},
             "failure_analysis": [],
@@ -486,6 +507,7 @@ class TestReportExporters:
 
     def test_json_export(self, sample_data, tmp_path: Path) -> None:
         from trainer.research.report.exporters import export_json
+
         p = tmp_path / "report.json"
         export_json(sample_data, p)
         assert p.exists()
@@ -494,6 +516,7 @@ class TestReportExporters:
 
     def test_markdown_export(self, sample_data, tmp_path: Path) -> None:
         from trainer.research.report.exporters import export_markdown
+
         p = tmp_path / "report.md"
         export_markdown(sample_data, p)
         assert p.exists()
@@ -503,6 +526,7 @@ class TestReportExporters:
 
     def test_html_export(self, sample_data, tmp_path: Path) -> None:
         from trainer.research.report.exporters import export_html
+
         p = tmp_path / "report.html"
         export_html(sample_data, p)
         assert p.exists()
@@ -512,6 +536,7 @@ class TestReportExporters:
 
     def test_csv_export(self, sample_data, tmp_path: Path) -> None:
         from trainer.research.report.exporters import export_csv
+
         p = tmp_path / "report.csv"
         export_csv(sample_data, p)
         assert p.exists()
@@ -523,13 +548,16 @@ class TestReportExporters:
 # ReportGenerator
 # -----------------------------------------------------------------------
 
+
 class TestReportGenerator:
     def test_generates_benchmark_report(self, tmp_path: Path) -> None:
-        gen = ReportGenerator(ReportConfig(
-            title="Unit Test Report",
-            formats=["json", "markdown"],
-            output_dir=tmp_path,
-        ))
+        gen = ReportGenerator(
+            ReportConfig(
+                title="Unit Test Report",
+                formats=["json", "markdown"],
+                output_dir=tmp_path,
+            )
+        )
         result = _make_benchmark_result(2)
         lb = Leaderboard()
         lb.ingest(result)

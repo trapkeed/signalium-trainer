@@ -30,88 +30,31 @@ Usage::
     print(resp["data"]["executive_summary"])
 """
 
-# ── Core Types ─────────────────────────────────────────────────────────────────
-from trainer.execution.execution_types import (
-    Session,
-    ExecutionGrade,
-    OrderType,
-    TimingRecommendation,
-    SizingMethod,
-    ManagementAction,
-    ExecutionForecast,
-    BrokerConstraints,
-    SESSION_QUALITY,
-    default_broker,
+# ── Entry Quality ──────────────────────────────────────────────────────────────
+from trainer.execution.entry_quality import (
+    EntryQualityEngine,
+    EntryQualityResult,
 )
 
 # ── Entry Zones ────────────────────────────────────────────────────────────────
 from trainer.execution.entry_zones import (
-    EntryZones,
     EntryZoneEngine,
+    EntryZones,
 )
 
-# ── Entry Quality ──────────────────────────────────────────────────────────────
-from trainer.execution.entry_quality import (
-    EntryQualityResult,
-    EntryQualityEngine,
+# ── API ────────────────────────────────────────────────────────────────────────
+from trainer.execution.execution_api import (
+    ExecutionApi,
 )
 
-# ── Stop Loss ──────────────────────────────────────────────────────────────────
-from trainer.execution.stop_loss_engine import (
-    StopLossRecommendation,
-    StopLossEngine,
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+from trainer.execution.execution_dashboard import (
+    ExecutionDashboard,
 )
 
-# ── Take Profit ────────────────────────────────────────────────────────────────
-from trainer.execution.take_profit_engine import (
-    TakeProfitRecommendation,
-    TakeProfitEngine,
-)
-
-# ── Position Sizing ────────────────────────────────────────────────────────────
-from trainer.execution.position_sizer import (
-    RiskLimits,
-    SizingResult,
-    PositionSizer,
-)
-
-# ── Trade Management ───────────────────────────────────────────────────────────
-from trainer.execution.trade_manager import (
-    ManagementRule,
-    ManagementPlan,
-    TradeManager,
-)
-
-# ── Execution Timing ───────────────────────────────────────────────────────────
-from trainer.execution.execution_timing import (
-    TimingFactor,
-    TimingAssessment,
-    ExecutionTiming,
-)
-
-# ── Risk Engine ────────────────────────────────────────────────────────────────
-from trainer.execution.risk_engine import (
-    RiskProfile,
-    RiskEngine,
-)
-
-# ── Order Strategy ─────────────────────────────────────────────────────────────
-from trainer.execution.order_strategy import (
-    OrderRecommendation,
-    OrderStrategyEngine,
-)
-
-# ── Trade Scorer ───────────────────────────────────────────────────────────────
-from trainer.execution.trade_scorer import (
-    TradeScore,
-    TradeScorer,
-)
-
-# ── Execution Simulator ────────────────────────────────────────────────────────
-from trainer.execution.execution_simulator import (
-    ScenarioOutcome,
-    SimulationResult,
-    ExecutionSimulator,
+# ── Database ───────────────────────────────────────────────────────────────────
+from trainer.execution.execution_database import (
+    ExecutionDatabase,
 )
 
 # ── Execution Planner ──────────────────────────────────────────────────────────
@@ -120,51 +63,130 @@ from trainer.execution.execution_planner import (
     ExecutionPlanner,
 )
 
-# ── Database ───────────────────────────────────────────────────────────────────
-from trainer.execution.execution_database import (
-    ExecutionDatabase,
+# ── Execution Simulator ────────────────────────────────────────────────────────
+from trainer.execution.execution_simulator import (
+    ExecutionSimulator,
+    ScenarioOutcome,
+    SimulationResult,
 )
 
-# ── Dashboard ──────────────────────────────────────────────────────────────────
-from trainer.execution.execution_dashboard import (
-    ExecutionDashboard,
+# ── Execution Timing ───────────────────────────────────────────────────────────
+from trainer.execution.execution_timing import (
+    ExecutionTiming,
+    TimingAssessment,
+    TimingFactor,
 )
 
-# ── API ────────────────────────────────────────────────────────────────────────
-from trainer.execution.execution_api import (
-    ExecutionApi,
+# ── Core Types ─────────────────────────────────────────────────────────────────
+from trainer.execution.execution_types import (
+    SESSION_QUALITY,
+    BrokerConstraints,
+    ExecutionForecast,
+    ExecutionGrade,
+    ManagementAction,
+    OrderType,
+    Session,
+    SizingMethod,
+    TimingRecommendation,
+    default_broker,
+)
+
+# ── Order Strategy ─────────────────────────────────────────────────────────────
+from trainer.execution.order_strategy import (
+    OrderRecommendation,
+    OrderStrategyEngine,
+)
+
+# ── Position Sizing ────────────────────────────────────────────────────────────
+from trainer.execution.position_sizer import (
+    PositionSizer,
+    RiskLimits,
+    SizingResult,
+)
+
+# ── Risk Engine ────────────────────────────────────────────────────────────────
+from trainer.execution.risk_engine import (
+    RiskEngine,
+    RiskProfile,
+)
+
+# ── Stop Loss ──────────────────────────────────────────────────────────────────
+from trainer.execution.stop_loss_engine import (
+    StopLossEngine,
+    StopLossRecommendation,
+)
+
+# ── Take Profit ────────────────────────────────────────────────────────────────
+from trainer.execution.take_profit_engine import (
+    TakeProfitEngine,
+    TakeProfitRecommendation,
+)
+
+# ── Trade Management ───────────────────────────────────────────────────────────
+from trainer.execution.trade_manager import (
+    ManagementPlan,
+    ManagementRule,
+    TradeManager,
+)
+
+# ── Trade Scorer ───────────────────────────────────────────────────────────────
+from trainer.execution.trade_scorer import (
+    TradeScore,
+    TradeScorer,
 )
 
 __all__ = [
     # Types
-    "Session", "ExecutionGrade", "OrderType", "TimingRecommendation",
-    "SizingMethod", "ManagementAction",
-    "ExecutionForecast", "BrokerConstraints",
-    "SESSION_QUALITY", "default_broker",
+    "Session",
+    "ExecutionGrade",
+    "OrderType",
+    "TimingRecommendation",
+    "SizingMethod",
+    "ManagementAction",
+    "ExecutionForecast",
+    "BrokerConstraints",
+    "SESSION_QUALITY",
+    "default_broker",
     # Zones
-    "EntryZones", "EntryZoneEngine",
+    "EntryZones",
+    "EntryZoneEngine",
     # Quality
-    "EntryQualityResult", "EntryQualityEngine",
+    "EntryQualityResult",
+    "EntryQualityEngine",
     # Stop Loss
-    "StopLossRecommendation", "StopLossEngine",
+    "StopLossRecommendation",
+    "StopLossEngine",
     # Take Profit
-    "TakeProfitRecommendation", "TakeProfitEngine",
+    "TakeProfitRecommendation",
+    "TakeProfitEngine",
     # Sizing
-    "RiskLimits", "SizingResult", "PositionSizer",
+    "RiskLimits",
+    "SizingResult",
+    "PositionSizer",
     # Management
-    "ManagementRule", "ManagementPlan", "TradeManager",
+    "ManagementRule",
+    "ManagementPlan",
+    "TradeManager",
     # Timing
-    "TimingFactor", "TimingAssessment", "ExecutionTiming",
+    "TimingFactor",
+    "TimingAssessment",
+    "ExecutionTiming",
     # Risk
-    "RiskProfile", "RiskEngine",
+    "RiskProfile",
+    "RiskEngine",
     # Order
-    "OrderRecommendation", "OrderStrategyEngine",
+    "OrderRecommendation",
+    "OrderStrategyEngine",
     # Scorer
-    "TradeScore", "TradeScorer",
+    "TradeScore",
+    "TradeScorer",
     # Simulator
-    "ScenarioOutcome", "SimulationResult", "ExecutionSimulator",
+    "ScenarioOutcome",
+    "SimulationResult",
+    "ExecutionSimulator",
     # Planner
-    "ExecutionPlan", "ExecutionPlanner",
+    "ExecutionPlan",
+    "ExecutionPlanner",
     # Database
     "ExecutionDatabase",
     # Dashboard

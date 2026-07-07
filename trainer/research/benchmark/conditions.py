@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -40,8 +40,12 @@ class BenchmarkConditions:
     window_length: int = 60
     eval_metrics: list[str] = field(
         default_factory=lambda: [
-            "loss", "accuracy", "precision_macro", "recall_macro",
-            "f1_macro", "f1_weighted",
+            "loss",
+            "accuracy",
+            "precision_macro",
+            "recall_macro",
+            "f1_macro",
+            "f1_weighted",
         ]
     )
     device: str = "cpu"
@@ -61,9 +65,9 @@ class BenchmarkConditions:
                 f"train_ratio ({self.train_ratio}) + val_ratio ({self.val_ratio}) "
                 "must be < 1.0 to leave room for a test split."
             )
-        if not 0 < self.max_epochs:
+        if not self.max_epochs > 0:
             raise ValueError("max_epochs must be > 0.")
-        if not 0 < self.batch_size:
+        if not self.batch_size > 0:
             raise ValueError("batch_size must be > 0.")
 
     def to_dict(self) -> dict[str, Any]:

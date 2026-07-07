@@ -12,17 +12,22 @@ import contextlib
 import json
 import sqlite3
 import time
-from typing import Any, Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.icari.icari_models import (
-    AllocationResult, RiskBudget, PortfolioRisk, CapitalHealth,
-    ScenarioResult, OptimizationResult, DrawdownEvent,
+    AllocationResult,
+    CapitalHealth,
+    DrawdownEvent,
+    OptimizationResult,
+    PortfolioRisk,
+    RiskBudget,
+    ScenarioResult,
 )
 
 _CREATE_TABLES = """
@@ -124,7 +129,7 @@ class IcariDatabase:
 
     def __init__(self, db_path: str = ":memory:"):
         self._db_path = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -159,16 +164,28 @@ class IcariDatabase:
                 """INSERT OR REPLACE INTO capital_allocation
                    (request_id, instrument, status, allocation_frac, allocation_usd, confidence, rationale, timestamp)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (result.request_id, result.instrument, result.status.value,
-                 result.allocation_frac, result.allocation_usd, result.confidence,
-                 result.rationale, result.timestamp),
+                (
+                    result.request_id,
+                    result.instrument,
+                    result.status.value,
+                    result.allocation_frac,
+                    result.allocation_usd,
+                    result.confidence,
+                    result.rationale,
+                    result.timestamp,
+                ),
             )
             conn.execute(
                 """INSERT INTO allocation_history
                    (instrument, status, allocation_frac, confidence, timestamp)
                    VALUES (?,?,?,?,?)""",
-                (result.instrument, result.status.value, result.allocation_frac,
-                 result.confidence, result.timestamp),
+                (
+                    result.instrument,
+                    result.status.value,
+                    result.allocation_frac,
+                    result.confidence,
+                    result.timestamp,
+                ),
             )
             self._commit(conn)
 
@@ -176,19 +193,22 @@ class IcariDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM capital_allocation").fetchone()[0]
 
-    def recent_allocations(self, limit: int = 20) -> List[Dict]:
+    def recent_allocations(self, limit: int = 20) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT * FROM capital_allocation ORDER BY timestamp DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def allocation_stats(self) -> Dict:
+    def allocation_stats(self) -> dict:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT status, COUNT(*) as cnt, AVG(confidence) as avg_conf FROM capital_allocation GROUP BY status"
             ).fetchall()
-        return {r["status"]: {"count": r["cnt"], "avg_confidence": round(r["avg_conf"] or 0.0, 4)} for r in row}
+        return {
+            r["status"]: {"count": r["cnt"], "avg_confidence": round(r["avg_conf"] or 0.0, 4)}
+            for r in row
+        }
 
     # ── Risk budgets ──────────────────────────────────────────────────────────
 
@@ -214,8 +234,16 @@ class IcariDatabase:
                 """INSERT INTO portfolio_risk
                    (var_95, var_99, cvar_95, max_dd, port_vol, div_ratio, concentration, timestamp)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (pr.var_95, pr.var_99, pr.cvar_95, pr.max_expected_drawdown,
-                 pr.portfolio_volatility, pr.diversification_ratio, pr.risk_concentration, time.time()),
+                (
+                    pr.var_95,
+                    pr.var_99,
+                    pr.cvar_95,
+                    pr.max_expected_drawdown,
+                    pr.portfolio_volatility,
+                    pr.diversification_ratio,
+                    pr.risk_concentration,
+                    time.time(),
+                ),
             )
             self._commit(conn)
 
@@ -223,7 +251,7 @@ class IcariDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM portfolio_risk").fetchone()[0]
 
-    def latest_risk(self) -> Optional[Dict]:
+    def latest_risk(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM portfolio_risk ORDER BY timestamp DESC LIMIT 1"
@@ -238,8 +266,14 @@ class IcariDatabase:
                 """INSERT INTO scenario_results
                    (scenario, portfolio_return, portfolio_var, max_drawdown, resilience, timestamp)
                    VALUES (?,?,?,?,?,?)""",
-                (result.scenario.value, result.portfolio_return, result.portfolio_var,
-                 result.max_drawdown, result.resilience_score, time.time()),
+                (
+                    result.scenario.value,
+                    result.portfolio_return,
+                    result.portfolio_var,
+                    result.max_drawdown,
+                    result.resilience_score,
+                    time.time(),
+                ),
             )
             self._commit(conn)
 
@@ -247,7 +281,7 @@ class IcariDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM scenario_results").fetchone()[0]
 
-    def worst_scenario(self) -> Optional[Dict]:
+    def worst_scenario(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM scenario_results ORDER BY resilience ASC LIMIT 1"
@@ -262,9 +296,17 @@ class IcariDatabase:
                 """INSERT INTO capital_health
                    (efficiency, risk_score, allocation_q, diversification, stability, utilisation, overall, grade, timestamp)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                (health.efficiency_score, health.risk_score, health.allocation_quality,
-                 health.diversification, health.stability, health.utilisation_score,
-                 health.overall_score, health.grade.value, health.timestamp),
+                (
+                    health.efficiency_score,
+                    health.risk_score,
+                    health.allocation_quality,
+                    health.diversification,
+                    health.stability,
+                    health.utilisation_score,
+                    health.overall_score,
+                    health.grade.value,
+                    health.timestamp,
+                ),
             )
             self._commit(conn)
 
@@ -272,7 +314,7 @@ class IcariDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM capital_health").fetchone()[0]
 
-    def latest_health(self) -> Optional[Dict]:
+    def latest_health(self) -> dict | None:
         with self._conn() as conn:
             row = conn.execute(
                 "SELECT * FROM capital_health ORDER BY timestamp DESC LIMIT 1"
@@ -287,9 +329,15 @@ class IcariDatabase:
                 """INSERT OR REPLACE INTO optimization_results
                    (result_id, objective, weights, metrics, converged, iterations, timestamp)
                    VALUES (?,?,?,?,?,?,?)""",
-                (result.result_id, result.objective.value,
-                 json.dumps(result.weights), json.dumps(result.metrics),
-                 int(result.converged), result.iterations, result.timestamp),
+                (
+                    result.result_id,
+                    result.objective.value,
+                    json.dumps(result.weights),
+                    json.dumps(result.metrics),
+                    int(result.converged),
+                    result.iterations,
+                    result.timestamp,
+                ),
             )
             self._commit(conn)
 
@@ -305,8 +353,16 @@ class IcariDatabase:
                 """INSERT OR REPLACE INTO drawdown_events
                    (event_id, peak, trough, drawdown, mode, recovered, start_ts, end_ts)
                    VALUES (?,?,?,?,?,?,?,?)""",
-                (event.event_id, event.peak, event.trough, event.drawdown,
-                 event.mode.value, int(event.recovered), event.start_ts, event.end_ts),
+                (
+                    event.event_id,
+                    event.peak,
+                    event.trough,
+                    event.drawdown,
+                    event.mode.value,
+                    int(event.recovered),
+                    event.start_ts,
+                    event.end_ts,
+                ),
             )
             self._commit(conn)
 
@@ -314,22 +370,20 @@ class IcariDatabase:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM drawdown_events").fetchone()[0]
 
-    def unrecovered_events(self) -> List[Dict]:
+    def unrecovered_events(self) -> list[dict]:
         with self._conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM drawdown_events WHERE recovered=0"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM drawdown_events WHERE recovered=0").fetchall()
         return [dict(r) for r in rows]
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         return {
-            "allocations":      self.count_allocations(),
-            "risk_snapshots":   self.count_risk_snapshots(),
+            "allocations": self.count_allocations(),
+            "risk_snapshots": self.count_risk_snapshots(),
             "health_snapshots": self.count_health_snapshots(),
-            "scenarios":        self.count_scenarios(),
-            "optimizations":    self.count_optimizations(),
-            "drawdown_events":  self.count_drawdown_events(),
-            "budgets":          self.count_budgets(),
+            "scenarios": self.count_scenarios(),
+            "optimizations": self.count_optimizations(),
+            "drawdown_events": self.count_drawdown_events(),
+            "budgets": self.count_budgets(),
         }

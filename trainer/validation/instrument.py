@@ -19,13 +19,14 @@ Usage::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Canonical instrument registry
@@ -33,20 +34,24 @@ from loguru import logger
 
 
 INSTRUMENTS: dict[str, dict[str, Any]] = {
-    "EURUSD":  {"type": "forex", "pip_size": 0.0001, "description": "Euro / US Dollar"},
-    "GBPUSD":  {"type": "forex", "pip_size": 0.0001, "description": "British Pound / US Dollar"},
-    "USDJPY":  {"type": "forex", "pip_size": 0.01,   "description": "US Dollar / Japanese Yen"},
-    "AUDUSD":  {"type": "forex", "pip_size": 0.0001, "description": "Australian Dollar / US Dollar"},
-    "USDCAD":  {"type": "forex", "pip_size": 0.0001, "description": "US Dollar / Canadian Dollar"},
-    "USDCHF":  {"type": "forex", "pip_size": 0.0001, "description": "US Dollar / Swiss Franc"},
-    "NZDUSD":  {"type": "forex", "pip_size": 0.0001, "description": "New Zealand Dollar / US Dollar"},
-    "XAUUSD":  {"type": "commodity", "pip_size": 0.01, "description": "Gold / US Dollar"},
-    "XAGUSD":  {"type": "commodity", "pip_size": 0.001, "description": "Silver / US Dollar"},
-    "NAS100":  {"type": "index",   "pip_size": 0.01,  "description": "NASDAQ 100 Index"},
-    "US30":    {"type": "index",   "pip_size": 0.01,  "description": "Dow Jones Industrial Average"},
-    "SPX500":  {"type": "index",   "pip_size": 0.01,  "description": "S&P 500 Index"},
-    "BTCUSD":  {"type": "crypto",  "pip_size": 1.0,   "description": "Bitcoin / US Dollar"},
-    "ETHUSD":  {"type": "crypto",  "pip_size": 0.01,  "description": "Ethereum / US Dollar"},
+    "EURUSD": {"type": "forex", "pip_size": 0.0001, "description": "Euro / US Dollar"},
+    "GBPUSD": {"type": "forex", "pip_size": 0.0001, "description": "British Pound / US Dollar"},
+    "USDJPY": {"type": "forex", "pip_size": 0.01, "description": "US Dollar / Japanese Yen"},
+    "AUDUSD": {"type": "forex", "pip_size": 0.0001, "description": "Australian Dollar / US Dollar"},
+    "USDCAD": {"type": "forex", "pip_size": 0.0001, "description": "US Dollar / Canadian Dollar"},
+    "USDCHF": {"type": "forex", "pip_size": 0.0001, "description": "US Dollar / Swiss Franc"},
+    "NZDUSD": {
+        "type": "forex",
+        "pip_size": 0.0001,
+        "description": "New Zealand Dollar / US Dollar",
+    },
+    "XAUUSD": {"type": "commodity", "pip_size": 0.01, "description": "Gold / US Dollar"},
+    "XAGUSD": {"type": "commodity", "pip_size": 0.001, "description": "Silver / US Dollar"},
+    "NAS100": {"type": "index", "pip_size": 0.01, "description": "NASDAQ 100 Index"},
+    "US30": {"type": "index", "pip_size": 0.01, "description": "Dow Jones Industrial Average"},
+    "SPX500": {"type": "index", "pip_size": 0.01, "description": "S&P 500 Index"},
+    "BTCUSD": {"type": "crypto", "pip_size": 1.0, "description": "Bitcoin / US Dollar"},
+    "ETHUSD": {"type": "crypto", "pip_size": 0.01, "description": "Ethereum / US Dollar"},
 }
 
 # User-extensible registry (not just the 14 canonical above)
@@ -86,14 +91,14 @@ def get_all_instruments() -> dict[str, dict[str, Any]]:
 
 
 TIMEFRAMES: dict[str, int] = {
-    "1M":  1,       # 1 minute in minutes
-    "5M":  5,
+    "1M": 1,  # 1 minute in minutes
+    "5M": 5,
     "15M": 15,
     "30M": 30,
-    "1H":  60,
-    "4H":  240,
-    "1D":  1440,    # Daily
-    "1W":  10080,   # Weekly
+    "1H": 60,
+    "4H": 240,
+    "1D": 1440,  # Daily
+    "1W": 10080,  # Weekly
 }
 
 _CUSTOM_TIMEFRAMES: dict[str, int] = {}
@@ -187,14 +192,11 @@ class MultiAssetValidationResult:
     worst_instrument: str = ""
     worst_timeframe: str = ""
 
-    def get(self, instrument: str, timeframe: str) -> Optional[InstrumentResult]:
+    def get(self, instrument: str, timeframe: str) -> InstrumentResult | None:
         return self.results.get(instrument, {}).get(timeframe)
 
     def all_results(self) -> list[InstrumentResult]:
-        return [
-            r for tf_map in self.results.values()
-            for r in tf_map.values()
-        ]
+        return [r for tf_map in self.results.values() for r in tf_map.values()]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -238,7 +240,7 @@ class MultiAssetValidator:
         instruments: list[str],
         timeframes: list[str],
         strategy: Any,
-        eval_fn: Optional[Callable] = None,
+        eval_fn: Callable | None = None,
         min_folds_required: int = 3,
     ) -> None:
         self._instruments = [i.upper() for i in instruments]
@@ -293,20 +295,25 @@ class MultiAssetValidator:
 
         # Worst instrument
         instr_accs = {
-            instr: float(np.mean([
-                r.mean_accuracy for r in out[instr].values() if r.status == "ok"
-            ] or [0.0]))
+            instr: float(
+                np.mean([r.mean_accuracy for r in out[instr].values() if r.status == "ok"] or [0.0])
+            )
             for instr in self._instruments
         }
         worst_instr = min(instr_accs, key=lambda k: instr_accs[k]) if instr_accs else ""
 
         # Worst timeframe
         tf_accs = {
-            tf: float(np.mean([
-                out[instr].get(tf, InstrumentResult("", "")).mean_accuracy
-                for instr in self._instruments
-                if out.get(instr, {}).get(tf, InstrumentResult("", "")).status == "ok"
-            ] or [0.0]))
+            tf: float(
+                np.mean(
+                    [
+                        out[instr].get(tf, InstrumentResult("", "")).mean_accuracy
+                        for instr in self._instruments
+                        if out.get(instr, {}).get(tf, InstrumentResult("", "")).status == "ok"
+                    ]
+                    or [0.0]
+                )
+            )
             for tf in self._timeframes
         }
         worst_tf = min(tf_accs, key=lambda k: tf_accs[k]) if tf_accs else ""

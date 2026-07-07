@@ -8,16 +8,17 @@ if it is not installed by returning None.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
 _MPL_AVAILABLE = False
 try:
     import matplotlib
+
     matplotlib.use("Agg")  # Non-interactive backend — safe for server environments
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
+
     _MPL_AVAILABLE = True
 except ImportError:
     pass
@@ -26,8 +27,7 @@ except ImportError:
 def _require_matplotlib(fn_name: str) -> None:
     if not _MPL_AVAILABLE:
         raise ImportError(
-            f"{fn_name}() requires matplotlib. "
-            "Install it with: pip install matplotlib"
+            f"{fn_name}() requires matplotlib. " "Install it with: pip install matplotlib"
         )
 
 
@@ -35,7 +35,7 @@ def plot_training_curves(
     history: dict[str, list[float]],
     output_path: Path,
     title: str = "Training Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot train/val loss and accuracy curves side-by-side.
 
     Args:
@@ -72,8 +72,9 @@ def plot_training_curves(
     if "accuracy" in history:
         ax_acc.plot(epochs, history["accuracy"], label="Val Accuracy", color="mediumseagreen")
     if "f1_macro" in history:
-        ax_acc.plot(epochs, history["f1_macro"], label="Val F1 (macro)",
-                    color="goldenrod", linestyle="--")
+        ax_acc.plot(
+            epochs, history["f1_macro"], label="Val F1 (macro)", color="goldenrod", linestyle="--"
+        )
     ax_acc.set_xlabel("Epoch")
     ax_acc.set_ylabel("Score")
     ax_acc.set_title("Accuracy & F1")
@@ -92,7 +93,7 @@ def plot_confusion_matrix(
     class_labels: list[str],
     output_path: Path,
     title: str = "Confusion Matrix",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot and save a confusion matrix.
 
     Args:
@@ -128,9 +129,14 @@ def plot_confusion_matrix(
 
     for i in range(n):
         for j in range(n):
-            ax.text(j, i, str(cm[i, j].item()),
-                    ha="center", va="center",
-                    color="white" if cm[i, j] > cm.max() / 2 else "black")
+            ax.text(
+                j,
+                i,
+                str(cm[i, j].item()),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > cm.max() / 2 else "black",
+            )
 
     plt.tight_layout()
     plt.savefig(str(output_path), dpi=120, bbox_inches="tight")
@@ -144,7 +150,7 @@ def plot_roc_curves(
     class_labels: list[str],
     output_path: Path,
     title: str = "ROC Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot one-vs-rest ROC curves for each class.
 
     Args:
@@ -195,8 +201,7 @@ def plot_roc_curves(
 
         auc = sum((fprs[i + 1] - fprs[i]) * tprs[i] for i in range(len(tprs) - 1))
         color = colors[c % len(colors)]
-        ax.plot(fprs, tprs, color=color,
-                label=f"{class_labels[c]} (AUC={auc:.3f})")
+        ax.plot(fprs, tprs, color=color, label=f"{class_labels[c]} (AUC={auc:.3f})")
 
     ax.set_xlabel("False Positive Rate")
     ax.set_ylabel("True Positive Rate")
@@ -217,7 +222,7 @@ def plot_calibration_curve(
     output_path: Path,
     n_bins: int = 10,
     title: str = "Calibration Curve",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot reliability diagram for one class.
 
     Args:
@@ -269,7 +274,7 @@ def plot_pr_curve(
     class_labels: list[str],
     output_path: Path,
     title: str = "Precision-Recall Curves",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot precision-recall curves for each class.
 
     Args:
@@ -328,7 +333,7 @@ def plot_leaderboard(
     output_path: Path,
     title: str = "Model Leaderboard",
     metric: str = "overall_score",
-) -> Optional[Path]:
+) -> Path | None:
     """Plot a horizontal bar chart of the leaderboard.
 
     Args:
@@ -358,8 +363,13 @@ def plot_leaderboard(
     ax.set_title(title)
     ax.set_xlim(0, max(scores) * 1.15 if scores else 1.0)
     for bar, score in zip(bars, scores[::-1]):
-        ax.text(bar.get_width() + 0.002, bar.get_y() + bar.get_height() / 2,
-                f"{score:.4f}", va="center", fontsize=9)
+        ax.text(
+            bar.get_width() + 0.002,
+            bar.get_y() + bar.get_height() / 2,
+            f"{score:.4f}",
+            va="center",
+            fontsize=9,
+        )
     ax.grid(axis="x", alpha=0.3)
     plt.tight_layout()
     plt.savefig(str(output_path), dpi=120, bbox_inches="tight")

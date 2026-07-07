@@ -26,11 +26,9 @@ Usage::
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # TrendPoint — one data point in a trend series
@@ -44,7 +42,7 @@ class TrendPoint:
     experiment_id: str = ""
     name: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "recorded_at": self.recorded_at,
             "value": round(self.value, 3),
@@ -62,18 +60,18 @@ class TrendPoint:
 class TrendResult:
     series_name: str
     n: int
-    slope: float           # pts per period (positive = improving)
+    slope: float  # pts per period (positive = improving)
     intercept: float
-    trend_label: str       # "improving" | "stable" | "declining"
+    trend_label: str  # "improving" | "stable" | "declining"
     r_squared: float
     mean: float
     std: float
     latest: float
     peak: float
     trough: float
-    points: List[TrendPoint] = field(default_factory=list)
+    points: list[TrendPoint] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "series_name": self.series_name,
             "n": self.n,
@@ -101,11 +99,9 @@ class HRSARegressionAlert:
     peak_value: float
     drop: float
     severity: str
-    detected_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    detected_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "series_name": self.series_name,
             "current_value": round(self.current_value, 2),
@@ -120,7 +116,8 @@ class HRSARegressionAlert:
 # Linear regression helper
 # ---------------------------------------------------------------------------
 
-def _linreg(xs: List[float], ys: List[float]) -> Tuple[float, float, float]:
+
+def _linreg(xs: list[float], ys: list[float]) -> tuple[float, float, float]:
     """Return (slope, intercept, r_squared)."""
     n = len(xs)
     if n < 2:
@@ -137,12 +134,12 @@ def _linreg(xs: List[float], ys: List[float]) -> Tuple[float, float, float]:
     return slope, intercept, r2
 
 
-def _std(values: List[float]) -> float:
+def _std(values: list[float]) -> float:
     if len(values) < 2:
         return 0.0
     mean = sum(values) / len(values)
     var = sum((v - mean) ** 2 for v in values) / len(values)
-    return var ** 0.5
+    return var**0.5
 
 
 def _trend_label(slope: float, threshold: float = 0.5) -> str:
@@ -173,11 +170,11 @@ class HRSATrendEngine:
 
     def __init__(self) -> None:
         # composite series: list of TrendPoints
-        self._composite_series: List[TrendPoint] = []
+        self._composite_series: list[TrendPoint] = []
         # category series: Dict[category_name, List[TrendPoint]]
-        self._category_series: Dict[str, List[TrendPoint]] = {}
+        self._category_series: dict[str, list[TrendPoint]] = {}
         # metric series: Dict[metric_name, List[TrendPoint]]
-        self._metric_series: Dict[str, List[TrendPoint]] = {}
+        self._metric_series: dict[str, list[TrendPoint]] = {}
 
     # ------------------------------------------------------------------
     # Recording
@@ -185,7 +182,7 @@ class HRSATrendEngine:
 
     def record(self, hs: Any) -> None:
         """Record a HierarchicalScore into all trend series."""
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         pt = TrendPoint(
             recorded_at=ts,
             value=hs.level3_composite,
@@ -213,7 +210,7 @@ class HRSATrendEngine:
         level: str = "composite",
     ) -> None:
         """Record a raw value into a named series."""
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         pt = TrendPoint(ts, value, experiment_id, series_name)
         if level == "composite":
             self._composite_series.append(pt)
@@ -226,9 +223,7 @@ class HRSATrendEngine:
     # Trend analysis
     # ------------------------------------------------------------------
 
-    def _analyse_series(
-        self, name: str, points: List[TrendPoint], window: int = 0
-    ) -> TrendResult:
+    def _analyse_series(self, name: str, points: list[TrendPoint], window: int = 0) -> TrendResult:
         pts = points[-window:] if window > 0 else points
         values = [p.value for p in pts]
         if not values:
@@ -255,25 +250,25 @@ class HRSATrendEngine:
     def composite_trend(self, window: int = 0) -> TrendResult:
         return self._analyse_series("composite", self._composite_series, window)
 
-    def category_trends(self, window: int = 0) -> Dict[str, TrendResult]:
+    def category_trends(self, window: int = 0) -> dict[str, TrendResult]:
         return {
             cat: self._analyse_series(cat, pts, window)
             for cat, pts in self._category_series.items()
         }
 
-    def category_trend(self, category: str, window: int = 0) -> Optional[TrendResult]:
+    def category_trend(self, category: str, window: int = 0) -> TrendResult | None:
         pts = self._category_series.get(category)
         if pts is None:
             return None
         return self._analyse_series(category, pts, window)
 
-    def metric_trends(self, window: int = 0) -> Dict[str, TrendResult]:
+    def metric_trends(self, window: int = 0) -> dict[str, TrendResult]:
         return {
             name: self._analyse_series(name, pts, window)
             for name, pts in self._metric_series.items()
         }
 
-    def metric_trend(self, metric_name: str, window: int = 0) -> Optional[TrendResult]:
+    def metric_trend(self, metric_name: str, window: int = 0) -> TrendResult | None:
         pts = self._metric_series.get(metric_name)
         if pts is None:
             return None
@@ -290,9 +285,9 @@ class HRSATrendEngine:
 
     def detect_regressions(
         self, window: int = 5, threshold: float = 5.0
-    ) -> List[HRSARegressionAlert]:
+    ) -> list[HRSARegressionAlert]:
         """Detect regressions at composite and category level."""
-        alerts: List[HRSARegressionAlert] = []
+        alerts: list[HRSARegressionAlert] = []
 
         # Composite regression
         comp_pts = self._composite_series[-window:]
@@ -302,9 +297,7 @@ class HRSATrendEngine:
             latest = comp_vals[-1]
             drop = peak - latest
             if drop >= threshold:
-                alerts.append(HRSARegressionAlert(
-                    "composite", latest, peak, drop, _severity(drop)
-                ))
+                alerts.append(HRSARegressionAlert("composite", latest, peak, drop, _severity(drop)))
 
         # Category regressions
         for cat, pts in self._category_series.items():
@@ -316,18 +309,16 @@ class HRSATrendEngine:
             latest = vals[-1]
             drop = peak - latest
             if drop >= threshold:
-                alerts.append(HRSARegressionAlert(
-                    cat, latest, peak, drop, _severity(drop)
-                ))
+                alerts.append(HRSARegressionAlert(cat, latest, peak, drop, _severity(drop)))
 
         return alerts
 
-    def score_stability(self, window: int = 0) -> Dict[str, float]:
+    def score_stability(self, window: int = 0) -> dict[str, float]:
         """Coefficient of variation (std / mean) for composite and categories.
         Lower = more stable."""
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
 
-        def _cv(pts: List[TrendPoint], w: int) -> float:
+        def _cv(pts: list[TrendPoint], w: int) -> float:
             vals = [p.value for p in (pts[-w:] if w else pts)]
             if not vals or sum(vals) == 0:
                 return 0.0
@@ -344,7 +335,7 @@ class HRSATrendEngine:
     # Report
     # ------------------------------------------------------------------
 
-    def trend_report(self, window: int = 0) -> Dict[str, Any]:
+    def trend_report(self, window: int = 0) -> dict[str, Any]:
         comp = self.composite_trend(window)
         cat_trends = self.category_trends(window)
         regressions = self.detect_regressions()
@@ -362,8 +353,12 @@ class HRSATrendEngine:
             "metrics_tracked": len(self._metric_series),
         }
 
-    def history(self) -> List[Dict[str, Any]]:
+    def history(self) -> list[dict[str, Any]]:
         return [p.to_dict() for p in self._composite_series]
 
-    def category_history(self, category: str) -> List[Dict[str, Any]]:
+    def category_history(self, category: str) -> list[dict[str, Any]]:
         return [p.to_dict() for p in self._category_series.get(category, [])]
+
+
+# Backward-compat alias
+RegressionEvent = HRSARegressionAlert

@@ -5,10 +5,7 @@ Reference: Lin et al., "Focal Loss for Dense Object Detection" (2017).
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from trainer.framework.abstractions.loss import BaseLoss
@@ -33,7 +30,7 @@ class FocalLoss(BaseLoss):
     def __init__(
         self,
         gamma: float = 2.0,
-        alpha: Optional[torch.Tensor] = None,
+        alpha: torch.Tensor | None = None,
         reduction: str = "mean",
         label_smoothing: float = 0.0,
     ) -> None:
@@ -48,7 +45,7 @@ class FocalLoss(BaseLoss):
         if alpha is not None:
             self.register_buffer("alpha", alpha.float())
         else:
-            self.alpha: Optional[torch.Tensor] = None
+            self.alpha: torch.Tensor | None = None
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """Compute focal loss.

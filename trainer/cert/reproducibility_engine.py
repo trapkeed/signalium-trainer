@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import CheckStatus, RiskLevel, clamp
 from trainer.cert.cert_models import CertificationInput, ReproducibilityResult
-
+from trainer.cert.cert_types import CheckStatus, clamp
 
 _CHECKS = [
     "DATASET_VERSION",
@@ -35,7 +33,7 @@ class ReproducibilityEngine:
     Each check inspects the CertificationInput for the corresponding field.
     """
 
-    def run_all(self, inp: CertificationInput) -> List[ReproducibilityResult]:
+    def run_all(self, inp: CertificationInput) -> list[ReproducibilityResult]:
         results = [
             self._dataset_version(inp),
             self._feature_version(inp),
@@ -52,12 +50,12 @@ class ReproducibilityEngine:
         logger.debug(f"[RE] Reproducibility: {passed}/{len(results)} checks passed")
         return results
 
-    def overall_score(self, results: List[ReproducibilityResult]) -> float:
+    def overall_score(self, results: list[ReproducibilityResult]) -> float:
         weights = {
-            CheckStatus.PASS:           100.0,
-            CheckStatus.WARNING:         60.0,
-            CheckStatus.FAIL:            10.0,
-            CheckStatus.NOT_APPLICABLE:  70.0,
+            CheckStatus.PASS: 100.0,
+            CheckStatus.WARNING: 60.0,
+            CheckStatus.FAIL: 10.0,
+            CheckStatus.NOT_APPLICABLE: 70.0,
         }
         if not results:
             return 50.0

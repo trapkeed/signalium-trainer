@@ -25,9 +25,8 @@ import math
 import uuid
 from collections import Counter, deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Label batch record
@@ -37,24 +36,23 @@ from typing import Any, Deque, Dict, List, Optional
 @dataclass
 class LabelBatch:
     """One batch of labels submitted for quality evaluation."""
+
     batch_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     label_version: str = ""
-    labels: List[str] = field(default_factory=list)
-    confidences: List[float] = field(default_factory=list)
-    predicted: List[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list)
+    confidences: list[float] = field(default_factory=list)
+    predicted: list[str] = field(default_factory=list)
     dataset_version: str = ""
     n_samples: int = 0
     notes: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def __post_init__(self) -> None:
         if not self.n_samples:
             self.n_samples = len(self.labels)
 
     @property
-    def class_distribution(self) -> Dict[str, float]:
+    def class_distribution(self) -> dict[str, float]:
         n = len(self.labels)
         if n == 0:
             return {}
@@ -99,7 +97,7 @@ class LabelBatch:
             return float("inf")
         return round(max(vals) / min(vals), 4)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "batch_id": self.batch_id,
             "label_version": self.label_version,
@@ -123,6 +121,7 @@ class LabelBatch:
 @dataclass
 class LabelQualityReport:
     """Aggregated label quality report for a label version."""
+
     label_version: str = ""
     n_batches: int = 0
     n_samples_total: int = 0
@@ -130,16 +129,14 @@ class LabelQualityReport:
     avg_consistency: float = 1.0
     avg_entropy: float = 0.0
     avg_imbalance_ratio: float = 1.0
-    class_distribution: Dict[str, float] = field(default_factory=dict)
+    class_distribution: dict[str, float] = field(default_factory=dict)
     drift_from_baseline: float = 0.0
-    quality_score: float = 1.0    # 0-1, higher is better
-    quality_grade: str = "A"      # A / B / C / D / F
-    issues: List[str] = field(default_factory=list)
-    generated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    quality_score: float = 1.0  # 0-1, higher is better
+    quality_grade: str = "A"  # A / B / C / D / F
+    issues: list[str] = field(default_factory=list)
+    generated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "label_version": self.label_version,
             "n_batches": self.n_batches,
@@ -173,26 +170,32 @@ class LabelQualityMonitor:
         drift_threshold: Distribution drift above this → quality issue.
     """
 
-    def __init__(self, batch_window: int = 50,
-                 noise_threshold: float = 0.25,
-                 consistency_threshold: float = 0.70,
-                 imbalance_threshold: float = 5.0,
-                 drift_threshold: float = 0.15) -> None:
+    def __init__(
+        self,
+        batch_window: int = 50,
+        noise_threshold: float = 0.25,
+        consistency_threshold: float = 0.70,
+        imbalance_threshold: float = 5.0,
+        drift_threshold: float = 0.15,
+    ) -> None:
         self.batch_window = batch_window
         self.noise_threshold = noise_threshold
         self.consistency_threshold = consistency_threshold
         self.imbalance_threshold = imbalance_threshold
         self.drift_threshold = drift_threshold
-        self._batches: Dict[str, Deque[LabelBatch]] = {}
-        self._all_batches: Dict[str, List[LabelBatch]] = {}
-        self._baselines: Dict[str, Dict[str, float]] = {}
+        self._batches: dict[str, deque[LabelBatch]] = {}
+        self._all_batches: dict[str, list[LabelBatch]] = {}
+        self._baselines: dict[str, dict[str, float]] = {}
 
-    def record_batch(self, label_version: str,
-                      labels: Optional[List[str]] = None,
-                      confidences: Optional[List[float]] = None,
-                      predicted: Optional[List[str]] = None,
-                      dataset_version: str = "",
-                      notes: str = "") -> LabelBatch:
+    def record_batch(
+        self,
+        label_version: str,
+        labels: list[str] | None = None,
+        confidences: list[float] | None = None,
+        predicted: list[str] | None = None,
+        dataset_version: str = "",
+        notes: str = "",
+    ) -> LabelBatch:
         """Record one label batch for quality evaluation."""
         batch = LabelBatch(
             label_version=label_version,
@@ -208,13 +211,11 @@ class LabelQualityMonitor:
         self._batches[label_version].append(batch)
         self._all_batches[label_version].append(batch)
 
-        if (label_version not in self._baselines and
-                len(self._batches[label_version]) >= 5):
+        if label_version not in self._baselines and len(self._batches[label_version]) >= 5:
             self._baselines[label_version] = batch.class_distribution
         return batch
 
-    def set_baseline(self, label_version: str,
-                      distribution: Dict[str, float]) -> None:
+    def set_baseline(self, label_version: str, distribution: dict[str, float]) -> None:
         self._baselines[label_version] = distribution
 
     def get_quality_report(self, label_version: str) -> LabelQualityReport:
@@ -230,11 +231,10 @@ class LabelQualityMonitor:
         avg_noise = _mean([b.noise_estimate for b in batches])
         avg_cons = _mean([b.consistency for b in batches])
         avg_ent = _mean([b.entropy for b in batches])
-        avg_imb = _mean([b.imbalance_ratio for b in batches
-                         if b.imbalance_ratio < float("inf")])
+        avg_imb = _mean([b.imbalance_ratio for b in batches if b.imbalance_ratio < float("inf")])
         total_samples = sum(b.n_samples for b in batches)
 
-        combined_counts: Dict[str, float] = {}
+        combined_counts: dict[str, float] = {}
         for b in batches:
             for cls, frac in b.class_distribution.items():
                 combined_counts[cls] = combined_counts.get(cls, 0.0) + frac
@@ -253,10 +253,10 @@ class LabelQualityMonitor:
             drift /= max(len(all_keys), 1)
 
         quality_score = (
-            (1.0 - avg_noise) * 0.30 +
-            avg_cons * 0.30 +
-            (1.0 - min(drift, 1.0)) * 0.20 +
-            (1.0 - min((avg_imb - 1.0) / 10.0, 1.0)) * 0.20
+            (1.0 - avg_noise) * 0.30
+            + avg_cons * 0.30
+            + (1.0 - min(drift, 1.0)) * 0.20
+            + (1.0 - min((avg_imb - 1.0) / 10.0, 1.0)) * 0.20
         )
         quality_score = round(min(max(quality_score, 0.0), 1.0), 4)
         if quality_score >= 0.85:
@@ -295,11 +295,10 @@ class LabelQualityMonitor:
             issues=issues,
         )
 
-    def all_reports(self) -> Dict[str, LabelQualityReport]:
+    def all_reports(self) -> dict[str, LabelQualityReport]:
         return {v: self.get_quality_report(v) for v in self._batches}
 
-    def low_quality_versions(self,
-                              min_grade: str = "C") -> List[str]:
+    def low_quality_versions(self, min_grade: str = "C") -> list[str]:
         """Return label versions below a quality grade threshold."""
         grades = ["A", "B", "C", "D", "F"]
         min_idx = grades.index(min_grade)
@@ -310,7 +309,7 @@ class LabelQualityMonitor:
                 result.append(version)
         return result
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "total_versions": len(self._batches),
             "total_batches": sum(len(v) for v in self._all_batches.values()),

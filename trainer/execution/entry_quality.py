@@ -8,58 +8,58 @@ Grades: EXCELLENT / GOOD / ACCEPTABLE / POOR / REJECT
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
+from trainer.execution.entry_zones import EntryZones
 from trainer.execution.execution_types import (
+    SESSION_QUALITY,
     ExecutionForecast,
     ExecutionGrade,
-    SESSION_QUALITY,
     _clamp,
     _grade_from_score,
 )
-from trainer.execution.entry_zones import EntryZones
 
 
 @dataclass
 class EntryQualityResult:
     """Output of entry quality evaluation."""
 
-    instrument:   str
-    grade:        ExecutionGrade
-    score:        float          # 0-1
-    reasons:      List[str]      = field(default_factory=list)
-    risk_factors: List[str]      = field(default_factory=list)
+    instrument: str
+    grade: ExecutionGrade
+    score: float  # 0-1
+    reasons: list[str] = field(default_factory=list)
+    risk_factors: list[str] = field(default_factory=list)
 
     # Sub-scores ─────────────────────────────────────────────────────────────
-    spread_score:    float = 0.0
-    session_score:   float = 0.0
-    momentum_score:  float = 0.0
+    spread_score: float = 0.0
+    session_score: float = 0.0
+    momentum_score: float = 0.0
     volatility_score: float = 0.0
-    zone_score:      float = 0.0
+    zone_score: float = 0.0
 
     def is_tradeable(self) -> bool:
         return self.grade not in (ExecutionGrade.REJECT, ExecutionGrade.POOR)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
-            "instrument":      self.instrument,
-            "grade":           self.grade.value,
-            "score":           round(self.score, 4),
-            "tradeable":       self.is_tradeable(),
-            "reasons":         self.reasons,
-            "risk_factors":    self.risk_factors,
+            "instrument": self.instrument,
+            "grade": self.grade.value,
+            "score": round(self.score, 4),
+            "tradeable": self.is_tradeable(),
+            "reasons": self.reasons,
+            "risk_factors": self.risk_factors,
             "sub_scores": {
-                "spread":    round(self.spread_score, 4),
-                "session":   round(self.session_score, 4),
-                "momentum":  round(self.momentum_score, 4),
+                "spread": round(self.spread_score, 4),
+                "session": round(self.session_score, 4),
+                "momentum": round(self.momentum_score, 4),
                 "volatility": round(self.volatility_score, 4),
-                "zone":      round(self.zone_score, 4),
+                "zone": round(self.zone_score, 4),
             },
         }
 
@@ -76,21 +76,21 @@ class EntryQualityEngine:
     """
 
     _WEIGHTS = {
-        "spread":     0.20,
-        "session":    0.20,
-        "momentum":   0.20,
+        "spread": 0.20,
+        "session": 0.20,
+        "momentum": 0.20,
         "volatility": 0.20,
-        "zone":       0.20,
+        "zone": 0.20,
     }
 
     def evaluate(
         self,
         forecast: ExecutionForecast,
-        zones:    Optional[EntryZones] = None,
+        zones: EntryZones | None = None,
     ) -> EntryQualityResult:
 
-        reasons: List[str] = []
-        risks:   List[str] = []
+        reasons: list[str] = []
+        risks: list[str] = []
 
         # 1. Spread score ─────────────────────────────────────────────────────
         spread_ratio = forecast.spread / max(forecast.atr, 1e-9)
@@ -152,11 +152,11 @@ class EntryQualityEngine:
 
         # Weighted composite
         raw = (
-            self._WEIGHTS["spread"]     * spread_score +
-            self._WEIGHTS["session"]    * session_score +
-            self._WEIGHTS["momentum"]   * momentum_score +
-            self._WEIGHTS["volatility"] * volatility_score +
-            self._WEIGHTS["zone"]       * zone_score
+            self._WEIGHTS["spread"] * spread_score
+            + self._WEIGHTS["session"] * session_score
+            + self._WEIGHTS["momentum"] * momentum_score
+            + self._WEIGHTS["volatility"] * volatility_score
+            + self._WEIGHTS["zone"] * zone_score
         )
         final_score = _clamp(raw - news_penalty)
         grade = _grade_from_score(final_score)
@@ -171,14 +171,14 @@ class EntryQualityEngine:
         )
 
         return EntryQualityResult(
-            instrument      = forecast.instrument,
-            grade           = grade,
-            score           = round(final_score, 4),
-            reasons         = reasons,
-            risk_factors    = risks,
-            spread_score    = round(spread_score, 4),
-            session_score   = round(session_score, 4),
-            momentum_score  = round(momentum_score, 4),
-            volatility_score = round(volatility_score, 4),
-            zone_score      = round(zone_score, 4),
+            instrument=forecast.instrument,
+            grade=grade,
+            score=round(final_score, 4),
+            reasons=reasons,
+            risk_factors=risks,
+            spread_score=round(spread_score, 4),
+            session_score=round(session_score, 4),
+            momentum_score=round(momentum_score, 4),
+            volatility_score=round(volatility_score, 4),
+            zone_score=round(zone_score, 4),
         )

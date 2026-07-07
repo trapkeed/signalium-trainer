@@ -9,11 +9,8 @@ Builds structured prompts for the LLM including:
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
+from trainer.analyst.analyst_models import ChatMessage
 from trainer.analyst.analyst_types import QueryType, ReportType
-from trainer.analyst.analyst_models import KnowledgeChunk, ChatMessage
-
 
 _SYSTEM_PROMPT = """You are SAQRA — Signalium's AI Quant Research Analyst.
 
@@ -41,7 +38,7 @@ RESPONSE FORMAT:
 - End with a one-line disclaimer confirming no trading signals are implied.
 """
 
-_TEMPLATES: Dict[str, str] = {
+_TEMPLATES: dict[str, str] = {
     QueryType.CHAT.value: """{system}
 
 RESEARCH CONTEXT:
@@ -54,7 +51,6 @@ RESEARCHER QUERY:
 {query}
 
 Provide a grounded, evidence-based response. Cite all referenced artifacts.""",
-
     QueryType.COMPARISON.value: """{system}
 
 RESEARCH CONTEXT:
@@ -68,7 +64,6 @@ Generate a structured comparative analysis. Include:
 2. Key differences
 3. Root cause analysis
 4. Evidence citations""",
-
     QueryType.ANALYSIS.value: """{system}
 
 RESEARCH CONTEXT:
@@ -82,7 +77,6 @@ Provide a detailed research analysis. Include:
 2. Evidence from retrieved artifacts
 3. Contributing factors
 4. Citations for all claims""",
-
     QueryType.SEARCH.value: """{system}
 
 RESEARCH CONTEXT:
@@ -95,7 +89,6 @@ List all matching artifacts with:
 1. Artifact ID and type
 2. Relevance summary
 3. Key metrics""",
-
     QueryType.SUMMARY.value: """{system}
 
 RESEARCH CONTEXT:
@@ -110,7 +103,6 @@ Generate a professional research summary. Include:
 3. Model health
 4. Key findings
 5. Recommendations""",
-
     QueryType.RECOMMENDATION.value: """{system}
 
 RESEARCH CONTEXT:
@@ -124,7 +116,6 @@ Generate evidence-based research recommendations. For each recommendation:
 2. Provide evidence from retrieved artifacts
 3. Assign priority (HIGH/MEDIUM/LOW)
 4. Never recommend live trading actions""",
-
     QueryType.REPORT.value: """{system}
 
 RESEARCH CONTEXT:
@@ -145,44 +136,42 @@ Generate a professional institutional research report. Structure:
 class PromptEngine:
     """Builds structured prompts for the LLM."""
 
-    def __init__(self, system_prompt: Optional[str] = None):
+    def __init__(self, system_prompt: str | None = None):
         self._system = system_prompt or _SYSTEM_PROMPT
 
     def build(
         self,
-        query_type:  QueryType,
-        query:       str,
-        context:     str,
-        history:     Optional[List[ChatMessage]] = None,
-        period:      str                         = "",
-        report_type: Optional[ReportType]        = None,
+        query_type: QueryType,
+        query: str,
+        context: str,
+        history: list[ChatMessage] | None = None,
+        period: str = "",
+        report_type: ReportType | None = None,
     ) -> str:
         """Build a complete prompt for the given query type."""
         template = _TEMPLATES.get(query_type.value, _TEMPLATES[QueryType.CHAT.value])
 
         history_text = ""
         if history:
-            history_text = "\n".join(
-                f"{m.role.upper()}: {m.content[:200]}"
-                for m in history[-6:]
-            )
+            history_text = "\n".join(f"{m.role.upper()}: {m.content[:200]}" for m in history[-6:])
 
         try:
             prompt = template.format(
-                system      = self._system,
-                context     = context or "(No relevant artifacts retrieved. Indicate this in your response.)",
-                query       = query,
-                history     = history_text,
-                period      = period,
-                report_type = report_type.value if report_type else "GENERAL",
+                system=self._system,
+                context=context
+                or "(No relevant artifacts retrieved. Indicate this in your response.)",
+                query=query,
+                history=history_text,
+                period=period,
+                report_type=report_type.value if report_type else "GENERAL",
             )
         except KeyError:
             # Fallback: use chat template
             prompt = _TEMPLATES[QueryType.CHAT.value].format(
-                system  = self._system,
-                context = context or "",
-                query   = query,
-                history = history_text,
+                system=self._system,
+                context=context or "",
+                query=query,
+                history=history_text,
             )
 
         return prompt
@@ -190,7 +179,7 @@ class PromptEngine:
     def get_template(self, query_type: QueryType) -> str:
         return _TEMPLATES.get(query_type.value, _TEMPLATES[QueryType.CHAT.value])
 
-    def list_templates(self) -> List[str]:
+    def list_templates(self) -> list[str]:
         return list(_TEMPLATES.keys())
 
     @property

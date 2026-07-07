@@ -55,10 +55,13 @@ def batch_input() -> torch.Tensor:
 
 class TestInferencePipeline:
     @torch.no_grad()
-    def test_predict_returns_correct_type(self, model: QuantModelV1, batch_input: torch.Tensor) -> None:
-        from trainer.models.quant_v1.output import QuantModelOutput
+    def test_predict_returns_correct_type(
+        self, model: QuantModelV1, batch_input: torch.Tensor
+    ) -> None:
+        from trainer.models.quant_v1.output import MultiTaskQuantModelOutput, QuantModelOutput
+
         out = model.predict(batch_input)
-        assert isinstance(out, QuantModelOutput)
+        assert isinstance(out, (QuantModelOutput, MultiTaskQuantModelOutput))
 
     @torch.no_grad()
     def test_probabilities_consistent_with_buy_sell_notrade(
@@ -81,8 +84,15 @@ class TestInferencePipeline:
     def test_to_dict_has_all_keys(self, model: QuantModelV1, batch_input: torch.Tensor) -> None:
         out = model.predict(batch_input)
         d = out.to_dict()
-        required = {"logits", "probabilities", "confidence", "predicted_class",
-                    "buy_prob", "sell_prob", "no_trade_prob"}
+        required = {
+            "logits",
+            "probabilities",
+            "confidence",
+            "predicted_class",
+            "buy_prob",
+            "sell_prob",
+            "no_trade_prob",
+        }
         assert required.issubset(d.keys())
 
     def test_training_step(self, model: QuantModelV1, batch_input: torch.Tensor) -> None:
@@ -103,7 +113,9 @@ class TestInferencePipeline:
 
 class TestLossIntegration:
     @torch.no_grad()
-    def test_focal_loss_with_model_output(self, model: QuantModelV1, batch_input: torch.Tensor) -> None:
+    def test_focal_loss_with_model_output(
+        self, model: QuantModelV1, batch_input: torch.Tensor
+    ) -> None:
         cfg = LossConfig(type=LossType.FOCAL, focal_gamma=2.0)
         criterion = build_loss(cfg)
         logits = model(batch_input)
@@ -112,7 +124,9 @@ class TestLossIntegration:
         assert torch.isfinite(loss)
 
     @torch.no_grad()
-    def test_weighted_ce_with_class_weights(self, model: QuantModelV1, batch_input: torch.Tensor) -> None:
+    def test_weighted_ce_with_class_weights(
+        self, model: QuantModelV1, batch_input: torch.Tensor
+    ) -> None:
         labels = [0] * 70 + [1] * 20 + [2] * 10
         weights = compute_class_weights(labels, NUM_CLASSES)
         cfg = LossConfig(

@@ -26,8 +26,7 @@ Example::
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 import torch
 
@@ -55,11 +54,11 @@ class HybridInput:
             Shape: ``(batch, memory_dim)``.
     """
 
-    raw_sequence: Optional[torch.Tensor] = None
-    multi_timeframe: Optional[dict[str, torch.Tensor]] = None
-    engineered_features: Optional[torch.Tensor] = None
-    context_ids: Optional[dict[str, torch.Tensor]] = None
-    memory_state: Optional[torch.Tensor] = None
+    raw_sequence: torch.Tensor | None = None
+    multi_timeframe: dict[str, torch.Tensor] | None = None
+    engineered_features: torch.Tensor | None = None
+    context_ids: dict[str, torch.Tensor] | None = None
+    memory_state: torch.Tensor | None = None
 
     @property
     def batch_size(self) -> int:

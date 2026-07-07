@@ -31,10 +31,9 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any
 
 from trainer.research.categories import _clamp, _linear, _weighted_avg
-
 
 # ---------------------------------------------------------------------------
 # ConfidenceInputs
@@ -46,24 +45,24 @@ class ConfidenceInputs:
     """Inputs that determine how much to trust the Research Score."""
 
     # Validation scale
-    n_validation_folds: int   = 0       # 12+ → high confidence
-    n_trade_samples:    int   = 0       # 10000+ → high confidence
+    n_validation_folds: int = 0  # 12+ → high confidence
+    n_trade_samples: int = 0  # 10000+ → high confidence
 
     # Coverage
-    regime_coverage:        float = 0.0  # 0–1 (fraction of known regimes covered)
-    instrument_count:       int   = 0    # ≥ 5 → high confidence
-    timeframe_count:        int   = 0    # ≥ 3 → high confidence
+    regime_coverage: float = 0.0  # 0–1 (fraction of known regimes covered)
+    instrument_count: int = 0  # ≥ 5 → high confidence
+    timeframe_count: int = 0  # ≥ 3 → high confidence
 
     # Statistical
-    p_value:                float = 1.0  # from hypothesis test (lower → more confident)
-    fold_score_std:         float = 1.0  # std dev of fold scores (lower → more confident)
+    p_value: float = 1.0  # from hypothesis test (lower → more confident)
+    fold_score_std: float = 1.0  # std dev of fold scores (lower → more confident)
 
     # Data quality
-    data_quality_score:     float = 0.0  # 0–1
-    label_quality_score:    float = 0.0  # 0–1
+    data_quality_score: float = 0.0  # 0–1
+    label_quality_score: float = 0.0  # 0–1
 
     # Environment reproducibility
-    reproducibility_score:  float = 0.0  # 0–1
+    reproducibility_score: float = 0.0  # 0–1
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +73,7 @@ class ConfidenceInputs:
 @dataclass
 class ConfidenceResult:
     score: float  # 0.0–1.0
-    sub_scores: Dict[str, float] = field(default_factory=dict)
+    sub_scores: dict[str, float] = field(default_factory=dict)
 
     @property
     def level(self) -> str:
@@ -92,7 +91,7 @@ class ConfidenceResult:
     def percentage(self) -> float:
         return round(self.score * 100.0, 1)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": self.score,
             "percentage": self.percentage,
@@ -110,7 +109,7 @@ class ConfidenceCalculator:
     """Compute an independent confidence score for the Research Score."""
 
     def compute(self, inputs: ConfidenceInputs) -> ConfidenceResult:
-        sub: Dict[str, float] = {}
+        sub: dict[str, float] = {}
 
         # Sample size: 6 folds → 50, 12+ → 100
         sub["fold_coverage"] = _clamp(inputs.n_validation_folds / 12.0 * 100.0)
@@ -122,14 +121,10 @@ class ConfidenceCalculator:
         sub["regime_coverage"] = _clamp(inputs.regime_coverage * 100.0)
 
         # Instrument diversity: 3 → 60, 5 → 100
-        sub["instrument_diversity"] = _clamp(
-            min(inputs.instrument_count, 5) / 5.0 * 100.0
-        )
+        sub["instrument_diversity"] = _clamp(min(inputs.instrument_count, 5) / 5.0 * 100.0)
 
         # Timeframe diversity: 2 → 67, 3+ → 100
-        sub["timeframe_diversity"] = _clamp(
-            min(inputs.timeframe_count, 3) / 3.0 * 100.0
-        )
+        sub["timeframe_diversity"] = _clamp(min(inputs.timeframe_count, 3) / 3.0 * 100.0)
 
         # Statistical confidence: p ≤ 0.01 → 100, p ≥ 0.10 → 0
         if inputs.p_value <= 0.01:
@@ -137,14 +132,10 @@ class ConfidenceCalculator:
         elif inputs.p_value >= 0.10:
             sub["statistical_confidence"] = 0.0
         else:
-            sub["statistical_confidence"] = _clamp(
-                (0.10 - inputs.p_value) / 0.09 * 100.0
-            )
+            sub["statistical_confidence"] = _clamp((0.10 - inputs.p_value) / 0.09 * 100.0)
 
         # Fold score std: 0 → 100, 0.10+ → 0
-        sub["fold_consistency"] = _clamp(
-            max(0.0, (0.10 - inputs.fold_score_std) / 0.10 * 100.0)
-        )
+        sub["fold_consistency"] = _clamp(max(0.0, (0.10 - inputs.fold_score_std) / 0.10 * 100.0))
 
         # Data quality
         sub["data_quality"] = _clamp(inputs.data_quality_score * 100.0)
@@ -153,18 +144,20 @@ class ConfidenceCalculator:
         # Reproducibility
         sub["reproducibility"] = _clamp(inputs.reproducibility_score * 100.0)
 
-        composite_100 = _weighted_avg([
-            (sub["fold_coverage"],          0.15),
-            (sub["sample_size"],            0.15),
-            (sub["regime_coverage"],        0.15),
-            (sub["instrument_diversity"],   0.10),
-            (sub["timeframe_diversity"],    0.08),
-            (sub["statistical_confidence"], 0.12),
-            (sub["fold_consistency"],       0.10),
-            (sub["data_quality"],           0.07),
-            (sub["label_quality"],          0.05),
-            (sub["reproducibility"],        0.03),
-        ])
+        composite_100 = _weighted_avg(
+            [
+                (sub["fold_coverage"], 0.15),
+                (sub["sample_size"], 0.15),
+                (sub["regime_coverage"], 0.15),
+                (sub["instrument_diversity"], 0.10),
+                (sub["timeframe_diversity"], 0.08),
+                (sub["statistical_confidence"], 0.12),
+                (sub["fold_consistency"], 0.10),
+                (sub["data_quality"], 0.07),
+                (sub["label_quality"], 0.05),
+                (sub["reproducibility"], 0.03),
+            ]
+        )
 
         confidence = _clamp(composite_100) / 100.0
         return ConfidenceResult(score=confidence, sub_scores=sub)

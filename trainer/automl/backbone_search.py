@@ -25,8 +25,7 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Backbone specification
@@ -63,13 +62,13 @@ class BackboneSpec:
     fusion_strategy: str = "concat"
     activation: str = "gelu"
     normalization: str = "layer_norm"
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.display_name:
             self.display_name = self.name.replace("_", " ").title()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "display_name": self.display_name,
@@ -86,7 +85,7 @@ class BackboneSpec:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "BackboneSpec":
+    def from_dict(d: dict[str, Any]) -> BackboneSpec:
         return BackboneSpec(
             name=d["name"],
             display_name=d.get("display_name", ""),
@@ -109,7 +108,7 @@ class BackboneSpec:
 
 
 # Default backbone specifications
-_DEFAULT_BACKBONES: Dict[str, BackboneSpec] = {
+_DEFAULT_BACKBONES: dict[str, BackboneSpec] = {
     "lstm": BackboneSpec(
         name="lstm",
         display_name="LSTM",
@@ -181,7 +180,7 @@ class BackboneCatalog:
     """
 
     def __init__(self) -> None:
-        self._backbones: Dict[str, BackboneSpec] = dict(_DEFAULT_BACKBONES)
+        self._backbones: dict[str, BackboneSpec] = dict(_DEFAULT_BACKBONES)
 
     def register(self, spec: BackboneSpec) -> None:
         """Register a new backbone specification."""
@@ -190,22 +189,26 @@ class BackboneCatalog:
     def get(self, name: str) -> BackboneSpec:
         """Get a backbone spec by name."""
         if name not in self._backbones:
-            raise KeyError(f"Backbone {name!r} not in catalog. "
-                           f"Available: {list(self._backbones)}")
+            raise KeyError(
+                f"Backbone {name!r} not in catalog. " f"Available: {list(self._backbones)}"
+            )
         return self._backbones[name]
 
-    def list_names(self) -> List[str]:
+    def list_names(self) -> list[str]:
         """Return sorted list of registered backbone names."""
         return sorted(self._backbones)
 
-    def all_specs(self) -> List[BackboneSpec]:
+    def all_specs(self) -> list[BackboneSpec]:
         """Return all registered backbone specs."""
         return list(self._backbones.values())
 
-    def generate_variants(self, base_name: str,
-                          hidden_sizes: Optional[List[int]] = None,
-                          num_layers_list: Optional[List[int]] = None,
-                          dropout_values: Optional[List[float]] = None) -> List[BackboneSpec]:
+    def generate_variants(
+        self,
+        base_name: str,
+        hidden_sizes: list[int] | None = None,
+        num_layers_list: list[int] | None = None,
+        dropout_values: list[float] | None = None,
+    ) -> list[BackboneSpec]:
         """Generate parameter variants for a base backbone.
 
         Returns one BackboneSpec per unique combination of overrides.
@@ -219,32 +222,30 @@ class BackboneCatalog:
             for l in layers:
                 for d in dropouts:
                     import copy
+
                     variant = copy.deepcopy(base)
                     variant.hidden_size = h
                     variant.num_layers = l
                     variant.dropout = d
                     variant.name = f"{base_name}_h{h}_l{l}_d{int(d*100)}"
-                    variant.display_name = (
-                        f"{base.display_name} (H={h}, L={l}, D={d:.2f})"
-                    )
+                    variant.display_name = f"{base.display_name} (H={h}, L={l}, D={d:.2f})"
                     variants.append(variant)
         return variants
 
-    def from_config(self, config: Dict[str, Any]) -> BackboneSpec:
+    def from_config(self, config: dict[str, Any]) -> BackboneSpec:
         """Build a BackboneSpec from a config dict, merging with defaults."""
         name = config.get("name", "lstm")
         base = self.get(name)
         import copy
+
         spec = copy.deepcopy(base)
         for k, v in config.items():
             if hasattr(spec, k):
                 setattr(spec, k, v)
         return spec
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "backbones": {k: v.to_dict() for k, v in self._backbones.items()}
-        }
+    def to_dict(self) -> dict[str, Any]:
+        return {"backbones": {k: v.to_dict() for k, v in self._backbones.items()}}
 
 
 # ---------------------------------------------------------------------------
@@ -268,15 +269,15 @@ class BackboneEvalResult:
     """
 
     backbone_name: str
-    config: Dict[str, Any]
+    config: dict[str, Any]
     score: float = 0.0
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
     memory_mb: float = 0.0
     parameter_count: int = 0
-    rank: Optional[int] = None
+    rank: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "backbone_name": self.backbone_name,
             "config": self.config,
@@ -297,25 +298,26 @@ class BackboneSearcher:
         backbones: List of backbone names to evaluate (None = all).
     """
 
-    def __init__(self, catalog: Optional[BackboneCatalog] = None,
-                 backbones: Optional[List[str]] = None) -> None:
+    def __init__(
+        self, catalog: BackboneCatalog | None = None, backbones: list[str] | None = None
+    ) -> None:
         self.catalog = catalog or BackboneCatalog()
         self.backbones = backbones or self.catalog.list_names()
 
-    def rank_results(self, results: List[BackboneEvalResult]) -> List[BackboneEvalResult]:
+    def rank_results(self, results: list[BackboneEvalResult]) -> list[BackboneEvalResult]:
         """Rank results by score descending. Mutates rank field in-place."""
         sorted_results = sorted(results, key=lambda r: r.score, reverse=True)
         for i, r in enumerate(sorted_results):
             r.rank = i + 1
         return sorted_results
 
-    def best(self, results: List[BackboneEvalResult]) -> Optional[BackboneEvalResult]:
+    def best(self, results: list[BackboneEvalResult]) -> BackboneEvalResult | None:
         """Return the highest-scoring result."""
         if not results:
             return None
         return max(results, key=lambda r: r.score)
 
-    def summary(self, results: List[BackboneEvalResult]) -> Dict[str, Any]:
+    def summary(self, results: list[BackboneEvalResult]) -> dict[str, Any]:
         """Return a summary dict of backbone search results."""
         ranked = self.rank_results(results)
         return {
@@ -323,7 +325,6 @@ class BackboneSearcher:
             "best_backbone": ranked[0].backbone_name if ranked else None,
             "best_score": ranked[0].score if ranked else None,
             "rankings": [
-                {"rank": r.rank, "backbone": r.backbone_name, "score": r.score}
-                for r in ranked
+                {"rank": r.rank, "backbone": r.backbone_name, "score": r.score} for r in ranked
             ],
         }

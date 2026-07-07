@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +28,9 @@ def test_passes_valid_dataset(valid_dataset: Path) -> None:
 
 
 def test_fails_missing_directory() -> None:
-    validator = DatasetValidator(Path("/nonexistent/path"), verify_checksums=False, fail_on_error=False)
+    validator = DatasetValidator(
+        Path("/nonexistent/path"), verify_checksums=False, fail_on_error=False
+    )
     result = validator.validate()
     assert not result.passed
     assert any("does not exist" in e for e in result.errors)
@@ -53,6 +54,8 @@ def test_warns_on_missing_manifest(valid_dataset: Path) -> None:
 
 
 def test_raises_when_fail_on_error(tmp_path: Path) -> None:
-    validator = DatasetValidator(tmp_path / "nonexistent", verify_checksums=False, fail_on_error=True)
+    validator = DatasetValidator(
+        tmp_path / "nonexistent", verify_checksums=False, fail_on_error=True
+    )
     with pytest.raises(ValueError, match="validation failed"):
         validator.validate()

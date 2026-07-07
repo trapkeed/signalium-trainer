@@ -29,9 +29,8 @@ Usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # ResearchExporter
@@ -47,7 +46,7 @@ class ResearchExporter:
         timeline: Any,
         cost_tracker: Any,
         knowledge_graph: Any,
-        differ: Optional[Any] = None,
+        differ: Any | None = None,
     ) -> None:
         self._tree = lineage_tree
         self._tl = timeline
@@ -59,7 +58,7 @@ class ResearchExporter:
     # Experiment Card
     # ------------------------------------------------------------------
 
-    def experiment_card(self, node_id: str) -> Dict[str, Any]:
+    def experiment_card(self, node_id: str) -> dict[str, Any]:
         """Return a one-page experiment card for a lineage node."""
         node = self._tree.get(node_id)
         if node is None:
@@ -69,7 +68,7 @@ class ResearchExporter:
         cost = self._costs.get(node_id)
         events = self._tl.by_entity(node_id)
 
-        env_summary: Dict[str, Any] = {}
+        env_summary: dict[str, Any] = {}
         if node.environment:
             env = node.environment
             env_summary = {
@@ -85,7 +84,7 @@ class ResearchExporter:
 
         return {
             "card_type": "experiment_card",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "node_id": node_id,
             "name": node.name,
             "researcher": node.researcher,
@@ -110,12 +109,12 @@ class ResearchExporter:
                     "top_features": node.feature_snapshot.top_features(5),
                     "feature_set_hash": node.feature_snapshot.feature_set_hash,
                 }
-                if node.feature_snapshot else None
+                if node.feature_snapshot
+                else None
             ),
             "model": node.model_snapshot.to_dict() if node.model_snapshot else None,
             "validation": (
-                node.validation_snapshot.summary()
-                if node.validation_snapshot else None
+                node.validation_snapshot.summary() if node.validation_snapshot else None
             ),
             "cost": cost.to_dict() if cost else None,
             "timeline_events": [e.to_dict() for e in events],
@@ -129,9 +128,9 @@ class ResearchExporter:
 
         lines = [
             f"# Experiment Card: {card['name']}",
-            f"",
-            f"| Field | Value |",
-            f"|-------|-------|",
+            "",
+            "| Field | Value |",
+            "|-------|-------|",
             f"| ID | `{card['node_id']}` |",
             f"| Researcher | {card['researcher']} |",
             f"| Branch | {card['branch']} |",
@@ -141,18 +140,18 @@ class ResearchExporter:
             f"| Completed | {(card['completed_at'] or '')[:19]} |",
             f"| Repro Score | {card['reproducibility_score']:.0%} ({card['reproducibility_grade']}) |",
             f"| Lineage Depth | {card['lineage_depth']} |",
-            f"",
-            f"## Purpose",
+            "",
+            "## Purpose",
             f"{card['purpose'] or '_not specified_'}",
-            f"",
+            "",
         ]
 
         env = card.get("environment", {})
         if env:
             lines += [
                 "## Environment",
-                f"| Field | Value |",
-                f"|-------|-------|",
+                "| Field | Value |",
+                "|-------|-------|",
                 f"| Git Commit | `{env.get('git_commit', 'N/A')}` |",
                 f"| Git Branch | {env.get('git_branch', 'N/A')} |",
                 f"| Python | {env.get('python_version', 'N/A')} |",
@@ -168,8 +167,8 @@ class ResearchExporter:
         if val:
             lines += [
                 "## Validation Results",
-                f"| Metric | Value |",
-                f"|--------|-------|",
+                "| Metric | Value |",
+                "|--------|-------|",
                 f"| Walk-Forward Accuracy | {val.get('walk_forward_accuracy', 0):.3f} |",
                 f"| Walk-Forward F1 Macro | {val.get('walk_forward_f1_macro', 0):.3f} |",
                 f"| Calibration ECE | {val.get('calibration_ece', 0):.4f} |",
@@ -184,8 +183,8 @@ class ResearchExporter:
         if cost:
             lines += [
                 "## Cost Estimate",
-                f"| Item | Value |",
-                f"|------|-------|",
+                "| Item | Value |",
+                "|------|-------|",
                 f"| Total Cost | ${cost.get('total_cost_usd', 0):.4f} |",
                 f"| GPU Hours | {cost.get('gpu_hours', 0):.2f} |",
                 f"| CPU Hours | {cost.get('cpu_hours', 0):.2f} |",
@@ -201,7 +200,7 @@ class ResearchExporter:
     # Lineage Report
     # ------------------------------------------------------------------
 
-    def lineage_report(self, node_id: str) -> Dict[str, Any]:
+    def lineage_report(self, node_id: str) -> dict[str, Any]:
         """Return a complete lineage report for one experiment."""
         node = self._tree.get(node_id)
         if node is None:
@@ -213,7 +212,7 @@ class ResearchExporter:
 
         return {
             "report_type": "lineage_report",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "subject": {
                 "node_id": node_id,
                 "name": node.name,
@@ -252,14 +251,14 @@ class ResearchExporter:
         subj = report["subject"]
         lines = [
             f"# Lineage Report: {subj['name']}",
-            f"",
+            "",
             f"- **Node ID**: `{subj['node_id']}`",
             f"- **Branch**: {subj['branch']}",
             f"- **Project**: {subj['project']}",
             f"- **Status**: {subj['status']}",
             f"- **Reproducibility**: {subj['reproducibility_score']:.0%} "
             f"(Grade {subj['reproducibility_grade']})",
-            f"",
+            "",
             f"## Ancestors ({len(report['ancestors'])})",
         ]
         for a in report["ancestors"]:
@@ -277,7 +276,7 @@ class ResearchExporter:
     # Research Report
     # ------------------------------------------------------------------
 
-    def research_report(self) -> Dict[str, Any]:
+    def research_report(self) -> dict[str, Any]:
         """Return a comprehensive platform-wide research report."""
         tree_summary = self._tree.tree_summary()
         cost_report = self._costs.cost_report()
@@ -290,7 +289,7 @@ class ResearchExporter:
 
         return {
             "report_type": "research_report",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "platform": "Signalium Quant Research Intelligence Platform v19.1",
             "lineage_tree": tree_summary,
             "timeline": {
@@ -319,47 +318,47 @@ class ResearchExporter:
         repro = report["reproducibility"]
 
         lines = [
-            f"# Research Intelligence Report",
-            f"",
+            "# Research Intelligence Report",
+            "",
             f"Generated: {report['exported_at'][:19]}",
             f"Platform:  {report['platform']}",
-            f"",
-            f"## Experiment Lineage Summary",
-            f"",
-            f"| Metric | Value |",
-            f"|--------|-------|",
+            "",
+            "## Experiment Lineage Summary",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
             f"| Total Experiments | {lt['total_experiments']} |",
             f"| Root Experiments | {lt['root_experiments']} |",
             f"| Projects | {len(lt['projects'])} |",
             f"| Branches | {len(lt['branches'])} |",
             f"| Researchers | {len(lt['researchers'])} |",
             f"| Avg Reproducibility | {lt['average_reproducibility_score']:.0%} (Grade {lt['reproducibility_grade']}) |",
-            f"",
-            f"## Cost Summary",
-            f"",
-            f"| Category | Cost (USD) |",
-            f"|----------|-----------|",
+            "",
+            "## Cost Summary",
+            "",
+            "| Category | Cost (USD) |",
+            "|----------|-----------|",
         ]
         for cat, usd in cost["cost_by_category"].items():
             lines.append(f"| {cat.title()} | ${usd:.4f} |")
         lines += [
             f"| **Total** | **${cost['total_cost_usd']:.4f}** |",
-            f"",
+            "",
             f"Total GPU Hours: {cost['total_gpu_hours']:.2f}",
-            f"",
-            f"## Knowledge Graph",
-            f"",
+            "",
+            "## Knowledge Graph",
+            "",
             f"- Nodes: {kg['node_count']}",
             f"- Edges: {kg['edge_count']}",
             f"- Champion Models: {kg['champion_models']}",
             f"- Retired Models: {kg['retired_models']}",
             f"- Deployments: {kg['deployments']}",
-            f"",
-            f"## Reproducibility",
-            f"",
+            "",
+            "## Reproducibility",
+            "",
             f"- Average Score: {repro['average_score']:.0%}",
             f"- Distribution: {repro['distribution']}",
-            f"",
+            "",
         ]
         return "\n".join(lines)
 
@@ -367,7 +366,7 @@ class ResearchExporter:
     # Experiment Tree Export
     # ------------------------------------------------------------------
 
-    def experiment_tree(self) -> Dict[str, Any]:
+    def experiment_tree(self) -> dict[str, Any]:
         """Export the full experiment tree as a nested structure."""
         summary = self._tree.tree_summary()
         nodes = self._tree.all_nodes()
@@ -377,7 +376,7 @@ class ResearchExporter:
 
         return {
             "export_type": "experiment_tree",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "summary": summary,
             "root_ids": roots,
             "nodes": node_map,
@@ -387,11 +386,11 @@ class ResearchExporter:
     # Knowledge Graph Export
     # ------------------------------------------------------------------
 
-    def knowledge_graph_export(self) -> Dict[str, Any]:
+    def knowledge_graph_export(self) -> dict[str, Any]:
         """Export the full knowledge graph."""
         return {
             "export_type": "knowledge_graph",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "graph": self._kg.to_dict(),
             "report": self._kg.graph_report(),
         }
@@ -402,9 +401,14 @@ class ResearchExporter:
 # ---------------------------------------------------------------------------
 
 
-def _repro_distribution(scores: List[float]) -> Dict[str, int]:
-    dist: Dict[str, int] = {"A (≥90%)": 0, "B (75-89%)": 0,
-                            "C (55-74%)": 0, "D (35-54%)": 0, "F (<35%)": 0}
+def _repro_distribution(scores: list[float]) -> dict[str, int]:
+    dist: dict[str, int] = {
+        "A (≥90%)": 0,
+        "B (75-89%)": 0,
+        "C (55-74%)": 0,
+        "D (35-54%)": 0,
+        "F (<35%)": 0,
+    }
     for s in scores:
         if s >= 0.90:
             dist["A (≥90%)"] += 1

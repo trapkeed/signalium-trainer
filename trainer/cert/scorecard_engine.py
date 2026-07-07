@@ -2,38 +2,48 @@
 
 from __future__ import annotations
 
-import statistics
-from typing import Any, Dict, List, Optional
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_types import (
-    CheckStatus, ScorecardCategory, SCORECARD_WEIGHTS, clamp,
-)
 from trainer.cert.cert_models import (
-    CertificationInput, ScorecardResult, ValidationResult,
-    StressTestResult, MonteCarloResult, BenchmarkResult,
-    ReproducibilityResult, SecurityResult, OperationalResult,
+    BenchmarkResult,
+    CertificationInput,
+    MonteCarloResult,
+    OperationalResult,
+    ReproducibilityResult,
+    ScorecardResult,
+    SecurityResult,
+    StressTestResult,
+    ValidationResult,
+)
+from trainer.cert.cert_types import (
+    SCORECARD_WEIGHTS,
+    CheckStatus,
+    ScorecardCategory,
+    clamp,
 )
 
 
-def _score_from_results(results: list, pass_w: float = 100.0, warn_w: float = 55.0,
-                         fail_w: float = 10.0, na_w: float = 65.0) -> float:
+def _score_from_results(
+    results: list,
+    pass_w: float = 100.0,
+    warn_w: float = 55.0,
+    fail_w: float = 10.0,
+    na_w: float = 65.0,
+) -> float:
     if not results:
         return 50.0
     weights = {
-        CheckStatus.PASS:           pass_w,
-        CheckStatus.WARNING:         warn_w,
-        CheckStatus.FAIL:            fail_w,
-        CheckStatus.NOT_APPLICABLE:  na_w,
+        CheckStatus.PASS: pass_w,
+        CheckStatus.WARNING: warn_w,
+        CheckStatus.FAIL: fail_w,
+        CheckStatus.NOT_APPLICABLE: na_w,
     }
-    return clamp(
-        sum(weights.get(r.status, 50.0) for r in results) / len(results)
-    )
+    return clamp(sum(weights.get(r.status, 50.0) for r in results) / len(results))
 
 
 def _grade(score: float) -> str:
@@ -60,37 +70,37 @@ class ScorecardEngine:
 
     def compute(
         self,
-        inp:              CertificationInput,
-        validations:      List[ValidationResult],
-        stress_tests:     List[StressTestResult],
-        monte_carlos:     List[MonteCarloResult],
-        benchmarks:       List[BenchmarkResult],
-        reproducibility:  List[ReproducibilityResult],
-        security:         List[SecurityResult],
-        operational:      List[OperationalResult],
+        inp: CertificationInput,
+        validations: list[ValidationResult],
+        stress_tests: list[StressTestResult],
+        monte_carlos: list[MonteCarloResult],
+        benchmarks: list[BenchmarkResult],
+        reproducibility: list[ReproducibilityResult],
+        security: list[SecurityResult],
+        operational: list[OperationalResult],
     ) -> ScorecardResult:
 
-        research  = self._research_score(inp)
-        valid     = _score_from_results(validations)
-        perf      = self._performance_score(inp, benchmarks)
-        calib     = self._calibration_score(inp)
-        robust    = self._robustness_score(stress_tests, monte_carlos)
-        sec       = self._security_score(security)
-        ops       = _score_from_results(operational, fail_w=0.0)
-        docs      = self._docs_score(inp)
-        repro     = _score_from_results(reproducibility, fail_w=5.0)
+        research = self._research_score(inp)
+        valid = _score_from_results(validations)
+        perf = self._performance_score(inp, benchmarks)
+        calib = self._calibration_score(inp)
+        robust = self._robustness_score(stress_tests, monte_carlos)
+        sec = self._security_score(security)
+        ops = _score_from_results(operational, fail_w=0.0)
+        docs = self._docs_score(inp)
+        repro = _score_from_results(reproducibility, fail_w=5.0)
 
-        weights   = SCORECARD_WEIGHTS
-        overall   = clamp(
-            research  * weights[ScorecardCategory.RESEARCH_QUALITY] +
-            valid     * weights[ScorecardCategory.VALIDATION] +
-            perf      * weights[ScorecardCategory.PERFORMANCE] +
-            calib     * weights[ScorecardCategory.CALIBRATION] +
-            robust    * weights[ScorecardCategory.ROBUSTNESS] +
-            sec       * weights[ScorecardCategory.SECURITY] +
-            ops       * weights[ScorecardCategory.OPERATIONAL] +
-            docs      * weights[ScorecardCategory.DOCUMENTATION] +
-            repro     * weights[ScorecardCategory.REPRODUCIBILITY]
+        weights = SCORECARD_WEIGHTS
+        overall = clamp(
+            research * weights[ScorecardCategory.RESEARCH_QUALITY]
+            + valid * weights[ScorecardCategory.VALIDATION]
+            + perf * weights[ScorecardCategory.PERFORMANCE]
+            + calib * weights[ScorecardCategory.CALIBRATION]
+            + robust * weights[ScorecardCategory.ROBUSTNESS]
+            + sec * weights[ScorecardCategory.SECURITY]
+            + ops * weights[ScorecardCategory.OPERATIONAL]
+            + docs * weights[ScorecardCategory.DOCUMENTATION]
+            + repro * weights[ScorecardCategory.REPRODUCIBILITY]
         )
 
         result = ScorecardResult(
@@ -125,48 +135,48 @@ class ScorecardEngine:
         return clamp(rq + bonus)
 
     def _performance_score(
-        self, inp: CertificationInput, benchmarks: List[BenchmarkResult]
+        self, inp: CertificationInput, benchmarks: list[BenchmarkResult]
     ) -> float:
         bench_s = _score_from_results(benchmarks)
-        oos_s   = clamp(inp.oos_sharpe * 25.0 + 50.0)    # map sharpe 0→50, 2→100
+        oos_s = clamp(inp.oos_sharpe * 25.0 + 50.0)  # map sharpe 0→50, 2→100
         return clamp((bench_s + oos_s) / 2.0)
 
     def _calibration_score(self, inp: CertificationInput) -> float:
-        cs      = clamp(inp.calibration_score * 100.0)
-        brier_p = clamp((1.0 - inp.brier_score * 4.0) * 100.0)   # 0→100 at brier=0
-        ece_p   = clamp((1.0 - inp.ece * 5.0) * 100.0)
+        cs = clamp(inp.calibration_score * 100.0)
+        brier_p = clamp((1.0 - inp.brier_score * 4.0) * 100.0)  # 0→100 at brier=0
+        ece_p = clamp((1.0 - inp.ece * 5.0) * 100.0)
         return clamp((cs + brier_p + ece_p) / 3.0)
 
     def _robustness_score(
         self,
-        stress_tests: List[StressTestResult],
-        monte_carlos: List[MonteCarloResult],
+        stress_tests: list[StressTestResult],
+        monte_carlos: list[MonteCarloResult],
     ) -> float:
         stress_s = _score_from_results(stress_tests, warn_w=50.0, fail_w=10.0)
-        mc_s     = _score_from_results(monte_carlos, warn_w=60.0, fail_w=20.0)
-        return clamp((stress_s * 0.6 + mc_s * 0.4))
+        mc_s = _score_from_results(monte_carlos, warn_w=60.0, fail_w=20.0)
+        return clamp(stress_s * 0.6 + mc_s * 0.4)
 
-    def _security_score(self, security: List[SecurityResult]) -> float:
+    def _security_score(self, security: list[SecurityResult]) -> float:
         if not security:
             return 50.0
         from trainer.cert.cert_types import RiskLevel
+
         weights = {
-            CheckStatus.PASS:           100.0,
-            CheckStatus.WARNING:         40.0,
-            CheckStatus.FAIL:             0.0,
-            CheckStatus.NOT_APPLICABLE:  70.0,
+            CheckStatus.PASS: 100.0,
+            CheckStatus.WARNING: 40.0,
+            CheckStatus.FAIL: 0.0,
+            CheckStatus.NOT_APPLICABLE: 70.0,
         }
         risk_mult = {
             RiskLevel.CRITICAL: 3.0,
-            RiskLevel.HIGH:     2.0,
-            RiskLevel.MEDIUM:   1.0,
-            RiskLevel.LOW:      0.5,
-            RiskLevel.INFO:     0.25,
+            RiskLevel.HIGH: 2.0,
+            RiskLevel.MEDIUM: 1.0,
+            RiskLevel.LOW: 0.5,
+            RiskLevel.INFO: 0.25,
         }
         total_w = sum(risk_mult.get(r.risk_level, 1.0) * 100.0 for r in security)
-        earned  = sum(
-            risk_mult.get(r.risk_level, 1.0) * weights.get(r.status, 50.0)
-            for r in security
+        earned = sum(
+            risk_mult.get(r.risk_level, 1.0) * weights.get(r.status, 50.0) for r in security
         )
         return clamp(earned / total_w * 100.0 if total_w > 0 else 50.0)
 

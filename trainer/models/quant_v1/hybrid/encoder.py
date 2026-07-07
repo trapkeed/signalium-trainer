@@ -26,7 +26,7 @@ Architecture::
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -58,36 +58,32 @@ class HybridEncoder(nn.Module):
         self._config = config
 
         # ── Stream 1: Raw Market Sequence ────────────────────────────────
-        self.raw_market: Optional[RawMarketStream] = None
+        self.raw_market: RawMarketStream | None = None
         if config.raw_market.enabled:
             self.raw_market = RawMarketStream(config.raw_market)
 
         # ── Stream 2: Multi-Timeframe ─────────────────────────────────────
-        self.multi_timeframe: Optional[MultiTimeframeStream] = None
+        self.multi_timeframe: MultiTimeframeStream | None = None
         if config.multi_timeframe.enabled:
             self.multi_timeframe = MultiTimeframeStream(config.multi_timeframe)
 
         # ── Stream 3: Engineered Features ────────────────────────────────
-        self.engineered_features: Optional[EngineeredFeatureStream] = None
+        self.engineered_features: EngineeredFeatureStream | None = None
         if config.engineered_features.enabled:
-            self.engineered_features = EngineeredFeatureStream(
-                config.engineered_features
-            )
+            self.engineered_features = EngineeredFeatureStream(config.engineered_features)
 
         # ── Stream 4: Context Embeddings ─────────────────────────────────
-        self.context_embeddings: Optional[ContextEmbeddingStream] = None
+        self.context_embeddings: ContextEmbeddingStream | None = None
         if config.context_embeddings.enabled:
-            self.context_embeddings = ContextEmbeddingStream(
-                config.context_embeddings
-            )
+            self.context_embeddings = ContextEmbeddingStream(config.context_embeddings)
 
         # ── Stream 5: Market Memory ───────────────────────────────────────
-        self.market_memory: Optional[MarketMemoryStream] = None
+        self.market_memory: MarketMemoryStream | None = None
         if config.market_memory.enabled:
             self.market_memory = MarketMemoryStream(config.market_memory)
 
         # ── Stream 6: Dynamic Feature Gate ───────────────────────────────
-        self.feature_gate: Optional[DynamicFeatureGate] = None
+        self.feature_gate: DynamicFeatureGate | None = None
         if config.feature_gate.enabled and config.engineered_features.enabled:
             self.feature_gate = DynamicFeatureGate(
                 feature_dim=config.engineered_features.input_dim,
@@ -134,7 +130,7 @@ class HybridEncoder(nn.Module):
         """
         batch_size = hybrid_input.batch_size
         stream_outputs: list[torch.Tensor] = []
-        gate_context: Optional[torch.Tensor] = None
+        gate_context: torch.Tensor | None = None
 
         # Stream 1 — Raw Market
         if self.raw_market is not None and hybrid_input.raw_sequence is not None:
@@ -143,22 +139,14 @@ class HybridEncoder(nn.Module):
             gate_context = raw_out
 
         # Stream 2 — Multi-Timeframe
-        if (
-            self.multi_timeframe is not None
-            and hybrid_input.multi_timeframe is not None
-        ):
-            tf_out = self.multi_timeframe(
-                hybrid_input.multi_timeframe, batch_size=batch_size
-            )
+        if self.multi_timeframe is not None and hybrid_input.multi_timeframe is not None:
+            tf_out = self.multi_timeframe(hybrid_input.multi_timeframe, batch_size=batch_size)
             stream_outputs.append(tf_out)
             if gate_context is None:
                 gate_context = tf_out
 
         # Stream 3 (+6) — Engineered Features with optional gate
-        if (
-            self.engineered_features is not None
-            and hybrid_input.engineered_features is not None
-        ):
+        if self.engineered_features is not None and hybrid_input.engineered_features is not None:
             feats = hybrid_input.engineered_features
             if self.feature_gate is not None and gate_context is not None:
                 # Ensure gate_context is the right dimension
@@ -177,20 +165,12 @@ class HybridEncoder(nn.Module):
             stream_outputs.append(feat_out)
 
         # Stream 4 — Context Embeddings
-        if (
-            self.context_embeddings is not None
-            and hybrid_input.context_ids is not None
-        ):
-            ctx_out = self.context_embeddings(
-                hybrid_input.context_ids, batch_size=batch_size
-            )
+        if self.context_embeddings is not None and hybrid_input.context_ids is not None:
+            ctx_out = self.context_embeddings(hybrid_input.context_ids, batch_size=batch_size)
             stream_outputs.append(ctx_out)
 
         # Stream 5 — Market Memory
-        if (
-            self.market_memory is not None
-            and hybrid_input.memory_state is not None
-        ):
+        if self.market_memory is not None and hybrid_input.memory_state is not None:
             mem_out = self.market_memory(hybrid_input.memory_state)
             stream_outputs.append(mem_out)
 
@@ -245,7 +225,7 @@ class HybridEncoder(nn.Module):
                 if p.grad is not None:
                     total += p.grad.norm(2).item() ** 2
                     count += 1
-            norms[f"grad_norm/{name}"] = total ** 0.5 if count > 0 else 0.0
+            norms[f"grad_norm/{name}"] = total**0.5 if count > 0 else 0.0
         return norms
 
     # ------------------------------------------------------------------

@@ -31,9 +31,8 @@ from __future__ import annotations
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Deque, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Feature classification
@@ -42,10 +41,10 @@ from typing import Any, Deque, Dict, List, Optional
 
 class FeatureClassification:
     EXPERIMENTAL = "experimental"
-    CANDIDATE    = "candidate"
-    APPROVED     = "approved"
-    DEPRECATED   = "deprecated"
-    RETIRED      = "retired"
+    CANDIDATE = "candidate"
+    APPROVED = "approved"
+    DEPRECATED = "deprecated"
+    RETIRED = "retired"
 
     ALL = [EXPERIMENTAL, CANDIDATE, APPROVED, DEPRECATED, RETIRED]
 
@@ -80,23 +79,21 @@ class FeatureRecord:
     name: str = ""
     category: str = "technical"
     classification: str = FeatureClassification.EXPERIMENTAL
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    promoted_at: Optional[str] = None
-    deprecated_at: Optional[str] = None
-    retired_at: Optional[str] = None
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    promoted_at: str | None = None
+    deprecated_at: str | None = None
+    retired_at: str | None = None
     usage_count: int = 0
-    parent_feature: Optional[str] = None
+    parent_feature: str | None = None
     description: str = ""
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_active(self) -> bool:
         return self.classification in FeatureClassification.ACTIVE
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "feature_id": self.feature_id,
             "name": self.name,
@@ -123,21 +120,20 @@ class FeatureRecord:
 @dataclass
 class FeatureObservation:
     """One measured observation for a feature."""
+
     obs_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
-    importance: float = 0.0       # SHAP or gain-based importance (0-1)
-    stability: float = 1.0        # Feature value stability over time (0-1)
-    drift: float = 0.0            # Distribution drift magnitude (0-1)
-    missing_rate: float = 0.0     # Fraction of NaN/missing values
+    importance: float = 0.0  # SHAP or gain-based importance (0-1)
+    stability: float = 1.0  # Feature value stability over time (0-1)
+    drift: float = 0.0  # Distribution drift magnitude (0-1)
+    missing_rate: float = 0.0  # Fraction of NaN/missing values
     correlation_change: float = 0.0  # Change in correlation to target
     predictive_contribution: float = 0.0  # Prediction accuracy contribution
     dataset_version: str = ""
     model_version: str = ""
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "obs_id": self.obs_id,
             "name": self.name,
@@ -161,6 +157,7 @@ class FeatureObservation:
 @dataclass
 class FeatureEvaluation:
     """Evaluation result for one feature."""
+
     name: str = ""
     classification: str = FeatureClassification.EXPERIMENTAL
     avg_importance: float = 0.0
@@ -171,12 +168,10 @@ class FeatureEvaluation:
     n_observations: int = 0
     recommendation: str = "monitor"
     recommendation_reason: str = ""
-    health_score: float = 1.0   # composite 0-1
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    health_score: float = 1.0  # composite 0-1
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "classification": self.classification,
@@ -209,46 +204,56 @@ class FeatureLifecycleManager:
         missing_rate_retire_threshold: Missing rate above which to retire.
     """
 
-    def __init__(self, obs_window: int = 100,
-                 importance_promote_threshold: float = 0.03,
-                 stability_retire_threshold: float = 0.50,
-                 drift_deprecate_threshold: float = 0.30,
-                 missing_rate_retire_threshold: float = 0.10) -> None:
+    def __init__(
+        self,
+        obs_window: int = 100,
+        importance_promote_threshold: float = 0.03,
+        stability_retire_threshold: float = 0.50,
+        drift_deprecate_threshold: float = 0.30,
+        missing_rate_retire_threshold: float = 0.10,
+    ) -> None:
         self.obs_window = obs_window
         self.importance_threshold = importance_promote_threshold
         self.stability_threshold = stability_retire_threshold
         self.drift_threshold = drift_deprecate_threshold
         self.missing_threshold = missing_rate_retire_threshold
-        self._features: Dict[str, FeatureRecord] = {}
-        self._observations: Dict[str, Deque[FeatureObservation]] = {}
-        self._all_observations: Dict[str, List[FeatureObservation]] = {}
+        self._features: dict[str, FeatureRecord] = {}
+        self._observations: dict[str, deque[FeatureObservation]] = {}
+        self._all_observations: dict[str, list[FeatureObservation]] = {}
 
     def register_feature(self, record: FeatureRecord) -> str:
         self._features[record.name] = record
         return record.name
 
-    def get_feature(self, name: str) -> Optional[FeatureRecord]:
+    def get_feature(self, name: str) -> FeatureRecord | None:
         return self._features.get(name)
 
-    def record_observation(self, name: str,
-                            importance: float = 0.0,
-                            stability: float = 1.0,
-                            drift: float = 0.0,
-                            missing_rate: float = 0.0,
-                            correlation_change: float = 0.0,
-                            predictive_contribution: float = 0.0,
-                            dataset_version: str = "",
-                            model_version: str = "") -> FeatureObservation:
+    def record_observation(
+        self,
+        name: str,
+        importance: float = 0.0,
+        stability: float = 1.0,
+        drift: float = 0.0,
+        missing_rate: float = 0.0,
+        correlation_change: float = 0.0,
+        predictive_contribution: float = 0.0,
+        dataset_version: str = "",
+        model_version: str = "",
+    ) -> FeatureObservation:
         """Record one feature quality observation."""
         if name not in self._features:
             self._features[name] = FeatureRecord(name=name)
         self._features[name].usage_count += 1
         obs = FeatureObservation(
-            name=name, importance=importance, stability=stability,
-            drift=drift, missing_rate=missing_rate,
+            name=name,
+            importance=importance,
+            stability=stability,
+            drift=drift,
+            missing_rate=missing_rate,
             correlation_change=correlation_change,
             predictive_contribution=predictive_contribution,
-            dataset_version=dataset_version, model_version=model_version,
+            dataset_version=dataset_version,
+            model_version=model_version,
         )
         if name not in self._observations:
             self._observations[name] = deque(maxlen=self.obs_window)
@@ -261,14 +266,15 @@ class FeatureLifecycleManager:
         """Evaluate a feature and generate a lifecycle recommendation."""
         record = self._features.get(name)
         if record is None:
-            return FeatureEvaluation(name=name,
-                                      recommendation_reason="Feature not registered")
+            return FeatureEvaluation(name=name, recommendation_reason="Feature not registered")
         obs_list = list(self._observations.get(name, []))
         n = len(obs_list)
         if n == 0:
-            return FeatureEvaluation(name=name,
-                                      classification=record.classification,
-                                      recommendation_reason="No observations yet")
+            return FeatureEvaluation(
+                name=name,
+                classification=record.classification,
+                recommendation_reason="No observations yet",
+            )
 
         def _mean(vals):
             return sum(vals) / len(vals) if vals else 0.0
@@ -280,11 +286,11 @@ class FeatureLifecycleManager:
         avg_contrib = _mean([o.predictive_contribution for o in obs_list])
 
         health = (
-            avg_imp * 0.3 +
-            avg_stab * 0.3 +
-            (1.0 - avg_drift) * 0.2 +
-            (1.0 - avg_miss) * 0.1 +
-            avg_contrib * 0.1
+            avg_imp * 0.3
+            + avg_stab * 0.3
+            + (1.0 - avg_drift) * 0.2
+            + (1.0 - avg_miss) * 0.1
+            + avg_contrib * 0.1
         )
 
         recommendation = "monitor"
@@ -294,8 +300,10 @@ class FeatureLifecycleManager:
         if cls == FeatureClassification.EXPERIMENTAL:
             if avg_imp >= self.importance_threshold and avg_stab >= 0.7:
                 recommendation = "promote_to_candidate"
-                reason = (f"Importance {avg_imp:.3f} ≥ {self.importance_threshold}, "
-                           f"stability {avg_stab:.3f} ≥ 0.70")
+                reason = (
+                    f"Importance {avg_imp:.3f} ≥ {self.importance_threshold}, "
+                    f"stability {avg_stab:.3f} ≥ 0.70"
+                )
             elif avg_miss > self.missing_threshold:
                 recommendation = "retire"
                 reason = f"Missing rate {avg_miss:.3f} > {self.missing_threshold}"
@@ -306,8 +314,10 @@ class FeatureLifecycleManager:
         elif cls == FeatureClassification.CANDIDATE:
             if avg_imp >= self.importance_threshold * 1.5 and avg_stab >= 0.80:
                 recommendation = "promote_to_approved"
-                reason = (f"Importance {avg_imp:.3f} ≥ {self.importance_threshold*1.5:.3f}, "
-                           f"stability {avg_stab:.3f} ≥ 0.80")
+                reason = (
+                    f"Importance {avg_imp:.3f} ≥ {self.importance_threshold*1.5:.3f}, "
+                    f"stability {avg_stab:.3f} ≥ 0.80"
+                )
             elif avg_drift > self.drift_threshold:
                 recommendation = "deprecate"
                 reason = f"Feature drift {avg_drift:.3f} > {self.drift_threshold}"
@@ -351,17 +361,16 @@ class FeatureLifecycleManager:
             health_score=round(min(max(health, 0.0), 1.0), 4),
         )
 
-    def classify(self, name: str, classification: str,
-                  actor: str = "system",
-                  reason: str = "") -> bool:
+    def classify(
+        self, name: str, classification: str, actor: str = "system", reason: str = ""
+    ) -> bool:
         """Manually update a feature's classification."""
         record = self._features.get(name)
         if record is None:
             return False
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         record.classification = classification
-        if classification in (FeatureClassification.CANDIDATE,
-                               FeatureClassification.APPROVED):
+        if classification in (FeatureClassification.CANDIDATE, FeatureClassification.APPROVED):
             record.promoted_at = now
         elif classification == FeatureClassification.DEPRECATED:
             record.deprecated_at = now
@@ -369,32 +378,27 @@ class FeatureLifecycleManager:
             record.retired_at = now
         return True
 
-    def evaluate_all(self) -> List[FeatureEvaluation]:
+    def evaluate_all(self) -> list[FeatureEvaluation]:
         """Evaluate all registered features."""
         return [self.evaluate(name) for name in self._features]
 
-    def features_by_classification(self, cls: str) -> List[FeatureRecord]:
-        return [f for f in self._features.values()
-                if f.classification == cls]
+    def features_by_classification(self, cls: str) -> list[FeatureRecord]:
+        return [f for f in self._features.values() if f.classification == cls]
 
-    def promotion_candidates(self) -> List[FeatureEvaluation]:
+    def promotion_candidates(self) -> list[FeatureEvaluation]:
         evals = self.evaluate_all()
-        return [e for e in evals
-                if e.recommendation.startswith("promote")]
+        return [e for e in evals if e.recommendation.startswith("promote")]
 
-    def retirement_candidates(self) -> List[FeatureEvaluation]:
+    def retirement_candidates(self) -> list[FeatureEvaluation]:
         evals = self.evaluate_all()
-        return [e for e in evals
-                if e.recommendation in ("retire", "deprecate", "archived")]
+        return [e for e in evals if e.recommendation in ("retire", "deprecate", "archived")]
 
-    def summary(self) -> Dict[str, Any]:
-        by_cls: Dict[str, int] = {}
+    def summary(self) -> dict[str, Any]:
+        by_cls: dict[str, int] = {}
         for f in self._features.values():
             by_cls[f.classification] = by_cls.get(f.classification, 0) + 1
         return {
             "total_features": len(self._features),
             "by_classification": by_cls,
-            "total_observations": sum(
-                len(v) for v in self._all_observations.values()
-            ),
+            "total_observations": sum(len(v) for v in self._all_observations.values()),
         }

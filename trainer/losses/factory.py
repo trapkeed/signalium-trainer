@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import torch
 import torch.nn as nn
 
 from trainer.models.quant_v1.config import LossConfig, LossType
 
 
-def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.Module:
+def build_loss(config: LossConfig, device: torch.device | None = None) -> nn.Module:
     """Instantiate a loss function from a LossConfig.
 
     Adding a new loss requires only:
@@ -27,7 +25,7 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
     """
     dev = device or torch.device("cpu")
 
-    class_weights: Optional[torch.Tensor] = None
+    class_weights: torch.Tensor | None = None
     if config.class_weights is not None:
         class_weights = torch.tensor(config.class_weights, dtype=torch.float32, device=dev)
 
@@ -39,6 +37,7 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
 
     if config.type == LossType.WEIGHTED_CROSS_ENTROPY:
         from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
+
         return WeightedCrossEntropyLoss(
             class_weights=class_weights,
             label_smoothing=config.label_smoothing,
@@ -47,7 +46,7 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
     if config.type == LossType.FOCAL:
         from trainer.losses.focal import FocalLoss
 
-        alpha: Optional[torch.Tensor] = None
+        alpha: torch.Tensor | None = None
         if config.focal_alpha is not None:
             alpha = torch.tensor(config.focal_alpha, dtype=torch.float32, device=dev)
 
@@ -58,6 +57,5 @@ def build_loss(config: LossConfig, device: Optional[torch.device] = None) -> nn.
         )
 
     raise ValueError(
-        f"Unknown loss type: '{config.type}'. "
-        f"Available: {[t.value for t in LossType]}"
+        f"Unknown loss type: '{config.type}'. " f"Available: {[t.value for t in LossType]}"
     )

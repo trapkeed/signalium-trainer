@@ -29,12 +29,12 @@ Usage::
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Colour scale helper
 # ---------------------------------------------------------------------------
+
 
 def _score_colour(score: float) -> str:
     if score >= 90:
@@ -65,20 +65,19 @@ class HRSADashboard:
 
     def __init__(
         self,
-        api: Optional[Any] = None,
-        db: Optional[Any] = None,
+        api: Any | None = None,
+        db: Any | None = None,
     ) -> None:
         self._api = api
-        self._db  = db
+        self._db = db
 
     # 1. Hierarchical Score Tree ─────────────────────────────────────────────
 
-    def hierarchical_tree(self, hs: Any) -> Dict[str, Any]:
+    def hierarchical_tree(self, hs: Any) -> dict[str, Any]:
         """3-level score tree suitable for a tree/sunburst visualisation."""
-        l2_nodes: List[Dict[str, Any]] = []
+        l2_nodes: list[dict[str, Any]] = []
         for cat, result in sorted(
-            hs.level2_categories.items(),
-            key=lambda x: x[1].score, reverse=True
+            hs.level2_categories.items(), key=lambda x: x[1].score, reverse=True
         ):
             if result.metric_count == 0:
                 continue
@@ -90,23 +89,24 @@ class HRSADashboard:
                     "bar": _ascii_bar(score, 10),
                 }
                 for metric, score in sorted(
-                    result.metric_scores.items(),
-                    key=lambda x: x[1], reverse=True
+                    result.metric_scores.items(), key=lambda x: x[1], reverse=True
                 )
             ]
-            l2_nodes.append({
-                "name": result.display_name,
-                "category_key": cat,
-                "score": round(result.score, 1),
-                "confidence": round(result.confidence, 3),
-                "weight": result.weight,
-                "weighted_contribution": round(result.score * result.weight, 2),
-                "grade": result.grade,
-                "colour": _score_colour(result.score),
-                "bar": _ascii_bar(result.score),
-                "metric_count": result.metric_count,
-                "metrics": metric_nodes,
-            })
+            l2_nodes.append(
+                {
+                    "name": result.display_name,
+                    "category_key": cat,
+                    "score": round(result.score, 1),
+                    "confidence": round(result.confidence, 3),
+                    "weight": result.weight,
+                    "weighted_contribution": round(result.score * result.weight, 2),
+                    "grade": result.grade,
+                    "colour": _score_colour(result.score),
+                    "bar": _ascii_bar(result.score),
+                    "metric_count": result.metric_count,
+                    "metrics": metric_nodes,
+                }
+            )
 
         return {
             "type": "hierarchical_tree",
@@ -129,14 +129,14 @@ class HRSADashboard:
     def radar_chart(
         self,
         hs: Any,
-        reference: Optional[Any] = None,
-    ) -> Dict[str, Any]:
+        reference: Any | None = None,
+    ) -> dict[str, Any]:
         """Category radar/spider chart data."""
-        axes: List[Dict[str, Any]] = []
+        axes: list[dict[str, Any]] = []
         for cat, result in hs.level2_categories.items():
             if result.metric_count == 0:
                 continue
-            entry: Dict[str, Any] = {
+            entry: dict[str, Any] = {
                 "axis": result.display_name,
                 "value": round(result.score, 1),
                 "max": 100.0,
@@ -159,20 +159,22 @@ class HRSADashboard:
 
     # 3. Category Heatmap ────────────────────────────────────────────────────
 
-    def category_heatmap(self, hs: Any) -> Dict[str, Any]:
+    def category_heatmap(self, hs: Any) -> dict[str, Any]:
         """Colour-coded 5×3 category grid."""
-        cells: List[Dict[str, Any]] = []
+        cells: list[dict[str, Any]] = []
         for cat, result in hs.level2_categories.items():
-            cells.append({
-                "category": result.display_name,
-                "score": round(result.score, 1),
-                "confidence": round(result.confidence, 3),
-                "grade": result.grade,
-                "colour": _score_colour(result.score),
-                "bar": _ascii_bar(result.score, 10),
-                "coverage": round(result.coverage, 2),
-                "metric_count": result.metric_count,
-            })
+            cells.append(
+                {
+                    "category": result.display_name,
+                    "score": round(result.score, 1),
+                    "confidence": round(result.confidence, 3),
+                    "grade": result.grade,
+                    "colour": _score_colour(result.score),
+                    "bar": _ascii_bar(result.score, 10),
+                    "coverage": round(result.coverage, 2),
+                    "metric_count": result.metric_count,
+                }
+            )
         cells.sort(key=lambda c: c["score"], reverse=True)
 
         return {
@@ -182,39 +184,38 @@ class HRSADashboard:
             "cells": cells,
             "colour_scale": [
                 {"label": "≥90 Exceptional", "colour": "gold"},
-                {"label": "≥80 Strong",      "colour": "green"},
-                {"label": "≥70 Good",        "colour": "blue"},
-                {"label": "≥60 Adequate",    "colour": "cyan"},
-                {"label": "≥50 Weak",        "colour": "yellow"},
-                {"label": "<50 Critical",    "colour": "red"},
+                {"label": "≥80 Strong", "colour": "green"},
+                {"label": "≥70 Good", "colour": "blue"},
+                {"label": "≥60 Adequate", "colour": "cyan"},
+                {"label": "≥50 Weak", "colour": "yellow"},
+                {"label": "<50 Critical", "colour": "red"},
             ],
         }
 
     # 4. Metric Heatmap ──────────────────────────────────────────────────────
 
-    def metric_heatmap(
-        self, hs: Any, category: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def metric_heatmap(self, hs: Any, category: str | None = None) -> dict[str, Any]:
         """Metric-level heatmap, optionally filtered to one category."""
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         cats = hs.level2_categories
         if category:
             cats = {k: v for k, v in cats.items() if k == category}
 
         for cat, result in cats.items():
             for metric, score in sorted(
-                result.metric_scores.items(),
-                key=lambda x: x[1], reverse=True
+                result.metric_scores.items(), key=lambda x: x[1], reverse=True
             ):
                 raw = result.raw_values.get(metric)
-                rows.append({
-                    "category": result.display_name,
-                    "metric": metric,
-                    "normalised_score": round(score, 1),
-                    "raw_value": raw,
-                    "colour": _score_colour(score),
-                    "bar": _ascii_bar(score, 10),
-                })
+                rows.append(
+                    {
+                        "category": result.display_name,
+                        "metric": metric,
+                        "normalised_score": round(score, 1),
+                        "raw_value": raw,
+                        "colour": _score_colour(score),
+                        "bar": _ascii_bar(score, 10),
+                    }
+                )
 
         return {
             "type": "metric_heatmap",
@@ -226,7 +227,7 @@ class HRSADashboard:
 
     # 5. Score Timeline ──────────────────────────────────────────────────────
 
-    def score_timeline(self, experiment_id: str) -> Dict[str, Any]:
+    def score_timeline(self, experiment_id: str) -> dict[str, Any]:
         """Composite score history from DB."""
         if self._db is None:
             return {"type": "score_timeline", "error": "No database configured"}
@@ -258,7 +259,7 @@ class HRSADashboard:
 
     # 6. Improvement Timeline ────────────────────────────────────────────────
 
-    def improvement_timeline(self, experiment_id: str) -> Dict[str, Any]:
+    def improvement_timeline(self, experiment_id: str) -> dict[str, Any]:
         """Period-over-period composite deltas."""
         if self._db is None:
             return {"type": "improvement_timeline", "error": "No database configured"}
@@ -272,22 +273,20 @@ class HRSADashboard:
         deltas = []
         for i in range(1, len(history)):
             delta = history[i]["composite"] - history[i - 1]["composite"]
-            deltas.append({
-                "period": f"{history[i-1]['scored_at'][:10]} → {history[i]['scored_at'][:10]}",
-                "delta": round(delta, 2),
-                "direction": "up" if delta > 0 else ("flat" if delta == 0 else "down"),
-                "colour": "green" if delta > 0 else ("gray" if delta == 0 else "red"),
-            })
+            deltas.append(
+                {
+                    "period": f"{history[i-1]['scored_at'][:10]} → {history[i]['scored_at'][:10]}",
+                    "delta": round(delta, 2),
+                    "direction": "up" if delta > 0 else ("flat" if delta == 0 else "down"),
+                    "colour": "green" if delta > 0 else ("gray" if delta == 0 else "red"),
+                }
+            )
         return {
             "type": "improvement_timeline",
             "experiment_id": experiment_id,
             "deltas": deltas,
-            "total_improvement": round(
-                sum(d["delta"] for d in deltas), 2
-            ),
-            "avg_improvement": round(
-                sum(d["delta"] for d in deltas) / len(deltas), 3
-            ),
+            "total_improvement": round(sum(d["delta"] for d in deltas), 2),
+            "avg_improvement": round(sum(d["delta"] for d in deltas) / len(deltas), 3),
         }
 
     # 7. Benchmark Comparison ────────────────────────────────────────────────
@@ -295,30 +294,34 @@ class HRSADashboard:
     def benchmark_comparison(
         self,
         subject_hs: Any,
-        benchmark_records: List[Any],
-    ) -> Dict[str, Any]:
+        benchmark_records: list[Any],
+    ) -> dict[str, Any]:
         """Side-by-side bar chart data for subject vs benchmarks."""
-        bars: List[Dict[str, Any]] = []
+        bars: list[dict[str, Any]] = []
 
         # Subject bar
-        bars.append({
-            "name": subject_hs.name or subject_hs.experiment_id,
-            "role": "subject",
-            "composite": round(subject_hs.level3_composite, 1),
-            "colour": "blue",
-            "bar": _ascii_bar(subject_hs.level3_composite),
-        })
+        bars.append(
+            {
+                "name": subject_hs.name or subject_hs.experiment_id,
+                "role": "subject",
+                "composite": round(subject_hs.level3_composite, 1),
+                "colour": "blue",
+                "bar": _ascii_bar(subject_hs.level3_composite),
+            }
+        )
 
         for rec in benchmark_records:
             delta = subject_hs.level3_composite - rec.composite
-            bars.append({
-                "name": rec.name or rec.experiment_id,
-                "role": rec.role,
-                "composite": round(rec.composite, 1),
-                "delta_vs_subject": round(delta, 2),
-                "colour": _score_colour(rec.composite),
-                "bar": _ascii_bar(rec.composite),
-            })
+            bars.append(
+                {
+                    "name": rec.name or rec.experiment_id,
+                    "role": rec.role,
+                    "composite": round(rec.composite, 1),
+                    "delta_vs_subject": round(delta, 2),
+                    "colour": _score_colour(rec.composite),
+                    "bar": _ascii_bar(rec.composite),
+                }
+            )
 
         return {
             "type": "benchmark_comparison",
@@ -326,44 +329,39 @@ class HRSADashboard:
             "subject_score": round(subject_hs.level3_composite, 1),
             "bars": sorted(bars, key=lambda b: b["composite"], reverse=True),
             "beats_all": all(
-                subject_hs.level3_composite >= rec.composite
-                for rec in benchmark_records
+                subject_hs.level3_composite >= rec.composite for rec in benchmark_records
             ),
         }
 
     # 8. Score Breakdown (waterfall) ─────────────────────────────────────────
 
-    def score_breakdown(self, hs: Any) -> Dict[str, Any]:
+    def score_breakdown(self, hs: Any) -> dict[str, Any]:
         """Weighted contribution waterfall from 0 to composite."""
-        segments: List[Dict[str, Any]] = []
+        segments: list[dict[str, Any]] = []
         running = 0.0
 
         sorted_cats = sorted(
-            [
-                (cat, r)
-                for cat, r in hs.level2_categories.items()
-                if r.metric_count > 0
-            ],
-            key=lambda x: x[1].weighted_score, reverse=True,
+            [(cat, r) for cat, r in hs.level2_categories.items() if r.metric_count > 0],
+            key=lambda x: x[1].weighted_score,
+            reverse=True,
         )
 
         for cat, result in sorted_cats:
             effective_w = result.weight * result.coverage
             total_w = hs.total_weight_used
-            contribution = (
-                (result.score * effective_w / total_w)
-                if total_w > 0 else 0.0
+            contribution = (result.score * effective_w / total_w) if total_w > 0 else 0.0
+            segments.append(
+                {
+                    "category": result.display_name,
+                    "category_score": round(result.score, 1),
+                    "weight": result.weight,
+                    "effective_weight": round(effective_w, 4),
+                    "contribution": round(contribution, 2),
+                    "cumulative": round(running + contribution, 2),
+                    "colour": _score_colour(result.score),
+                    "bar": _ascii_bar(contribution * 5, 10),  # scaled for visibility
+                }
             )
-            segments.append({
-                "category": result.display_name,
-                "category_score": round(result.score, 1),
-                "weight": result.weight,
-                "effective_weight": round(effective_w, 4),
-                "contribution": round(contribution, 2),
-                "cumulative": round(running + contribution, 2),
-                "colour": _score_colour(result.score),
-                "bar": _ascii_bar(contribution * 5, 10),  # scaled for visibility
-            })
             running += contribution
 
         return {
@@ -379,20 +377,18 @@ class HRSADashboard:
     def build_all(
         self,
         hs: Any,
-        experiment_id: Optional[str] = None,
-        reference: Optional[Any] = None,
-        benchmark_records: Optional[List[Any]] = None,
-    ) -> Dict[str, Any]:
+        experiment_id: str | None = None,
+        reference: Any | None = None,
+        benchmark_records: list[Any] | None = None,
+    ) -> dict[str, Any]:
         exp_id = experiment_id or hs.experiment_id
         return {
-            "hierarchical_tree":    self.hierarchical_tree(hs),
-            "radar_chart":          self.radar_chart(hs, reference),
-            "category_heatmap":     self.category_heatmap(hs),
-            "metric_heatmap":       self.metric_heatmap(hs),
-            "score_timeline":       self.score_timeline(exp_id),
+            "hierarchical_tree": self.hierarchical_tree(hs),
+            "radar_chart": self.radar_chart(hs, reference),
+            "category_heatmap": self.category_heatmap(hs),
+            "metric_heatmap": self.metric_heatmap(hs),
+            "score_timeline": self.score_timeline(exp_id),
             "improvement_timeline": self.improvement_timeline(exp_id),
-            "benchmark_comparison": self.benchmark_comparison(
-                hs, benchmark_records or []
-            ),
-            "score_breakdown":      self.score_breakdown(hs),
+            "benchmark_comparison": self.benchmark_comparison(hs, benchmark_records or []),
+            "score_breakdown": self.score_breakdown(hs),
         }

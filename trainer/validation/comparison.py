@@ -26,16 +26,15 @@ Usage::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from loguru import logger
 
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
 from trainer.validation.trading import TradingMetrics, TradingMetricsEngine
-
 
 # ---------------------------------------------------------------------------
 # Model snapshot
@@ -205,10 +204,10 @@ class ModelComparison:
         probs_a: torch.Tensor,
         probs_b: torch.Tensor,
         labels: torch.Tensor,
-        trades_a: Optional[list] = None,
-        trades_b: Optional[list] = None,
+        trades_a: list | None = None,
+        trades_b: list | None = None,
         n_classes: int = 3,
-    ) -> "ModelComparison":
+    ) -> ModelComparison:
         """Factory: compute snapshots from raw model outputs.
 
         Args:
@@ -272,12 +271,16 @@ class ModelComparison:
             vb = float(getattr(b.statistical, metric, 0.0))
             delta = vb - va
             if higher_is_better:
-                win = name_b if delta > significance_threshold else (
-                    name_a if delta < -significance_threshold else "tie"
+                win = (
+                    name_b
+                    if delta > significance_threshold
+                    else (name_a if delta < -significance_threshold else "tie")
                 )
             else:
-                win = name_a if delta > significance_threshold else (
-                    name_b if delta < -significance_threshold else "tie"
+                win = (
+                    name_a
+                    if delta > significance_threshold
+                    else (name_b if delta < -significance_threshold else "tie")
                 )
             if win == name_a:
                 a_wins += 1
@@ -285,10 +288,16 @@ class ModelComparison:
                 b_wins += 1
             else:
                 ties += 1
-            deltas.append(ComparisonMetricDelta(
-                metric=metric, model_a_value=va, model_b_value=vb,
-                delta=delta, winner=win, higher_is_better=higher_is_better,
-            ))
+            deltas.append(
+                ComparisonMetricDelta(
+                    metric=metric,
+                    model_a_value=va,
+                    model_b_value=vb,
+                    delta=delta,
+                    winner=win,
+                    higher_is_better=higher_is_better,
+                )
+            )
 
         # Trading metrics
         for metric, higher_is_better in self._TRADING_METRICS:
@@ -296,12 +305,16 @@ class ModelComparison:
             vb = float(getattr(b.trading, metric, 0.0))
             delta = vb - va
             if higher_is_better:
-                win = name_b if delta > significance_threshold else (
-                    name_a if delta < -significance_threshold else "tie"
+                win = (
+                    name_b
+                    if delta > significance_threshold
+                    else (name_a if delta < -significance_threshold else "tie")
                 )
             else:
-                win = name_a if delta > significance_threshold else (
-                    name_b if delta < -significance_threshold else "tie"
+                win = (
+                    name_a
+                    if delta > significance_threshold
+                    else (name_b if delta < -significance_threshold else "tie")
                 )
             if win == name_a:
                 a_wins += 1
@@ -309,10 +322,16 @@ class ModelComparison:
                 b_wins += 1
             else:
                 ties += 1
-            deltas.append(ComparisonMetricDelta(
-                metric=metric, model_a_value=va, model_b_value=vb,
-                delta=delta, winner=win, higher_is_better=higher_is_better,
-            ))
+            deltas.append(
+                ComparisonMetricDelta(
+                    metric=metric,
+                    model_a_value=va,
+                    model_b_value=vb,
+                    delta=delta,
+                    winner=win,
+                    higher_is_better=higher_is_better,
+                )
+            )
 
         # Infrastructure metrics
         for metric, higher_is_better in self._INFRA_METRICS:
@@ -326,14 +345,18 @@ class ModelComparison:
                 b_wins += 1
             else:
                 ties += 1
-            deltas.append(ComparisonMetricDelta(
-                metric=metric, model_a_value=va, model_b_value=vb,
-                delta=delta, winner=win, higher_is_better=higher_is_better,
-            ))
+            deltas.append(
+                ComparisonMetricDelta(
+                    metric=metric,
+                    model_a_value=va,
+                    model_b_value=vb,
+                    delta=delta,
+                    winner=win,
+                    higher_is_better=higher_is_better,
+                )
+            )
 
-        overall_winner = (
-            name_a if a_wins > b_wins else (name_b if b_wins > a_wins else "tie")
-        )
+        overall_winner = name_a if a_wins > b_wins else (name_b if b_wins > a_wins else "tie")
         is_significant = abs(a_wins - b_wins) >= 3
 
         return ComparisonReport(
@@ -366,6 +389,7 @@ class ModelComparison:
 def _measure_latency_ms(model: nn.Module, batch_size: int, n_repeats: int = 10) -> float:
     """Measure median inference latency in milliseconds."""
     import time
+
     try:
         device = next(model.parameters()).device
         dummy = torch.randn(batch_size, 10, 5, device=device)
@@ -387,6 +411,6 @@ def _model_size_mb(model: nn.Module) -> float:
     """Compute model parameter size in megabytes."""
     try:
         n_params = sum(p.numel() for p in model.parameters())
-        return n_params * 4 / (1024 ** 2)  # float32
+        return n_params * 4 / (1024**2)  # float32
     except Exception:
         return 0.0

@@ -36,19 +36,34 @@ def scheduler(optimizer: torch.optim.Optimizer) -> torch.optim.lr_scheduler.LRSc
     return torch.optim.lr_scheduler.StepLR(optimizer, step_size=1)
 
 
-def test_saves_latest(tmp_path: Path, model: _SimpleNet, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler) -> None:
+def test_saves_latest(
+    tmp_path: Path,
+    model: _SimpleNet,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+) -> None:
     manager = CheckpointManager(tmp_path, keep_top_k=3)
     manager.save(0, model, optimizer, scheduler, {"val_loss": 0.5}, TrainerConfig())
     assert (tmp_path / "latest.pt").exists()
 
 
-def test_saves_best_on_improvement(tmp_path: Path, model: _SimpleNet, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler) -> None:
+def test_saves_best_on_improvement(
+    tmp_path: Path,
+    model: _SimpleNet,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+) -> None:
     manager = CheckpointManager(tmp_path, monitor_metric="val_loss", monitor_mode="min")
     manager.save(0, model, optimizer, scheduler, {"val_loss": 0.5}, TrainerConfig())
     assert (tmp_path / "best.pt").exists()
 
 
-def test_rotates_epoch_checkpoints(tmp_path: Path, model: _SimpleNet, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler) -> None:
+def test_rotates_epoch_checkpoints(
+    tmp_path: Path,
+    model: _SimpleNet,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+) -> None:
     manager = CheckpointManager(tmp_path, keep_top_k=2)
     cfg = TrainerConfig()
     for epoch in range(4):
@@ -57,7 +72,12 @@ def test_rotates_epoch_checkpoints(tmp_path: Path, model: _SimpleNet, optimizer:
     assert len(epoch_files) <= 2
 
 
-def test_load_restores_weights(tmp_path: Path, model: _SimpleNet, optimizer: torch.optim.Optimizer, scheduler: torch.optim.lr_scheduler.LRScheduler) -> None:
+def test_load_restores_weights(
+    tmp_path: Path,
+    model: _SimpleNet,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
+) -> None:
     manager = CheckpointManager(tmp_path)
     manager.save(0, model, optimizer, scheduler, {"val_loss": 0.3}, TrainerConfig())
 

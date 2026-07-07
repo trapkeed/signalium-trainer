@@ -31,9 +31,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # SimulationResult
@@ -47,19 +46,17 @@ class SimulationResult:
     original_composite: float = 0.0
     simulated_composite: float = 0.0
     delta: float = 0.0
-    category_impacts: Dict[str, float] = field(default_factory=dict)
-    changes_applied: List[Dict[str, Any]] = field(default_factory=list)
+    category_impacts: dict[str, float] = field(default_factory=dict)
+    changes_applied: list[dict[str, Any]] = field(default_factory=list)
     confidence_delta: float = 0.0
-    grade_change: Optional[str] = None
-    simulated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    grade_change: str | None = None
+    simulated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @property
     def improved(self) -> bool:
         return self.delta > 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "simulation_id": self.simulation_id,
             "scenario_name": self.scenario_name,
@@ -91,7 +88,7 @@ class HRSAWhatIfSimulator:
     For exact results, pass `exact=True` (uses the full scorer).
     """
 
-    def __init__(self, scorer: Optional[Any] = None) -> None:
+    def __init__(self, scorer: Any | None = None) -> None:
         self._scorer = scorer  # Optional HierarchicalResearchScorer
 
     # ------------------------------------------------------------------
@@ -116,21 +113,19 @@ class HRSAWhatIfSimulator:
     def simulate_categories(
         self,
         hs: Any,
-        changes: Dict[str, float],
+        changes: dict[str, float],
         scenario_name: str = "",
     ) -> SimulationResult:
         """Simulate changing multiple category scores simultaneously."""
-        name = scenario_name or "; ".join(
-            f"{cat}→{v:.0f}" for cat, v in changes.items()
-        )
+        name = scenario_name or "; ".join(f"{cat}→{v:.0f}" for cat, v in changes.items())
         return self._category_scenario(hs, changes=changes, scenario_name=name)
 
     def _category_scenario(
-        self, hs: Any, changes: Dict[str, float], scenario_name: str
+        self, hs: Any, changes: dict[str, float], scenario_name: str
     ) -> SimulationResult:
         original = hs.level3_composite
         total_w = hs.total_weight_used
-        cat_impacts: Dict[str, float] = {}
+        cat_impacts: dict[str, float] = {}
         composite_delta = 0.0
 
         for cat, new_score in changes.items():
@@ -153,8 +148,7 @@ class HRSAWhatIfSimulator:
             delta=simulated - original,
             category_impacts=cat_impacts,
             changes_applied=[
-                {"level": "category", "target": cat, "new_score": v}
-                for cat, v in changes.items()
+                {"level": "category", "target": cat, "new_score": v} for cat, v in changes.items()
             ],
             grade_change=grade_change,
         )
@@ -184,18 +178,16 @@ class HRSAWhatIfSimulator:
                 model_family=hs.model_family,
             )
             simulated = new_hs.level3_composite
-            original  = hs.level3_composite
+            original = hs.level3_composite
             cat_impacts = {
-                cat: round(
-                    new_hs.category_score(cat) - hs.category_score(cat), 2
-                )
+                cat: round(new_hs.category_score(cat) - hs.category_score(cat), 2)
                 for cat in hs.level2_categories
             }
         else:
             # Approximate: estimate which category this metric belongs to
             # and how its normalised score might change
             simulated = hs.level3_composite
-            original  = hs.level3_composite
+            original = hs.level3_composite
             cat_impacts = {}
 
         name = scenario_name or f"{metric_name} → {new_value}"
@@ -206,9 +198,7 @@ class HRSAWhatIfSimulator:
             simulated_composite=simulated,
             delta=simulated - original,
             category_impacts=cat_impacts,
-            changes_applied=[
-                {"level": "metric", "target": metric_name, "new_value": new_value}
-            ],
+            changes_applied=[{"level": "metric", "target": metric_name, "new_value": new_value}],
             grade_change=grade_change,
         )
 
@@ -220,7 +210,7 @@ class HRSAWhatIfSimulator:
         self,
         hs: Any,
         bundle: Any,
-        changes: Dict[str, float],
+        changes: dict[str, float],
         scenario_name: str = "",
     ) -> SimulationResult:
         """Simulate changing multiple raw metric values simultaneously."""
@@ -231,8 +221,7 @@ class HRSAWhatIfSimulator:
                 simulated_composite=hs.level3_composite,
                 delta=0.0,
                 changes_applied=[
-                    {"level": "metric", "target": k, "new_value": v}
-                    for k, v in changes.items()
+                    {"level": "metric", "target": k, "new_value": v} for k, v in changes.items()
                 ],
             )
         new_bundle = self._clone_bundle(bundle, changes)
@@ -244,7 +233,7 @@ class HRSAWhatIfSimulator:
             backbone=hs.backbone,
             model_family=hs.model_family,
         )
-        original  = hs.level3_composite
+        original = hs.level3_composite
         simulated = new_hs.level3_composite
         cat_impacts = {
             cat: round(new_hs.category_score(cat) - hs.category_score(cat), 2)
@@ -257,8 +246,7 @@ class HRSAWhatIfSimulator:
             delta=simulated - original,
             category_impacts=cat_impacts,
             changes_applied=[
-                {"level": "metric", "target": k, "new_value": v}
-                for k, v in changes.items()
+                {"level": "metric", "target": k, "new_value": v} for k, v in changes.items()
             ],
             grade_change=self._grade_change(original, simulated),
         )
@@ -272,21 +260,20 @@ class HRSAWhatIfSimulator:
         hs: Any,
         budget_categories: int = 3,
         target_score_per_category: float = 85.0,
-    ) -> List[SimulationResult]:
+    ) -> list[SimulationResult]:
         """Find the best set of category improvements within a budget.
 
         Returns results sorted by composite impact (highest first).
         """
         cats = hs.level2_categories
         total_w = hs.total_weight_used
-        candidates: List[SimulationResult] = []
+        candidates: list[SimulationResult] = []
 
         for cat, result in cats.items():
             if result.score >= target_score_per_category:
                 continue
             sim = self.simulate_category(
-                hs, cat, target_score_per_category,
-                scenario_name=f"Optimise {cat}"
+                hs, cat, target_score_per_category, scenario_name=f"Optimise {cat}"
             )
             candidates.append(sim)
 
@@ -297,10 +284,7 @@ class HRSAWhatIfSimulator:
             return best
 
         # Combined scenario
-        combined_changes = {
-            c.changes_applied[0]["target"]: target_score_per_category
-            for c in best
-        }
+        combined_changes = {c.changes_applied[0]["target"]: target_score_per_category for c in best}
         combined = self.simulate_categories(
             hs, combined_changes, scenario_name=f"Combined top-{len(best)}"
         )
@@ -313,13 +297,13 @@ class HRSAWhatIfSimulator:
     def run_batch(
         self,
         hs: Any,
-        scenarios: List[Dict[str, Any]],
-    ) -> List[SimulationResult]:
+        scenarios: list[dict[str, Any]],
+    ) -> list[SimulationResult]:
         """Run a batch of category-level scenarios.
 
         Each scenario dict: {"name": ..., "changes": {cat: score, ...}}
         """
-        results: List[SimulationResult] = []
+        results: list[SimulationResult] = []
         for s in scenarios:
             result = self.simulate_categories(
                 hs,
@@ -334,9 +318,10 @@ class HRSAWhatIfSimulator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _clone_bundle(bundle: Any, overrides: Dict[str, float]) -> Any:
+    def _clone_bundle(bundle: Any, overrides: dict[str, float]) -> Any:
         """Clone a RawMetricsBundle with overridden metric values."""
         from trainer.research.raw_metrics import RawMetricsBundle
+
         new_bundle = RawMetricsBundle(
             experiment_id=bundle.experiment_id,
             registry=bundle._registry,
@@ -347,14 +332,14 @@ class HRSAWhatIfSimulator:
         return new_bundle
 
     @staticmethod
-    def _grade_change(original: float, simulated: float) -> Optional[str]:
+    def _grade_change(original: float, simulated: float) -> str | None:
         thresholds = [
             (95.0, "Institutional Elite"),
             (90.0, "Institutional"),
             (85.0, "Production Ready"),
             (80.0, "Candidate"),
             (70.0, "Experimental"),
-            (0.0,  "Research Only"),
+            (0.0, "Research Only"),
         ]
 
         def _grade(score: float) -> str:
@@ -363,23 +348,21 @@ class HRSAWhatIfSimulator:
                     return label
             return "Research Only"
 
-        orig_g  = _grade(original)
-        sim_g   = _grade(simulated)
+        orig_g = _grade(original)
+        sim_g = _grade(simulated)
         return f"{orig_g} → {sim_g}" if orig_g != sim_g else None
 
     def report(
         self,
         hs: Any,
         budget_categories: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate a complete what-if analysis report."""
         optimal = self.optimal_improvements(hs, budget_categories)
         return {
             "experiment_id": hs.experiment_id,
             "current_composite": round(hs.level3_composite, 2),
             "optimal_improvements": [r.to_dict() for r in optimal],
-            "max_gain": round(
-                max((r.delta for r in optimal), default=0.0), 2
-            ),
+            "max_gain": round(max((r.delta for r in optimal), default=0.0), 2),
             "budget_categories": budget_categories,
         }

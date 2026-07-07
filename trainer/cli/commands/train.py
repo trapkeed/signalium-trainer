@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -18,12 +17,12 @@ def train(
     dataset_dir: Path = typer.Option(
         Path("data/datasets"), "--dataset-dir", "-d", help="Path to validated dataset directory."
     ),
-    config_path: Optional[Path] = typer.Option(
+    config_path: Path | None = typer.Option(
         None, "--config", "-c", help="Path to YAML config overrides."
     ),
-    epochs: Optional[int] = typer.Option(None, "--epochs", "-e", help="Override epoch count."),
+    epochs: int | None = typer.Option(None, "--epochs", "-e", help="Override epoch count."),
     seed: int = typer.Option(42, "--seed", help="Random seed."),
-    run_name: Optional[str] = typer.Option(None, "--run-name", help="MLflow run name."),
+    run_name: str | None = typer.Option(None, "--run-name", help="MLflow run name."),
 ) -> None:
     """Launch a training run for the specified model architecture."""
     from trainer.config.schema import TrainerConfig

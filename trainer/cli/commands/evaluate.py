@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -21,7 +20,7 @@ def evaluate(
     output_dir: Path = typer.Option(
         Path("reports/evaluation"), "--output-dir", "-o", help="Where to write the report."
     ),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model architecture name."),
+    model: str | None = typer.Option(None, "--model", "-m", help="Model architecture name."),
 ) -> None:
     """Run evaluation metrics on a checkpoint and generate a report."""
     if not checkpoint.exists():

@@ -30,12 +30,11 @@ from __future__ import annotations
 import json
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Leaderboard entry
@@ -79,7 +78,9 @@ class LeaderboardEntry:
     inference_latency_ms: float = 0.0
     model_size_mb: float = 0.0
     # Lifecycle
-    promotion_status: str = "experimental"    # experimental | candidate | challenger | champion | retired
+    promotion_status: str = (
+        "experimental"  # experimental | candidate | challenger | champion | retired
+    )
     is_champion: bool = False
     deployment_history: list[dict[str, str]] = field(default_factory=list)
     is_retired: bool = False
@@ -90,9 +91,7 @@ class LeaderboardEntry:
     git_commit: str = ""
     n_validation_folds: int = 0
     notes: str = ""
-    added_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    added_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -134,7 +133,7 @@ class LeaderboardEntry:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "LeaderboardEntry":
+    def from_dict(cls, d: dict[str, Any]) -> LeaderboardEntry:
         entry = cls()
         for k, v in d.items():
             if hasattr(entry, k):
@@ -163,8 +162,8 @@ class InstitutionalLeaderboard:
 
     def __init__(
         self,
-        store_path: Optional[Path] = None,
-        score_weights: Optional[dict[str, float]] = None,
+        store_path: Path | None = None,
+        score_weights: dict[str, float] | None = None,
     ) -> None:
         self._path = Path(store_path) if store_path else None
         self._lock = threading.Lock()
@@ -195,7 +194,7 @@ class InstitutionalLeaderboard:
         )
         return entry
 
-    def update(self, model_id: str, updates: dict[str, Any]) -> Optional[LeaderboardEntry]:
+    def update(self, model_id: str, updates: dict[str, Any]) -> LeaderboardEntry | None:
         """Update fields on an existing entry by model_id."""
         with self._lock:
             for e in self._entries:
@@ -223,7 +222,7 @@ class InstitutionalLeaderboard:
         k: int = 10,
         sort_by: str = "overall_score",
         ascending: bool = False,
-        filter_fn: Optional[Any] = None,
+        filter_fn: Any | None = None,
     ) -> list[LeaderboardEntry]:
         """Return top-k entries sorted by a field.
 
@@ -245,13 +244,13 @@ class InstitutionalLeaderboard:
 
     def filter(
         self,
-        promotion_status: Optional[str] = None,
-        architecture: Optional[str] = None,
-        is_champion: Optional[bool] = None,
-        is_retired: Optional[bool] = None,
-        phase: Optional[str] = None,
-        min_accuracy: Optional[float] = None,
-        max_drawdown_limit: Optional[float] = None,
+        promotion_status: str | None = None,
+        architecture: str | None = None,
+        is_champion: bool | None = None,
+        is_retired: bool | None = None,
+        phase: str | None = None,
+        min_accuracy: float | None = None,
+        max_drawdown_limit: float | None = None,
     ) -> list[LeaderboardEntry]:
         """Filter entries by multiple criteria."""
         results = list(self._entries)
@@ -275,22 +274,25 @@ class InstitutionalLeaderboard:
         """Full-text search across model_name, model_id, notes, and architecture."""
         q = query.lower()
         return [
-            e for e in self._entries
-            if (q in e.model_name.lower()
+            e
+            for e in self._entries
+            if (
+                q in e.model_name.lower()
                 or q in e.model_id.lower()
                 or q in e.notes.lower()
                 or q in e.architecture.lower()
-                or q in e.backbone.lower())
+                or q in e.backbone.lower()
+            )
         ]
 
-    def get(self, model_id: str) -> Optional[LeaderboardEntry]:
+    def get(self, model_id: str) -> LeaderboardEntry | None:
         """Retrieve an entry by model_id."""
         for e in self._entries:
             if e.model_id == model_id:
                 return e
         return None
 
-    def champion(self) -> Optional[LeaderboardEntry]:
+    def champion(self) -> LeaderboardEntry | None:
         """Return the current champion entry."""
         for e in self._entries:
             if e.is_champion and not e.is_retired:
@@ -304,8 +306,14 @@ class InstitutionalLeaderboard:
         if not a or not b:
             return {"error": "One or both model IDs not found."}
         metrics = [
-            "validation_accuracy", "validation_f1", "sharpe_ratio",
-            "profit_factor", "max_drawdown", "ece", "win_rate", "expectancy",
+            "validation_accuracy",
+            "validation_f1",
+            "sharpe_ratio",
+            "profit_factor",
+            "max_drawdown",
+            "ece",
+            "win_rate",
+            "expectancy",
             "overall_score",
         ]
         return {
@@ -355,7 +363,7 @@ class InstitutionalLeaderboard:
 
     # ── Persistence ────────────────────────────────────────────────────────
 
-    def save(self, path: Optional[Path] = None) -> Path:
+    def save(self, path: Path | None = None) -> Path:
         """Save leaderboard to JSON."""
         out_path = Path(path) if path else self._path
         if out_path is None:
@@ -366,7 +374,7 @@ class InstitutionalLeaderboard:
         return out_path
 
     @classmethod
-    def load(cls, path: Path) -> "InstitutionalLeaderboard":
+    def load(cls, path: Path) -> InstitutionalLeaderboard:
         """Load leaderboard from JSON."""
         lb = cls(store_path=path)
         return lb
@@ -391,10 +399,7 @@ class InstitutionalLeaderboard:
     def _load(self) -> None:
         try:
             data = json.loads(self._path.read_text())
-            self._entries = [
-                LeaderboardEntry.from_dict(e)
-                for e in data.get("entries", [])
-            ]
+            self._entries = [LeaderboardEntry.from_dict(e) for e in data.get("entries", [])]
             logger.info(f"Leaderboard loaded {len(self._entries)} entries from {self._path}")
         except Exception as exc:
             logger.warning(f"Leaderboard load failed: {exc}")

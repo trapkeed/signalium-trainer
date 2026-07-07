@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
 
 
-def _default_hybrid_encoder_config() -> "HybridEncoderConfig":
+def _default_hybrid_encoder_config() -> HybridEncoderConfig:
     from trainer.models.quant_v1.hybrid.config import HybridEncoderConfig
+
     return HybridEncoderConfig(enabled=False)
 
 
@@ -241,9 +242,7 @@ class MarketStabilityHeadConfig:
     dropout: float = 0.2
     num_classes: int = 4
     label_names: list[str] = field(
-        default_factory=lambda: [
-            "stable", "moderately_stable", "unstable", "highly_unstable"
-        ]
+        default_factory=lambda: ["stable", "moderately_stable", "unstable", "highly_unstable"]
     )
 
 
@@ -342,9 +341,9 @@ class LossConfig:
 
     type: LossType = LossType.CROSS_ENTROPY
     focal_gamma: float = 2.0
-    focal_alpha: Optional[list[float]] = None
+    focal_alpha: list[float] | None = None
     label_smoothing: float = 0.0
-    class_weights: Optional[list[float]] = None
+    class_weights: list[float] | None = None
 
 
 @dataclass
@@ -371,9 +370,7 @@ class QuantV1Config:
 
     encoder: InputEncoderConfig = field(default_factory=InputEncoderConfig)
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
-    classification_head: ClassificationHeadConfig = field(
-        default_factory=ClassificationHeadConfig
-    )
+    classification_head: ClassificationHeadConfig = field(default_factory=ClassificationHeadConfig)
     confidence_head: ConfidenceHeadConfig = field(default_factory=ConfidenceHeadConfig)
     loss: LossConfig = field(default_factory=LossConfig)
     balancing: BalancingConfig = field(default_factory=BalancingConfig)
@@ -453,6 +450,6 @@ class QuantV1Config:
     # ------------------------------------------------------------------
     # Phase 14.9A — Hybrid Representation Learning (disabled by default)
     # ------------------------------------------------------------------
-    hybrid_encoder: "HybridEncoderConfig" = field(  # type: ignore[type-arg]
+    hybrid_encoder: HybridEncoderConfig = field(  # type: ignore[type-arg]
         default_factory=lambda: _default_hybrid_encoder_config()
     )

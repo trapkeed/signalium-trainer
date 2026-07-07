@@ -25,13 +25,11 @@ from __future__ import annotations
 import gc
 import time
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Result dataclasses
@@ -84,11 +82,11 @@ class ModelSizeResult:
 
 @dataclass
 class BenchmarkReport:
-    training_speed: Optional[TrainingSpeedResult] = None
-    inference_speed: Optional[InferenceSpeedResult] = None
-    gpu_memory: Optional[GPUMemoryResult] = None
-    cpu_memory: Optional[CPUMemoryResult] = None
-    model_size: Optional[ModelSizeResult] = None
+    training_speed: TrainingSpeedResult | None = None
+    inference_speed: InferenceSpeedResult | None = None
+    gpu_memory: GPUMemoryResult | None = None
+    cpu_memory: CPUMemoryResult | None = None
+    model_size: ModelSizeResult | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def summary(self) -> str:
@@ -97,7 +95,7 @@ class BenchmarkReport:
         if self.model_size:
             s = self.model_size
             lines += [
-                f"Model Size",
+                "Model Size",
                 f"  Total params:      {s.total_params:,}",
                 f"  Trainable params:  {s.trainable_params:,}",
                 f"  Estimated size:    {s.estimated_mb:.2f} MB",
@@ -107,7 +105,7 @@ class BenchmarkReport:
             s = self.training_speed
             lines += [
                 "",
-                f"Training Speed",
+                "Training Speed",
                 f"  Batches/sec:       {s.batches_per_sec:.2f}",
                 f"  Samples/sec:       {s.samples_per_sec:.2f}",
                 f"  ms/batch:          {s.ms_per_batch:.2f}",
@@ -132,7 +130,7 @@ class BenchmarkReport:
             if s.available:
                 lines += [
                     "",
-                    f"GPU Memory",
+                    "GPU Memory",
                     f"  Peak allocated:   {s.peak_mb:.1f} MB",
                     f"  Current allocated:{s.allocated_mb:.1f} MB",
                     f"  Reserved:         {s.reserved_mb:.1f} MB",
@@ -141,7 +139,7 @@ class BenchmarkReport:
         if self.cpu_memory:
             lines += [
                 "",
-                f"CPU Memory",
+                "CPU Memory",
                 f"  RSS:               {self.cpu_memory.rss_mb:.1f} MB",
             ]
 
@@ -257,9 +255,10 @@ class TrainingProfiler:
         epoch_minutes = (avg_ms_per_batch / 1000) * epoch_steps_estimate / 60
 
         logger.info(
-            "Training speed: {:.1f} batches/sec, {:.0f} samples/sec, "
-            "{:.1f} min/epoch estimate",
-            batches_per_sec, samples_per_sec, epoch_minutes,
+            "Training speed: {:.1f} batches/sec, {:.0f} samples/sec, " "{:.1f} min/epoch estimate",
+            batches_per_sec,
+            samples_per_sec,
+            epoch_minutes,
         )
         return TrainingSpeedResult(
             batches_per_sec=batches_per_sec,
@@ -292,9 +291,7 @@ class TrainingProfiler:
             ``InferenceSpeedResult``.
         """
         self._model.eval()
-        x = torch.zeros(
-            batch_size, *input_shape, device=self._device
-        )
+        x = torch.zeros(batch_size, *input_shape, device=self._device)
 
         latencies_ms: list[float] = []
         _warmup = min(20, n_runs // 5)
@@ -325,7 +322,11 @@ class TrainingProfiler:
         logger.info(
             "Inference: {:.3f} ms/sample | p50={:.3f} p95={:.3f} p99={:.3f} | "
             "{:.0f} samples/sec",
-            ms_per_sample, p50, p95, p99, samples_per_sec,
+            ms_per_sample,
+            p50,
+            p95,
+            p99,
+            samples_per_sec,
         )
         return InferenceSpeedResult(
             ms_per_sample=ms_per_sample,
@@ -379,9 +380,13 @@ class TrainingProfiler:
 
         logger.info(
             "GPU memory: peak={:.1f} MB, current={:.1f} MB, reserved={:.1f} MB",
-            peak, alloc, reserved,
+            peak,
+            alloc,
+            reserved,
         )
-        return GPUMemoryResult(peak_mb=peak, allocated_mb=alloc, reserved_mb=reserved, available=True)
+        return GPUMemoryResult(
+            peak_mb=peak, allocated_mb=alloc, reserved_mb=reserved, available=True
+        )
 
     # ------------------------------------------------------------------
     # Model size
@@ -402,7 +407,9 @@ class TrainingProfiler:
 
         logger.info(
             "Model size: {:,} total params ({:,} trainable) | ~{:.2f} MB",
-            total, trainable, estimated_mb,
+            total,
+            trainable,
+            estimated_mb,
         )
         return ModelSizeResult(
             total_params=total,
@@ -423,11 +430,15 @@ class TrainingProfiler:
             ``CPUMemoryResult`` with RSS in MB.
         """
         try:
-            import psutil, os
+            import os
+
+            import psutil
+
             proc = psutil.Process(os.getpid())
             rss_mb = proc.memory_info().rss / 1e6
         except ImportError:
             import resource
+
             rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e3
 
         return CPUMemoryResult(rss_mb=rss_mb)
@@ -439,7 +450,7 @@ class TrainingProfiler:
     def full_benchmark(
         self,
         loader: Any,
-        input_shape: Optional[tuple[int, ...]] = None,
+        input_shape: tuple[int, ...] | None = None,
         n_training_batches: int = 50,
         n_inference_runs: int = 200,
     ) -> BenchmarkReport:

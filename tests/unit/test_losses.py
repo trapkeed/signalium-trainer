@@ -6,11 +6,10 @@ import pytest
 import torch
 import torch.nn as nn
 
+from trainer.losses.factory import build_loss
 from trainer.losses.focal import FocalLoss
 from trainer.losses.weighted_ce import WeightedCrossEntropyLoss
-from trainer.losses.factory import build_loss
 from trainer.models.quant_v1.config import LossConfig, LossType
-
 
 BATCH = 8
 NUM_CLASSES = 3
@@ -30,6 +29,7 @@ def targets() -> torch.Tensor:
 # FocalLoss
 # ---------------------------------------------------------------------------
 
+
 class TestFocalLoss:
     def test_output_is_scalar(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
         loss = FocalLoss(gamma=2.0)
@@ -44,7 +44,9 @@ class TestFocalLoss:
         loss = FocalLoss(gamma=2.0)
         assert loss(logits, targets) >= 0
 
-    def test_gamma_zero_matches_cross_entropy(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
+    def test_gamma_zero_matches_cross_entropy(
+        self, logits: torch.Tensor, targets: torch.Tensor
+    ) -> None:
         """When gamma=0, FocalLoss should approximate CrossEntropyLoss."""
         fl = FocalLoss(gamma=0.0)
         ce = nn.CrossEntropyLoss()
@@ -80,6 +82,7 @@ class TestFocalLoss:
 # WeightedCrossEntropyLoss
 # ---------------------------------------------------------------------------
 
+
 class TestWeightedCrossEntropyLoss:
     def test_output_scalar(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
         loss = WeightedCrossEntropyLoss()
@@ -95,7 +98,9 @@ class TestWeightedCrossEntropyLoss:
         out = loss(logits, targets)
         assert torch.isfinite(out)
 
-    def test_matches_nn_cross_entropy_no_weights(self, logits: torch.Tensor, targets: torch.Tensor) -> None:
+    def test_matches_nn_cross_entropy_no_weights(
+        self, logits: torch.Tensor, targets: torch.Tensor
+    ) -> None:
         custom = WeightedCrossEntropyLoss()
         standard = nn.CrossEntropyLoss()
         assert torch.allclose(custom(logits, targets), standard(logits, targets), atol=1e-5)
@@ -114,6 +119,7 @@ class TestWeightedCrossEntropyLoss:
 # ---------------------------------------------------------------------------
 # Loss factory
 # ---------------------------------------------------------------------------
+
 
 class TestLossFactory:
     def test_builds_cross_entropy(self, logits: torch.Tensor, targets: torch.Tensor) -> None:

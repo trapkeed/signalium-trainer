@@ -11,45 +11,42 @@ Tradeability Engine.
 
 from __future__ import annotations
 
-import math
-import statistics
-from typing import List, Optional
-
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.mie.mie_types import RiskRegime, RISK_REGIME_MULTIPLIERS, clamp
 from trainer.mie.mie_models import (
     MarketInput,
+    MIEPortfolioRisk,
     RiskIntelligenceResult,
     TradeabilityResult,
-    MIEPortfolioRisk,
 )
+from trainer.mie.mie_types import RISK_REGIME_MULTIPLIERS, RiskRegime, clamp
 
 # Maximum portfolio exposure thresholds
-_MAX_EXPOSURE_NORMAL   = 0.40
+_MAX_EXPOSURE_NORMAL = 0.40
 _MAX_EXPOSURE_ELEVATED = 0.25
-_MAX_EXPOSURE_HIGH     = 0.15
-_MAX_EXPOSURE_EXTREME  = 0.05
+_MAX_EXPOSURE_HIGH = 0.15
+_MAX_EXPOSURE_EXTREME = 0.05
 
-_BASE_POSITION_FRAC    = 0.02   # 2% of capital per trade baseline
+_BASE_POSITION_FRAC = 0.02  # 2% of capital per trade baseline
 
 _MAX_OPEN_TRADES = {
-    RiskRegime.OPTIMAL:          8,
-    RiskRegime.LOW_RISK:         7,
-    RiskRegime.NORMAL:           6,
-    RiskRegime.ELEVATED:         4,
-    RiskRegime.HIGH_RISK:        3,
-    RiskRegime.EXTREME:          1,
+    RiskRegime.OPTIMAL: 8,
+    RiskRegime.LOW_RISK: 7,
+    RiskRegime.NORMAL: 6,
+    RiskRegime.ELEVATED: 4,
+    RiskRegime.HIGH_RISK: 3,
+    RiskRegime.EXTREME: 1,
     RiskRegime.FLASH_VOLATILITY: 0,
-    RiskRegime.LOW_LIQUIDITY:    2,
-    RiskRegime.MARKET_STRESS:    1,
-    RiskRegime.NEWS_EVENT:       3,
-    RiskRegime.BLACK_SWAN:       0,
-    RiskRegime.UNKNOWN:          3,
+    RiskRegime.LOW_LIQUIDITY: 2,
+    RiskRegime.MARKET_STRESS: 1,
+    RiskRegime.NEWS_EVENT: 3,
+    RiskRegime.BLACK_SWAN: 0,
+    RiskRegime.UNKNOWN: 3,
 }
 
 
@@ -70,44 +67,42 @@ class MIEPortfolioRiskEngine:
 
     def __init__(
         self,
-        daily_risk_budget: float = 0.02,   # 2% of capital
+        daily_risk_budget: float = 0.02,  # 2% of capital
         corr_limit_normal: float = 0.70,
-        corr_limit_high:   float = 0.40,
+        corr_limit_high: float = 0.40,
     ) -> None:
-        self._daily_budget  = daily_risk_budget
-        self._corr_normal   = corr_limit_normal
-        self._corr_high     = corr_limit_high
+        self._daily_budget = daily_risk_budget
+        self._corr_normal = corr_limit_normal
+        self._corr_high = corr_limit_high
 
     # ── Public API ─────────────────────────────────────────────────────────
 
     def evaluate(
         self,
-        inp:          MarketInput,
-        risk:         Optional[RiskIntelligenceResult] = None,
-        tradeability: Optional[TradeabilityResult]     = None,
+        inp: MarketInput,
+        risk: RiskIntelligenceResult | None = None,
+        tradeability: TradeabilityResult | None = None,
     ) -> MIEPortfolioRisk:
 
         regime = risk.regime if risk is not None else RiskRegime.NORMAL
-        mult   = RISK_REGIME_MULTIPLIERS.get(regime, 1.0)
+        mult = RISK_REGIME_MULTIPLIERS.get(regime, 1.0)
 
-        max_exposure   = self._max_exposure(regime)
-        corr_limit     = self._correlation_limit(regime)
-        max_trades     = _MAX_OPEN_TRADES.get(regime, 3)
-        pos_frac       = self._position_size(mult, inp, tradeability)
+        max_exposure = self._max_exposure(regime)
+        corr_limit = self._correlation_limit(regime)
+        max_trades = _MAX_OPEN_TRADES.get(regime, 3)
+        pos_frac = self._position_size(mult, inp, tradeability)
         diversification = self._diversification(inp)
-        risk_used      = self._risk_budget_used(inp)
+        risk_used = self._risk_budget_used(inp)
         allocation_usd = pos_frac * inp.capital
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         if inp.portfolio_exposure > max_exposure:
             warnings.append(
                 f"Current exposure {inp.portfolio_exposure:.0%} exceeds "
                 f"limit {max_exposure:.0%}"
             )
         if inp.correlation_avg > corr_limit:
-            warnings.append(
-                f"Correlation {inp.correlation_avg:.2f} exceeds limit {corr_limit:.2f}"
-            )
+            warnings.append(f"Correlation {inp.correlation_avg:.2f} exceeds limit {corr_limit:.2f}")
         if max_trades == 0:
             warnings.append("No new trades allowed in current risk regime")
 
@@ -129,8 +124,12 @@ class MIEPortfolioRiskEngine:
     # ── Internal ───────────────────────────────────────────────────────────
 
     def _max_exposure(self, regime: RiskRegime) -> float:
-        if regime in (RiskRegime.EXTREME, RiskRegime.BLACK_SWAN,
-                      RiskRegime.FLASH_VOLATILITY, RiskRegime.MARKET_STRESS):
+        if regime in (
+            RiskRegime.EXTREME,
+            RiskRegime.BLACK_SWAN,
+            RiskRegime.FLASH_VOLATILITY,
+            RiskRegime.MARKET_STRESS,
+        ):
             return _MAX_EXPOSURE_EXTREME
         if regime in (RiskRegime.HIGH_RISK,):
             return _MAX_EXPOSURE_HIGH
@@ -139,16 +138,20 @@ class MIEPortfolioRiskEngine:
         return _MAX_EXPOSURE_NORMAL
 
     def _correlation_limit(self, regime: RiskRegime) -> float:
-        if regime in (RiskRegime.HIGH_RISK, RiskRegime.EXTREME,
-                      RiskRegime.BLACK_SWAN, RiskRegime.FLASH_VOLATILITY):
+        if regime in (
+            RiskRegime.HIGH_RISK,
+            RiskRegime.EXTREME,
+            RiskRegime.BLACK_SWAN,
+            RiskRegime.FLASH_VOLATILITY,
+        ):
             return self._corr_high
         return self._corr_normal
 
     def _position_size(
         self,
-        mult:         float,
-        inp:          MarketInput,
-        tradeability: Optional[TradeabilityResult],
+        mult: float,
+        inp: MarketInput,
+        tradeability: TradeabilityResult | None,
     ) -> float:
         """Scale _BASE_POSITION_FRAC by risk multiplier and tradeability."""
         t_scale = 1.0

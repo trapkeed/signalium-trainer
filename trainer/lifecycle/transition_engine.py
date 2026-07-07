@@ -7,43 +7,44 @@ and recommends the best next state with rationale.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
+from trainer.lifecycle.lifecycle_models import MarketContext, TransitionResult
 from trainer.lifecycle.lifecycle_states import (
-    LifecycleState,
     VALID_TRANSITIONS,
+    LifecycleState,
     is_terminal,
 )
-from trainer.lifecycle.lifecycle_models import MarketContext, TransitionResult
 from trainer.lifecycle.state_machine import StateMachine
 
 
 @dataclass
 class TransitionRecommendation:
     """The engine's best recommendation for next state."""
-    current_state:   LifecycleState
-    recommended:     Optional[LifecycleState]   # None if stay
-    confidence:      float
-    reason:          str
-    all_candidates:  List[TransitionResult]      = field(default_factory=list)
-    should_stay:     bool                        = False
-    stay_reason:     str                         = ""
 
-    def to_dict(self) -> Dict:
+    current_state: LifecycleState
+    recommended: LifecycleState | None  # None if stay
+    confidence: float
+    reason: str
+    all_candidates: list[TransitionResult] = field(default_factory=list)
+    should_stay: bool = False
+    stay_reason: str = ""
+
+    def to_dict(self) -> dict:
         return {
-            "current_state":  self.current_state.value,
-            "recommended":    self.recommended.value if self.recommended else None,
-            "confidence":     round(self.confidence, 4),
-            "reason":         self.reason,
-            "should_stay":    self.should_stay,
-            "stay_reason":    self.stay_reason,
-            "candidates":     [c.to_dict() for c in self.all_candidates],
+            "current_state": self.current_state.value,
+            "recommended": self.recommended.value if self.recommended else None,
+            "confidence": round(self.confidence, 4),
+            "reason": self.reason,
+            "should_stay": self.should_stay,
+            "stay_reason": self.stay_reason,
+            "candidates": [c.to_dict() for c in self.all_candidates],
         }
 
 
@@ -64,26 +65,24 @@ class TransitionEngine:
     def evaluate(
         self,
         current_state: LifecycleState,
-        confidence:    float = 0.65,
-        context:       Optional[MarketContext] = None,
+        confidence: float = 0.65,
+        context: MarketContext | None = None,
     ) -> TransitionRecommendation:
 
         if is_terminal(current_state):
             return TransitionRecommendation(
-                current_state = current_state,
-                recommended   = None,
-                confidence    = 1.0,
-                reason        = f"{current_state.value} is a terminal state",
-                should_stay   = True,
-                stay_reason   = "Terminal — no further transitions",
+                current_state=current_state,
+                recommended=None,
+                confidence=1.0,
+                reason=f"{current_state.value} is a terminal state",
+                should_stay=True,
+                stay_reason="Terminal — no further transitions",
             )
 
-        candidates: List[TransitionResult] = []
+        candidates: list[TransitionResult] = []
 
         for next_state in VALID_TRANSITIONS.get(current_state, frozenset()):
-            result = self._sm.validate_transition(
-                current_state, next_state, context, confidence
-            )
+            result = self._sm.validate_transition(current_state, next_state, context, confidence)
             candidates.append(result)
 
         # Filter for allowed transitions
@@ -91,75 +90,78 @@ class TransitionEngine:
 
         # Check emergency first
         if context and context.news_risk > 0.80:
-            emerg = next(
-                (c for c in allowed if c.to_state == LifecycleState.EMERGENCY_EXIT), None
-            )
+            emerg = next((c for c in allowed if c.to_state == LifecycleState.EMERGENCY_EXIT), None)
             if emerg:
                 logger.warning(
                     f"TransitionEngine: EMERGENCY_EXIT recommended "
                     f"news_risk={context.news_risk}"
                 )
                 return TransitionRecommendation(
-                    current_state  = current_state,
-                    recommended    = LifecycleState.EMERGENCY_EXIT,
-                    confidence     = emerg.confidence,
-                    reason         = "Critical news risk — emergency exit recommended",
-                    all_candidates = candidates,
+                    current_state=current_state,
+                    recommended=LifecycleState.EMERGENCY_EXIT,
+                    confidence=emerg.confidence,
+                    reason="Critical news risk — emergency exit recommended",
+                    all_candidates=candidates,
                 )
 
         # Check extreme volatility
         if context and context.volatility > 0.035:
-            emerg = next(
-                (c for c in allowed if c.to_state == LifecycleState.EMERGENCY_EXIT), None
-            )
+            emerg = next((c for c in allowed if c.to_state == LifecycleState.EMERGENCY_EXIT), None)
             if emerg:
                 return TransitionRecommendation(
-                    current_state  = current_state,
-                    recommended    = LifecycleState.EMERGENCY_EXIT,
-                    confidence     = emerg.confidence,
-                    reason         = f"Extreme volatility {context.volatility:.3f} — emergency exit",
-                    all_candidates = candidates,
+                    current_state=current_state,
+                    recommended=LifecycleState.EMERGENCY_EXIT,
+                    confidence=emerg.confidence,
+                    reason=f"Extreme volatility {context.volatility:.3f} — emergency exit",
+                    all_candidates=candidates,
                 )
 
         # Invaliation: confidence dropped or trend invalid
-        if confidence < 0.40 or (context and not context.trend_valid and
-                                   current_state in (
-                                       LifecycleState.WATCHLIST,
-                                       LifecycleState.PREPARATION,
-                                   )):
-            inval = next(
-                (c for c in candidates if c.to_state == LifecycleState.INVALIDATED), None
+        if confidence < 0.40 or (
+            context
+            and not context.trend_valid
+            and current_state
+            in (
+                LifecycleState.WATCHLIST,
+                LifecycleState.PREPARATION,
             )
+        ):
+            inval = next((c for c in candidates if c.to_state == LifecycleState.INVALIDATED), None)
             if inval:
                 return TransitionRecommendation(
-                    current_state  = current_state,
-                    recommended    = LifecycleState.INVALIDATED,
-                    confidence     = 0.90,
-                    reason         = "Setup invalidated — confidence too low or trend broken",
-                    all_candidates = candidates,
+                    current_state=current_state,
+                    recommended=LifecycleState.INVALIDATED,
+                    confidence=0.90,
+                    reason="Setup invalidated — confidence too low or trend broken",
+                    all_candidates=candidates,
                 )
 
         if not allowed:
             # Nothing allowed — stay
             return TransitionRecommendation(
-                current_state  = current_state,
-                recommended    = None,
-                confidence     = confidence,
-                reason         = "No transition conditions met",
-                all_candidates = candidates,
-                should_stay    = True,
-                stay_reason    = "Conditions not yet satisfied for any forward transition",
+                current_state=current_state,
+                recommended=None,
+                confidence=confidence,
+                reason="No transition conditions met",
+                all_candidates=candidates,
+                should_stay=True,
+                stay_reason="Conditions not yet satisfied for any forward transition",
             )
 
         # Rank allowed by expected_benefit × confidence (skip negative outcomes for now)
-        positive = [c for c in allowed if c.to_state not in (
-            LifecycleState.STOPPED,
-            LifecycleState.FORCED_EXIT,
-            LifecycleState.EMERGENCY_EXIT,
-            LifecycleState.INVALIDATED,
-            LifecycleState.CANCELLED,
-            LifecycleState.EXPIRED,
-        )]
+        positive = [
+            c
+            for c in allowed
+            if c.to_state
+            not in (
+                LifecycleState.STOPPED,
+                LifecycleState.FORCED_EXIT,
+                LifecycleState.EMERGENCY_EXIT,
+                LifecycleState.INVALIDATED,
+                LifecycleState.CANCELLED,
+                LifecycleState.EXPIRED,
+            )
+        ]
 
         if positive:
             best = max(positive, key=lambda c: c.expected_benefit * c.confidence)
@@ -172,19 +174,19 @@ class TransitionEngine:
         )
 
         return TransitionRecommendation(
-            current_state  = current_state,
-            recommended    = best.to_state,
-            confidence     = best.confidence,
-            reason         = best.reason,
-            all_candidates = candidates,
+            current_state=current_state,
+            recommended=best.to_state,
+            confidence=best.confidence,
+            reason=best.reason,
+            all_candidates=candidates,
         )
 
     def possible_transitions(
         self,
         current_state: LifecycleState,
-        confidence:    float = 0.65,
-        context:       Optional[MarketContext] = None,
-    ) -> List[TransitionResult]:
+        confidence: float = 0.65,
+        context: MarketContext | None = None,
+    ) -> list[TransitionResult]:
         """Return all evaluated transitions (allowed and not) from current state."""
         results = []
         for next_state in VALID_TRANSITIONS.get(current_state, frozenset()):

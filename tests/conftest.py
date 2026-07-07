@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from tests.mocks.dataset import MockDataset, make_parquet_dataset

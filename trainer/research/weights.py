@@ -26,20 +26,20 @@ Usage::
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Category names (used as dict keys and DB column names)
 # ---------------------------------------------------------------------------
 
-CATEGORY_VALIDATION_QUALITY    = "validation_quality"
-CATEGORY_TRADING_PERFORMANCE   = "trading_performance"
-CATEGORY_ROBUSTNESS            = "robustness"
-CATEGORY_CALIBRATION           = "calibration"
-CATEGORY_GENERALIZATION        = "generalization"
-CATEGORY_EFFICIENCY            = "efficiency"
-CATEGORY_EXPLAINABILITY        = "explainability"
+CATEGORY_VALIDATION_QUALITY = "validation_quality"
+CATEGORY_TRADING_PERFORMANCE = "trading_performance"
+CATEGORY_ROBUSTNESS = "robustness"
+CATEGORY_CALIBRATION = "calibration"
+CATEGORY_GENERALIZATION = "generalization"
+CATEGORY_EFFICIENCY = "efficiency"
+CATEGORY_EXPLAINABILITY = "explainability"
 CATEGORY_OPERATIONAL_READINESS = "operational_readiness"
 
 ALL_CATEGORIES = [
@@ -66,13 +66,13 @@ class ScoringWeights:
     Weights must be non-negative and sum to 1.0 (within 1e-6 tolerance).
     """
 
-    validation_quality:    float = 0.25
-    trading_performance:   float = 0.25
-    robustness:            float = 0.15
-    calibration:           float = 0.10
-    generalization:        float = 0.10
-    efficiency:            float = 0.05
-    explainability:        float = 0.05
+    validation_quality: float = 0.25
+    trading_performance: float = 0.25
+    robustness: float = 0.15
+    calibration: float = 0.10
+    generalization: float = 0.10
+    efficiency: float = 0.05
+    explainability: float = 0.05
     operational_readiness: float = 0.05
 
     def validate(self) -> None:
@@ -84,19 +84,18 @@ class ScoringWeights:
         total = sum(weights.values())
         if abs(total - 1.0) > 1e-6:
             raise ValueError(
-                f"Weights must sum to 1.0 but sum to {total:.8f}. "
-                f"Adjust: {weights}"
+                f"Weights must sum to 1.0 but sum to {total:.8f}. " f"Adjust: {weights}"
             )
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         return {
-            CATEGORY_VALIDATION_QUALITY:    self.validation_quality,
-            CATEGORY_TRADING_PERFORMANCE:   self.trading_performance,
-            CATEGORY_ROBUSTNESS:            self.robustness,
-            CATEGORY_CALIBRATION:           self.calibration,
-            CATEGORY_GENERALIZATION:        self.generalization,
-            CATEGORY_EFFICIENCY:            self.efficiency,
-            CATEGORY_EXPLAINABILITY:        self.explainability,
+            CATEGORY_VALIDATION_QUALITY: self.validation_quality,
+            CATEGORY_TRADING_PERFORMANCE: self.trading_performance,
+            CATEGORY_ROBUSTNESS: self.robustness,
+            CATEGORY_CALIBRATION: self.calibration,
+            CATEGORY_GENERALIZATION: self.generalization,
+            CATEGORY_EFFICIENCY: self.efficiency,
+            CATEGORY_EXPLAINABILITY: self.explainability,
             CATEGORY_OPERATIONAL_READINESS: self.operational_readiness,
         }
 
@@ -104,21 +103,17 @@ class ScoringWeights:
         return self.as_dict().get(category, 0.0)
 
     @classmethod
-    def default(cls) -> "ScoringWeights":
+    def default(cls) -> ScoringWeights:
         """Return the default IRSE weight configuration."""
         return cls()
 
     @classmethod
-    def from_dict(cls, d: Dict[str, float]) -> "ScoringWeights":
+    def from_dict(cls, d: dict[str, float]) -> ScoringWeights:
         """Create weights from a dict. Missing keys use default values."""
         defaults = cls()
         return cls(
-            validation_quality=d.get(
-                CATEGORY_VALIDATION_QUALITY, defaults.validation_quality
-            ),
-            trading_performance=d.get(
-                CATEGORY_TRADING_PERFORMANCE, defaults.trading_performance
-            ),
+            validation_quality=d.get(CATEGORY_VALIDATION_QUALITY, defaults.validation_quality),
+            trading_performance=d.get(CATEGORY_TRADING_PERFORMANCE, defaults.trading_performance),
             robustness=d.get(CATEGORY_ROBUSTNESS, defaults.robustness),
             calibration=d.get(CATEGORY_CALIBRATION, defaults.calibration),
             generalization=d.get(CATEGORY_GENERALIZATION, defaults.generalization),
@@ -130,7 +125,7 @@ class ScoringWeights:
         )
 
     @classmethod
-    def from_yaml_section(cls, section: Dict[str, Any]) -> "ScoringWeights":
+    def from_yaml_section(cls, section: dict[str, Any]) -> ScoringWeights:
         """Create from a parsed YAML section.
 
         Expected format::
@@ -145,7 +140,7 @@ class ScoringWeights:
     def to_json(self) -> str:
         return json.dumps(self.as_dict(), indent=2)
 
-    def normalise(self) -> "ScoringWeights":
+    def normalise(self) -> ScoringWeights:
         """Return a copy where weights are normalised to sum exactly to 1.0."""
         d = self.as_dict()
         total = sum(d.values())

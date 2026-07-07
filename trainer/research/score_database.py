@@ -30,10 +30,9 @@ import json
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # IRSEScoreDatabase
@@ -176,7 +175,7 @@ class IRSEScoreDatabase:
     # Research scores
     # ------------------------------------------------------------------
 
-    def save_research_score(self, rs_dict: Dict[str, Any]) -> None:
+    def save_research_score(self, rs_dict: dict[str, Any]) -> None:
         """Upsert a ResearchScore (from rs.to_dict())."""
         with self._lock:
             score_id = rs_dict["score_id"]
@@ -195,7 +194,7 @@ class IRSEScoreDatabase:
                     rs_dict.get("experiment_id", ""),
                     rs_dict.get("model_id", ""),
                     rs_dict.get("name", ""),
-                    rs_dict.get("scored_at", datetime.now(timezone.utc).isoformat()),
+                    rs_dict.get("scored_at", datetime.now(UTC).isoformat()),
                     rs_dict.get("composite", 0.0),
                     rs_dict.get("grade_label", ""),
                     rs_dict.get("grade_description", ""),
@@ -216,9 +215,7 @@ class IRSEScoreDatabase:
             )
 
             # Upsert category scores
-            self._conn.execute(
-                "DELETE FROM category_scores WHERE score_id=?", (score_id,)
-            )
+            self._conn.execute("DELETE FROM category_scores WHERE score_id=?", (score_id,))
             for cs in rs_dict.get("category_scores", []):
                 self._conn.execute(
                     """INSERT INTO category_scores (
@@ -236,7 +233,7 @@ class IRSEScoreDatabase:
                     ),
                 )
 
-    def get_research_score(self, score_id: str) -> Optional[Dict[str, Any]]:
+    def get_research_score(self, score_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._conn.execute(
                 "SELECT * FROM research_scores WHERE score_id=?", (score_id,)
@@ -245,9 +242,7 @@ class IRSEScoreDatabase:
                 return None
             return self._hydrate_score(dict(row))
 
-    def get_latest_for_experiment(
-        self, experiment_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_latest_for_experiment(self, experiment_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._conn.execute(
                 """SELECT * FROM research_scores
@@ -259,7 +254,7 @@ class IRSEScoreDatabase:
                 return None
             return self._hydrate_score(dict(row))
 
-    def _hydrate_score(self, row: Dict[str, Any]) -> Dict[str, Any]:
+    def _hydrate_score(self, row: dict[str, Any]) -> dict[str, Any]:
         score_id = row["score_id"]
         cat_rows = self._conn.execute(
             "SELECT * FROM category_scores WHERE score_id=? ORDER BY category",
@@ -288,26 +283,24 @@ class IRSEScoreDatabase:
         limit: int = 50,
         order_by: str = "composite",
         descending: bool = True,
-        instrument: Optional[str] = None,
-        timeframe: Optional[str] = None,
-        backbone: Optional[str] = None,
-        architecture: Optional[str] = None,
-        dataset_version: Optional[str] = None,
-        feature_version: Optional[str] = None,
-        model_family: Optional[str] = None,
-        grade_label: Optional[str] = None,
-        promotion_eligible: Optional[bool] = None,
-        min_score: Optional[float] = None,
-        max_score: Optional[float] = None,
-    ) -> List[Dict[str, Any]]:
-        safe_cols = {
-            "composite", "confidence_score", "scored_at", "grade_label", "name"
-        }
+        instrument: str | None = None,
+        timeframe: str | None = None,
+        backbone: str | None = None,
+        architecture: str | None = None,
+        dataset_version: str | None = None,
+        feature_version: str | None = None,
+        model_family: str | None = None,
+        grade_label: str | None = None,
+        promotion_eligible: bool | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
+    ) -> list[dict[str, Any]]:
+        safe_cols = {"composite", "confidence_score", "scored_at", "grade_label", "name"}
         col = order_by if order_by in safe_cols else "composite"
         direction = "DESC" if descending else "ASC"
 
-        conditions: List[str] = []
-        params: List[Any] = []
+        conditions: list[str] = []
+        params: list[Any] = []
         if instrument:
             conditions.append("instrument=?")
             params.append(instrument)
@@ -346,8 +339,7 @@ class IRSEScoreDatabase:
         params.append(limit)
         with self._lock:
             rows = self._conn.execute(
-                f"SELECT * FROM research_scores {where} "
-                f"ORDER BY {col} {direction} LIMIT ?",
+                f"SELECT * FROM research_scores {where} " f"ORDER BY {col} {direction} LIMIT ?",
                 params,
             ).fetchall()
             return [self._hydrate_score(dict(r)) for r in rows]
@@ -356,7 +348,7 @@ class IRSEScoreDatabase:
     # Score history
     # ------------------------------------------------------------------
 
-    def save_score_snapshot(self, snap: Dict[str, Any]) -> None:
+    def save_score_snapshot(self, snap: dict[str, Any]) -> None:
         with self._lock:
             self._conn.execute(
                 """INSERT OR REPLACE INTO score_history (
@@ -371,9 +363,7 @@ class IRSEScoreDatabase:
                     snap.get("name", ""),
                     snap.get("composite", 0.0),
                     snap.get("grade_label", ""),
-                    snap.get(
-                        "recorded_at", datetime.now(timezone.utc).isoformat()
-                    ),
+                    snap.get("recorded_at", datetime.now(UTC).isoformat()),
                     json.dumps(snap.get("category_scores", {})),
                     snap.get("model_family", ""),
                     snap.get("backbone", ""),
@@ -382,8 +372,8 @@ class IRSEScoreDatabase:
             )
 
     def get_score_history(
-        self, experiment_id: Optional[str] = None, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, experiment_id: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         with self._lock:
             if experiment_id:
                 rows = self._conn.execute(
@@ -412,16 +402,14 @@ class IRSEScoreDatabase:
     def save_weight_configuration(
         self,
         name: str,
-        weights: Dict[str, float],
+        weights: dict[str, float],
         description: str = "",
         set_active: bool = False,
     ) -> str:
         config_id = str(uuid.uuid4())
         with self._lock:
             if set_active:
-                self._conn.execute(
-                    "UPDATE weight_configurations SET is_active=0"
-                )
+                self._conn.execute("UPDATE weight_configurations SET is_active=0")
             self._conn.execute(
                 """INSERT OR REPLACE INTO weight_configurations (
                     config_id, name, description, weights, is_active
@@ -436,7 +424,7 @@ class IRSEScoreDatabase:
             )
         return config_id
 
-    def get_active_weights(self) -> Optional[Dict[str, float]]:
+    def get_active_weights(self) -> dict[str, float] | None:
         with self._lock:
             row = self._conn.execute(
                 "SELECT weights FROM weight_configurations WHERE is_active=1 LIMIT 1"
@@ -445,7 +433,7 @@ class IRSEScoreDatabase:
                 return json.loads(row["weights"])
             return None
 
-    def list_weight_configurations(self) -> List[Dict[str, Any]]:
+    def list_weight_configurations(self) -> list[dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(
                 "SELECT * FROM weight_configurations ORDER BY created_at DESC"
@@ -462,7 +450,7 @@ class IRSEScoreDatabase:
     # Benchmark records
     # ------------------------------------------------------------------
 
-    def save_benchmark_record(self, record: Dict[str, Any]) -> None:
+    def save_benchmark_record(self, record: dict[str, Any]) -> None:
         with self._lock:
             self._conn.execute(
                 """INSERT OR REPLACE INTO benchmark_records (
@@ -478,13 +466,11 @@ class IRSEScoreDatabase:
                     record.get("grade_label", ""),
                     int(record.get("promotion_eligible", False)),
                     json.dumps(record.get("category_scores", {})),
-                    record.get(
-                        "registered_at", datetime.now(timezone.utc).isoformat()
-                    ),
+                    record.get("registered_at", datetime.now(UTC).isoformat()),
                 ),
             )
 
-    def save_benchmark_comparison(self, comp: Dict[str, Any]) -> None:
+    def save_benchmark_comparison(self, comp: dict[str, Any]) -> None:
         with self._lock:
             subj = comp.get("subject", {})
             ref = comp.get("reference", {})
@@ -511,9 +497,7 @@ class IRSEScoreDatabase:
                     json.dumps(comp.get("category_deltas", {})),
                     json.dumps(comp.get("stronger_categories", [])),
                     json.dumps(comp.get("weaker_categories", [])),
-                    comp.get(
-                        "compared_at", datetime.now(timezone.utc).isoformat()
-                    ),
+                    comp.get("compared_at", datetime.now(UTC).isoformat()),
                 ),
             )
 
@@ -521,12 +505,11 @@ class IRSEScoreDatabase:
     # Stats
     # ------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         with self._lock:
+
             def count(table: str) -> int:
-                return self._conn.execute(
-                    f"SELECT COUNT(*) FROM {table}"
-                ).fetchone()[0]
+                return self._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
 
             best_row = self._conn.execute(
                 "SELECT name, composite, grade_label FROM research_scores "

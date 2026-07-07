@@ -31,7 +31,7 @@ are NOT modified.  ``TracedInferenceAdapter`` is a pure decorator.
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
@@ -64,8 +64,8 @@ class TracedInferenceAdapter:
     def __init__(
         self,
         adapter: Any,
-        trace_config: Optional[TraceabilityConfig] = None,
-        device: Optional[torch.device] = None,
+        trace_config: TraceabilityConfig | None = None,
+        device: torch.device | None = None,
     ) -> None:
         self._adapter = adapter
         self._cfg = trace_config or TraceabilityConfig()
@@ -167,13 +167,9 @@ class TracedInferenceAdapter:
         enabled_heads: list[str] = []
 
         if hasattr(self._adapter, "_model") or hasattr(self._adapter, "model"):
-            model = getattr(self._adapter, "_model", None) or getattr(
-                self._adapter, "model", None
-            )
+            model = getattr(self._adapter, "_model", None) or getattr(self._adapter, "model", None)
             if model is not None:
-                num_params = sum(
-                    p.numel() for p in model.parameters() if p.requires_grad
-                )
+                num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
                 if hasattr(model, "enabled_heads"):
                     enabled_heads = list(model.enabled_heads)
 

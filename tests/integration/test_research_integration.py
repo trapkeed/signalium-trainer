@@ -19,14 +19,17 @@ import torch.nn as nn
 from trainer.config.schema import TrainerConfig
 from trainer.framework import ModelFactory
 from trainer.models.quant_v1.config import (
-    BackboneConfig, BackboneType, ClassificationHeadConfig,
-    ConfidenceHeadConfig, InputEncoderConfig, QuantV1Config,
+    BackboneConfig,
+    BackboneType,
+    ClassificationHeadConfig,
+    ConfidenceHeadConfig,
+    InputEncoderConfig,
+    QuantV1Config,
 )
 from trainer.research import (
     BenchmarkConditions,
     BenchmarkRunner,
     ChampionRegistry,
-    ExperimentRecord,
     ExperimentTracker,
     Leaderboard,
     ModelStatus,
@@ -49,13 +52,17 @@ N_VAL = 60
 # Fixtures
 # -----------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def small_quant_v1_cfg() -> QuantV1Config:
     return QuantV1Config(
         encoder=InputEncoderConfig(input_dim=INPUT_DIM, hidden_dim=32, projection_dropout=0.0),
         backbone=BackboneConfig(
-            type=BackboneType.LSTM, hidden_size=32, num_layers=1,
-            dropout=0.0, window_length=SEQ_LEN,
+            type=BackboneType.LSTM,
+            hidden_size=32,
+            num_layers=1,
+            dropout=0.0,
+            window_length=SEQ_LEN,
         ),
         classification_head=ClassificationHeadConfig(
             num_classes=NUM_CLASSES, hidden_dim=32, dropout=0.0
@@ -80,6 +87,7 @@ def synthetic_val() -> tuple[torch.Tensor, torch.Tensor]:
 # BenchmarkRunner integration
 # -----------------------------------------------------------------------
 
+
 class TestBenchmarkRunnerIntegration:
     def test_single_model_run_completes(
         self,
@@ -87,13 +95,13 @@ class TestBenchmarkRunnerIntegration:
         synthetic_train,
         synthetic_val,
     ) -> None:
-        conditions = BenchmarkConditions(
-            random_seed=42, max_epochs=3, batch_size=32, device="cpu"
-        )
+        conditions = BenchmarkConditions(random_seed=42, max_epochs=3, batch_size=32, device="cpu")
         runner = BenchmarkRunner(conditions=conditions)
         runner.register_model(
             name="quant_v1_lstm",
-            model_factory=lambda: ModelFactory.create("quant_v1", TrainerConfig(), small_quant_v1_cfg),
+            model_factory=lambda: ModelFactory.create(
+                "quant_v1", TrainerConfig(), small_quant_v1_cfg
+            ),
         )
         result = runner.run(synthetic_train, synthetic_val)
         assert len(result.runs) == 1
@@ -113,8 +121,11 @@ class TestBenchmarkRunnerIntegration:
         gru_cfg = QuantV1Config(
             encoder=InputEncoderConfig(input_dim=INPUT_DIM, hidden_dim=32),
             backbone=BackboneConfig(
-                type=BackboneType.GRU, hidden_size=32, num_layers=1,
-                dropout=0.0, window_length=SEQ_LEN,
+                type=BackboneType.GRU,
+                hidden_size=32,
+                num_layers=1,
+                dropout=0.0,
+                window_length=SEQ_LEN,
             ),
             classification_head=ClassificationHeadConfig(num_classes=NUM_CLASSES, hidden_dim=32),
             confidence_head=ConfidenceHeadConfig(hidden_dim=16),
@@ -154,6 +165,7 @@ class TestBenchmarkRunnerIntegration:
 # Leaderboard integration
 # -----------------------------------------------------------------------
 
+
 class TestLeaderboardIntegration:
     def test_leaderboard_from_benchmark_run(
         self,
@@ -178,35 +190,60 @@ class TestLeaderboardIntegration:
         assert "quant_v1_lstm" in table
 
     def test_custom_weights_change_ranking(self, synthetic_train, synthetic_val) -> None:
-        from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
         import uuid
+
+        from trainer.research.benchmark.runner import BenchmarkResult, ModelRunResult
 
         result = BenchmarkResult(
             benchmark_id=str(uuid.uuid4()),
             conditions=BenchmarkConditions(),
             runs=[
-                ModelRunResult("fast_model", metrics={
-                    "accuracy": 0.70, "f1_macro": 0.68, "f1_weighted": 0.69,
-                    "inference_latency_ms": 1.0,
-                }, training_time_seconds=5.0, status="completed"),
-                ModelRunResult("accurate_model", metrics={
-                    "accuracy": 0.85, "f1_macro": 0.83, "f1_weighted": 0.84,
-                    "inference_latency_ms": 50.0,
-                }, training_time_seconds=300.0, status="completed"),
+                ModelRunResult(
+                    "fast_model",
+                    metrics={
+                        "accuracy": 0.70,
+                        "f1_macro": 0.68,
+                        "f1_weighted": 0.69,
+                        "inference_latency_ms": 1.0,
+                    },
+                    training_time_seconds=5.0,
+                    status="completed",
+                ),
+                ModelRunResult(
+                    "accurate_model",
+                    metrics={
+                        "accuracy": 0.85,
+                        "f1_macro": 0.83,
+                        "f1_weighted": 0.84,
+                        "inference_latency_ms": 50.0,
+                    },
+                    training_time_seconds=300.0,
+                    status="completed",
+                ),
             ],
         )
 
-        lb_speed = Leaderboard(ScoringWeights(
-            accuracy=0.0, f1_macro=0.0, f1_weighted=0.0,
-            calibration_error=0.0, inference_speed=1.0
-        ))
+        lb_speed = Leaderboard(
+            ScoringWeights(
+                accuracy=0.0,
+                f1_macro=0.0,
+                f1_weighted=0.0,
+                calibration_error=0.0,
+                inference_speed=1.0,
+            )
+        )
         lb_speed.ingest(result)
         assert lb_speed.champion().model_name == "fast_model"
 
-        lb_acc = Leaderboard(ScoringWeights(
-            accuracy=1.0, f1_macro=0.0, f1_weighted=0.0,
-            calibration_error=0.0, inference_speed=0.0
-        ))
+        lb_acc = Leaderboard(
+            ScoringWeights(
+                accuracy=1.0,
+                f1_macro=0.0,
+                f1_weighted=0.0,
+                calibration_error=0.0,
+                inference_speed=0.0,
+            )
+        )
         lb_acc.ingest(result)
         assert lb_acc.champion().model_name == "accurate_model"
 
@@ -214,6 +251,7 @@ class TestLeaderboardIntegration:
 # -----------------------------------------------------------------------
 # Full lifecycle integration
 # -----------------------------------------------------------------------
+
 
 class TestFullLifecycleIntegration:
     def test_train_record_promote(
@@ -239,13 +277,15 @@ class TestFullLifecycleIntegration:
         assert run.status == "completed"
 
         champion_registry.register(
-            "quant_v1", "1.0.0",
+            "quant_v1",
+            "1.0.0",
             experiment_id=run.experiment_id,
             metrics=run.metrics,
         )
         champion_registry.promote("quant_v1", "1.0.0", ModelStatus.CANDIDATE)
-        champion_registry.promote("quant_v1", "1.0.0", ModelStatus.CHAMPION,
-                                   notes="Baseline established")
+        champion_registry.promote(
+            "quant_v1", "1.0.0", ModelStatus.CHAMPION, notes="Baseline established"
+        )
 
         champ = champion_registry.get_champion("quant_v1")
         assert champ is not None
@@ -269,11 +309,13 @@ class TestFullLifecycleIntegration:
         lb = Leaderboard()
         lb.ingest(result)
 
-        gen = ReportGenerator(ReportConfig(
-            title="Integration Test",
-            formats=["json", "markdown", "html", "csv"],
-            output_dir=tmp_path / "reports",
-        ))
+        gen = ReportGenerator(
+            ReportConfig(
+                title="Integration Test",
+                formats=["json", "markdown", "html", "csv"],
+                output_dir=tmp_path / "reports",
+            )
+        )
         paths = gen.generate_benchmark_report(result, lb)
         assert len(paths) == 4
         for p in paths:
@@ -289,6 +331,7 @@ class TestFullLifecycleIntegration:
 # -----------------------------------------------------------------------
 # Cross-validation integration
 # -----------------------------------------------------------------------
+
 
 class TestCrossValidationIntegration:
     def test_walk_forward_trains_on_each_fold(self, small_quant_v1_cfg) -> None:

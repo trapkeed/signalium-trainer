@@ -38,8 +38,8 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -51,19 +51,18 @@ from trainer.research.snapshots import (
     ValidationSnapshot,
 )
 
-
 # ---------------------------------------------------------------------------
 # Experiment status constants
 # ---------------------------------------------------------------------------
 
 
 class ExperimentStatus:
-    PLANNED   = "planned"
-    RUNNING   = "running"
+    PLANNED = "planned"
+    RUNNING = "running"
     SUCCEEDED = "succeeded"
-    FAILED    = "failed"
+    FAILED = "failed"
     ABANDONED = "abandoned"
-    ARCHIVED  = "archived"
+    ARCHIVED = "archived"
 
     ALL = [PLANNED, RUNNING, SUCCEEDED, FAILED, ABANDONED, ARCHIVED]
 
@@ -83,8 +82,8 @@ class LineageNode:
     purpose: str = ""
 
     # Tree relationships
-    parent_id: Optional[str] = None
-    child_ids: List[str] = field(default_factory=list)
+    parent_id: str | None = None
+    child_ids: list[str] = field(default_factory=list)
 
     # Research context
     branch: str = "main"
@@ -92,19 +91,17 @@ class LineageNode:
 
     # Lifecycle
     status: ExperimentStatus = field(default_factory=lambda: ExperimentStatus.PLANNED)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    completed_at: Optional[str] = None
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    completed_at: str | None = None
     notes: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # Reproducibility & snapshots
-    environment: Optional[EnvironmentSnapshot] = None
-    dataset_snapshot: Optional[DatasetSnapshot] = None
-    feature_snapshot: Optional[FeatureSnapshot] = None
-    model_snapshot: Optional[ModelSnapshot] = None
-    validation_snapshot: Optional[ValidationSnapshot] = None
+    environment: EnvironmentSnapshot | None = None
+    dataset_snapshot: DatasetSnapshot | None = None
+    feature_snapshot: FeatureSnapshot | None = None
+    model_snapshot: ModelSnapshot | None = None
+    validation_snapshot: ValidationSnapshot | None = None
 
     # Cost
     gpu_hours: float = 0.0
@@ -115,11 +112,7 @@ class LineageNode:
 
     @property
     def total_cost_usd(self) -> float:
-        return (
-            self.training_cost_usd
-            + self.storage_cost_usd
-            + self.validation_cost_usd
-        )
+        return self.training_cost_usd + self.storage_cost_usd + self.validation_cost_usd
 
     def reproducibility_score(self) -> float:
         if self.environment is None:
@@ -136,7 +129,7 @@ class LineageNode:
             bonus += 0.05
         return min(1.0, base + bonus)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
             "name": self.name,
@@ -158,9 +151,7 @@ class LineageNode:
             "feature_snapshot": (
                 self.feature_snapshot.to_dict() if self.feature_snapshot else None
             ),
-            "model_snapshot": (
-                self.model_snapshot.to_dict() if self.model_snapshot else None
-            ),
+            "model_snapshot": (self.model_snapshot.to_dict() if self.model_snapshot else None),
             "validation_snapshot": (
                 self.validation_snapshot.to_dict() if self.validation_snapshot else None
             ),
@@ -173,7 +164,7 @@ class LineageNode:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "LineageNode":
+    def from_dict(cls, d: dict[str, Any]) -> LineageNode:
         env_d = d.get("environment")
         ds_d = d.get("dataset_snapshot")
         fs_d = d.get("feature_snapshot")
@@ -189,7 +180,7 @@ class LineageNode:
             branch=d.get("branch", "main"),
             project=d.get("project", ""),
             status=d.get("status", ExperimentStatus.PLANNED),
-            created_at=d.get("created_at", datetime.now(timezone.utc).isoformat()),
+            created_at=d.get("created_at", datetime.now(UTC).isoformat()),
             completed_at=d.get("completed_at"),
             notes=d.get("notes", ""),
             tags=d.get("tags", []),
@@ -218,7 +209,7 @@ class LineageTree:
     """
 
     def __init__(self) -> None:
-        self._nodes: Dict[str, LineageNode] = {}
+        self._nodes: dict[str, LineageNode] = {}
 
     # ------------------------------------------------------------------
     # Registration
@@ -232,9 +223,9 @@ class LineageTree:
         purpose: str = "",
         branch: str = "main",
         project: str = "",
-        parent_id: Optional[str] = None,
-        environment: Optional[EnvironmentSnapshot] = None,
-        tags: Optional[List[str]] = None,
+        parent_id: str | None = None,
+        environment: EnvironmentSnapshot | None = None,
+        tags: list[str] | None = None,
         notes: str = "",
     ) -> str:
         """Register a new experiment node and return its node_id."""
@@ -267,35 +258,25 @@ class LineageTree:
         if status not in ExperimentStatus.ALL:
             raise ValueError(f"Unknown status: {status}")
         node.status = status
-        node.completed_at = datetime.now(timezone.utc).isoformat()
+        node.completed_at = datetime.now(UTC).isoformat()
 
     # ------------------------------------------------------------------
     # Snapshot attachment
     # ------------------------------------------------------------------
 
-    def attach_environment(
-        self, node_id: str, env: EnvironmentSnapshot
-    ) -> None:
+    def attach_environment(self, node_id: str, env: EnvironmentSnapshot) -> None:
         self._get(node_id).environment = env
 
-    def attach_dataset_snapshot(
-        self, node_id: str, snapshot: DatasetSnapshot
-    ) -> None:
+    def attach_dataset_snapshot(self, node_id: str, snapshot: DatasetSnapshot) -> None:
         self._get(node_id).dataset_snapshot = snapshot
 
-    def attach_feature_snapshot(
-        self, node_id: str, snapshot: FeatureSnapshot
-    ) -> None:
+    def attach_feature_snapshot(self, node_id: str, snapshot: FeatureSnapshot) -> None:
         self._get(node_id).feature_snapshot = snapshot
 
-    def attach_model_snapshot(
-        self, node_id: str, snapshot: ModelSnapshot
-    ) -> None:
+    def attach_model_snapshot(self, node_id: str, snapshot: ModelSnapshot) -> None:
         self._get(node_id).model_snapshot = snapshot
 
-    def attach_validation_snapshot(
-        self, node_id: str, snapshot: ValidationSnapshot
-    ) -> None:
+    def attach_validation_snapshot(self, node_id: str, snapshot: ValidationSnapshot) -> None:
         self._get(node_id).validation_snapshot = snapshot
 
     # ------------------------------------------------------------------
@@ -322,12 +303,12 @@ class LineageTree:
     # Navigation
     # ------------------------------------------------------------------
 
-    def get(self, node_id: str) -> Optional[LineageNode]:
+    def get(self, node_id: str) -> LineageNode | None:
         return self._nodes.get(node_id)
 
-    def ancestors(self, node_id: str) -> List[LineageNode]:
+    def ancestors(self, node_id: str) -> list[LineageNode]:
         """Return all ancestor nodes from parent up to root."""
-        result: List[LineageNode] = []
+        result: list[LineageNode] = []
         current = self._nodes.get(node_id)
         seen: set = set()
         while current and current.parent_id and current.parent_id not in seen:
@@ -338,9 +319,9 @@ class LineageTree:
             current = parent
         return result
 
-    def descendants(self, node_id: str) -> List[LineageNode]:
+    def descendants(self, node_id: str) -> list[LineageNode]:
         """Return all descendant nodes (BFS)."""
-        result: List[LineageNode] = []
+        result: list[LineageNode] = []
         queue = list(self._nodes.get(node_id, LineageNode()).child_ids)
         seen: set = {node_id}
         while queue:
@@ -354,27 +335,27 @@ class LineageTree:
                 queue.extend(child.child_ids)
         return result
 
-    def roots(self) -> List[LineageNode]:
+    def roots(self) -> list[LineageNode]:
         """Return nodes with no parent."""
         return [n for n in self._nodes.values() if n.parent_id is None]
 
-    def by_branch(self, branch: str) -> List[LineageNode]:
+    def by_branch(self, branch: str) -> list[LineageNode]:
         return [n for n in self._nodes.values() if n.branch == branch]
 
-    def by_project(self, project: str) -> List[LineageNode]:
+    def by_project(self, project: str) -> list[LineageNode]:
         return [n for n in self._nodes.values() if n.project == project]
 
-    def by_status(self, status: str) -> List[LineageNode]:
+    def by_status(self, status: str) -> list[LineageNode]:
         return [n for n in self._nodes.values() if n.status == status]
 
-    def by_researcher(self, researcher: str) -> List[LineageNode]:
+    def by_researcher(self, researcher: str) -> list[LineageNode]:
         return [n for n in self._nodes.values() if n.researcher == researcher]
 
     # ------------------------------------------------------------------
     # Summary and reports
     # ------------------------------------------------------------------
 
-    def lineage_report(self, node_id: str) -> Dict[str, Any]:
+    def lineage_report(self, node_id: str) -> dict[str, Any]:
         """Return a full lineage report for a single experiment."""
         node = self._get(node_id)
         ancestors = self.ancestors(node_id)
@@ -394,16 +375,12 @@ class LineageTree:
             "project": node.project,
         }
 
-    def tree_summary(self) -> Dict[str, Any]:
+    def tree_summary(self) -> dict[str, Any]:
         """Return a high-level summary of the full lineage tree."""
         nodes = list(self._nodes.values())
         total_cost = sum(n.total_cost_usd for n in nodes)
-        avg_repro = (
-            sum(n.reproducibility_score() for n in nodes) / len(nodes)
-            if nodes
-            else 0.0
-        )
-        status_counts: Dict[str, int] = {}
+        avg_repro = sum(n.reproducibility_score() for n in nodes) / len(nodes) if nodes else 0.0
+        status_counts: dict[str, int] = {}
         for n in nodes:
             status_counts[n.status] = status_counts.get(n.status, 0) + 1
         projects = sorted({n.project for n in nodes if n.project})
@@ -429,7 +406,7 @@ class LineageTree:
             if node.node_id not in parent.child_ids:
                 parent.child_ids.append(node.node_id)
 
-    def all_nodes(self) -> List[LineageNode]:
+    def all_nodes(self) -> list[LineageNode]:
         return list(self._nodes.values())
 
     # ------------------------------------------------------------------

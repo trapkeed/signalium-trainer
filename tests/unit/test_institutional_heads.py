@@ -15,8 +15,14 @@ from __future__ import annotations
 
 import pytest
 import torch
-import torch.nn as nn
 
+from trainer.losses.advanced import (
+    DistributionLoss,
+    DynamicLossWeighting,
+    GaussianNLLLoss,
+    QuantileLoss,
+)
+from trainer.losses.multi_task import MultiTaskLoss, MultiTaskLossOutput
 from trainer.models.quant_v1.config import (
     DistributionHeadConfig,
     ExcursionHeadConfig,
@@ -24,7 +30,6 @@ from trainer.models.quant_v1.config import (
     MarketStabilityHeadConfig,
     MultiTaskLossConfig,
     QuantV1Config,
-    RegressionUnit,
     TradeDecayHeadConfig,
     TradeSurvivalHeadConfig,
     UncertaintyHeadConfig,
@@ -34,8 +39,8 @@ from trainer.models.quant_v1.head import (
     ExitQualityHead,
     LossDistributionHead,
     MAEExcursionHead,
-    MFEHead,
     MarketStabilityHead,
+    MFEHead,
     PositionSizeQualityHead,
     ProfitDistributionHead,
     RewardRiskHead,
@@ -45,13 +50,6 @@ from trainer.models.quant_v1.head import (
     TradeEfficiencyHead,
     TradeSurvivalHead,
     UncertaintyHead,
-)
-from trainer.losses.multi_task import MultiTaskLoss, MultiTaskLossOutput
-from trainer.losses.advanced import (
-    DistributionLoss,
-    DynamicLossWeighting,
-    GaussianNLLLoss,
-    QuantileLoss,
 )
 
 BATCH = 8
@@ -454,18 +452,12 @@ def _make_full_config() -> QuantV1Config:
     cfg.tp_achievability_head = InstitutionalHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     cfg.entry_quality_head = InstitutionalHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     cfg.exit_quality_head = InstitutionalHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
-    cfg.market_stability_head = MarketStabilityHeadConfig(
-        enabled=True, hidden_dim=16, dropout=0.0
-    )
+    cfg.market_stability_head = MarketStabilityHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     cfg.trade_decay_head = TradeDecayHeadConfig(
         enabled=True, hidden_dim=16, dropout=0.0, decay_steps=5
     )
-    cfg.profit_distribution_head = DistributionHeadConfig(
-        enabled=True, hidden_dim=16, dropout=0.0
-    )
-    cfg.loss_distribution_head = DistributionHeadConfig(
-        enabled=True, hidden_dim=16, dropout=0.0
-    )
+    cfg.profit_distribution_head = DistributionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
+    cfg.loss_distribution_head = DistributionHeadConfig(enabled=True, hidden_dim=16, dropout=0.0)
     cfg.position_size_quality_head = InstitutionalHeadConfig(
         enabled=True, hidden_dim=16, dropout=0.0
     )
@@ -477,6 +469,7 @@ def _make_full_config() -> QuantV1Config:
 def full_model():
     """QuantModelV1 with all heads enabled and minimal size."""
     from unittest.mock import MagicMock
+
     from trainer.models.quant_v1.model import QuantModelV1
 
     trainer_config = MagicMock()
@@ -507,12 +500,28 @@ class TestFullModelPhase146:
         x = self._input(full_model)
         out = full_model.forward_multi_task(x)
         expected_keys = {
-            "direction_logits", "confidence",
-            "expected_move", "stop_loss", "take_profit", "holding_time", "tp_probability",
-            "mfe", "mae_excursion", "trade_efficiency", "reward_risk", "trade_survival",
-            "sl_resilience", "tp_achievability", "entry_quality", "exit_quality",
-            "market_stability", "trade_decay", "profit_distribution", "loss_distribution",
-            "position_size_quality", "uncertainty",
+            "direction_logits",
+            "confidence",
+            "expected_move",
+            "stop_loss",
+            "take_profit",
+            "holding_time",
+            "tp_probability",
+            "mfe",
+            "mae_excursion",
+            "trade_efficiency",
+            "reward_risk",
+            "trade_survival",
+            "sl_resilience",
+            "tp_achievability",
+            "entry_quality",
+            "exit_quality",
+            "market_stability",
+            "trade_decay",
+            "profit_distribution",
+            "loss_distribution",
+            "position_size_quality",
+            "uncertainty",
         }
         assert expected_keys == set(out.keys())
 
@@ -575,6 +584,7 @@ class TestFullModelPhase146:
 
     def test_backward_compat_no_heads(self) -> None:
         from unittest.mock import MagicMock
+
         from trainer.models.quant_v1.model import QuantModelV1
 
         trainer_config = MagicMock()

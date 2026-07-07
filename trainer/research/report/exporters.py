@@ -38,8 +38,8 @@ def export_markdown(data: dict[str, Any], path: Path) -> None:
         lines += [
             "## Experiment Summary",
             "",
-            f"| Field | Value |",
-            f"|---|---|",
+            "| Field | Value |",
+            "|---|---|",
             f"| ID | `{exp.get('experiment_id', '')[:8]}` |",
             f"| Model | {exp.get('model_name', '')} |",
             f"| Version | {exp.get('model_version', '')} |",
@@ -57,7 +57,7 @@ def export_markdown(data: dict[str, Any], path: Path) -> None:
             lines.append(f"- **{k}**: {v:.4f}" if isinstance(v, float) else f"- **{k}**: {v}")
         lines.append("")
 
-    if "leaderboard" in data and data["leaderboard"]:
+    if data.get("leaderboard"):
         lines += [
             "## Leaderboard",
             "",
@@ -75,7 +75,7 @@ def export_markdown(data: dict[str, Any], path: Path) -> None:
             )
         lines.append("")
 
-    if "failure_analysis" in data and data["failure_analysis"]:
+    if data.get("failure_analysis"):
         lines += ["## Failure Analysis", ""]
         for f in data["failure_analysis"]:
             lines.append(f"- **{f['model_name']}**: {f.get('error', 'unknown error')}")
@@ -86,8 +86,8 @@ def export_markdown(data: dict[str, Any], path: Path) -> None:
         lines += [
             "## Benchmark Conditions",
             "",
-            f"| Parameter | Value |",
-            f"|---|---|",
+            "| Parameter | Value |",
+            "|---|---|",
         ]
         for k, v in cond.items():
             lines.append(f"| {k} | {v} |")
@@ -123,8 +123,11 @@ def export_html(data: dict[str, Any], path: Path) -> None:
             }.items()
         )
         metric_rows = "".join(
-            f"<tr><td>{k}</td><td>{v:.4f}</td></tr>" if isinstance(v, float)
-            else f"<tr><td>{k}</td><td>{v}</td></tr>"
+            (
+                f"<tr><td>{k}</td><td>{v:.4f}</td></tr>"
+                if isinstance(v, float)
+                else f"<tr><td>{k}</td><td>{v}</td></tr>"
+            )
             for k, v in exp.get("metrics", {}).items()
         )
         sections.append(
@@ -134,27 +137,47 @@ def export_html(data: dict[str, Any], path: Path) -> None:
             f"<table border='1'><tr><th>Metric</th><th>Value</th></tr>{metric_rows}</table>"
         )
 
-    if "leaderboard" in data and data["leaderboard"]:
+    if data.get("leaderboard"):
         lb_rows = "".join(
             "<tr>"
-            + "".join(f"<td>{row.get(c, '')}</td>" for c in
-                      ["rank", "model_name", "architecture", "accuracy",
-                       "f1_macro", "f1_weighted", "inference_latency_ms",
-                       "training_time_seconds", "model_size_mb", "overall_score"])
+            + "".join(
+                f"<td>{row.get(c, '')}</td>"
+                for c in [
+                    "rank",
+                    "model_name",
+                    "architecture",
+                    "accuracy",
+                    "f1_macro",
+                    "f1_weighted",
+                    "inference_latency_ms",
+                    "training_time_seconds",
+                    "model_size_mb",
+                    "overall_score",
+                ]
+            )
             + "</tr>"
             for row in data["leaderboard"]
         )
         headers = "".join(
-            f"<th>{h}</th>" for h in
-            ["Rank", "Model", "Arch", "Accuracy", "F1", "F1w",
-             "Lat(ms)", "Train(s)", "MB", "Score"]
+            f"<th>{h}</th>"
+            for h in [
+                "Rank",
+                "Model",
+                "Arch",
+                "Accuracy",
+                "F1",
+                "F1w",
+                "Lat(ms)",
+                "Train(s)",
+                "MB",
+                "Score",
+            ]
         )
         sections.append(
-            f"<h2>Leaderboard</h2>"
-            f"<table border='1'><tr>{headers}</tr>{lb_rows}</table>"
+            f"<h2>Leaderboard</h2>" f"<table border='1'><tr>{headers}</tr>{lb_rows}</table>"
         )
 
-    if "failure_analysis" in data and data["failure_analysis"]:
+    if data.get("failure_analysis"):
         fail_rows = "".join(
             f"<tr><td>{f['model_name']}</td><td>{f.get('error', '')}</td></tr>"
             for f in data["failure_analysis"]
@@ -200,7 +223,7 @@ def export_csv(data: dict[str, Any], path: Path) -> None:
     """
     rows: list[dict[str, Any]] = []
 
-    if "leaderboard" in data and data["leaderboard"]:
+    if data.get("leaderboard"):
         rows = data["leaderboard"]
     elif "runs_summary" in data:
         rows = data["runs_summary"]

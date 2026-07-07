@@ -10,12 +10,11 @@ outputs from QuantModelV1 when they are available.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import torch
 
 from trainer.framework.abstractions.inference import BaseInferenceAdapter
-from trainer.framework.contracts.model_input import ModelInput
 from trainer.framework.contracts.model_output import ModelOutput
 
 
@@ -36,8 +35,8 @@ class PyTorchInferenceAdapter(BaseInferenceAdapter):
     def __init__(
         self,
         model: Any,
-        device: Optional[torch.device] = None,
-        confidence_threshold: Optional[float] = None,
+        device: torch.device | None = None,
+        confidence_threshold: float | None = None,
     ) -> None:
         self._model = model
         self._device = device or torch.device("cpu")
@@ -81,9 +80,9 @@ class PyTorchInferenceAdapter(BaseInferenceAdapter):
             # Apply confidence gate to direction if threshold set
             if self._threshold is not None:
                 from trainer.framework.contracts.model_output import (
-                    CLASS_NO_TRADE,
                     ModelOutput,
                 )
+
                 base = ModelOutput(
                     logits=out.logits,
                     probabilities=out.probabilities,
@@ -117,12 +116,12 @@ class TorchScriptInferenceAdapter(BaseInferenceAdapter):
 
     def __init__(
         self,
-        device: Optional[torch.device] = None,
-        confidence_threshold: Optional[float] = None,
+        device: torch.device | None = None,
+        confidence_threshold: float | None = None,
     ) -> None:
         self._device = device or torch.device("cpu")
         self._threshold = confidence_threshold
-        self._model: Optional[Any] = None
+        self._model: Any | None = None
 
     def load(self, artifact_path: Path) -> None:
         """Load a TorchScript model from disk.
@@ -183,8 +182,8 @@ class InferenceAdapterFactory:
     @staticmethod
     def from_model(
         model: Any,
-        device: Optional[torch.device] = None,
-        confidence_threshold: Optional[float] = None,
+        device: torch.device | None = None,
+        confidence_threshold: float | None = None,
     ) -> PyTorchInferenceAdapter:
         """Create a PyTorchInferenceAdapter from a live model.
 
@@ -205,8 +204,8 @@ class InferenceAdapterFactory:
     @staticmethod
     def from_artifact(
         artifact_path: Path,
-        device: Optional[torch.device] = None,
-        confidence_threshold: Optional[float] = None,
+        device: torch.device | None = None,
+        confidence_threshold: float | None = None,
     ) -> BaseInferenceAdapter:
         """Create and load an adapter from an artifact file.
 

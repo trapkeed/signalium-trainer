@@ -26,9 +26,8 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-
+from datetime import UTC, datetime
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Resource snapshot
@@ -51,9 +50,7 @@ class ResourceSnapshot:
     """
 
     trial_id: str
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     cpu_percent: float = 0.0
     ram_mb: float = 0.0
     gpu_percent: float = 0.0
@@ -61,7 +58,7 @@ class ResourceSnapshot:
     disk_mb: float = 0.0
     elapsed_seconds: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trial_id": self.trial_id,
             "timestamp": self.timestamp,
@@ -86,7 +83,7 @@ class WorkerSlot:
     token: str = field(default_factory=lambda: str(uuid.uuid4()))
     trial_id: str = ""
     acquired_at: float = field(default_factory=time.monotonic)
-    released_at: Optional[float] = None
+    released_at: float | None = None
 
     @property
     def is_active(self) -> bool:
@@ -114,9 +111,14 @@ class ResourceManager:
         checkpoint_dir: Directory for resume checkpoints.
     """
 
-    def __init__(self, max_workers: int = 1, gpu_memory_gb: float = 0.0,
-                 max_ram_gb: float = 32.0, max_disk_gb: float = 100.0,
-                 checkpoint_dir: str = "experiments/automl/checkpoints") -> None:
+    def __init__(
+        self,
+        max_workers: int = 1,
+        gpu_memory_gb: float = 0.0,
+        max_ram_gb: float = 32.0,
+        max_disk_gb: float = 100.0,
+        checkpoint_dir: str = "experiments/automl/checkpoints",
+    ) -> None:
         self.max_workers = max_workers
         self.gpu_memory_gb = gpu_memory_gb
         self.max_ram_gb = max_ram_gb
@@ -124,14 +126,18 @@ class ResourceManager:
         self.checkpoint_dir = checkpoint_dir
 
         self._lock = threading.Lock()
-        self._slots: Dict[str, WorkerSlot] = {}
-        self._snapshots: Dict[str, List[ResourceSnapshot]] = {}
+        self._slots: dict[str, WorkerSlot] = {}
+        self._snapshots: dict[str, list[ResourceSnapshot]] = {}
         self._total_gpu_allocated_mb: float = 0.0
+
+    def _count_active(self) -> int:
+        """Count active slots — must be called with _lock already held."""
+        return sum(1 for s in self._slots.values() if s.is_active)
 
     @property
     def active_workers(self) -> int:
         with self._lock:
-            return sum(1 for s in self._slots.values() if s.is_active)
+            return self._count_active()
 
     @property
     def available_slots(self) -> int:
@@ -141,10 +147,10 @@ class ResourceManager:
         """Return True if a worker slot is available."""
         return self.available_slots > 0
 
-    def acquire_slot(self, trial_id: str = "") -> Optional[str]:
+    def acquire_slot(self, trial_id: str = "") -> str | None:
         """Acquire a worker slot. Returns token or None if no slot available."""
         with self._lock:
-            if self.active_workers >= self.max_workers:
+            if self._count_active() >= self.max_workers:
                 return None
             slot = WorkerSlot(trial_id=trial_id)
             self._slots[slot.token] = slot
@@ -158,10 +164,16 @@ class ResourceManager:
                 return True
             return False
 
-    def record_usage(self, trial_id: str, cpu_percent: float = 0.0,
-                     ram_mb: float = 0.0, gpu_percent: float = 0.0,
-                     vram_mb: float = 0.0, disk_mb: float = 0.0,
-                     elapsed_seconds: float = 0.0) -> ResourceSnapshot:
+    def record_usage(
+        self,
+        trial_id: str,
+        cpu_percent: float = 0.0,
+        ram_mb: float = 0.0,
+        gpu_percent: float = 0.0,
+        vram_mb: float = 0.0,
+        disk_mb: float = 0.0,
+        elapsed_seconds: float = 0.0,
+    ) -> ResourceSnapshot:
         """Record a resource usage snapshot for a trial."""
         snap = ResourceSnapshot(
             trial_id=trial_id,
@@ -178,7 +190,7 @@ class ResourceManager:
             self._snapshots[trial_id].append(snap)
         return snap
 
-    def get_trial_usage(self, trial_id: str) -> Dict[str, Any]:
+    def get_trial_usage(self, trial_id: str) -> dict[str, Any]:
         """Return aggregated resource usage for a trial."""
         snaps = self._snapshots.get(trial_id, [])
         if not snaps:
@@ -196,7 +208,7 @@ class ResourceManager:
             "total_elapsed_seconds": snaps[-1].elapsed_seconds if snaps else 0.0,
         }
 
-    def usage_report(self) -> Dict[str, Any]:
+    def usage_report(self) -> dict[str, Any]:
         """Return a full resource usage report across all trials."""
         all_snaps = [s for snaps in self._snapshots.values() for s in snaps]
         active = self.active_workers
@@ -209,14 +221,16 @@ class ResourceManager:
             "total_snapshots": len(all_snaps),
         }
         if all_snaps:
-            report.update({
-                "peak_cpu_percent": max(s.cpu_percent for s in all_snaps),
-                "avg_cpu_percent": sum(s.cpu_percent for s in all_snaps) / len(all_snaps),
-                "peak_ram_mb": max(s.ram_mb for s in all_snaps),
-                "avg_ram_mb": sum(s.ram_mb for s in all_snaps) / len(all_snaps),
-                "peak_gpu_percent": max(s.gpu_percent for s in all_snaps),
-                "peak_vram_mb": max(s.vram_mb for s in all_snaps),
-            })
+            report.update(
+                {
+                    "peak_cpu_percent": max(s.cpu_percent for s in all_snaps),
+                    "avg_cpu_percent": sum(s.cpu_percent for s in all_snaps) / len(all_snaps),
+                    "peak_ram_mb": max(s.ram_mb for s in all_snaps),
+                    "avg_ram_mb": sum(s.ram_mb for s in all_snaps) / len(all_snaps),
+                    "peak_gpu_percent": max(s.gpu_percent for s in all_snaps),
+                    "peak_vram_mb": max(s.vram_mb for s in all_snaps),
+                }
+            )
         return report
 
     def should_throttle(self) -> bool:
@@ -230,7 +244,7 @@ class ResourceManager:
             return True
         return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "max_workers": self.max_workers,
             "gpu_memory_gb": self.gpu_memory_gb,

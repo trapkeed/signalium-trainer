@@ -12,18 +12,17 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import Any, Dict, Generator, List, Optional
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.execution.execution_planner import ExecutionPlan
-
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS execution_plans (
@@ -99,8 +98,8 @@ class ExecutionDatabase:
     """
 
     def __init__(self, db_path: str = ":memory:"):
-        self._db_path       = db_path
-        self._persistent_conn: Optional[sqlite3.Connection] = None
+        self._db_path = db_path
+        self._persistent_conn: sqlite3.Connection | None = None
         self._init_db()
 
     def _init_db(self) -> None:
@@ -201,7 +200,7 @@ class ExecutionDatabase:
 
     # ── Read operations ───────────────────────────────────────────────────────
 
-    def latest_plans(self, n: int = 10) -> List[Dict]:
+    def latest_plans(self, n: int = 10) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT plan_json FROM execution_plans ORDER BY created_at DESC LIMIT ?",
@@ -209,7 +208,7 @@ class ExecutionDatabase:
             ).fetchall()
         return [json.loads(r["plan_json"]) for r in rows]
 
-    def plans_by_instrument(self, instrument: str) -> List[Dict]:
+    def plans_by_instrument(self, instrument: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT plan_json FROM execution_plans WHERE instrument = ? ORDER BY created_at DESC",
@@ -217,7 +216,7 @@ class ExecutionDatabase:
             ).fetchall()
         return [json.loads(r["plan_json"]) for r in rows]
 
-    def top_scored_plans(self, n: int = 5) -> List[Dict]:
+    def top_scored_plans(self, n: int = 5) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT plan_json FROM execution_plans ORDER BY score DESC LIMIT ?",
@@ -225,14 +224,14 @@ class ExecutionDatabase:
             ).fetchall()
         return [json.loads(r["plan_json"]) for r in rows]
 
-    def executable_plans(self) -> List[Dict]:
+    def executable_plans(self) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT plan_json FROM execution_plans WHERE executable = 1 ORDER BY score DESC",
             ).fetchall()
         return [json.loads(r["plan_json"]) for r in rows]
 
-    def sizing_history(self, instrument: str) -> List[Dict]:
+    def sizing_history(self, instrument: str) -> list[dict]:
         with self._conn() as conn:
             rows = conn.execute(
                 "SELECT sizing_json FROM sizing_decisions WHERE instrument = ? ORDER BY created_at DESC",
@@ -240,7 +239,7 @@ class ExecutionDatabase:
             ).fetchall()
         return [json.loads(r["sizing_json"]) for r in rows]
 
-    def optimization_log(self, instrument: Optional[str] = None, limit: int = 50) -> List[Dict]:
+    def optimization_log(self, instrument: str | None = None, limit: int = 50) -> list[dict]:
         with self._conn() as conn:
             if instrument:
                 rows = conn.execute(
@@ -254,24 +253,24 @@ class ExecutionDatabase:
                 ).fetchall()
         return [dict(r) for r in rows]
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         with self._conn() as conn:
-            n_plans  = conn.execute("SELECT COUNT(*) FROM execution_plans").fetchone()[0]
-            n_exec   = conn.execute("SELECT COUNT(*) FROM execution_plans WHERE executable=1").fetchone()[0]
+            n_plans = conn.execute("SELECT COUNT(*) FROM execution_plans").fetchone()[0]
+            n_exec = conn.execute(
+                "SELECT COUNT(*) FROM execution_plans WHERE executable=1"
+            ).fetchone()[0]
             n_scores = conn.execute("SELECT COUNT(*) FROM trade_scores").fetchone()[0]
             n_sizing = conn.execute("SELECT COUNT(*) FROM sizing_decisions").fetchone()[0]
-            n_mgmt   = conn.execute("SELECT COUNT(*) FROM management_plans").fetchone()[0]
-            n_opt    = conn.execute("SELECT COUNT(*) FROM optimization_history").fetchone()[0]
-            avg_score_row = conn.execute(
-                "SELECT AVG(score) FROM execution_plans"
-            ).fetchone()
+            n_mgmt = conn.execute("SELECT COUNT(*) FROM management_plans").fetchone()[0]
+            n_opt = conn.execute("SELECT COUNT(*) FROM optimization_history").fetchone()[0]
+            avg_score_row = conn.execute("SELECT AVG(score) FROM execution_plans").fetchone()
             avg_score = round(avg_score_row[0] or 0.0, 4)
         return {
-            "execution_plans":    n_plans,
-            "executable_plans":   n_exec,
-            "trade_scores":       n_scores,
-            "sizing_decisions":   n_sizing,
-            "management_plans":   n_mgmt,
+            "execution_plans": n_plans,
+            "executable_plans": n_exec,
+            "trade_scores": n_scores,
+            "sizing_decisions": n_sizing,
+            "management_plans": n_mgmt,
             "optimization_events": n_opt,
-            "average_score":      avg_score,
+            "average_score": avg_score,
         }

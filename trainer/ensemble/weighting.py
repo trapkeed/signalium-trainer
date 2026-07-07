@@ -29,12 +29,10 @@ Usage::
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from trainer.ensemble.expert import ExpertModel, SpecializationType
-
 
 # ---------------------------------------------------------------------------
 # Weight factor configuration
@@ -77,7 +75,7 @@ class WeightFactorConfig:
     min_weight: float = 0.05
     max_weight_ratio: float = 10.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "recent_performance_factor": self.recent_performance_factor,
             "regime_match_factor": self.regime_match_factor,
@@ -95,7 +93,7 @@ class WeightFactorConfig:
         }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "WeightFactorConfig":
+    def from_dict(d: dict[str, Any]) -> WeightFactorConfig:
         cfg = WeightFactorConfig()
         for k, v in d.items():
             if hasattr(cfg, k):
@@ -109,29 +107,29 @@ class WeightFactorConfig:
 
 # Maps regime keywords to preferred model families.
 # Router uses these to apply regime_boost to matched experts.
-REGIME_FAMILY_AFFINITY: Dict[str, List[str]] = {
-    "trending_up":    ["transformer_encoder", "hybrid_lstm_transformer"],
-    "trending_down":  ["transformer_encoder", "hybrid_lstm_transformer"],
-    "ranging":        ["lstm", "gru"],
-    "volatile":       ["temporal_cnn", "hybrid_gru_transformer"],
+REGIME_FAMILY_AFFINITY: dict[str, list[str]] = {
+    "trending_up": ["transformer_encoder", "hybrid_lstm_transformer"],
+    "trending_down": ["transformer_encoder", "hybrid_lstm_transformer"],
+    "ranging": ["lstm", "gru"],
+    "volatile": ["temporal_cnn", "hybrid_gru_transformer"],
     "high_volatility": ["temporal_cnn"],
     "low_volatility": ["lstm"],
-    "breakout":       ["transformer_encoder", "temporal_cnn"],
-    "pullback":       ["lstm", "gru"],
-    "crisis":         ["temporal_cnn"],
-    "unknown":        [],
+    "breakout": ["transformer_encoder", "temporal_cnn"],
+    "pullback": ["lstm", "gru"],
+    "crisis": ["temporal_cnn"],
+    "unknown": [],
 }
 
-REGIME_SPECIALIZATION_AFFINITY: Dict[str, List[str]] = {
-    "trending_up":    [SpecializationType.TRENDING],
-    "trending_down":  [SpecializationType.TRENDING],
-    "ranging":        [SpecializationType.RANGING],
-    "volatile":       [SpecializationType.HIGH_VOLATILITY],
+REGIME_SPECIALIZATION_AFFINITY: dict[str, list[str]] = {
+    "trending_up": [SpecializationType.TRENDING],
+    "trending_down": [SpecializationType.TRENDING],
+    "ranging": [SpecializationType.RANGING],
+    "volatile": [SpecializationType.HIGH_VOLATILITY],
     "high_volatility": [SpecializationType.HIGH_VOLATILITY],
     "low_volatility": [SpecializationType.LOW_VOLATILITY],
-    "breakout":       [SpecializationType.BREAKOUT],
-    "pullback":       [SpecializationType.PULLBACK],
-    "crisis":         [SpecializationType.HIGH_VOLATILITY],
+    "breakout": [SpecializationType.BREAKOUT],
+    "pullback": [SpecializationType.PULLBACK],
+    "crisis": [SpecializationType.HIGH_VOLATILITY],
 }
 
 
@@ -147,14 +145,16 @@ class DynamicWeightEngine:
         config: WeightFactorConfig controlling factor importance.
     """
 
-    def __init__(self, config: Optional[WeightFactorConfig] = None) -> None:
+    def __init__(self, config: WeightFactorConfig | None = None) -> None:
         self.config = config or WeightFactorConfig()
-        self._weight_history: Dict[str, List[float]] = {}
+        self._weight_history: dict[str, list[float]] = {}
 
-    def compute_weights(self, experts: List[ExpertModel],
-                        context: Optional[Dict[str, Any]] = None,
-                        recent_metrics: Optional[Dict[str, Dict[str, float]]] = None
-                        ) -> Dict[str, float]:
+    def compute_weights(
+        self,
+        experts: list[ExpertModel],
+        context: dict[str, Any] | None = None,
+        recent_metrics: dict[str, dict[str, float]] | None = None,
+    ) -> dict[str, float]:
         """Compute normalized weights for a list of active experts.
 
         Args:
@@ -175,7 +175,7 @@ class DynamicWeightEngine:
         timeframe = ctx.get("timeframe", "")
 
         cfg = self.config
-        raw_weights: Dict[str, float] = {}
+        raw_weights: dict[str, float] = {}
 
         for expert in experts:
             met = (recent_metrics or {}).get(expert.expert_id, {})
@@ -186,10 +186,9 @@ class DynamicWeightEngine:
             latency = met.get("latency_ms", 0.0)
             history_acc = expert.accuracy
 
-            perf_score = (
-                cfg.recent_performance_factor * max(0.0, accuracy) +
-                cfg.recent_performance_factor * max(0.0, (sharpe + 2) / 7)
-            )
+            perf_score = cfg.recent_performance_factor * max(
+                0.0, accuracy
+            ) + cfg.recent_performance_factor * max(0.0, (sharpe + 2) / 7)
 
             regime_affinity_families = REGIME_FAMILY_AFFINITY.get(regime, [])
             regime_affinity_specs = REGIME_SPECIALIZATION_AFFINITY.get(regime, [])
@@ -199,15 +198,13 @@ class DynamicWeightEngine:
                 cfg.regime_boost if (family_match or spec_match) else 1.0
             )
 
-            instr_match = (not expert.instruments or instrument in expert.instruments)
+            instr_match = not expert.instruments or instrument in expert.instruments
             instr_score = cfg.instrument_match_factor * (
                 cfg.instrument_boost if instr_match else 1.0
             )
 
-            tf_match = (not expert.timeframes or timeframe in expert.timeframes)
-            tf_score = cfg.timeframe_match_factor * (
-                cfg.timeframe_boost if tf_match else 1.0
-            )
+            tf_match = not expert.timeframes or timeframe in expert.timeframes
+            tf_score = cfg.timeframe_match_factor * (cfg.timeframe_boost if tf_match else 1.0)
 
             cal_quality = 1.0 - min(1.0, cal_err)
             cal_score = cfg.calibration_factor * cal_quality
@@ -222,8 +219,14 @@ class DynamicWeightEngine:
 
             raw = max(
                 cfg.min_weight,
-                perf_score + regime_score + instr_score + tf_score +
-                cal_score + unc_penalty + history_score - latency_penalty,
+                perf_score
+                + regime_score
+                + instr_score
+                + tf_score
+                + cal_score
+                + unc_penalty
+                + history_score
+                - latency_penalty,
             )
             raw_weights[expert.expert_id] = raw
 
@@ -240,7 +243,7 @@ class DynamicWeightEngine:
 
         return normalized
 
-    def _apply_ratio_cap(self, weights: Dict[str, float]) -> Dict[str, float]:
+    def _apply_ratio_cap(self, weights: dict[str, float]) -> dict[str, float]:
         """Cap the ratio between max and min weights."""
         if not weights:
             return weights
@@ -248,19 +251,20 @@ class DynamicWeightEngine:
         min_floor = max_w / self.config.max_weight_ratio
         return {k: max(v, min_floor) for k, v in weights.items()}
 
-    def weight_evolution(self, expert_id: str) -> List[float]:
+    def weight_evolution(self, expert_id: str) -> list[float]:
         """Return weight history for an expert."""
         return self._weight_history.get(expert_id, [])
 
-    def all_weight_evolution(self) -> Dict[str, List[float]]:
+    def all_weight_evolution(self) -> dict[str, list[float]]:
         """Return weight history for all experts."""
         return dict(self._weight_history)
 
     def update_expert_weights_from_performance(
-            self, experts: List[ExpertModel],
-            context: Optional[Dict[str, Any]] = None,
-            recent_metrics: Optional[Dict[str, Dict[str, float]]] = None,
-    ) -> Dict[str, float]:
+        self,
+        experts: list[ExpertModel],
+        context: dict[str, Any] | None = None,
+        recent_metrics: dict[str, dict[str, float]] | None = None,
+    ) -> dict[str, float]:
         """Compute weights and update expert.weight field in-place."""
         weights = self.compute_weights(experts, context, recent_metrics)
         for expert in experts:
