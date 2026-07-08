@@ -288,12 +288,12 @@ class ResearchLabAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
+            combined_notes = f"[{method}] {notes}".strip() if method else notes
             feat = DiscoveredFeature.new(
                 name=name,
-                source=source,
+                category=source,
                 importance_score=importance_score,
-                method=method,
-                notes=notes,
+                notes=combined_notes,
             )
             self._db.upsert_feature(feat.to_dict())
             logger.info(f"ResearchLab.record_feature: {feat.feature_id} ({feat.name})")
@@ -679,6 +679,8 @@ class ResearchLabAPI:
         parameter_space: dict[str, Any],
         strategy: str = "BAYESIAN",
         max_trials: int = 50,
+        objective: str = "score",
+        maximize: bool = True,
         notes: str = "",
     ) -> ApiResponse:
         try:
@@ -691,10 +693,12 @@ class ResearchLabAPI:
         try:
             search = ParameterSearchRun.new(
                 name=name,
-                qde_version=qde_version,
-                parameter_space=parameter_space,
                 strategy=search_strategy,
-                max_trials=max_trials,
+                search_space=parameter_space,
+                objective=objective,
+                maximize=maximize,
+                n_trials=max_trials,
+                qde_version=qde_version,
                 notes=notes,
             )
             self._db.upsert_search(search.to_dict())
@@ -1052,14 +1056,16 @@ class ResearchLabAPI:
             return _err("record_failure", str(exc))
         try:
             failure = FailureEvent.new(
-                qde_version=qde_version,
                 category=cat,
                 severity=sev,
+                qde_version=qde_version,
                 description=description,
-                detected_at=detected_at,
-                affected_instruments=affected_instruments,
-                loss_pct=loss_pct,
-                notes=notes,
+                instrument=(affected_instruments[0] if affected_instruments else ""),
+                loss_amount=loss_pct,
+                tags=affected_instruments,
+                metadata={"notes": notes, "detected_at_override": detected_at}
+                if (notes or detected_at is not None)
+                else None,
             )
             self._db.upsert_failure(failure.to_dict())
             logger.warning(
