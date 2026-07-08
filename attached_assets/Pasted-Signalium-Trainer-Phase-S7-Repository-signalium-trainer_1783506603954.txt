@@ -1,0 +1,162 @@
+Signalium Trainer Phase S7
+Repository: signalium-trainer
+
+Objective:
+
+Transform QDE into an always-running market observer.
+
+QDE must continuously monitor markets even when no trade exists.
+
+The model behaves like a professional discretionary trader sitting in front of charts all day waiting for opportunity.
+
+--------------------------------------------------
+MARKET OBSERVATION LOOP
+--------------------------------------------------
+
+The QDE never sleeps.
+
+For every subscribed symbol:
+
+- ingest latest OHLC
+- ingest market microstructure features
+- ingest volatility features
+- ingest liquidity features
+- ingest session features
+- ingest portfolio context
+- ingest current positions
+- ingest account state
+
+The model continuously updates market understanding.
+
+--------------------------------------------------
+INTERNAL STATES
+--------------------------------------------------
+
+The QDE maintains internal market states:
+
+OBSERVING
+PREPARING
+ARMED
+ENTRY_WINDOW
+POSITION_ACTIVE
+MANAGING
+EXITING
+COOLDOWN
+
+These are model context states.
+
+These are NOT rule engines.
+
+These states become model inputs and memory context.
+
+--------------------------------------------------
+OBSERVING
+--------------------------------------------------
+
+The model detects:
+
+- no edge exists
+- insufficient asymmetry
+- low probability environment
+
+Output:
+
+NO_TRADE
+
+--------------------------------------------------
+PREPARING
+--------------------------------------------------
+
+The model detects:
+
+- opportunity forming
+- structure developing
+- volatility compression
+- liquidity shift
+- momentum build-up
+
+No trade yet.
+
+--------------------------------------------------
+ARMED
+--------------------------------------------------
+
+The model believes:
+
+trade probability increasing rapidly.
+
+The model begins preparing:
+
+- size expectations
+- risk expectations
+- expected hold duration
+- confidence trajectory
+
+--------------------------------------------------
+ENTRY_WINDOW
+--------------------------------------------------
+
+The model determines:
+
+entry quality sufficiently high.
+
+Trade is sent to Signalium Platform.
+
+Platform forwards signal to EA.
+
+EA executes.
+
+--------------------------------------------------
+POSITION_ACTIVE
+--------------------------------------------------
+
+Continuous reasoning begins.
+
+--------------------------------------------------
+EXITING
+--------------------------------------------------
+
+The model believes:
+
+edge has deteriorated.
+
+The model closes position.
+
+--------------------------------------------------
+COOLDOWN
+--------------------------------------------------
+
+The model temporarily ignores the symbol.
+
+Purpose:
+
+prevent revenge trading and overtrading.
+
+Cooldown duration becomes learned behavior.
+
+--------------------------------------------------
+GOALS
+--------------------------------------------------
+
+Minimize:
+
+- overtrading
+- low quality entries
+- revenge trading
+- late entries
+
+Maximize:
+
+- expectancy
+- capital efficiency
+- opportunity capture
+
+--------------------------------------------------
+GENERATE
+
+- state models
+- telemetry models
+- persistence models
+- APIs
+- monitoring metrics
+- observability dashboards

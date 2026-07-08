@@ -14,3 +14,4 @@
 - [QDE ↔ Research Lab dependency direction](qde-research-lab-dependency-direction.md) — trainer.qde may import rl_models dataclasses; trainer.research_lab must never import trainer.qde; bridging logic lives under trainer/qde/
 - [icari pre-existing test bug](icari-preexisting-test-bug.md) — 21 test_icari.py failures (AllocationRequest.ensemble_confidence) are unrelated/pre-existing, don't chase them
 - [QDE output-heads vs. decision translation](qde-heads-vs-decision-split.md) — model produces raw signal heads; a single pure function translates heads→execution vocabulary; new consumers (e.g. position management) read heads directly, never re-derive via the entry-side translator
+- [Hindsight training-signal labelers](hindsight-training-signal-labelers.md) — trainer/training_signals/ derives stop/TP/size/allocation/lifecycle labels from realized future outcome paths, never from the live engines' own heuristic rules
