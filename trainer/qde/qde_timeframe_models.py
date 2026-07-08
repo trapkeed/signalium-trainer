@@ -30,12 +30,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from trainer.qde.qde_timeframe_types import (
-    ALL_TIMEFRAMES,
-    QDE_TIMEFRAME_SCHEMA_VERSION,
-    Timeframe,
-)
-
+from trainer.qde.qde_timeframe_types import ALL_TIMEFRAMES, QDE_TIMEFRAME_SCHEMA_VERSION, Timeframe
 
 # ── TimeframeBar (raw OHLCV) ──────────────────────────────────────────────────
 
@@ -193,8 +188,7 @@ class MultiTimeframeSnapshot:
         """
         zero = [0.0] * TIMEFRAME_FEATURE_DIM
         return [
-            self.features[tf].as_vector() if tf in self.features else zero
-            for tf in ALL_TIMEFRAMES
+            self.features[tf].as_vector() if tf in self.features else zero for tf in ALL_TIMEFRAMES
         ]
 
 
@@ -221,7 +215,9 @@ class TemporalAssessment:
     reversal_probability: float = 0.5  # reversal_probability + continuation_probability == 1
     continuation_probability: float = 0.5
 
-    attention_weights: dict[str, float] = field(default_factory=dict)  # timeframe -> weight, sums to 1
+    attention_weights: dict[str, float] = field(
+        default_factory=dict
+    )  # timeframe -> weight, sums to 1
 
     schema_version: str = QDE_TIMEFRAME_SCHEMA_VERSION
 

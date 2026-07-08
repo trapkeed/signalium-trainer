@@ -70,8 +70,12 @@ class TimeframeSynchronizer:
         swing_low = min(b.low for b in swing_window)
         range_span = swing_high - swing_low
         range_position = ((current.close - swing_low) / range_span) if range_span > 1e-12 else 0.5
-        distance_to_swing_high = (swing_high - current.close) / current.close if current.close > 0 else 0.0
-        distance_to_swing_low = (current.close - swing_low) / current.close if current.close > 0 else 0.0
+        distance_to_swing_high = (
+            (swing_high - current.close) / current.close if current.close > 0 else 0.0
+        )
+        distance_to_swing_low = (
+            (current.close - swing_low) / current.close if current.close > 0 else 0.0
+        )
 
         candle_range = current.high - current.low
         body = abs(current.close - current.open)

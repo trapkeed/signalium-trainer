@@ -79,7 +79,9 @@ class PerTimeframeEncoder(nn.Module):
     Output: `(batch, embed_dim)`
     """
 
-    def __init__(self, embed_dim: int = DEFAULT_EMBED_DIM, hidden_dim: int = DEFAULT_TF_HIDDEN_DIM) -> None:
+    def __init__(
+        self, embed_dim: int = DEFAULT_EMBED_DIM, hidden_dim: int = DEFAULT_TF_HIDDEN_DIM
+    ) -> None:
         super().__init__()
         self.norm = nn.LayerNorm(TIMEFRAME_FEATURE_DIM)
         self.rnn = nn.LSTM(
@@ -103,7 +105,9 @@ class TimeframeIdentityEmbedding(nn.Module):
     they should relate.
     """
 
-    def __init__(self, embed_dim: int = DEFAULT_EMBED_DIM, num_timeframes: int = NUM_TIMEFRAMES) -> None:
+    def __init__(
+        self, embed_dim: int = DEFAULT_EMBED_DIM, num_timeframes: int = NUM_TIMEFRAMES
+    ) -> None:
         super().__init__()
         self.embedding = nn.Embedding(num_timeframes, embed_dim)
 
@@ -183,9 +187,9 @@ class TemporalAttentionEncoder(nn.Module):
             `TemporalAttentionOutput`
         """
         batch_size, num_tf, _seq_len, _feat_dim = timeframe_sequences.shape
-        assert num_tf == NUM_TIMEFRAMES, (
-            f"expected {NUM_TIMEFRAMES} timeframes (D1..M1), got {num_tf}"
-        )
+        assert (
+            num_tf == NUM_TIMEFRAMES
+        ), f"expected {NUM_TIMEFRAMES} timeframes (D1..M1), got {num_tf}"
 
         encoded = [
             self.tf_encoders[i](timeframe_sequences[:, i, :, :]) for i in range(num_tf)
@@ -193,7 +197,9 @@ class TemporalAttentionEncoder(nn.Module):
         stacked = torch.stack(encoded, dim=1)  # (batch, num_tf, embed_dim)
         stacked = self.identity_embedding(stacked)
 
-        fused, attn_weights = self.cross_attention(stacked)  # (batch, embed_dim), (batch, heads, tf, tf)
+        fused, attn_weights = self.cross_attention(
+            stacked
+        )  # (batch, embed_dim), (batch, heads, tf, tf)
 
         alignment_score = torch.sigmoid(self.alignment_head(fused)).squeeze(-1)
         countertrend_opportunity_score = torch.sigmoid(self.countertrend_head(fused)).squeeze(-1)
