@@ -1233,6 +1233,28 @@ class TestLifecycleAPI(unittest.TestCase):
         r2 = self.api.auto_transition(tid, _ctx())
         self.assertTrue(r2.success)
 
+    def test_auto_transition_defaults_to_recommendation_only(self):
+        """auto_transition() must not apply a transition unless apply=True."""
+        r = self.api.create_lifecycle("EURUSD", "BUY", 0.70, _ctx())
+        tid = r.data["trade_id"]
+        state_before = self.api.get_lifecycle(tid).data["current_state"]
+
+        r2 = self.api.auto_transition(tid, _ctx())
+        self.assertTrue(r2.success)
+        self.assertEqual(r2.data["action"], "RECOMMENDED_ONLY")
+        self.assertIn("recommendation", r2.data)
+
+        state_after = self.api.get_lifecycle(tid).data["current_state"]
+        self.assertEqual(state_before, state_after)
+
+    def test_auto_transition_apply_true_can_transition(self):
+        """apply=True remains an explicit opt-in escape hatch that can act."""
+        r = self.api.create_lifecycle("EURUSD", "BUY", 0.70, _ctx())
+        tid = r.data["trade_id"]
+        r2 = self.api.auto_transition(tid, _ctx(), apply=True)
+        self.assertTrue(r2.success)
+        self.assertIn(r2.data["action"], {"STAY", "TRANSITIONED"})
+
     def test_recommend_transition_read_only(self):
         r = self.api.create_lifecycle("EURUSD", "BUY", 0.70)
         tid = r.data["trade_id"]

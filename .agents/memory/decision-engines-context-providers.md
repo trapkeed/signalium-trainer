@@ -32,3 +32,9 @@ decision authority and made it unclear who was actually deciding.
   advisory-only.
 - `TradeLifecycle.transition_to()` only blocks on `result.hard_block`, not on
   `result.allowed=False` from soft contextual rules.
+- `LifecycleAPI.auto_transition()` defaults to `apply=False` (recommendation-
+  only, no state change); `apply=True` is an explicit opt-in escape hatch,
+  never used by QDE-driven flows. Any "engine recommends, then immediately
+  executes" method is itself an autonomous decision path — even if
+  documented as advisory, it must require an explicit caller opt-in to
+  apply, or it hasn't actually moved decision authority to the caller.

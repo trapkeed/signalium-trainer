@@ -162,20 +162,38 @@ class LifecycleAPI:
         self,
         trade_id: str,
         context: MarketContext | None = None,
+        apply: bool = False,
     ) -> ApiResponse:
-        """Apply the TransitionEngine's recommendation directly.
+        """Return the TransitionEngine's recommendation as context.
 
-        NOTE: this bypasses any external decision layer (e.g. QDE) and
-        applies the engine's advisory recommendation unconditionally
-        (subject only to the structural FSM graph). It exists for
-        legacy/manual use; QDE-driven flows should call
-        `recommend_transition` and decide independently via `transition`.
+        By default (`apply=False`) this is equivalent to
+        `recommend_transition`: it returns the engine's advisory
+        recommendation without acting on it — no state is applied by this
+        engine. QDE (or any decision layer) should read this and decide
+        independently, applying its own choice via `transition`.
+
+        `apply=True` is a legacy/manual escape hatch that applies the
+        engine's recommendation directly (still subject to the structural
+        FSM graph). It bypasses the decision layer and must not be used in
+        normal QDE-driven flows — callers must opt in explicitly.
         """
         tl = self._active.get(trade_id)
         if not tl:
             return ApiResponse(False, "auto_transition", error=f"Trade {trade_id} not found")
 
         rec = tl.recommend_transition(context, self._te)
+
+        if not apply:
+            return ApiResponse(
+                True,
+                "auto_transition",
+                {
+                    "action": "RECOMMENDED_ONLY",
+                    "recommendation": rec.to_dict(),
+                    "state": tl.current_state.value,
+                },
+            )
+
         if rec.recommended is None or rec.should_stay:
             return ApiResponse(
                 True,
