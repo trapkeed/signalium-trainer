@@ -48,3 +48,9 @@ id = "SCos-Iz2woyyqYSWDhSf-"
 uri = "file://docs/qde/unified_qde_architecture.md"
 type = "text"
 title = "Unified QDE Architecture"
+
+[[outputs]]
+id = "20iAwNoInfUM92RNXZ5x8"
+uri = "file://docs/qde/research_lab_final_architecture.md"
+type = "text"
+title = "Research Lab Final Architecture Report"
