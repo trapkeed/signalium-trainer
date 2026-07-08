@@ -12,3 +12,9 @@ id = "yPWibmhaSwJI_P4Y6tcPI"
 uri = "file://docs/gap_analysis.md"
 type = "text"
 title = "Signalium Trainer — Gap Analysis"
+
+[[outputs]]
+id = "E75iwA6akGXKM3ySymsUW"
+uri = "file://docs/qde_architectural_violations.md"
+type = "text"
+title = "QDE Architectural Violations Report"
