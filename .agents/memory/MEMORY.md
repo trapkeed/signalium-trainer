@@ -18,3 +18,4 @@
 - [Ensemble already removed pre-history](ensemble-already-removed.md) — trainer/ensemble/ doesn't exist in any reachable commit; graft root commit itself is the removal; don't assume future "remove ensemble" asks are unstarted
 - [Gateway-mediated lifecycle authority](gateway-mediated-lifecycle-authority.md) — enforce cross-service sole-authority (e.g. Research Lab over QDE) via gateway middleware + atomic-consume authorization record, never a direct Python import
 - [QDE always-on observer state machine](qde-observer-state-machine.md) — per-symbol OBSERVING..COOLDOWN lifecycle is advisory context/telemetry, never a trade-placing/blocking authority
+- [Account HWM cold-start bug](account-hwm-cold-start.md) — history-derived high-water-mark trivially equals current value with thin/no history; always reconcile against the source's own authoritative running metric
