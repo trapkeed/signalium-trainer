@@ -43,7 +43,9 @@ None of these values are exposed as model outputs, learned parameters, or traini
 | `trainer/execution/take_profit_engine.py` | 86-88 | Fixed reward:risk targets: TP1 1:1, TP2 1.5:1, TP3 2:1 |
 | `trainer/execution/take_profit_engine.py` | 131 | Fixed hit-probability decay: `decay = 0.70` across TP levels |
 | `trainer/execution/trade_manager.py` | 62 | `partial_close_tp2_pct: float = 0.30` |
-| `trainer/execution/trade_manager.py` | 124 | Trailing stop: fixed `1.0 × ATR` distance |
+| `trainer/execution/trade_manager.py` | 121 | Breakeven trigger fixed to TP1 level: `be_trigger = take_profit.tp1` |
+| `trainer/execution/trade_manager.py` | 124-126 | Trailing stop: fixed `1.0 × ATR` distance, `0.25 × ATR` minimum step before update |
+| `trainer/execution/trade_manager.py` | 130 / 143 | Scale-in gate `confidence > 0.75`; forced early TP1 exit `confidence < 0.55` |
 
 ## 3. Risk Management, Position Sizing & Exposure
 
@@ -66,6 +68,25 @@ None of these values are exposed as model outputs, learned parameters, or traini
 | `trainer/portfolio/risk_budget.py` | 74-98 | Hardcoded CONSERVATIVE vs AGGRESSIVE presets (e.g. Aggressive `max_total_gross: 2.00`) |
 | `trainer/portfolio/risk_budget.py` | 34-36 | Utilization gates: `>= 1.0`, `0.85` |
 | `config/portfolio/portfolio.yaml` | 36-37, 53, 64 | `max_single_instrument: 0.30`; `max_correlated_exposure` at `0.50` / `0.40` / `0.70` per tier |
+
+## 3b. Allocation Weight Formulas & Portfolio Constraints
+
+Fixed linear-blend weights and hard caps that determine how capital is split across instruments — distinct from single-trade position sizing above.
+
+| File | Lines | Hardcoded Behavior |
+|---|---|---|
+| `trainer/icari/allocation_engine.py` | 23-30 | `_REGIME_MULT` — fixed regime → allocation multiplier map (e.g. `TRENDING: 1.10`, `VOLATILE: 0.65`) |
+| `trainer/icari/allocation_engine.py` | 31-45 | `_WEIGHTS` — fixed composite confidence-factor blend (Forecast 0.15, EV 0.10, Liquidity 0.07, etc.), asserted to sum to 1.0 |
+| `trainer/icari/allocation_engine.py` | 47 | `_MAX_ALLOCATION_FRAC = 0.25` — never allocate more than 25% of capital to one request |
+| `trainer/icari/allocation_engine.py` | 90 | `exposure_penalty = max(0, portfolio_exposure - 0.50) * 0.5` |
+| `trainer/portfolio/position_allocator.py` | 240-242 | HYBRID method fixed blend: `0.40 × confidence_weight + 0.30 × risk_parity_weight + 0.30 × sharpe_weight` |
+| `trainer/portfolio/optimizer.py` | 100 | Fixed grid-search steps for weight adjustment: `[-0.10, -0.05, -0.02, +0.02, +0.05, +0.10]` |
+| `trainer/portfolio/optimizer.py` | 206-209 | BALANCED objective fixed blend: `0.35 × Sharpe + 0.30 × diversification + 0.20 × vol-adj return + 0.15 × confidence` |
+| `trainer/icari/allocation_optimizer.py` | 153-154 | Fixed defaults: `risk_free_rate: 0.045`, `max_weight: 0.50` per instrument |
+| `trainer/icari/allocation_optimizer.py` | 254 | BALANCED objective fixed blend: `0.4 × Sharpe + 0.3 × max-drawdown + 0.3 × diversification` |
+| `trainer/portfolio/exposure_engine.py` | 78-82 | Fixed concentration limits: asset class 0.70, currency 0.60, region 0.75, single instrument 0.35, USD net 0.55 |
+| `trainer/mie/portfolio_risk_engine.py` | 30-35 | Fixed max-exposure-by-regime map (Normal 0.40 → Extreme 0.05) and `_BASE_POSITION_FRAC = 0.02` baseline |
+| `trainer/mie/portfolio_risk_engine.py` | 37 | `_MAX_OPEN_TRADES` — fixed concurrent-trade cap per regime (e.g. OPTIMAL: 8, BLACK_SWAN: 0) |
 
 ## 4. Fixed Drawdown Rules
 
@@ -139,6 +160,7 @@ For each category above, the fixed rule should be replaced with one of the follo
 | ADX / RSI / volatility regime thresholds | **Training labels** — regime classification learned from labeled historical windows |
 | ATR stop/TP multipliers, R:R targets, decay | **Training objective** — the model outputs stop/TP distances directly, trained against realized MFE/MAE |
 | Fixed risk %, exposure caps, Kelly factors | **Evaluation metric + benchmark constraint** — risk sizing becomes a learned output, evaluated against a risk-adjusted-return objective, with the old fixed caps demoted to a safety-rail benchmark used only in evaluation, not as decision logic |
+| Fixed allocation-weight blends (confidence/risk-parity/Sharpe, objective blends) | **Training objective** — the blend coefficients become a learned weighting (e.g. output of a small allocation head) trained against realized portfolio Sharpe/diversification, not a fixed linear formula |
 | Fixed drawdown limits / mode multipliers | **Training objective + evaluation metric** — a drawdown-aware objective (e.g. CVaR-penalized) instead of static mode switches |
 | Fixed session multipliers | **Training label/feature** — session becomes an input feature; its effect is learned, not multiplied in |
 | Fixed scaling/partial-close percentages | **Training label** — scale-in/out amount predicted by the model, benchmarked against optimal realized scaling in research experiments |
@@ -154,3 +176,7 @@ This report is a discovery/audit deliverable only — no production code has bee
 1. Prioritize by risk-of-blast-radius: stop-loss/take-profit and position sizing first (direct capital exposure), then regime detection, then lifecycle gating.
 2. For each item, define the training label schema and evaluation metric before touching the production code path.
 3. Migrate hardcoded YAML values into benchmark/eval configs (kept for backtesting comparison) while the QDE begins outputting these as learned values behind a feature flag, so old rule-based behavior can be A/B compared against the learned version before full cutover.
+
+## Relationship to the Learning Loop Actuator Layer
+
+`trainer/learning_loop/actuators.py` (Phase 29) already gives the trainer a route to *act on* observations without prescribing behavior: it turns findings from `SelfEvaluationEngine`, `PatternDiscovery`, `CounterfactualEngine`, `LifecycleOptimizer`, `PortfolioOptimizer`, and `OutcomeTracker` into `ResearchLabAPI` requests (feature discovery, dataset enrichment, experiment/parameter-search proposals, investigations) and advisory-only `RetrainingAdvisor` recommendations. This is the correct shape for the conversion plan above: none of the items in this audit should be "fixed" by editing the hardcoded constant in place — they should be converted into training labels/objectives/benchmarks that the QDE learns from, with the actuator layer as the mechanism that turns evaluation findings into retraining/research requests, never into a direct rewrite of decision logic.
