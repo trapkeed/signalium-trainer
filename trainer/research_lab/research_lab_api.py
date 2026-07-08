@@ -53,6 +53,9 @@ from trainer.research_lab.rl_models import (
     FailureCategory,
     FailureEvent,
     FailureSeverity,
+    LifecycleAction,
+    LifecycleAuthorization,
+    LifecycleAuthorizationStatus,
     ModelComparisonResult,
     ParameterSearchRun,
     RegimeAnalysisReport,
@@ -918,11 +921,26 @@ class ResearchLabAPI:
             "timestamp": now,
         }
         self._db.save_deployment(deployment_record)
+        auth = LifecycleAuthorization.new_approved(
+            action=LifecycleAction.PROMOTE,
+            version_id=exp.get("qde_version", ""),
+            approved_by=approver,
+            reason=notes,
+        )
+        self._db.upsert_lifecycle_authorization(auth.to_dict())
         logger.info(
             f"ResearchLab.approve_deployment: experiment={experiment_id}"
             f" version={exp.get('qde_version')} approver={approver}"
+            f" authorization={auth.authorization_id}"
         )
-        return _ok("approve_deployment", {**exp, "deployment_record": deployment_record})
+        return _ok(
+            "approve_deployment",
+            {
+                **exp,
+                "deployment_record": deployment_record,
+                "authorization": auth.to_dict(),
+            },
+        )
 
     def reject_deployment(self, experiment_id: str, rejector: str, reason: str) -> ApiResponse:
         exp = self._db.get_experiment(experiment_id)
@@ -1026,12 +1044,20 @@ class ResearchLabAPI:
         record["resolved_by"] = approver
         record["resolution_notes"] = notes
         self._db.upsert_rollback_request(record)
+        auth = LifecycleAuthorization.new_approved(
+            action=LifecycleAction.ROLLBACK,
+            version_id=record["current_version_id"],
+            approved_by=approver,
+            reason=notes,
+            target_version_id=record["target_version_id"],
+        )
+        self._db.upsert_lifecycle_authorization(auth.to_dict())
         logger.info(
             f"ResearchLab.approve_rollback: {request_id}"
             f" {record['current_version_id']} → {record['target_version_id']}"
-            f" approver={approver}"
+            f" approver={approver} authorization={auth.authorization_id}"
         )
-        return _ok("approve_rollback", record)
+        return _ok("approve_rollback", {**record, "authorization": auth.to_dict()})
 
     def reject_rollback(self, request_id: str, rejector: str, notes: str = "") -> ApiResponse:
         """Reject a pending rollback request."""
@@ -1080,6 +1106,91 @@ class ResearchLabAPI:
         return _ok(
             "list_rollback_requests",
             {"requests": items, "total": len(items), "pending": pending},
+        )
+
+    # ── 9b. Lifecycle Authorizations ─────────────────────────────────────────
+    #
+    # Research Lab is the SOLE authority permitted to approve PROMOTE,
+    # ROLLBACK, ARCHIVE, and RETIRE actions against QDE versions. PROMOTE and
+    # ROLLBACK authorizations are issued automatically as a side effect of
+    # `approve_deployment` / `approve_rollback` above (which already carry
+    # their own gating criteria/approval workflow). ARCHIVE and RETIRE have
+    # no separate workflow, so they are authorized directly here.
+
+    def authorize_lifecycle_action(
+        self,
+        action: str,
+        version_id: str,
+        approver: str,
+        reason: str = "",
+    ) -> ApiResponse:
+        try:
+            act = LifecycleAction(action)
+        except ValueError:
+            return _err("authorize_lifecycle_action", f"Invalid action: {action!r}")
+        if act in (LifecycleAction.PROMOTE, LifecycleAction.ROLLBACK):
+            return _err(
+                "authorize_lifecycle_action",
+                f"{act.value} authorizations must go through approve_deployment / "
+                "approve_rollback, not authorize_lifecycle_action",
+            )
+        auth = LifecycleAuthorization.new_approved(
+            action=act,
+            version_id=version_id,
+            approved_by=approver,
+            reason=reason,
+        )
+        self._db.upsert_lifecycle_authorization(auth.to_dict())
+        logger.info(
+            f"ResearchLab.authorize_lifecycle_action: {act.value} version={version_id}"
+            f" approver={approver} authorization={auth.authorization_id}"
+        )
+        return _ok("authorize_lifecycle_action", auth.to_dict())
+
+    def consume_lifecycle_authorization(
+        self, version_id: str, action: str
+    ) -> ApiResponse:
+        """Atomically find-and-consume the most recent APPROVED, unconsumed
+        authorization for (version_id, action). Called by the gateway
+        immediately before it executes the corresponding registry mutation;
+        the mutation must only proceed if this returns success."""
+        record = self._db.find_approved_lifecycle_authorization(version_id, action)
+        if not record:
+            return _err(
+                "consume_lifecycle_authorization",
+                f"No approved Research Lab authorization found for version={version_id!r} "
+                f"action={action!r}",
+            )
+        record["status"] = LifecycleAuthorizationStatus.CONSUMED.value
+        record["consumed_at"] = time.time()
+        self._db.upsert_lifecycle_authorization(record)
+        logger.info(
+            f"ResearchLab.consume_lifecycle_authorization: {record['authorization_id']}"
+            f" version={version_id} action={action}"
+        )
+        return _ok("consume_lifecycle_authorization", record)
+
+    def get_lifecycle_authorization(self, authorization_id: str) -> ApiResponse:
+        record = self._db.get_lifecycle_authorization(authorization_id)
+        if not record:
+            return _err(
+                "get_lifecycle_authorization",
+                f"Authorization {authorization_id!r} not found",
+            )
+        return _ok("get_lifecycle_authorization", record)
+
+    def list_lifecycle_authorizations(
+        self,
+        version_id: str | None = None,
+        action: str | None = None,
+        status: str | None = None,
+    ) -> ApiResponse:
+        items = self._db.list_lifecycle_authorizations(
+            version_id=version_id, action=action, status=status
+        )
+        return _ok(
+            "list_lifecycle_authorizations",
+            {"authorizations": items, "total": len(items)},
         )
 
     # ── 10. Failure Analysis ──────────────────────────────────────────────────

@@ -95,6 +95,25 @@ class RollbackStatus(str, Enum):
     WITHDRAWN = "WITHDRAWN"
 
 
+class LifecycleAction(str, Enum):
+    """The set of QDE version lifecycle actions that Research Lab, and only
+    Research Lab, is authorized to approve. Any service that mutates a QDE
+    version's stage along one of these actions must first obtain a matching
+    APPROVED, unconsumed LifecycleAuthorization from Research Lab."""
+
+    PROMOTE = "PROMOTE"
+    ROLLBACK = "ROLLBACK"
+    ARCHIVE = "ARCHIVE"
+    RETIRE = "RETIRE"
+
+
+class LifecycleAuthorizationStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CONSUMED = "CONSUMED"
+
+
 class DatasetGenerationStatus(str, Enum):
     PENDING = "PENDING"
     GENERATING = "GENERATING"
@@ -1212,6 +1231,124 @@ class RollbackRequest:
             "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
             "resolved_by": self.resolved_by,
             "resolution_notes": self.resolution_notes,
+        }
+
+
+# ── Lifecycle Authorization ─────────────────────────────────────────────────────
+
+
+@dataclass
+class LifecycleAuthorization:
+    """A Research-Lab-issued authorization for a specific QDE version
+    lifecycle action (promote / rollback / archive / retire).
+
+    Research Lab is the SOLE authority permitted to approve these actions.
+    The QDE gateway (Express, `apps/trainer-api`) must obtain a matching
+    APPROVED authorization from Research Lab and mark it CONSUMED atomically
+    with executing the underlying registry mutation. This closes the gap
+    where the gateway could otherwise execute lifecycle mutations directly
+    against `qde_server.py` without Research Lab sign-off.
+
+    Status machine:
+        PENDING → APPROVED → CONSUMED
+               ↘ REJECTED
+    """
+
+    authorization_id: str
+    action: LifecycleAction
+    version_id: str
+    requested_by: str
+    status: LifecycleAuthorizationStatus
+    created_at: float
+
+    reason: str = ""
+    target_version_id: str | None = None  # relevant for ROLLBACK
+    resolved_at: float | None = None
+    resolved_by: str = ""
+    resolution_notes: str = ""
+    consumed_at: float | None = None
+
+    @classmethod
+    def new(
+        cls,
+        action: LifecycleAction,
+        version_id: str,
+        requested_by: str,
+        reason: str = "",
+        target_version_id: str | None = None,
+    ) -> LifecycleAuthorization:
+        return cls(
+            authorization_id=f"lca-{str(uuid.uuid4())[:12]}",
+            action=action,
+            version_id=version_id,
+            requested_by=requested_by,
+            status=LifecycleAuthorizationStatus.PENDING,
+            created_at=time.time(),
+            reason=reason,
+            target_version_id=target_version_id,
+        )
+
+    @classmethod
+    def new_approved(
+        cls,
+        action: LifecycleAction,
+        version_id: str,
+        approved_by: str,
+        reason: str = "",
+        target_version_id: str | None = None,
+        notes: str = "",
+    ) -> LifecycleAuthorization:
+        """Create an authorization that is immediately in the APPROVED state.
+
+        Used when an approval decision recorded elsewhere in Research Lab
+        (e.g. `approve_deployment`, `approve_rollback`) should also grant the
+        gateway permission to execute the corresponding registry mutation.
+        """
+        auth = cls.new(
+            action=action,
+            version_id=version_id,
+            requested_by=approved_by,
+            reason=reason,
+            target_version_id=target_version_id,
+        )
+        auth.approve(approved_by, notes=notes)
+        return auth
+
+    def approve(self, approver: str, notes: str = "") -> None:
+        self.status = LifecycleAuthorizationStatus.APPROVED
+        self.resolved_at = time.time()
+        self.resolved_by = approver
+        self.resolution_notes = notes
+
+    def reject(self, rejector: str, notes: str = "") -> None:
+        self.status = LifecycleAuthorizationStatus.REJECTED
+        self.resolved_at = time.time()
+        self.resolved_by = rejector
+        self.resolution_notes = notes
+
+    def consume(self) -> None:
+        if self.status != LifecycleAuthorizationStatus.APPROVED:
+            raise ValueError(
+                f"Authorization {self.authorization_id} is {self.status.value}, "
+                "not APPROVED; cannot consume"
+            )
+        self.status = LifecycleAuthorizationStatus.CONSUMED
+        self.consumed_at = time.time()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "authorization_id": self.authorization_id,
+            "action": self.action.value,
+            "version_id": self.version_id,
+            "target_version_id": self.target_version_id,
+            "requested_by": self.requested_by,
+            "status": self.status.value,
+            "created_at": round(self.created_at, 3),
+            "reason": self.reason,
+            "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
+            "resolved_by": self.resolved_by,
+            "resolution_notes": self.resolution_notes,
+            "consumed_at": round(self.consumed_at, 3) if self.consumed_at else None,
         }
 
 

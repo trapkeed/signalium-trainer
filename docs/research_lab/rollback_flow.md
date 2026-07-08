@@ -4,6 +4,8 @@
 
 When a live QDE version underperforms or causes unexpected losses, the Research Lab provides the investigation and remediation workflow that supports a rollback. The QDE Lifecycle system handles the mechanical rollback; the Research Lab handles the investigation, failure recording, and path to re-deployment.
 
+**Phase S6 update:** Research Lab is now the SOLE authority permitted to approve a rollback. `POST /api/admin/research/rollbacks/:id/approve` auto-issues an APPROVED `LifecycleAuthorization` (action=`ROLLBACK`, keyed by the CURRENT active version) for the QDE gateway to consume. `POST /api/qde/rollback` / `POST /api/qde/rollback/:targetVersionId` cannot execute without consuming that authorization — see `docs/research_lab/permissions_matrix.md`.
+
 ---
 
 ## Rollback Trigger Investigation
@@ -175,6 +177,7 @@ The combination provides a complete post-mortem audit trail: what failed, why, w
 3. **Root cause must be documented** — the `root_cause` field must be non-empty before a failure can be resolved.
 4. **Re-deployment requires fresh gate evaluation** — a gate evaluation from before the failure may not be reused.
 5. **Regression testing** — the new experiment must be validated against the same conditions that caused the failure (same regime, same period if possible).
+6. **(S6) Research Lab is the sole authority for the rollback itself** — `POST /api/qde/rollback[/:targetVersionId]` will return `403` unless it can consume an APPROVED `LifecycleAuthorization` (action=`ROLLBACK`) issued by `POST /api/admin/research/rollbacks/:id/approve`. The rolled-back-from version may subsequently be archived (also Research-Lab-authorized) once it is no longer the rollback target for a future re-deployment.
 
 ---
 
@@ -187,5 +190,11 @@ The combination provides a complete post-mortem audit trail: what failed, why, w
 | `/api/admin/research/failures/:id/resolve` | `POST` | Close the failure record |
 | `/api/admin/research/failures` | `GET` | List failures (filterable) |
 | `/api/admin/research/failures/summary` | `GET` | Summary with open criticals |
-| `/api/qde/rollback/:targetVersionId` | `POST` | Execute rollback (QDE API) |
+| `/api/qde/rollback/:targetVersionId` | `POST` | Execute rollback (QDE API; requires consumed Research Lab `ROLLBACK` authorization) |
 | `/api/qde/rollback/history` | `GET` | Rollback audit trail (QDE API) |
+| `/api/admin/research/rollbacks` | `POST` | Request a rollback (two-admin workflow) |
+| `/api/admin/research/rollbacks/:id/approve` | `POST` | Approve rollback request — auto-issues `ROLLBACK` `LifecycleAuthorization` (S6) |
+| `/api/admin/research/lifecycle/authorize` | `POST` | Authorize `ARCHIVE`/`RETIRE` for a version (S6) |
+| `/api/admin/research/lifecycle/authorizations` | `GET` | List lifecycle authorizations, filterable by version/action/status (S6) |
+| `/api/qde/versions/:versionId/archive` | `POST` | Archive a version (QDE API; requires consumed Research Lab `ARCHIVE` authorization) (S6) |
+| `/api/qde/versions/:versionId/retire` | `POST` | Retire a version (QDE API; requires consumed Research Lab `RETIRE` authorization) (S6) |

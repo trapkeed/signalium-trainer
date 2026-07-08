@@ -106,6 +106,16 @@ class RollbackPreviousRequest(BaseModel):
     notes: str = ""
 
 
+class ArchiveVersionRequest(BaseModel):
+    archiver: str = ""
+    reason: str = ""
+
+
+class RetireVersionRequest(BaseModel):
+    retirer: str = ""
+    reason: str = ""
+
+
 class ShadowTestRequest(BaseModel):
     challenger_version_id: str
     control_version_id: str | None = None
@@ -282,6 +292,23 @@ def rollback_history() -> dict:
 @app.get("/qde/rollback/targets")
 def eligible_rollback_targets() -> dict:
     return _respond(_api.eligible_rollback_targets())
+
+
+# ── Archive / Retire Endpoints ────────────────────────────────────────────────
+
+
+@app.post("/qde/versions/{version_id}/archive")
+def archive_version(version_id: str, req: ArchiveVersionRequest) -> dict:
+    return _respond(
+        _api.archive_version(version_id, archiver=req.archiver, reason=req.reason)
+    )
+
+
+@app.post("/qde/versions/{version_id}/retire")
+def retire_version(version_id: str, req: RetireVersionRequest) -> dict:
+    return _respond(
+        _api.retire_version(version_id, retirer=req.retirer, reason=req.reason)
+    )
 
 
 # ── A/B Testing Endpoints ─────────────────────────────────────────────────────

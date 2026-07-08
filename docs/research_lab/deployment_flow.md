@@ -4,6 +4,8 @@
 
 No QDE version may be deployed to production unless it passes mandatory Research Lab deployment gates and receives explicit administrator approval. This document describes the full deployment decision workflow from experiment completion through live activation.
 
+**Phase S6 update:** Research Lab is now the SOLE authority permitted to approve a deployment. `POST /api/admin/research/experiments/:id/approve` no longer just records the decision — it also auto-issues an APPROVED `LifecycleAuthorization` (action=`PROMOTE`) for the associated QDE version. The subsequent `POST /api/qde/versions/:id/promotion/approve` call cannot succeed unless it consumes that exact authorization. See `docs/research_lab/permissions_matrix.md` for the full authority model.
+
 ---
 
 ## Deployment Gates
@@ -127,6 +129,7 @@ Authorization: Bearer <token>
 - `gate_id` must reference a gate evaluation that passed (`passed: true`).
 - `approver` is recorded in the audit trail.
 - Attempting to approve without a passing gate returns `400 Bad Request`.
+- **(S6)** This call also auto-issues an APPROVED `LifecycleAuthorization` (action=`PROMOTE`, version_id=the gate's `qde_version`). This authorization is single-use — it is consumed atomically the first time `POST /api/qde/versions/:id/promotion/approve` (or `/promotion/auto`) succeeds, and cannot be reused for a later promotion.
 
 ---
 
@@ -166,3 +169,37 @@ When there is no incumbent QDE version, gates apply absolute floors only:
 - `max_drawdown` is evaluated without a relative comparison
 
 Omit `baseline_experiment_id` from the gate evaluation request.
+
+---
+
+## Archiving and Retiring a Model (Phase S6)
+
+Once a version has been superseded (promoted-over) or rolled back from ACTIVE, it can be archived and eventually retired. Both actions require Research Lab authorization — there is no gate evaluation step for these (they are administrative cleanup, not a deployment decision), but the SOLE-authority rule still applies.
+
+```
+POST /api/admin/research/lifecycle/authorize
+Authorization: Bearer <token>
+
+{
+  "action": "ARCHIVE",
+  "version_id": "qde-v12-...",
+  "approver": "quant-lead",
+  "reason": "Superseded by v13; retained for lineage but no longer eligible for rollback target"
+}
+```
+
+```
+POST /api/qde/versions/:versionId/archive
+Authorization: Bearer <token>
+
+{
+  "archiver": "quant-lead",
+  "reason": "Superseded by v13"
+}
+```
+
+**Rules:**
+- An ACTIVE version cannot be archived directly — promote a replacement or roll back first.
+- `authorize_lifecycle_action` refuses `PROMOTE`/`ROLLBACK` actions (those must go through `approve_deployment`/`approve_rollback` above, which enforce the deployment gates / two-admin rollback approval respectively).
+- The archive/retire call must consume the exact authorization issued for that `(version_id, action)` pair — see `docs/research_lab/permissions_matrix.md` §2 for the authorization state machine.
+- Retiring follows the identical pattern with `"action": "RETIRE"` and `POST /api/qde/versions/:versionId/retire`.

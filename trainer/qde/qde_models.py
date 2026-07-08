@@ -26,6 +26,7 @@ class QDEStage(str, Enum):
     DEPLOYMENT_CANDIDATE = "DEPLOYMENT_CANDIDATE"
     ACTIVE = "ACTIVE"
     RETIRED = "RETIRED"
+    ARCHIVED = "ARCHIVED"
     ROLLED_BACK = "ROLLED_BACK"
     FAILED = "FAILED"
 
@@ -130,6 +131,7 @@ class QDEVersion:
     # Deployment metadata
     deployed_at: float | None = None
     retired_at: float | None = None
+    archived_at: float | None = None
 
     # Checksum / artifact reference
     artifact_uri: str = ""
@@ -196,6 +198,7 @@ class QDEVersion:
             "stage_timestamps": {k: round(v, 3) for k, v in self.stage_timestamps.items()},
             "deployed_at": round(self.deployed_at, 3) if self.deployed_at else None,
             "retired_at": round(self.retired_at, 3) if self.retired_at else None,
+            "archived_at": round(self.archived_at, 3) if self.archived_at else None,
             "artifact_uri": self.artifact_uri,
             "checksum": self.checksum,
             "output_schema_version": self.output_schema_version,

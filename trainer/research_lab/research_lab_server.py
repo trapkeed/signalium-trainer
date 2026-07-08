@@ -242,6 +242,18 @@ class WithdrawRollbackRequest(BaseModel):
     notes: str = ""
 
 
+class AuthorizeLifecycleActionRequest(BaseModel):
+    action: str
+    version_id: str
+    approver: str
+    reason: str = ""
+
+
+class ConsumeLifecycleAuthorizationRequest(BaseModel):
+    version_id: str
+    action: str
+
+
 class RecordFailureRequest(BaseModel):
     qde_version: str
     category: str
@@ -624,6 +636,58 @@ def withdraw_rollback(
     request_id: str, req: WithdrawRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.withdraw_rollback(request_id, notes=req.notes))
+
+
+# ── 7b. Lifecycle Authorizations ───────────────────────────────────────────────
+#
+# Research Lab is the sole authority for PROMOTE / ROLLBACK / ARCHIVE / RETIRE.
+# PROMOTE and ROLLBACK authorizations are issued as a side effect of
+# approve_deployment / approve_rollback above. ARCHIVE and RETIRE are
+# authorized directly via /research/lifecycle/authorize. The gateway
+# (apps/trainer-api) consumes an authorization immediately before executing
+# the corresponding registry mutation via /research/lifecycle/consume.
+
+
+@app.post("/research/lifecycle/authorize")
+def authorize_lifecycle_action(
+    req: AuthorizeLifecycleActionRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.authorize_lifecycle_action(
+            action=req.action,
+            version_id=req.version_id,
+            approver=req.approver,
+            reason=req.reason,
+        )
+    )
+
+
+@app.post("/research/lifecycle/consume")
+def consume_lifecycle_authorization(
+    req: ConsumeLifecycleAuthorizationRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.consume_lifecycle_authorization(version_id=req.version_id, action=req.action)
+    )
+
+
+@app.get("/research/lifecycle/authorizations")
+def list_lifecycle_authorizations(
+    version_id: str | None = None,
+    action: str | None = None,
+    status: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.list_lifecycle_authorizations(version_id=version_id, action=action, status=status)
+    )
+
+
+@app.get("/research/lifecycle/authorizations/{authorization_id}")
+def get_lifecycle_authorization(
+    authorization_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.get_lifecycle_authorization(authorization_id))
 
 
 # ── 8. Failure Analysis ───────────────────────────────────────────────────────

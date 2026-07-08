@@ -336,6 +336,43 @@ router.post("/admin/research/rollbacks/:requestId/withdraw", async (req, res) =>
   await proxyPost(`/research/rollbacks/${req.params["requestId"]}/withdraw`, req, res);
 });
 
+// ── Lifecycle Authorizations ──────────────────────────────────────────────────
+//
+// Research Lab is the SOLE authority permitted to approve PROMOTE, ROLLBACK,
+// ARCHIVE, and RETIRE actions against QDE versions. PROMOTE and ROLLBACK
+// authorizations are issued automatically as a side effect of the
+// promotion-approval and rollback-approval endpoints above. ARCHIVE and
+// RETIRE have no separate gated workflow, so they are authorized directly
+// through /admin/research/lifecycle/authorize.
+//
+// The QDE gateway (see routes/qde.ts) requires a matching APPROVED,
+// unconsumed authorization before it will execute the corresponding
+// registry mutation, and consumes it atomically as part of doing so.
+
+router.post("/admin/research/lifecycle/authorize", async (req, res) => {
+  await proxyPost("/research/lifecycle/authorize", req, res);
+});
+
+router.get("/admin/research/lifecycle/authorizations", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["version_id", "action", "status"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(
+    `/research/lifecycle/authorizations${p.toString() ? "?" + p.toString() : ""}`,
+    req,
+    res,
+  );
+});
+
+router.get("/admin/research/lifecycle/authorizations/:authorizationId", async (req, res) => {
+  await proxyGet(
+    `/research/lifecycle/authorizations/${req.params["authorizationId"]}`,
+    req,
+    res,
+  );
+});
+
 // ── Failure Analysis ──────────────────────────────────────────────────────────
 
 router.post("/admin/research/failures", async (req, res) => {

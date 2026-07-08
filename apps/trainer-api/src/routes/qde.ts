@@ -1,4 +1,26 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { adminAuth } from "../middlewares/admin_auth";
+import { requireResearchLabAuthorization } from "../middlewares/require_rl_authorization";
+
+/**
+ * QDE lifecycle routes.
+ *
+ * ACCESS MODEL
+ * ============
+ * Most QDE routes (registry reads, pipeline steps, A/B testing, position
+ * management) are internal-service routes used by the training/backtesting
+ * pipeline itself and are not lifecycle-authority-gated.
+ *
+ * However, the four QDE version LIFECYCLE MUTATIONS — promote, rollback,
+ * archive, retire — permanently change what model is live in production.
+ * Research Lab is the SOLE authority permitted to approve these actions
+ * (see docs/research_lab/permissions_matrix.md). Accordingly those routes:
+ *   1. Require adminAuth (the same admin token Research Lab uses).
+ *   2. Require a matching APPROVED, unconsumed Research Lab
+ *      LifecycleAuthorization, verified + atomically consumed via
+ *      requireResearchLabAuthorization before the mutation is proxied to
+ *      qde_server.py.
+ */
 
 const router: IRouter = Router();
 
@@ -122,6 +144,8 @@ router.post(
 
 router.post(
   "/qde/versions/:versionId/promotion/approve",
+  adminAuth,
+  requireResearchLabAuthorization("PROMOTE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
     await proxyPost(
       `/qde/versions/${req.params["versionId"]}/promotion/approve`,
@@ -133,6 +157,8 @@ router.post(
 
 router.post(
   "/qde/versions/:versionId/promotion/auto",
+  adminAuth,
+  requireResearchLabAuthorization("PROMOTE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
     await proxyPost(
       `/qde/versions/${req.params["versionId"]}/promotion/auto`,
@@ -152,8 +178,27 @@ router.get("/qde/promotion/criteria", async (_req: Request, res: Response) => {
 
 // ── Rollback ──────────────────────────────────────────────────────────────────
 
+// Rollback authorizations from Research Lab are keyed by the CURRENT active
+// version (the one being rolled back FROM), since that is what
+// `approve_rollback` records as `version_id`. Resolve it from the registry
+// rather than trusting the request body/params.
+async function currentActiveVersionId(): Promise<string | undefined> {
+  try {
+    const upstream = await fetch(`${QDE_BASE}/qde/active`);
+    const data = (await upstream.json()) as {
+      success?: boolean;
+      data?: { version_id?: string };
+    };
+    return data.success ? data.data?.version_id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 router.post(
   "/qde/rollback/:targetVersionId",
+  adminAuth,
+  requireResearchLabAuthorization("ROLLBACK", () => currentActiveVersionId()),
   async (req: Request, res: Response) => {
     await proxyPost(
       `/qde/rollback/${req.params["targetVersionId"]}`,
@@ -163,9 +208,14 @@ router.post(
   },
 );
 
-router.post("/qde/rollback", async (req: Request, res: Response) => {
-  await proxyPost("/qde/rollback", req.body, res);
-});
+router.post(
+  "/qde/rollback",
+  adminAuth,
+  requireResearchLabAuthorization("ROLLBACK", () => currentActiveVersionId()),
+  async (req: Request, res: Response) => {
+    await proxyPost("/qde/rollback", req.body, res);
+  },
+);
 
 router.get("/qde/rollback/history", async (_req: Request, res: Response) => {
   await proxyGet("/qde/rollback/history", res);
@@ -174,6 +224,29 @@ router.get("/qde/rollback/history", async (_req: Request, res: Response) => {
 router.get("/qde/rollback/targets", async (_req: Request, res: Response) => {
   await proxyGet("/qde/rollback/targets", res);
 });
+
+// ── Archive / Retire ──────────────────────────────────────────────────────────
+//
+// Archiving/retiring a version is a terminal, Research-Lab-authorized
+// lifecycle mutation (see docs/research_lab/permissions_matrix.md).
+
+router.post(
+  "/qde/versions/:versionId/archive",
+  adminAuth,
+  requireResearchLabAuthorization("ARCHIVE", (req) => String(req.params["versionId"])),
+  async (req: Request, res: Response) => {
+    await proxyPost(`/qde/versions/${req.params["versionId"]}/archive`, req.body, res);
+  },
+);
+
+router.post(
+  "/qde/versions/:versionId/retire",
+  adminAuth,
+  requireResearchLabAuthorization("RETIRE", (req) => String(req.params["versionId"])),
+  async (req: Request, res: Response) => {
+    await proxyPost(`/qde/versions/${req.params["versionId"]}/retire`, req.body, res);
+  },
+);
 
 // ── A/B Testing ───────────────────────────────────────────────────────────────
 

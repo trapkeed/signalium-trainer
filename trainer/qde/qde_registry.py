@@ -79,6 +79,7 @@ def _entry_to_qde_version(entry: UnifiedModelEntry) -> QDEVersion:
         stage_timestamps=snap.get("stage_timestamps", {}),
         deployed_at=snap.get("deployed_at"),
         retired_at=snap.get("retired_at"),
+        archived_at=snap.get("archived_at"),
         artifact_uri=snap.get("artifact_uri", ""),
         checksum=snap.get("checksum", ""),
     )
@@ -235,6 +236,33 @@ class QDERegistry:
         version.retired_at = _time.time()
         version.updated_at = version.retired_at
         self.update(version)
+        return version
+
+    def archive(self, version_id: str) -> QDEVersion:
+        """Move a non-active version into the terminal ARCHIVED stage.
+
+        Archiving is distinct from retirement: a retired version was once
+        active in production and was superseded; an archived version is
+        being permanently put away (e.g. an old experiment lineage, or a
+        long-retired version no longer relevant for rollback). An ACTIVE
+        version can never be archived directly — it must be superseded
+        (promotion/rollback) first, which naturally moves it to RETIRED.
+        """
+        version = self.get(version_id)
+        if not version:
+            raise KeyError(f"Version {version_id} not found")
+        if version.stage == QDEStage.ACTIVE:
+            raise ValueError(
+                f"Version {version_id} is ACTIVE and cannot be archived directly; "
+                "promote a replacement or roll back first"
+            )
+        import time as _time
+
+        version.stage = QDEStage.ARCHIVED
+        version.archived_at = _time.time()
+        version.updated_at = version.archived_at
+        self.update(version)
+        logger.info(f"QDERegistry.archive: {version_id}")
         return version
 
     # ── Helpers ───────────────────────────────────────────────────────────

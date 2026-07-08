@@ -379,6 +379,42 @@ class QDELifecycleAPI:
             {"count": len(targets), "targets": targets},
         )
 
+    # ── 15b. Archive Version ──────────────────────────────────────────────────
+
+    def archive_version(
+        self,
+        version_id: str,
+        archiver: str = "",
+        reason: str = "",
+    ) -> ApiResponse:
+        try:
+            version = self._registry.archive(version_id)
+            logger.info(
+                f"QDELifecycleAPI.archive_version: {version_id} archiver={archiver} reason={reason}"
+            )
+            return _ok("archive_version", version.to_dict())
+        except Exception as exc:
+            logger.error(f"archive_version error: {exc}")
+            return _err("archive_version", str(exc))
+
+    # ── 15c. Retire Version ───────────────────────────────────────────────────
+
+    def retire_version(
+        self,
+        version_id: str,
+        retirer: str = "",
+        reason: str = "",
+    ) -> ApiResponse:
+        try:
+            version = self._registry.retire(version_id)
+            logger.info(
+                f"QDELifecycleAPI.retire_version: {version_id} retirer={retirer} reason={reason}"
+            )
+            return _ok("retire_version", version.to_dict())
+        except Exception as exc:
+            logger.error(f"retire_version error: {exc}")
+            return _err("retire_version", str(exc))
+
     # ── 16. Create Shadow Test ────────────────────────────────────────────────
 
     def create_shadow_test(

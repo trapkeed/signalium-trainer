@@ -116,7 +116,7 @@ No other call path exists. Retail users cannot reach the Research Lab by any rou
 
 ## 6. What Administrators Can Do
 
-Administrators with a valid `RESEARCH_LAB_ADMIN_TOKEN` can access all ten Research Lab responsibilities:
+Administrators with a valid `RESEARCH_LAB_ADMIN_TOKEN` can access all Research Lab responsibilities:
 
 | Responsibility | Route Prefix |
 |---|---|
@@ -130,6 +130,13 @@ Administrators with a valid `RESEARCH_LAB_ADMIN_TOKEN` can access all ten Resear
 | Version Promotion | `POST /api/admin/research/experiments/:id/approve` |
 | Failure Analysis | `/api/admin/research/failures` |
 | Deployment Approval | `POST /api/admin/research/experiments/:id/approve` |
+| **(S6) Rollback Approval** | `POST /api/admin/research/rollbacks/:id/approve` |
+| **(S6) Archive Authorization** | `POST /api/admin/research/lifecycle/authorize` (action=`ARCHIVE`) |
+| **(S6) Retire Authorization** | `POST /api/admin/research/lifecycle/authorize` (action=`RETIRE`) |
+
+### 6a. Phase S6 — Sole Lifecycle Authority
+
+As of Phase S6, Research Lab is not just *a* participant in deployment/rollback decisions — it is the **sole authority** permitted to approve deployment, roll back deployment, promote, archive, and retire QDE versions. This is enforced structurally at the Express gateway (see `docs/research_lab/permissions_matrix.md` §3), not merely by convention: every QDE lifecycle-mutation route requires a matching, unconsumed, APPROVED `LifecycleAuthorization` record that only Research Lab can issue. Full detail: `docs/research_lab/permissions_matrix.md`. Updated component diagram: `docs/research_lab/architecture_diagram.md`.
 
 ---
 

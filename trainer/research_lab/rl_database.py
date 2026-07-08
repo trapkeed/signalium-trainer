@@ -152,6 +152,19 @@ CREATE TABLE IF NOT EXISTS rollback_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_rollback_status ON rollback_requests(status);
 
+-- Lifecycle authorizations (sole-authority gate for promote/rollback/archive/retire)
+CREATE TABLE IF NOT EXISTS lifecycle_authorizations (
+    authorization_id TEXT PRIMARY KEY,
+    action           TEXT NOT NULL,
+    version_id       TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'PENDING',
+    requested_by     TEXT NOT NULL DEFAULT '',
+    created_at       REAL NOT NULL,
+    data_json        TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_lifecycle_auth_version ON lifecycle_authorizations(version_id);
+CREATE INDEX IF NOT EXISTS idx_lifecycle_auth_status ON lifecycle_authorizations(status);
+
 -- Parameter searches
 CREATE TABLE IF NOT EXISTS parameter_searches (
     search_id   TEXT PRIMARY KEY,
@@ -672,6 +685,74 @@ class ResearchLabDatabase:
             ).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Lifecycle Authorizations ─────────────────────────────────────────────────
+
+    def upsert_lifecycle_authorization(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO lifecycle_authorizations
+                (authorization_id, action, version_id, status, requested_by, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(authorization_id) DO UPDATE SET
+                status    = excluded.status,
+                data_json = excluded.data_json
+            """,
+            (
+                record["authorization_id"],
+                record.get("action", ""),
+                record.get("version_id", ""),
+                record.get("status", "PENDING"),
+                record.get("requested_by", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_lifecycle_authorization(self, authorization_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM lifecycle_authorizations WHERE authorization_id = ?",
+            (authorization_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_lifecycle_authorizations(
+        self,
+        version_id: str | None = None,
+        action: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT data_json FROM lifecycle_authorizations WHERE 1=1"
+        params: list[Any] = []
+        if version_id:
+            query += " AND version_id = ?"
+            params.append(version_id)
+        if action:
+            query += " AND action = ?"
+            params.append(action)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        query += " ORDER BY created_at DESC"
+        rows = self._conn.execute(query, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    def find_approved_lifecycle_authorization(
+        self, version_id: str, action: str
+    ) -> dict[str, Any] | None:
+        """Find the most recent APPROVED, unconsumed authorization for a
+        given version + action. Used by the gateway to check permission
+        before executing a lifecycle mutation."""
+        rows = self._conn.execute(
+            """
+            SELECT data_json FROM lifecycle_authorizations
+            WHERE version_id = ? AND action = ? AND status = 'APPROVED'
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (version_id, action),
+        ).fetchall()
+        return json.loads(rows[0]["data_json"]) if rows else None
+
     # ── Parameter Searches ─────────────────────────────────────────────────────
 
     def upsert_search(self, record: dict[str, Any]) -> None:
@@ -880,6 +961,7 @@ class ResearchLabDatabase:
             "shadow_decisions",
             "deployments",
             "rollback_requests",
+            "lifecycle_authorizations",
             "parameter_searches",
             "regime_reports",
             "features",
