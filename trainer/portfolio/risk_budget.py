@@ -244,9 +244,23 @@ class RiskBudgetEngine:
         weights: dict[str, float],
         forecasts: list[ModelForecast],
     ) -> dict[str, float]:
+        """Return a budget-capped alternative to `weights`.
+
+        This is a pure utility function — it does not mutate or replace a
+        caller's decision. Callers (e.g. PositionAllocator) surface the
+        result as advisory context (`suggested_capped_weights`) rather than
+        silently substituting it for the actual recommendation. Only a true
+        hard safety rail (e.g. margin/exchange limits) should apply this
+        result unconditionally.
+        """
         gross = sum(abs(w) for w in weights.values())
         if gross < 1e-9:
             return dict(weights)
+
+        # Always work on a copy — this function must never mutate the
+        # caller's input dict (callers may keep the original as their
+        # actual, uncapped recommendation).
+        weights = dict(weights)
 
         max_allowed_gross = self.config.max_total_gross
         if gross > max_allowed_gross:

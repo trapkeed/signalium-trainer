@@ -37,6 +37,16 @@ class AllocationMethod(str, Enum):
 
 @dataclass
 class AllocationResult:
+    """Recommended allocation.
+
+    `weights`/`signed_weights` are the engine's uncapped, computed
+    recommendation — this allocator does not forcibly rescale them to fit
+    the risk budget. `budget_feasible`/`budget_warnings` and
+    `suggested_capped_weights` are advisory context describing how the
+    recommendation compares to the configured budget; the decision layer
+    (QDE) decides whether and how to act on that context.
+    """
+
     weights: dict[str, float]
     signed_weights: dict[str, float]
     method: str
@@ -46,6 +56,7 @@ class AllocationResult:
     diversification_ratio: float
     budget_feasible: bool
     budget_warnings: list[str] = field(default_factory=list)
+    suggested_capped_weights: dict[str, float] = field(default_factory=dict)
     regime: str = "unknown"
     instrument_count: int = 0
 
@@ -74,6 +85,9 @@ class AllocationResult:
             "diversification_ratio": round(self.diversification_ratio, 4),
             "budget_feasible": self.budget_feasible,
             "budget_warnings": self.budget_warnings,
+            "suggested_capped_weights": {
+                k: round(v, 4) for k, v in self.suggested_capped_weights.items()
+            },
             "regime": self.regime,
             "instrument_count": self.instrument_count,
             "long_weights": self.normalised_long_weights(),
@@ -102,7 +116,18 @@ class PositionAllocator:
         correlation_matrix: CorrelationMatrix | None = None,
         regime: RegimeAssessment | None = None,
         method: AllocationMethod | None = None,
+        apply_budget_cap: bool = False,
     ) -> AllocationResult:
+        """Compute a recommended allocation.
+
+        By default (`apply_budget_cap=False`) the returned `weights` /
+        `signed_weights` are the engine's raw, uncapped recommendation —
+        this allocator does not silently rescale a strategy decision to fit
+        the risk budget. Budget status is always reported (`budget_feasible`,
+        `budget_warnings`, `suggested_capped_weights`) so the decision layer
+        (QDE) can weigh it. Pass `apply_budget_cap=True` only when the caller
+        explicitly wants the legacy forced-rescale behaviour applied.
+        """
         if not forecasts:
             return self._empty_result(method or self._method)
 
@@ -131,24 +156,32 @@ class PositionAllocator:
         if regime is not None:
             raw = self._apply_regime(raw, active, regime)
 
-        # Budget enforcement
+        # Normalize the raw (uncapped) recommendation to sum(abs) == 1.0.
         signed = self._to_signed(raw, active)
-        scaled = self._budget_engine.scale_to_budget(signed, active)
-
-        # Renormalize to sum(abs) == 1.0 after budget capping
-        total_abs = sum(abs(v) for v in scaled.values())
+        total_abs = sum(abs(v) for v in signed.values())
         if total_abs > 1e-9:
-            scaled = {k: v / total_abs for k, v in scaled.items()}
+            signed = {k: v / total_abs for k, v in signed.items()}
 
-        # Portfolio metrics
-        er, ev, es = self._portfolio_stats(active, scaled, correlation_matrix)
-        div = self._diversification_ratio(scaled, active, correlation_matrix)
+        # Budget context — always computed and reported, never silently
+        # applied. `suggested_capped_weights` is an advisory alternative
+        # only; the decision layer (QDE) chooses whether to use it.
+        budget_result = self._budget_engine.check(signed, active)
+        suggested_capped = self._budget_engine.scale_to_budget(signed, active)
 
-        budget_result = self._budget_engine.check(scaled, active)
+        final = signed
+        if apply_budget_cap:
+            final = suggested_capped
+            total_abs = sum(abs(v) for v in final.values())
+            if total_abs > 1e-9:
+                final = {k: v / total_abs for k, v in final.items()}
+
+        # Portfolio metrics (computed on whichever weights are returned)
+        er, ev, es = self._portfolio_stats(active, final, correlation_matrix)
+        div = self._diversification_ratio(final, active, correlation_matrix)
 
         return AllocationResult(
-            weights={k: abs(v) for k, v in scaled.items()},
-            signed_weights=scaled,
+            weights={k: abs(v) for k, v in final.items()},
+            signed_weights=final,
             method=m.value,
             expected_return=er,
             expected_volatility=ev,
@@ -156,6 +189,7 @@ class PositionAllocator:
             diversification_ratio=div,
             budget_feasible=budget_result.is_feasible(),
             budget_warnings=[b.name for b in budget_result.warnings + budget_result.breaches],
+            suggested_capped_weights=suggested_capped,
             regime=regime.primary_regime.value if regime else "unknown",
             instrument_count=len(active),
         )

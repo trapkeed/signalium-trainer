@@ -49,9 +49,15 @@ class TransitionRecommendation:
 
 
 class TransitionEngine:
-    """Evaluates all valid transitions from a given state.
+    """Pure context provider — evaluates all valid transitions from a given
+    state and returns a recommendation for the decision layer (QDE).
 
-    Priority:
+    This engine never applies a transition itself; it only ranks candidates
+    and returns a `TransitionRecommendation`. The prioritised ordering below
+    (emergency exits first, etc.) reflects the engine's advisory ranking
+    heuristic, not a binding directive — QDE decides whether to act on it.
+
+    Ranking heuristic:
     1. Emergency exits (news_risk > 0.80, extreme vol)
     2. Negative exits (STOPPED, FORCED_EXIT) if conditions warrant
     3. Forward progression (highest expected_benefit × confidence)

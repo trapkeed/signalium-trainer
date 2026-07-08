@@ -28,6 +28,7 @@ from trainer.lifecycle.lifecycle_models import (
     MarketContext,
     PositionMetrics,
     StateRecord,
+    TransitionResult,
 )
 from trainer.lifecycle.lifecycle_states import (
     POSITION_OPEN_STATES,
@@ -66,6 +67,10 @@ class TradeLifecycle:
     # Latest context
     last_context: MarketContext | None = None
     last_metrics: PositionMetrics | None = None
+
+    # Most recent StateMachine validation result (advisory context only —
+    # see TradeLifecycle.transition_to for how it is used).
+    last_transition_validation: TransitionResult | None = None
 
     # Metadata
     tags: list[str] = field(default_factory=list)
@@ -131,7 +136,10 @@ class TradeLifecycle:
             )
             return False
 
-        # Validate with state machine if provided
+        # Validate with state machine if provided. Only a `hard_block`
+        # (structural / graph invariant) actually prevents the transition.
+        # Failed contextual/confidence rules are advisory context — surfaced
+        # for the decision layer (QDE) but do NOT veto the transition here.
         if sm is not None:
             result = sm.validate_transition(
                 self.current_state,
@@ -139,12 +147,19 @@ class TradeLifecycle:
                 context or self.last_context,
                 confidence or self.confidence,
             )
-            if not result.allowed:
+            self.last_transition_validation = result
+            if result.hard_block:
                 logger.debug(
-                    f"TradeLifecycle {self.trade_id}: transition blocked: "
+                    f"TradeLifecycle {self.trade_id}: transition blocked (structural): "
                     f"{result.conditions_failed}"
                 )
                 return False
+            if not result.allowed:
+                logger.info(
+                    f"TradeLifecycle {self.trade_id}: advisory conditions unmet for "
+                    f"{self.current_state.value} → {new_state.value}: "
+                    f"{result.conditions_failed} — proceeding (advisory only, not a veto)"
+                )
 
         prev_state = self.current_state
         new_conf = confidence if confidence is not None else self.confidence

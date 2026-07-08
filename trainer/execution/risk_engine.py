@@ -66,7 +66,22 @@ class RiskProfile:
 
 
 class RiskEngine:
-    """Computes full risk profile from forecast + stop/TP recommendations."""
+    """Pure context provider — computes a risk profile from forecast +
+    stop/TP recommendations for the decision layer (QDE) to consume.
+
+    Does not veto, block, or override any trade decision. All fields are
+    informational context; QDE is the sole decision maker.
+    """
+
+    def get_context(
+        self,
+        forecast: ExecutionForecast,
+        stop_loss: StopLossRecommendation | None = None,
+        take_profit: TakeProfitRecommendation | None = None,
+        lot_size: float = 1.0,
+    ) -> RiskProfile:
+        """Alias of :meth:`analyze` using context-provider naming."""
+        return self.analyze(forecast, stop_loss, take_profit, lot_size)
 
     def analyze(
         self,
@@ -140,3 +155,10 @@ class RiskEngine:
             downside_deviation=downside,
             upside_potential=upside,
         )
+
+
+# Context-provider naming alias (Task: decision engines → context providers).
+# RiskEngine is already pure/info-only (no veto power); this alias exposes
+# the preferred name without breaking existing callers.
+RiskContextProvider = RiskEngine
+RiskContext = RiskProfile

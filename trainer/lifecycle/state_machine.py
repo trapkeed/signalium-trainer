@@ -264,9 +264,14 @@ _RULE_LOOKUP: dict[tuple[LifecycleState, LifecycleState], TransitionRule] = {
 
 
 class StateMachine:
-    """Validates and executes lifecycle state transitions.
+    """Validates lifecycle state transitions and reports context.
 
-    Pure deterministic FSM — does not place trades.
+    Pure deterministic FSM — does not place trades. Structural graph
+    validity (`hard_block`) is the only hard invariant enforced here.
+    Contextual/confidence rule checks (news risk, spread, trend, session,
+    momentum, confidence thresholds) are advisory context for the decision
+    layer (QDE) — a failed rule does NOT itself veto a transition; it is
+    surfaced via `conditions_failed` for QDE to weigh.
     """
 
     def validate_transition(
@@ -278,12 +283,15 @@ class StateMachine:
     ) -> TransitionResult:
         """Check whether a transition is structurally and contextually valid."""
 
-        # 1. Structural check
+        # 1. Structural check — hard invariant (data integrity, not a
+        # strategy decision). This is the only case that may block a
+        # transition outright.
         if not can_transition(from_state, to_state):
             return TransitionResult(
                 from_state=from_state,
                 to_state=to_state,
                 allowed=False,
+                hard_block=True,
                 conditions_failed=[
                     f"{from_state.value} → {to_state.value} not in VALID_TRANSITIONS"
                 ],

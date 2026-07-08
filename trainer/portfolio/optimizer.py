@@ -32,6 +32,15 @@ class OptimizationObjective(str, Enum):
 
 @dataclass
 class OptimizationResult:
+    """Optimizer output.
+
+    `budget_check` is advisory context describing how `optimal_weights`
+    compares to the configured risk budget — the search is no longer
+    hard-filtered to budget-feasible candidates, so this reports the true
+    best-objective weights and lets the decision layer (QDE) weigh budget
+    compliance itself.
+    """
+
     objective: str
     optimal_weights: dict[str, float]
     optimal_metrics: PortfolioMetrics
@@ -39,6 +48,7 @@ class OptimizationResult:
     converged: bool
     objective_value: float
     weight_history: list[tuple[int, float]] = field(default_factory=list)
+    budget_check: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -48,6 +58,7 @@ class OptimizationResult:
             "iterations": self.iterations,
             "converged": self.converged,
             "objective_value": round(self.objective_value, 4),
+            "budget_check": self.budget_check,
         }
 
 
@@ -104,8 +115,10 @@ class PortfolioOptimizer:
                     candidate = dict(weights)
                     candidate[sym] = candidate_w
                     candidate = self._renorm(candidate, sym, min_weight, max_weight)
-                    if not self._budget_feasible(candidate, active):
-                        continue
+                    # NOTE: budget compliance is no longer a hard search
+                    # filter — it is reported as advisory context on the
+                    # final result instead, so the decision layer (QDE)
+                    # sees the true best-objective weights.
                     obj = self._objective_value(active, candidate, objective, correlation_matrix)
                     if obj > best_local_obj + 1e-8:
                         best_local_obj = obj
@@ -124,6 +137,7 @@ class PortfolioOptimizer:
                 break
 
         metrics = self._scorer.score(active, best_weights, correlation_matrix)
+        budget_result = self._budget_engine.check(best_weights, active)
         return OptimizationResult(
             objective=objective.value,
             optimal_weights=best_weights,
@@ -132,6 +146,7 @@ class PortfolioOptimizer:
             converged=converged,
             objective_value=best_obj,
             weight_history=history[-20:],
+            budget_check=budget_result.to_dict(),
         )
 
     def compare_objectives(

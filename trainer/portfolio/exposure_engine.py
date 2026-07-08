@@ -72,7 +72,12 @@ class ExposureReport:
 
 
 class ExposureEngine:
-    """Calculates and audits portfolio exposure from model forecasts."""
+    """Pure context provider — calculates and reports portfolio exposure
+    from model forecasts for the decision layer (QDE) to consume.
+
+    Alerts are informational flags only; this engine never blocks, rejects,
+    or rescales a portfolio decision. QDE is the sole decision maker.
+    """
 
     # Concentration thresholds (fractions of gross exposure)
     ASSET_CLASS_LIMIT = 0.70
@@ -83,6 +88,10 @@ class ExposureEngine:
 
     def __init__(self, registry: InstrumentRegistry | None = None) -> None:
         self._registry = registry or InstrumentRegistry.default()
+
+    def get_context(self, *args, **kwargs) -> ExposureReport:
+        """Alias of :meth:`compute` using context-provider naming."""
+        return self.compute(*args, **kwargs)
 
     def compute(
         self,
@@ -293,3 +302,10 @@ class ExposureEngine:
                 ),
             },
         }
+
+
+# Context-provider naming alias (Task: decision engines → context providers).
+# ExposureEngine is already pure/info-only (no veto power); this alias exposes
+# the preferred name without breaking existing callers.
+ExposureContextProvider = ExposureEngine
+ExposureContext = ExposureReport

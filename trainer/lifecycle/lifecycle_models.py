@@ -187,12 +187,19 @@ class TransitionResult:
     risk_rating: str = "MEDIUM"  # LOW | MEDIUM | HIGH | CRITICAL
     reason: str = ""
     timeout_hours: float = 0.0
+    # True only when the transition is structurally invalid (not in the FSM
+    # graph — a data-integrity invariant). False when `allowed=False` is due
+    # to strategy-level context/confidence rules, which are advisory only —
+    # QDE (or another decision layer) is the sole authority on whether to
+    # proceed despite unmet advisory conditions.
+    hard_block: bool = False
 
     def to_dict(self) -> dict:
         return {
             "from_state": self.from_state.value,
             "to_state": self.to_state.value,
             "allowed": self.allowed,
+            "hard_block": self.hard_block,
             "conditions_met": self.conditions_met,
             "conditions_failed": self.conditions_failed,
             "confidence": round(self.confidence, 4),

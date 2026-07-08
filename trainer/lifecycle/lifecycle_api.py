@@ -146,7 +146,7 @@ class LifecycleAPI:
                 "transition",
                 error=(
                     f"Transition {tl.current_state.value} → {new_state.value} "
-                    f"was not permitted by state machine"
+                    f"is not structurally valid (not in VALID_TRANSITIONS)"
                 ),
             )
 
@@ -163,6 +163,14 @@ class LifecycleAPI:
         trade_id: str,
         context: MarketContext | None = None,
     ) -> ApiResponse:
+        """Apply the TransitionEngine's recommendation directly.
+
+        NOTE: this bypasses any external decision layer (e.g. QDE) and
+        applies the engine's advisory recommendation unconditionally
+        (subject only to the structural FSM graph). It exists for
+        legacy/manual use; QDE-driven flows should call
+        `recommend_transition` and decide independently via `transition`.
+        """
         tl = self._active.get(trade_id)
         if not tl:
             return ApiResponse(False, "auto_transition", error=f"Trade {trade_id} not found")

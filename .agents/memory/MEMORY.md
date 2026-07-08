@@ -7,3 +7,5 @@
 - [Champion vs terminal-state ordering](registry-champion-terminal-ordering.md) — re-promoting/re-activating a terminal-state entry must exit terminal state BEFORE granting champion status, not after
 - [ResearchLabAPI signature drift](research-lab-api-signature-drift.md) — public wrapper methods can pass kwargs that don't match the underlying rl_models dataclass .new() constructor; verify against the dataclass, not the wrapper docstring
 - [Hardcoded behavior audit location](hardcoded-behavior-audit-location.md) — the trading-rules audit deliverable lives at docs/qde/hardcoded_behavior_audit.md; extend it in place rather than creating a duplicate
+- [RiskBudgetEngine mutation bug](risk-budget-mutation-bug.md) — scale_to_budget() mutated caller's dict in place; advisory-context utilities must always copy input before transforming
+- [Decision engines → context providers](decision-engines-context-providers.md) — Risk/Exposure/Lifecycle/Portfolio engines are pure info providers now; only structural FSM validity + true safety rails may hard-block
