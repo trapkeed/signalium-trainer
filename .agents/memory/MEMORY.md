@@ -2,3 +2,4 @@
 - [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks
 - [Cert operational scoring](cert-operational-scoring.md) — non-mandatory op failures → WARNING (weight 55), not FAIL; mandatory op failures → weight 0; test assertions must account for this
 - [Production refactor layout](production-refactor.md) — apps/, packages/, trainer/, config/, docker/ are canonical post-refactor locations; TypeScript 0 errors validated
+- [QDE capability boundary](qde-capability-boundary.md) — capabilities never import QDEDecision; only qde_intelligence.py constructs it; grep must match import lines only (not comments)
