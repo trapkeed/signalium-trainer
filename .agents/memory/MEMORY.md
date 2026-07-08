@@ -4,3 +4,4 @@
 - [Production refactor layout](production-refactor.md) — apps/, packages/, trainer/, config/, docker/ are canonical post-refactor locations; TypeScript 0 errors validated
 - [Research Lab persistence pattern](research-lab-persistence.md) — ResearchLabDatabase(db_path) accepts path via RESEARCH_LAB_DB_PATH env var; ResearchLabAPI(db=) for injection; mypy CI runs only on trainer/ not tests/
 - [QDE capability boundary](qde-capability-boundary.md) — capabilities never import QDEDecision; only qde_intelligence.py constructs it; grep must match import lines only (not comments)
+- [Champion vs terminal-state ordering](registry-champion-terminal-ordering.md) — re-promoting/re-activating a terminal-state entry must exit terminal state BEFORE granting champion status, not after

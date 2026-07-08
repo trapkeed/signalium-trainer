@@ -1,13 +1,19 @@
-"""Phase 27.6 — QDE Version Registry.
+"""QDE Version Registry — retired as an independent store.
 
-In-memory + persistent store for all QDE versions.
+This module used to own its own persisted dict of `QDEVersion` objects. It is
+now a thin, backward-compatible adapter over
+`trainer.registry.unified_registry.UnifiedModelRegistry`, which is the sole
+source of truth for model versions, deployment state, champion status,
+rollback history, and lineage across the platform.
+
+All existing callers (`QDEPipeline`, `QDEPromotionEngine`, `QDERollback`,
+`QDEServer`, `QDEAPI`, `QDEABTesting`) keep working unchanged against this
+class's public interface.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import time
 from typing import Any
 
 try:
@@ -18,165 +24,186 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_models import QDEStage, QDEVersion
+from trainer.registry.unified_registry import (
+    ChampionStatus,
+    UnifiedModelEntry,
+    UnifiedModelRegistry,
+)
+
+_QDE_FAMILY = "qde"
+
+
+def _qde_version_to_entry(version: QDEVersion) -> UnifiedModelEntry:
+    return UnifiedModelEntry(
+        entry_id=version.version_id,
+        source_system="qde",
+        family=_QDE_FAMILY,
+        label=version.label,
+        model_version=str(version.version_number),
+        artifact_uri=version.artifact_uri,
+        checksum=version.checksum,
+        parent_entry_id=version.parent_version_id,
+        tags=list(version.tags),
+        description=version.description,
+        metrics=dict(version.metrics),
+        deployment_state=version.stage.value,
+        champion_status=(
+            ChampionStatus.CHAMPION if version.stage == QDEStage.ACTIVE else ChampionStatus.NONE
+        ),
+        created_at=version.created_at,
+        updated_at=version.updated_at,
+        native_snapshot=version.to_dict(),
+        native_type="QDEVersion",
+    )
+
+
+def _entry_to_qde_version(entry: UnifiedModelEntry) -> QDEVersion:
+    snap = entry.native_snapshot
+    return QDEVersion(
+        version_id=snap["version_id"],
+        version_number=snap["version_number"],
+        label=snap["label"],
+        stage=QDEStage(snap["stage"]),
+        created_at=snap["created_at"],
+        updated_at=snap["updated_at"],
+        parent_version_id=snap.get("parent_version_id"),
+        tags=snap.get("tags", []),
+        description=snap.get("description", ""),
+        metrics=snap.get("metrics", {}),
+        stage_timestamps=snap.get("stage_timestamps", {}),
+        deployed_at=snap.get("deployed_at"),
+        retired_at=snap.get("retired_at"),
+        artifact_uri=snap.get("artifact_uri", ""),
+        checksum=snap.get("checksum", ""),
+    )
 
 
 class QDERegistry:
     """Central registry for all QDE versions.
 
-    Maintains:
-      - An ordered list of all versions by version_number.
-      - A pointer to the currently ACTIVE (champion) version.
-      - A persistence layer (JSON file) so state survives restarts.
+    Deprecated as an independent store: all state now lives in
+    `UnifiedModelRegistry`. This class only translates QDE-shaped calls into
+    unified-registry operations and reconstructs `QDEVersion` objects for
+    callers that expect them.
     """
 
     def __init__(self, storage_path: str | None = None) -> None:
-        self._versions: dict[str, QDEVersion] = {}
-        self._active_version_id: str | None = None
         self._storage_path = storage_path or os.environ.get(
             "QDE_REGISTRY_PATH", "/tmp/qde_registry.json"
         )
-        self._load()
+        self._unified = UnifiedModelRegistry(
+            storage_path=self._storage_path,
+            reconstruct_native=_entry_to_qde_version,
+        )
 
-    # ── Persistence ──────────────────────────────────────────────────────────
-
-    def _load(self) -> None:
-        if not os.path.exists(self._storage_path):
-            return
-        try:
-            with open(self._storage_path) as fh:
-                raw = json.load(fh)
-            for vd in raw.get("versions", []):
-                v = QDEVersion(
-                    version_id=vd["version_id"],
-                    version_number=vd["version_number"],
-                    label=vd["label"],
-                    stage=QDEStage(vd["stage"]),
-                    created_at=vd["created_at"],
-                    updated_at=vd["updated_at"],
-                    parent_version_id=vd.get("parent_version_id"),
-                    tags=vd.get("tags", []),
-                    description=vd.get("description", ""),
-                    metrics=vd.get("metrics", {}),
-                    stage_timestamps=vd.get("stage_timestamps", {}),
-                    deployed_at=vd.get("deployed_at"),
-                    retired_at=vd.get("retired_at"),
-                    artifact_uri=vd.get("artifact_uri", ""),
-                    checksum=vd.get("checksum", ""),
-                )
-                self._versions[v.version_id] = v
-            self._active_version_id = raw.get("active_version_id")
-            logger.info(f"QDERegistry loaded {len(self._versions)} versions")
-        except Exception as exc:
-            logger.warning(f"QDERegistry load failed: {exc}")
-
-    def _save(self) -> None:
-        try:
-            os.makedirs(os.path.dirname(self._storage_path) or ".", exist_ok=True)
-            data: dict[str, Any] = {
-                "active_version_id": self._active_version_id,
-                "versions": [v.to_dict() for v in self._versions.values()],
-            }
-            with open(self._storage_path, "w") as fh:
-                json.dump(data, fh, indent=2)
-        except Exception as exc:
-            logger.warning(f"QDERegistry save failed: {exc}")
-
-    # ── CRUD ─────────────────────────────────────────────────────────────────
+    # ── CRUD ─────────────────────────────────────────────────────────────
 
     def register(self, version: QDEVersion) -> QDEVersion:
-        """Register a new QDE version."""
-        if version.version_id in self._versions:
-            raise ValueError(f"Version {version.version_id} already registered")
-        self._versions[version.version_id] = version
-        self._save()
+        entry = _qde_version_to_entry(version)
+        self._unified.register(entry, native_ref=version)
         logger.info(f"QDERegistry.register: {version.version_id} ({version.label})")
         return version
 
     def get(self, version_id: str) -> QDEVersion | None:
-        return self._versions.get(version_id)
+        native = self._unified.get_native(version_id)
+        return native
 
     def get_by_number(self, version_number: int) -> QDEVersion | None:
-        for v in self._versions.values():
-            if v.version_number == version_number:
-                return v
+        for entry in self._unified.list_all(family=_QDE_FAMILY):
+            if entry.model_version == str(version_number):
+                return self._unified.get_native(entry.entry_id)
         return None
 
     def update(self, version: QDEVersion) -> None:
-        if version.version_id not in self._versions:
+        entry = self._unified.get(version.version_id)
+        if entry is None:
             raise KeyError(f"Version {version.version_id} not found in registry")
-        self._versions[version.version_id] = version
-        self._save()
+        updated_entry = _qde_version_to_entry(version)
+        updated_entry.champion_status = entry.champion_status
+        updated_entry.promotion_history = entry.promotion_history
+        updated_entry.rollback_history = entry.rollback_history
+        updated_entry.experiment_lineage = entry.experiment_lineage
+        updated_entry.research_approval_status = entry.research_approval_status
+        self._unified.update(updated_entry, native_ref=version)
 
     def list_all(self) -> list[QDEVersion]:
-        return sorted(self._versions.values(), key=lambda v: v.version_number)
+        return [
+            self._unified.get_native(e.entry_id)
+            for e in sorted(
+                self._unified.list_all(family=_QDE_FAMILY),
+                key=lambda e: int(e.model_version),
+            )
+        ]
 
     def list_by_stage(self, stage: QDEStage) -> list[QDEVersion]:
         return [v for v in self.list_all() if v.stage == stage]
 
-    # ── Active Version ────────────────────────────────────────────────────────
+    # ── Active Version ────────────────────────────────────────────────────
 
     def get_active(self) -> QDEVersion | None:
-        if self._active_version_id:
-            return self._versions.get(self._active_version_id)
-        return None
+        champion = self._unified.get_champion(_QDE_FAMILY)
+        return self._unified.get_native(champion.entry_id) if champion else None
 
     def set_active(self, version_id: str) -> QDEVersion:
-        version = self._versions.get(version_id)
+        version = self.get(version_id)
         if not version:
             raise KeyError(f"Version {version_id} not found")
 
-        # Retire the previous active version
-        if self._active_version_id and self._active_version_id != version_id:
-            prev = self._versions.get(self._active_version_id)
-            if prev and prev.stage == QDEStage.ACTIVE:
-                prev.stage = QDEStage.RETIRED
-                prev.retired_at = time.time()
-                prev.updated_at = prev.retired_at
+        previous = self.get_active()
 
+        # Ordering matters for the unified registry's consistency invariants:
+        # an entry may never simultaneously be CHAMPION and in a terminal
+        # deployment_state. `version` may currently hold a terminal state
+        # (e.g. RETIRED, if it's being re-activated after a rollback), so we
+        # must move it to ACTIVE *before* granting champion status. Likewise
+        # `previous` must be demoted from CHAMPION (via `set_champion` below)
+        # before it is moved into a terminal state.
+        now = __import__("time").time()
         version.stage = QDEStage.ACTIVE
-        version.deployed_at = version.deployed_at or time.time()
-        version.updated_at = time.time()
-        self._active_version_id = version_id
-        self._save()
+        version.deployed_at = version.deployed_at or now
+        version.updated_at = now
+        self.update(version)
+
+        self._unified.set_champion(version_id, family=_QDE_FAMILY)
+
+        if previous and previous.version_id != version_id:
+            previous.stage = QDEStage.RETIRED
+            previous.retired_at = previous.updated_at = __import__("time").time()
+            self.update(previous)
+
         logger.info(f"QDERegistry.set_active: {version_id}")
         return version
 
     def retire(self, version_id: str) -> QDEVersion:
-        version = self._versions.get(version_id)
+        version = self.get(version_id)
         if not version:
             raise KeyError(f"Version {version_id} not found")
+        import time as _time
+
         version.stage = QDEStage.RETIRED
-        version.retired_at = time.time()
+        version.retired_at = _time.time()
         version.updated_at = version.retired_at
-        self._save()
+        self.update(version)
         return version
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    # ── Helpers ───────────────────────────────────────────────────────────
 
     def next_version_number(self) -> int:
-        if not self._versions:
-            return 1
-        return max(v.version_number for v in self._versions.values()) + 1
+        return self._unified.next_version_number(_QDE_FAMILY)
 
     def lineage(self, version_id: str) -> list[QDEVersion]:
-        """Return the ancestry chain from earliest ancestor to this version."""
-        chain: list[QDEVersion] = []
-        current = self._versions.get(version_id)
-        while current:
-            chain.append(current)
-            parent_id = current.parent_version_id
-            current = self._versions.get(parent_id) if parent_id else None
-        chain.reverse()
-        return chain
+        return [
+            self._unified.get_native(e.entry_id) for e in self._unified.lineage(version_id)
+        ]
 
     def summary(self) -> dict[str, Any]:
         active = self.get_active()
         by_stage: dict[str, int] = {}
-        for v in self._versions.values():
+        for v in self.list_all():
             by_stage[v.stage.value] = by_stage.get(v.stage.value, 0) + 1
         return {
-            "total_versions": len(self._versions),
-            "active_version_id": self._active_version_id,
+            "total_versions": len(self._unified.list_all(family=_QDE_FAMILY)),
+            "active_version_id": active.version_id if active else None,
             "active_version_number": active.version_number if active else None,
             "by_stage": by_stage,
         }

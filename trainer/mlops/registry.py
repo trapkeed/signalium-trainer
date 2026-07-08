@@ -1,15 +1,14 @@
 """Phase 18 — Institutional MLOps Model Registry.
 
-Centralised registry for every model that exists in Signalium.
+Retired as an independent store: state now lives in
+`trainer.registry.unified_registry.UnifiedModelRegistry`. This module keeps
+the `ModelRecord` / `ApprovalRecord` / `LifecycleState` data shapes (used
+throughout `trainer/mlops/*` for typed access and SQLite serialization) and
+rewrites `ModelRegistry` as a thin adapter over the unified registry so every
+existing caller (`MLOpsEngine`, `ChampionChallengerManager`,
+`DeploymentGovernance`, `MLOpsExporter`, `MLOpsAPI`) keeps working unchanged.
 
-Every model record stores:
-  - model_id, semantic version, training date, architecture, backbone
-  - parameter count, dataset/feature/label versions, git commit
-  - training config, validation report, promotion/deployment/retirement status
-  - approval history, hardware used, training duration, parent/child models
-
-No production model may exist outside this registry.
-Zero new dependencies — pure stdlib + loguru.
+No production model may exist outside this governance framework.
 
 Usage::
 
@@ -32,6 +31,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
+
+from trainer.registry.unified_registry import (
+    ChampionStatus,
+    UnifiedModelEntry,
+    UnifiedModelRegistry,
+)
 
 # ---------------------------------------------------------------------------
 # Lifecycle states
@@ -267,75 +272,141 @@ class ModelRecord:
 
 
 # ---------------------------------------------------------------------------
+# Unified-registry adapters
+# ---------------------------------------------------------------------------
+
+
+def _model_record_to_entry(record: ModelRecord) -> UnifiedModelEntry:
+    from datetime import datetime as _dt
+
+    def _to_epoch(iso_ts: str) -> float:
+        try:
+            return _dt.fromisoformat(iso_ts).timestamp()
+        except (ValueError, TypeError):
+            return 0.0
+
+    return UnifiedModelEntry(
+        entry_id=record.model_id,
+        source_system="mlops",
+        family=record.name,
+        label=record.full_name,
+        model_version=record.version,
+        dataset_version=record.dataset_version,
+        feature_version=record.feature_version,
+        label_version=record.label_version,
+        git_commit=record.git_commit,
+        parent_entry_id=record.parent_model_id,
+        child_entry_ids=list(record.child_model_ids),
+        description=record.notes,
+        training_config=dict(record.training_config),
+        validation_report=dict(record.validation_report),
+        deployment_state=record.lifecycle_state,
+        champion_status=(
+            ChampionStatus.CHAMPION if record.is_champion else ChampionStatus.NONE
+        ),
+        created_at=_to_epoch(record.created_at),
+        updated_at=_to_epoch(record.updated_at),
+        native_snapshot=record.to_dict(),
+        native_type="ModelRecord",
+    )
+
+
+def _entry_to_model_record(entry: UnifiedModelEntry) -> ModelRecord:
+    return ModelRecord.from_dict(entry.native_snapshot)
+
+
+# ---------------------------------------------------------------------------
 # Model registry
 # ---------------------------------------------------------------------------
 
 
 class ModelRegistry:
-    """Centralised in-memory model registry.
+    """Centralised model registry.
 
-    All models must be registered here before entering any governance workflow.
-    Backed by EnsembleDatabase (Phase 18 DB) for persistence.
+    Deprecated as an independent store: all state now lives in
+    `UnifiedModelRegistry`. This class translates `ModelRecord`-shaped calls
+    into unified-registry operations, preserving identity of registered
+    `ModelRecord` objects for callers that expect `get(...) is record`.
     """
 
     def __init__(self) -> None:
-        self._models: dict[str, ModelRecord] = {}
-        self._champion_id: str | None = None
+        self._unified = UnifiedModelRegistry(storage_path=None)
 
     def register(self, record: ModelRecord) -> str:
         """Register a model. Returns model_id."""
-        self._models[record.model_id] = record
+        entry = _model_record_to_entry(record)
+        self._unified.register(entry, native_ref=record)
         logger.info(f"Registered model {record.model_id} ({record.full_name})")
         return record.model_id
 
     def get(self, model_id: str) -> ModelRecord | None:
-        return self._models.get(model_id)
+        return self._unified.get_native(model_id)
 
     def get_or_raise(self, model_id: str) -> ModelRecord:
-        m = self._models.get(model_id)
+        m = self.get(model_id)
         if m is None:
             raise KeyError(f"Model {model_id!r} not in registry.")
         return m
 
     def remove(self, model_id: str) -> bool:
-        if model_id in self._models:
-            del self._models[model_id]
-            return True
-        return False
+        return self._unified.remove(model_id)
 
     def all_models(self) -> list[ModelRecord]:
-        return list(self._models.values())
+        return [self._unified.get_native(e.entry_id) for e in self._unified.list_all()]
 
     def by_state(self, state: str) -> list[ModelRecord]:
-        return [m for m in self._models.values() if m.lifecycle_state == state]
+        return [m for m in self.all_models() if m.lifecycle_state == state]
 
     def active(self) -> list[ModelRecord]:
-        return [m for m in self._models.values() if m.is_active]
+        return [m for m in self.all_models() if m.is_active]
 
     def champion(self) -> ModelRecord | None:
-        if self._champion_id:
-            return self._models.get(self._champion_id)
-        champions = [m for m in self._models.values() if m.is_champion]
-        return champions[0] if champions else None
+        for m in self.all_models():
+            if m.is_champion:
+                return m
+        return None
 
     def set_champion(self, model_id: str, approver: str = "system") -> None:
-        for m in self._models.values():
-            if m.is_champion and m.model_id != model_id:
-                m.lifecycle_state = LifecycleState.ARCHIVED
-                m.updated_at = datetime.now(UTC).isoformat()
         model = self.get_or_raise(model_id)
         old_state = model.lifecycle_state
+        prev_champions = [m for m in self.all_models() if m.is_champion and m.model_id != model_id]
+
+        # Ordering matters for the unified registry's consistency invariants:
+        # an entry may never simultaneously be CHAMPION and in a terminal
+        # deployment_state. `model` may currently hold a terminal state (e.g.
+        # ARCHIVED, if it's being re-promoted after being superseded), so we
+        # must move it out of that state *before* granting champion status.
         model.lifecycle_state = LifecycleState.CHAMPION
         model.promotion_status = "approved"
         model.add_approval(
             approver, "approved", "promoted to champion", old_state, LifecycleState.CHAMPION
         )
         model.updated_at = datetime.now(UTC).isoformat()
-        self._champion_id = model_id
+        self._sync(model)
+
+        self._unified.set_champion(model_id, family=model.name)
+
+        for m in prev_champions:
+            m.lifecycle_state = LifecycleState.ARCHIVED
+            m.updated_at = datetime.now(UTC).isoformat()
+            self._sync(m)
         logger.info(f"Champion set: {model_id} ({model.full_name})")
 
+    def _sync(self, record: ModelRecord) -> None:
+        """Push a mutated ModelRecord's state back into the unified registry."""
+        entry = self._unified.get(record.model_id)
+        if entry is None:
+            return
+        updated_entry = _model_record_to_entry(record)
+        updated_entry.champion_status = entry.champion_status
+        updated_entry.promotion_history = entry.promotion_history
+        updated_entry.rollback_history = entry.rollback_history
+        updated_entry.experiment_lineage = entry.experiment_lineage
+        updated_entry.research_approval_status = entry.research_approval_status
+        self._unified.update(updated_entry, native_ref=record)
+
     def by_name(self, name: str) -> list[ModelRecord]:
-        return [m for m in self._models.values() if m.name == name]
+        return [m for m in self.all_models() if m.name == name]
 
     def latest_version(self, name: str) -> ModelRecord | None:
         candidates = self.by_name(name)
@@ -345,31 +416,34 @@ class ModelRegistry:
 
     @property
     def n_models(self) -> int:
-        return len(self._models)
+        return len(self._unified.list_all())
 
     def summary(self) -> dict[str, Any]:
         states: dict[str, int] = {}
-        for m in self._models.values():
+        for m in self.all_models():
             states[m.lifecycle_state] = states.get(m.lifecycle_state, 0) + 1
         champion = self.champion()
         return {
             "total_models": self.n_models,
-            "champion_id": self._champion_id,
+            "champion_id": champion.model_id if champion else None,
             "champion_name": champion.full_name if champion else None,
             "by_state": states,
             "n_active": len(self.active()),
         }
 
     def to_dict(self) -> dict[str, Any]:
+        champion = self.champion()
         return {
-            "models": {mid: m.to_dict() for mid, m in self._models.items()},
-            "champion_id": self._champion_id,
+            "models": {m.model_id: m.to_dict() for m in self.all_models()},
+            "champion_id": champion.model_id if champion else None,
         }
 
     @staticmethod
     def from_dict(d: dict[str, Any]) -> ModelRegistry:
         registry = ModelRegistry()
-        registry._champion_id = d.get("champion_id")
-        for mid, mdata in d.get("models", {}).items():
+        for _mid, mdata in d.get("models", {}).items():
             registry.register(ModelRecord.from_dict(mdata))
+        champion_id = d.get("champion_id")
+        if champion_id and registry.get(champion_id) is not None:
+            registry.set_champion(champion_id)
         return registry
