@@ -83,9 +83,7 @@ class HindsightLifecycleLabeler:
                 rationale="No future bars available — only the entry transition can be labeled.",
             )
 
-        transitions = [
-            LifecycleTransitionPoint(0, LifecycleState.ACTIVE, "Trade opened.")
-        ]
+        transitions = [LifecycleTransitionPoint(0, LifecycleState.ACTIVE, "Trade opened.")]
 
         mfe, mfe_idx = path.max_favorable_excursion()
         last_idx = len(path.future_bars) - 1

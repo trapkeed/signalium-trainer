@@ -143,7 +143,9 @@ class QDEPositionManager:
             and pos.unrealised_pct >= 0.0
         ):
             action = PositionManagementAction.ADD
-            reasoning = f"scale_signal={heads.scale_signal:.2f} with free margin — adding to winner."
+            reasoning = (
+                f"scale_signal={heads.scale_signal:.2f} with free margin — adding to winner."
+            )
         elif pos.unrealised_pct >= 0.02 and heads.reduce_signal < 0.2 and heads.confidence < 0.55:
             # Conviction has faded on a position that is meaningfully in
             # profit — lock the gain rather than risk giving it back.

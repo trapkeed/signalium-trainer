@@ -42,7 +42,9 @@ class TestQDEVersionContractFields(unittest.TestCase):
         self.assertEqual(v.feature_contract_version, "")
 
     def test_new_accepts_schema_versions(self):
-        v = QDEVersion.new(1, output_schema_version=OUTPUT_SCHEMA_VERSION, feature_contract_version="fc_v1")
+        v = QDEVersion.new(
+            1, output_schema_version=OUTPUT_SCHEMA_VERSION, feature_contract_version="fc_v1"
+        )
         self.assertEqual(v.output_schema_version, OUTPUT_SCHEMA_VERSION)
         self.assertEqual(v.feature_contract_version, "fc_v1")
 
@@ -60,7 +62,9 @@ class TestQDERollbackSchemaCompatibility(unittest.TestCase):
         self.active.stage = QDEStage.ACTIVE
         self.target_same_schema = QDEVersion.new(1, output_schema_version=OUTPUT_SCHEMA_VERSION)
         self.target_same_schema.stage = QDEStage.RETIRED
-        self.target_diff_schema = QDEVersion.new(1, output_schema_version="legacy_buy_sell_no_trade")
+        self.target_diff_schema = QDEVersion.new(
+            1, output_schema_version="legacy_buy_sell_no_trade"
+        )
         self.target_diff_schema.stage = QDEStage.RETIRED
         self.target_no_schema = QDEVersion.new(1)
         self.target_no_schema.stage = QDEStage.RETIRED

@@ -125,9 +125,7 @@ class LearningLoopScheduler:
             target=self._run_forever, name="learning-loop-scheduler", daemon=True
         )
         self._thread.start()
-        logger.info(
-            f"LearningLoopScheduler.start: loop started (interval={self._interval}s)"
-        )
+        logger.info(f"LearningLoopScheduler.start: loop started (interval={self._interval}s)")
 
     def stop(self, timeout: float = 5.0) -> None:
         """Signal the loop to stop and wait for the thread to exit."""

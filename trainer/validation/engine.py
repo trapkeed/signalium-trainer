@@ -69,11 +69,7 @@ from trainer.validation.robustness import RobustnessTester
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
 from trainer.validation.trading import TradeSimulator, TradingMetrics, TradingMetricsEngine
 from trainer.validation.visualization import VisualizationDataBuilder
-from trainer.validation.windows import (
-    ExpandingWindowValidator,
-    SlidingWindowValidator,
-    WindowFold,
-)
+from trainer.validation.windows import ExpandingWindowValidator, SlidingWindowValidator, WindowFold
 
 # ---------------------------------------------------------------------------
 # Engine result

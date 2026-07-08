@@ -6,12 +6,12 @@ import unittest
 
 from trainer.lifecycle.lifecycle_states import LifecycleState
 from trainer.microstructure.micro_models import OHLCBar
+from trainer.training_signals.lifecycle_transition_labels import HindsightLifecycleLabeler
 from trainer.training_signals.outcome_path import TradeOutcomePath
+from trainer.training_signals.portfolio_allocation_labels import HindsightAllocationLabeler
+from trainer.training_signals.position_size_labels import HindsightPositionSizeLabeler
 from trainer.training_signals.stop_loss_labels import HindsightStopLossLabeler
 from trainer.training_signals.take_profit_labels import HindsightTakeProfitLabeler
-from trainer.training_signals.position_size_labels import HindsightPositionSizeLabeler
-from trainer.training_signals.portfolio_allocation_labels import HindsightAllocationLabeler
-from trainer.training_signals.lifecycle_transition_labels import HindsightLifecycleLabeler
 
 
 def _bar(t: float, o: float, h: float, low: float, c: float) -> OHLCBar:

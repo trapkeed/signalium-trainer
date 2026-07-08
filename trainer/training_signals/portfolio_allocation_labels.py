@@ -13,7 +13,7 @@ heads, not a runtime optimizer.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from trainer.training_signals.outcome_path import TradeOutcomePath
 

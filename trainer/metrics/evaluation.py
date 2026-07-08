@@ -8,10 +8,7 @@ import numpy as np
 import torch
 import torchmetrics
 from loguru import logger
-from sklearn.metrics import (
-    classification_report,
-    roc_auc_score,
-)
+from sklearn.metrics import classification_report, roc_auc_score
 
 
 class EvaluationMetrics:

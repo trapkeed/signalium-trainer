@@ -13,14 +13,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_models import (
-    LifecycleConfidence,
-    MarketContext,
-)
-from trainer.lifecycle.lifecycle_states import (
-    STATE_EXPECTED_DURATION_HOURS,
-    LifecycleState,
-)
+from trainer.lifecycle.lifecycle_models import LifecycleConfidence, MarketContext
+from trainer.lifecycle.lifecycle_states import STATE_EXPECTED_DURATION_HOURS, LifecycleState
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:

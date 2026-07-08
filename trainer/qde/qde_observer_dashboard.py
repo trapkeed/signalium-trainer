@@ -88,10 +88,12 @@ class ObserverDashboard:
             if state in reached and instrument:
                 reached[state].add(instrument)
 
-        funnel = [{"state": s, "instrument_count": len(reached[s])} for s in _FUNNEL_STATES]
-        base = funnel[0]["instrument_count"] or 1
+        funnel: list[dict[str, Any]] = [
+            {"state": s, "instrument_count": len(reached[s])} for s in _FUNNEL_STATES
+        ]
+        base = int(funnel[0]["instrument_count"]) or 1
         for row in funnel:
-            row["conversion_from_observing"] = round(row["instrument_count"] / base, 4)
+            row["conversion_from_observing"] = round(int(row["instrument_count"]) / base, 4)
 
         return {"view": "OBSERVER_TRANSITION_FUNNEL", "funnel": funnel}
 

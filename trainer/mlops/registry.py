@@ -301,9 +301,7 @@ def _model_record_to_entry(record: ModelRecord) -> UnifiedModelEntry:
         training_config=dict(record.training_config),
         validation_report=dict(record.validation_report),
         deployment_state=record.lifecycle_state,
-        champion_status=(
-            ChampionStatus.CHAMPION if record.is_champion else ChampionStatus.NONE
-        ),
+        champion_status=(ChampionStatus.CHAMPION if record.is_champion else ChampionStatus.NONE),
         created_at=_to_epoch(record.created_at),
         updated_at=_to_epoch(record.updated_at),
         native_snapshot=record.to_dict(),

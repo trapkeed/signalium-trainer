@@ -37,10 +37,7 @@ from trainer.mie.market_quality_engine import MarketQualityEngine
 from trainer.mie.market_regime_engine import MarketRegimeEngine
 from trainer.mie.mie_dashboard import MIEDashboard
 from trainer.mie.mie_database import MIEDatabase
-from trainer.mie.mie_models import (
-    MarketInput,
-    MarketIntelligenceReport,
-)
+from trainer.mie.mie_models import MarketInput, MarketIntelligenceReport
 from trainer.mie.momentum_intelligence import MomentumIntelligenceEngine
 from trainer.mie.news_intelligence import NewsIntelligenceEngine
 from trainer.mie.portfolio_risk_engine import MIEPortfolioRiskEngine

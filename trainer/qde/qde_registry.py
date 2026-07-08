@@ -271,9 +271,7 @@ class QDERegistry:
         return self._unified.next_version_number(_QDE_FAMILY)
 
     def lineage(self, version_id: str) -> list[QDEVersion]:
-        return [
-            self._unified.get_native(e.entry_id) for e in self._unified.lineage(version_id)
-        ]
+        return [self._unified.get_native(e.entry_id) for e in self._unified.lineage(version_id)]
 
     def summary(self) -> dict[str, Any]:
         active = self.get_active()

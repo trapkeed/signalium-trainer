@@ -26,10 +26,10 @@ from __future__ import annotations
 
 from trainer.qde.qde_account_models import AccountFeatures, AccountRiskAssessment, AccountSnapshot
 from trainer.qde.qde_account_types import (
+    DAILY_LOSS_HARD_LIMIT_PCT,
     DRAWDOWN_APPROACH_BAND_PCT,
     DRAWDOWN_HARD_LIMIT_PCT,
     DRAWDOWN_SOFT_LIMIT_PCT,
-    DAILY_LOSS_HARD_LIMIT_PCT,
     FREE_MARGIN_LOW_PCT,
     LOSING_STREAK_DEFENSIVE_THRESHOLD,
     LOSING_STREAK_SEVERE_THRESHOLD,
@@ -79,15 +79,21 @@ class AccountFeaturePipeline:
         history_hwm = max([e for e in equities if e > 0], default=snapshot.equity)
 
         reported_dd = max(0.0, min(0.999, snapshot.current_drawdown_pct))
-        implied_hwm = snapshot.equity / (1 - reported_dd) if reported_dd > 0 and snapshot.equity > 0 else snapshot.equity
+        implied_hwm = (
+            snapshot.equity / (1 - reported_dd)
+            if reported_dd > 0 and snapshot.equity > 0
+            else snapshot.equity
+        )
 
         hwm = max(history_hwm, implied_hwm)
         drawdown_from_peak = ((hwm - snapshot.equity) / hwm) if hwm > 0 else 0.0
         drawdown_from_peak = max(0.0, drawdown_from_peak, reported_dd)
 
         approaching_soft = (
-            DRAWDOWN_SOFT_LIMIT_PCT - DRAWDOWN_APPROACH_BAND_PCT
-        ) <= drawdown_from_peak < DRAWDOWN_HARD_LIMIT_PCT
+            (DRAWDOWN_SOFT_LIMIT_PCT - DRAWDOWN_APPROACH_BAND_PCT)
+            <= drawdown_from_peak
+            < DRAWDOWN_HARD_LIMIT_PCT
+        )
         breached_hard = drawdown_from_peak >= DRAWDOWN_HARD_LIMIT_PCT
 
         # ── P&L trend (simple momentum of daily_pnl_pct over recent history) ─
@@ -112,9 +118,7 @@ class AccountFeaturePipeline:
         else:
             span = MARGIN_LEVEL_WARNING_PCT - MARGIN_LEVEL_CRITICAL_PCT
             margin_pressure = _clamp(
-                (MARGIN_LEVEL_WARNING_PCT - snapshot.margin_level_pct) / span
-                if span > 0
-                else 0.0
+                (MARGIN_LEVEL_WARNING_PCT - snapshot.margin_level_pct) / span if span > 0 else 0.0
             )
         margin_critical = 0 < snapshot.margin_level_pct <= MARGIN_LEVEL_CRITICAL_PCT
 
@@ -130,13 +134,17 @@ class AccountFeaturePipeline:
         # ── Trade-frequency vs the account's own rolling baseline ───────────
         past_trade_counts = [s.get("trades_today", 0) for s in past_snapshots[-14:]]
         baseline = (
-            sum(past_trade_counts) / len(past_trade_counts) if past_trade_counts else float(snapshot.trades_today)
+            sum(past_trade_counts) / len(past_trade_counts)
+            if past_trade_counts
+            else float(snapshot.trades_today)
         )
         if baseline > 0:
             freq_ratio = snapshot.trades_today / baseline
         else:
             freq_ratio = 1.0 if snapshot.trades_today == 0 else float(snapshot.trades_today)
-        is_overtrading = freq_ratio >= TRADE_FREQUENCY_OVERTRADE_MULTIPLIER and snapshot.trades_today >= 3
+        is_overtrading = (
+            freq_ratio >= TRADE_FREQUENCY_OVERTRADE_MULTIPLIER and snapshot.trades_today >= 3
+        )
 
         return AccountFeatures(
             account_id=snapshot.account_id,
@@ -204,7 +212,11 @@ class AccountFeaturePipeline:
             )
 
         if features.daily_loss_limit_breached or features.weekly_loss_limit_breached:
-            code = "DAILY_LOSS_LIMIT_BREACHED" if features.daily_loss_limit_breached else "WEEKLY_LOSS_LIMIT_BREACHED"
+            code = (
+                "DAILY_LOSS_LIMIT_BREACHED"
+                if features.daily_loss_limit_breached
+                else "WEEKLY_LOSS_LIMIT_BREACHED"
+            )
             return AccountRiskAssessment(
                 account_id=snapshot.account_id,
                 risk_signal=RISK_SIGNAL_MIN,
@@ -246,7 +258,10 @@ class AccountFeaturePipeline:
             score += 0.10
             reasons.append(f"winning_streak={snapshot.winning_streak}")
 
-        if features.drawdown_from_peak_pct <= 0.001 and snapshot.equity >= features.equity_high_water_mark:
+        if (
+            features.drawdown_from_peak_pct <= 0.001
+            and snapshot.equity >= features.equity_high_water_mark
+        ):
             score += 0.15
             reasons.append("new_equity_high")
 
@@ -258,7 +273,10 @@ class AccountFeaturePipeline:
 
         if features.margin_pressure > 0:
             score -= 0.30 * features.margin_pressure
-            if snapshot.margin_level_pct > 0 and snapshot.margin_level_pct < MARGIN_LEVEL_WARNING_PCT:
+            if (
+                snapshot.margin_level_pct > 0
+                and snapshot.margin_level_pct < MARGIN_LEVEL_WARNING_PCT
+            ):
                 reasons.append(f"margin_level={snapshot.margin_level_pct:.1f}% below warning")
 
         if snapshot.free_margin > 0 and snapshot.equity > 0:
@@ -297,7 +315,12 @@ class AccountFeaturePipeline:
 
         # Inconclusive/thin-evidence cold start -> WAIT rather than a
         # confident-looking NORMAL/AGGRESSIVE call.
-        if not reasons and snapshot.trades_today == 0 and snapshot.losing_streak == 0 and snapshot.winning_streak == 0:
+        if (
+            not reasons
+            and snapshot.trades_today == 0
+            and snapshot.losing_streak == 0
+            and snapshot.winning_streak == 0
+        ):
             action = AccountAction.WAIT
             reasons.append("insufficient_evidence")
 
@@ -320,7 +343,10 @@ def _derive_reason_codes(features: AccountFeatures, snapshot: AccountSnapshot) -
         codes.append("LOSING_STREAK")
     if snapshot.winning_streak >= WINNING_STREAK_CONFIDENCE_THRESHOLD:
         codes.append("WINNING_STREAK")
-    if features.drawdown_from_peak_pct <= 0.001 and snapshot.equity >= features.equity_high_water_mark:
+    if (
+        features.drawdown_from_peak_pct <= 0.001
+        and snapshot.equity >= features.equity_high_water_mark
+    ):
         codes.append("NEW_EQUITY_HIGH")
     if features.margin_pressure > 0.3:
         codes.append("MARGIN_PRESSURE")

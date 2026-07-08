@@ -202,7 +202,9 @@ class QDEObserverDatabase:
         ).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
-    def count_transitions_since(self, instrument: str, since_ts: float, event: str | None = None) -> int:
+    def count_transitions_since(
+        self, instrument: str, since_ts: float, event: str | None = None
+    ) -> int:
         if event:
             row = self._conn.execute(
                 "SELECT COUNT(*) AS n FROM observer_transitions "

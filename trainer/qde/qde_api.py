@@ -47,22 +47,13 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_ab_testing import QDEABTestingEngine
-from trainer.qde.qde_models import (
-    QDEABTestType,
-    QDEPromotionCriteria,
-    QDEStage,
-    QDEVersion,
-)
+from trainer.qde.qde_models import QDEABTestType, QDEPromotionCriteria, QDEStage, QDEVersion
 from trainer.qde.qde_pipeline import QDEPipeline
 from trainer.qde.qde_promotion import QDEPromotionEngine
 from trainer.qde.qde_registry import QDERegistry
 from trainer.qde.qde_rollback import QDERollbackManager
 from trainer.qde.qde_shadow import ShadowDispatcher, evaluate_and_maybe_promote
-from trainer.research_lab.rl_models import (
-    ShadowTestRecommendation,
-    ShadowTestRun,
-    ShadowTestStatus,
-)
+from trainer.research_lab.rl_models import ShadowTestRecommendation, ShadowTestRun, ShadowTestStatus
 
 
 @dataclass

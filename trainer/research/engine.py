@@ -53,10 +53,7 @@ from trainer.research.market_evolution import MarketEvolutionMonitor
 from trainer.research.model_health_evolution import ModelHealthEvolutionTracker
 from trainer.research.observatory import ResearchObservatory, ValidationRecord
 from trainer.research.research_assistant import ResearchAssistant
-from trainer.research.retraining_advisor import (
-    RetrainingAdvisor,
-    build_default_advisor,
-)
+from trainer.research.retraining_advisor import RetrainingAdvisor, build_default_advisor
 from trainer.research.visualization import ResearchVisualizationBuilder
 
 # ---------------------------------------------------------------------------

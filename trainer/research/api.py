@@ -48,10 +48,7 @@ from loguru import logger
 from trainer.research.database import ResearchDatabase
 from trainer.research.dataset_evolution import DatasetEvolutionTracker, DatasetRecord
 from trainer.research.experiment_engine import ExperimentRecommendationEngine
-from trainer.research.feature_lifecycle import (
-    FeatureLifecycleManager,
-    FeatureRecord,
-)
+from trainer.research.feature_lifecycle import FeatureLifecycleManager, FeatureRecord
 from trainer.research.knowledge_base import KnowledgeBase, KnowledgeEntry
 from trainer.research.label_quality import LabelQualityMonitor
 from trainer.research.market_evolution import MarketEvolutionMonitor

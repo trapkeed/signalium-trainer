@@ -782,9 +782,7 @@ class TestVisualization:
 
 class TestFutureEncoderInterfaces:
     def test_all_interfaces_importable(self):
-        from trainer.interfaces import (
-            BaseExternalEncoder,
-        )
+        from trainer.interfaces import BaseExternalEncoder
 
         # All 10 names must be importable
         assert BaseExternalEncoder is not None

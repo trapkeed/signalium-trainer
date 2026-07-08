@@ -69,7 +69,7 @@ class MultiTaskTrainingEngine:
         set_seed(config.training.seed, deterministic=config.gpu.cudnn_deterministic)
         self._device = resolve_device(config.gpu.device)
 
-        self._model = model.to(self._device)
+        self._model: BaseQuantModel = model.to(self._device)  # type: ignore[assignment]
         self._optimizer = self._build_optimizer()
         self._scheduler: Any = self._build_scheduler()
         self._scaler = GradScaler(enabled=config.training.mixed_precision)
@@ -178,7 +178,7 @@ class MultiTaskTrainingEngine:
                 device_type=self._device.type,
                 enabled=self._config.training.mixed_precision,
             ):
-                predictions = self._model.forward_multi_task(x)
+                predictions = self._model.forward_multi_task(x)  # type: ignore[operator]
                 loss_output = self._criterion(predictions, labels)
                 # Scale loss for accumulation
                 scaled_total = loss_output.total / accum_steps
@@ -243,7 +243,7 @@ class MultiTaskTrainingEngine:
                 device_type=self._device.type,
                 enabled=self._config.training.mixed_precision,
             ):
-                predictions = self._model.forward_multi_task(x)
+                predictions = self._model.forward_multi_task(x)  # type: ignore[operator]
                 loss_output = self._criterion(predictions, labels)
 
             per_head = loss_output.to_dict()

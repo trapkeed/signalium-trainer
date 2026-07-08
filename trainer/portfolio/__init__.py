@@ -86,10 +86,7 @@ from trainer.portfolio.portfolio_instruments import (
 )
 
 # ── Portfolio Scorer ───────────────────────────────────────────────────────────
-from trainer.portfolio.portfolio_scorer import (
-    PortfolioMetrics,
-    PortfolioScorer,
-)
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics, PortfolioScorer
 
 # ── Position Allocator ─────────────────────────────────────────────────────────
 from trainer.portfolio.position_allocator import (

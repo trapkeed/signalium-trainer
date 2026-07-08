@@ -405,7 +405,9 @@ class TestPositionSizerFromDecision(unittest.TestCase):
 
     def test_zero_lots_when_decision_has_no_size(self):
         fc = _fc()
-        decision = QDEDecision(instrument="EURUSD", direction="BUY", entry_action=EntryAction.REJECT)
+        decision = QDEDecision(
+            instrument="EURUSD", direction="BUY", entry_action=EntryAction.REJECT
+        )
         result = self.sizer.from_decision(fc, decision)
         self.assertEqual(result.lots, 0.0)
         self.assertEqual(result.method, "QDE_DECISION")

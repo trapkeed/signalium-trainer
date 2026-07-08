@@ -173,38 +173,59 @@ class TestComputePromotionScore(unittest.TestCase):
 
     def test_positive_pnl_diff_beats_negative(self):
         good = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.01,
-            latency_diff_ms=0.0, risk_diff=0.0,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.01,
+            latency_diff_ms=0.0,
+            risk_diff=0.0,
         )
         bad = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=-0.01,
-            latency_diff_ms=0.0, risk_diff=0.0,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=-0.01,
+            latency_diff_ms=0.0,
+            risk_diff=0.0,
         )
         self.assertGreater(good, bad)
 
     def test_higher_latency_penalised(self):
         fast = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.0,
-            latency_diff_ms=0.0, risk_diff=0.0,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.0,
+            latency_diff_ms=0.0,
+            risk_diff=0.0,
         )
         slow = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.0,
-            latency_diff_ms=200.0, risk_diff=0.0,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.0,
+            latency_diff_ms=200.0,
+            risk_diff=0.0,
         )
         self.assertGreater(fast, slow)
 
     def test_large_risk_diff_penalised_either_direction(self):
         neutral = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.0,
-            latency_diff_ms=0.0, risk_diff=0.0,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.0,
+            latency_diff_ms=0.0,
+            risk_diff=0.0,
         )
         more_risk = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.0,
-            latency_diff_ms=0.0, risk_diff=0.05,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.0,
+            latency_diff_ms=0.0,
+            risk_diff=0.05,
         )
         less_risk = compute_promotion_score(
-            decisions_agree=True, confidence_diff=0.0, pnl_diff=0.0,
-            latency_diff_ms=0.0, risk_diff=-0.05,
+            decisions_agree=True,
+            confidence_diff=0.0,
+            pnl_diff=0.0,
+            latency_diff_ms=0.0,
+            risk_diff=-0.05,
         )
         self.assertGreater(neutral, more_risk)
         self.assertGreater(neutral, less_risk)
@@ -264,38 +285,55 @@ class TestShadowDecisionRecordWidenedFields(unittest.TestCase):
 
     def test_new_sets_decisions_agree_correctly(self):
         agree = ShadowDecisionRecord.new(
-            test_id="t1", instrument="EURUSD",
-            champion_decision_type="ENTER", challenger_decision_type="ENTER",
-            champion_confidence=0.5, challenger_confidence=0.5,
+            test_id="t1",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="ENTER",
+            champion_confidence=0.5,
+            challenger_confidence=0.5,
         )
         disagree = ShadowDecisionRecord.new(
-            test_id="t1", instrument="EURUSD",
-            champion_decision_type="ENTER", challenger_decision_type="REJECT",
-            champion_confidence=0.5, challenger_confidence=0.5,
+            test_id="t1",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="REJECT",
+            champion_confidence=0.5,
+            challenger_confidence=0.5,
         )
         self.assertTrue(agree.decisions_agree)
         self.assertFalse(disagree.decisions_agree)
 
     def test_explicit_promotion_score_overrides_autocompute(self):
         record = ShadowDecisionRecord.new(
-            test_id="t1", instrument="EURUSD",
-            champion_decision_type="ENTER", challenger_decision_type="ENTER",
-            champion_confidence=0.5, challenger_confidence=0.5,
+            test_id="t1",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="ENTER",
+            champion_confidence=0.5,
+            challenger_confidence=0.5,
             promotion_score=0.999,
         )
         self.assertEqual(record.promotion_score, 0.999)
 
     def test_to_dict_includes_all_widened_fields(self):
         record = ShadowDecisionRecord.new(
-            test_id="t1", instrument="EURUSD",
-            champion_decision_type="ENTER", challenger_decision_type="ENTER",
-            champion_confidence=0.5, challenger_confidence=0.6,
-            pnl_diff=0.01, latency_diff_ms=2.0, risk_diff=0.002,
+            test_id="t1",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="ENTER",
+            champion_confidence=0.5,
+            challenger_confidence=0.6,
+            pnl_diff=0.01,
+            latency_diff_ms=2.0,
+            risk_diff=0.002,
         )
         d = record.to_dict()
         for key in (
-            "confidence_diff", "pnl_diff", "latency_diff_ms",
-            "risk_diff", "promotion_score",
+            "confidence_diff",
+            "pnl_diff",
+            "latency_diff_ms",
+            "risk_diff",
+            "promotion_score",
         ):
             self.assertIn(key, d)
         self.assertEqual(d["pnl_diff"], round(0.01, 5))
@@ -304,9 +342,12 @@ class TestShadowDecisionRecordWidenedFields(unittest.TestCase):
 
     def test_reconstruction_from_to_dict_round_trips(self):
         record = ShadowDecisionRecord.new(
-            test_id="t1", instrument="EURUSD",
-            champion_decision_type="ENTER", challenger_decision_type="WAIT",
-            champion_confidence=0.5, challenger_confidence=0.6,
+            test_id="t1",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="WAIT",
+            champion_confidence=0.5,
+            challenger_confidence=0.6,
         )
         rebuilt = ShadowDecisionRecord(**record.to_dict())
         self.assertAlmostEqual(rebuilt.promotion_score, record.promotion_score, places=4)
@@ -319,8 +360,11 @@ class TestShadowDecisionRecordWidenedFields(unittest.TestCase):
 class TestShadowTestRunConclude(unittest.TestCase):
     def _run_with_decisions(self, decisions, min_decisions=1):
         test = ShadowTestRun.new(
-            name="t", challenger_version="v2", champion_version="v1",
-            instruments=["EURUSD"], min_decisions=min_decisions,
+            name="t",
+            challenger_version="v2",
+            champion_version="v1",
+            instruments=["EURUSD"],
+            min_decisions=min_decisions,
         )
         for d in decisions:
             test.add_decision(d)
@@ -329,9 +373,12 @@ class TestShadowTestRunConclude(unittest.TestCase):
     def test_promote_when_high_score_and_agreement(self):
         decisions = [
             ShadowDecisionRecord.new(
-                test_id="t", instrument="EURUSD",
-                champion_decision_type="ENTER", challenger_decision_type="ENTER",
-                champion_confidence=0.6, challenger_confidence=0.65,
+                test_id="t",
+                instrument="EURUSD",
+                champion_decision_type="ENTER",
+                challenger_decision_type="ENTER",
+                champion_confidence=0.6,
+                challenger_confidence=0.65,
             )
             for _ in range(5)
         ]
@@ -343,10 +390,15 @@ class TestShadowTestRunConclude(unittest.TestCase):
     def test_reject_when_low_score(self):
         decisions = [
             ShadowDecisionRecord.new(
-                test_id="t", instrument="EURUSD",
-                champion_decision_type="ENTER", challenger_decision_type="REJECT",
-                champion_confidence=0.6, challenger_confidence=0.1,
-                pnl_diff=-0.05, latency_diff_ms=300.0, risk_diff=0.05,
+                test_id="t",
+                instrument="EURUSD",
+                champion_decision_type="ENTER",
+                challenger_decision_type="REJECT",
+                champion_confidence=0.6,
+                challenger_confidence=0.1,
+                pnl_diff=-0.05,
+                latency_diff_ms=300.0,
+                risk_diff=0.05,
             )
             for _ in range(5)
         ]
@@ -357,9 +409,12 @@ class TestShadowTestRunConclude(unittest.TestCase):
     def test_extend_when_below_min_decisions(self):
         decisions = [
             ShadowDecisionRecord.new(
-                test_id="t", instrument="EURUSD",
-                champion_decision_type="ENTER", challenger_decision_type="ENTER",
-                champion_confidence=0.6, challenger_confidence=0.65,
+                test_id="t",
+                instrument="EURUSD",
+                champion_decision_type="ENTER",
+                challenger_decision_type="ENTER",
+                champion_confidence=0.6,
+                challenger_confidence=0.65,
             )
         ]
         test = self._run_with_decisions(decisions, min_decisions=100)
@@ -378,12 +433,20 @@ class TestShadowDispatcher(unittest.TestCase):
 
         now = time.time()
         self.champion_version = QDEVersion(
-            version_id="v-champ", version_number=1, label="champion",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-champ",
+            version_number=1,
+            label="champion",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
         )
         self.challenger_version = QDEVersion(
-            version_id="v-chall", version_number=2, label="challenger",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-chall",
+            version_number=2,
+            label="challenger",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
         )
         self.registry.register(self.champion_version)
         self.registry.register(self.challenger_version)
@@ -441,8 +504,12 @@ class TestShadowDispatcher(unittest.TestCase):
         )
 
     def test_pnl_diff_uses_expected_pnl_proxy(self):
-        champion_decision = _decision(position_size_lots=1.0, risk_allocation_pct=0.01, confidence=0.5)
-        challenger_decision = _decision(position_size_lots=2.0, risk_allocation_pct=0.02, confidence=0.9)
+        champion_decision = _decision(
+            position_size_lots=1.0, risk_allocation_pct=0.01, confidence=0.5
+        )
+        challenger_decision = _decision(
+            position_size_lots=2.0, risk_allocation_pct=0.02, confidence=0.9
+        )
         self.registry.register_decision_model(
             "v-champ", _StubDecisionModel(champion_decision, version_id="v-champ")
         )
@@ -453,7 +520,9 @@ class TestShadowDispatcher(unittest.TestCase):
         result = dispatcher.dispatch(
             test_id="shadow-1", challenger_version_id="v-chall", inputs=_build_input()
         )
-        expected_diff = expected_pnl_proxy(challenger_decision) - expected_pnl_proxy(champion_decision)
+        expected_diff = expected_pnl_proxy(challenger_decision) - expected_pnl_proxy(
+            champion_decision
+        )
         self.assertAlmostEqual(result.record.pnl_diff, expected_diff, places=6)
         self.assertGreater(result.record.pnl_diff, 0.0)
 
@@ -488,8 +557,11 @@ class TestShadowDispatcher(unittest.TestCase):
         )
         d = result.to_dict()
         for key in (
-            "champion_decision", "challenger_decision",
-            "champion_latency_ms", "challenger_latency_ms", "record",
+            "champion_decision",
+            "challenger_decision",
+            "champion_latency_ms",
+            "challenger_latency_ms",
+            "record",
         ):
             self.assertIn(key, d)
 
@@ -506,8 +578,12 @@ class TestEvaluateAndMaybePromote(unittest.TestCase):
 
         now = time.time()
         self.challenger = QDEVersion(
-            version_id="v-chall", version_number=2, label="challenger",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-chall",
+            version_number=2,
+            label="challenger",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
             metrics={
                 "sharpe_ratio": 1.2,
                 "sortino_ratio": 1.3,
@@ -530,8 +606,11 @@ class TestEvaluateAndMaybePromote(unittest.TestCase):
 
     def _shadow_test(self, recommendation, status=ShadowTestStatus.CONCLUDED, avg_score=0.8):
         test = ShadowTestRun.new(
-            name="t", challenger_version="v-chall", champion_version="v-champ",
-            instruments=["EURUSD"], min_decisions=1,
+            name="t",
+            challenger_version="v-chall",
+            champion_version="v-champ",
+            instruments=["EURUSD"],
+            min_decisions=1,
         )
         test.status = status
         test.recommendation = recommendation
@@ -540,9 +619,7 @@ class TestEvaluateAndMaybePromote(unittest.TestCase):
         return test
 
     def test_not_concluded_returns_no_action(self):
-        test = self._shadow_test(
-            ShadowTestRecommendation.PROMOTE, status=ShadowTestStatus.RUNNING
-        )
+        test = self._shadow_test(ShadowTestRecommendation.PROMOTE, status=ShadowTestStatus.RUNNING)
         result = evaluate_and_maybe_promote(test, self.promotion)
         self.assertEqual(result["action"], "none")
 
@@ -596,12 +673,20 @@ class TestQDELifecycleAPIShadowEndpoints(unittest.TestCase):
 
         now = time.time()
         self.champion = QDEVersion(
-            version_id="v-champ", version_number=1, label="champion",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-champ",
+            version_number=1,
+            label="champion",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
         )
         self.challenger = QDEVersion(
-            version_id="v-chall", version_number=2, label="challenger",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-chall",
+            version_number=2,
+            label="challenger",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
             metrics={
                 "sharpe_ratio": 1.2,
                 "sortino_ratio": 1.3,
@@ -633,8 +718,11 @@ class TestQDELifecycleAPIShadowEndpoints(unittest.TestCase):
         self.assertTrue(resp.success, resp.error)
         record = resp.data["record"]
         for key in (
-            "confidence_diff", "pnl_diff", "latency_diff_ms",
-            "risk_diff", "promotion_score",
+            "confidence_diff",
+            "pnl_diff",
+            "latency_diff_ms",
+            "risk_diff",
+            "promotion_score",
         ):
             self.assertIn(key, record)
 
@@ -713,12 +801,20 @@ class TestDualDispatchToPromotionEndToEnd(unittest.TestCase):
 
         now = time.time()
         champion = QDEVersion(
-            version_id="v-champ", version_number=1, label="champion",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-champ",
+            version_number=1,
+            label="champion",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
         )
         challenger = QDEVersion(
-            version_id="v-chall", version_number=2, label="challenger",
-            stage=QDEStage.DEPLOYMENT_CANDIDATE, created_at=now, updated_at=now,
+            version_id="v-chall",
+            version_number=2,
+            label="challenger",
+            stage=QDEStage.DEPLOYMENT_CANDIDATE,
+            created_at=now,
+            updated_at=now,
             metrics={
                 "sharpe_ratio": 1.5,
                 "sortino_ratio": 1.6,
@@ -752,15 +848,20 @@ class TestDualDispatchToPromotionEndToEnd(unittest.TestCase):
 
     def test_full_pipeline_dispatch_persist_conclude_promote(self):
         created = self.rl_api.create_shadow_test(
-            name="v2 shadow", challenger_version="v-chall",
-            champion_version="v-champ", instruments=["EURUSD"], min_decisions=3,
+            name="v2 shadow",
+            challenger_version="v-chall",
+            champion_version="v-champ",
+            instruments=["EURUSD"],
+            min_decisions=3,
         )
         self.assertTrue(created.success, created.error)
         test_id = created.data["test_id"]
 
         for _ in range(3):
             dispatch_resp = self.qde_api.dispatch_shadow_decision(
-                test_id=test_id, challenger_version_id="v-chall", inputs=_build_input(),
+                test_id=test_id,
+                challenger_version_id="v-chall",
+                inputs=_build_input(),
             )
             self.assertTrue(dispatch_resp.success, dispatch_resp.error)
             record = ShadowDecisionRecord(**dispatch_resp.data["record"])

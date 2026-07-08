@@ -61,9 +61,7 @@ class HindsightPositionSizeLabeler:
     def label(self, path: TradeOutcomePath) -> HindsightPositionSizeLabel:
         realized_return_pct = path.realized_return_pct()
         realized_risk_abs = path.max_adverse_excursion()
-        realized_risk_pct = (
-            realized_risk_abs / path.entry_price if path.entry_price else 0.0
-        )
+        realized_risk_pct = realized_risk_abs / path.entry_price if path.entry_price else 0.0
 
         if realized_risk_pct <= 1e-9:
             # No adverse excursion at all was realized — the trade carried

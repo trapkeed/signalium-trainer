@@ -14,11 +14,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.analyst.analyst_models import (
-    ChatSession,
-    LLMResponse,
-    ResearchQuery,
-)
+from trainer.analyst.analyst_models import ChatSession, LLMResponse, ResearchQuery
 from trainer.analyst.analyst_types import Permission, QueryType, Role, has_permission
 from trainer.analyst.citation_engine import CitationEngine
 from trainer.analyst.knowledge_index import KnowledgeIndex

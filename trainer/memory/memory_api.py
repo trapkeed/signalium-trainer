@@ -32,11 +32,7 @@ from trainer.memory.counterfactual_engine import CounterfactualEngine
 from trainer.memory.decision_benchmarking import DecisionBenchmarking
 from trainer.memory.decision_lineage import DecisionLineage
 from trainer.memory.decision_memory import DecisionMemory
-from trainer.memory.decision_models import (
-    DecisionReasoning,
-    DecisionRecord,
-    DecisionSnapshot,
-)
+from trainer.memory.decision_models import DecisionReasoning, DecisionRecord, DecisionSnapshot
 from trainer.memory.decision_types import DecisionType, OutcomeType
 from trainer.memory.knowledge_base import KnowledgeBase
 from trainer.memory.memory_dashboard import MemoryDashboard

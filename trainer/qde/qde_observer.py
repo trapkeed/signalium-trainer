@@ -30,11 +30,7 @@ from trainer.qde.qde_observer_models import (
     ObserverMemory,
     SymbolObservationInput,
 )
-from trainer.qde.qde_observer_types import (
-    ObserverEvent,
-    ObserverState,
-    is_valid_transition,
-)
+from trainer.qde.qde_observer_types import ObserverEvent, ObserverState, is_valid_transition
 
 # ── Tunables ──────────────────────────────────────────────────────────────────
 # Named constants (not magic numbers) so the anti-overtrading / anti-revenge-

@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-from trainer.config.schema import (
-    Environment,
-    OptimizerType,
-    SchedulerType,
-    TrainerConfig,
-)
+from trainer.config.schema import Environment, OptimizerType, SchedulerType, TrainerConfig
 
 
 def test_trainer_config_defaults() -> None:

@@ -21,12 +21,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_models import KnowledgeChunk, ResearchQuery
-from trainer.analyst.analyst_types import (
-    KnowledgeSourceType,
-    Permission,
-    QueryType,
-    has_permission,
-)
+from trainer.analyst.analyst_types import KnowledgeSourceType, Permission, QueryType, has_permission
 from trainer.analyst.citation_engine import CitationEngine
 from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider

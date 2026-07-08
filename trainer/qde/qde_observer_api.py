@@ -152,7 +152,9 @@ class QDEObserverAPI:
 
     def dashboard_state_timeline(self, granularity: str = "hour", limit: int = 2000) -> ApiResponse:
         transitions = self._db.list_transitions(limit=limit)
-        return _ok("dashboard_state_timeline", self._dashboard.state_timeline(transitions, granularity))
+        return _ok(
+            "dashboard_state_timeline", self._dashboard.state_timeline(transitions, granularity)
+        )
 
     def dashboard_dwell_histogram(self) -> ApiResponse:
         states = [m.to_dict() for m in self._engine.all_memory().values()]

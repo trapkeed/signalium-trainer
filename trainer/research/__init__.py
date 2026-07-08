@@ -92,11 +92,7 @@ from trainer.research.categories import (
     ValidationQualityScorer,
 )
 from trainer.research.champion import ChampionRegistry, ModelEntry, ModelStatus
-from trainer.research.confidence import (
-    ConfidenceCalculator,
-    ConfidenceInputs,
-    ConfidenceResult,
-)
+from trainer.research.confidence import ConfidenceCalculator, ConfidenceInputs, ConfidenceResult
 from trainer.research.cost_tracker import CostTracker, ExperimentCost
 from trainer.research.dashboard import DashboardBuilder
 from trainer.research.differencing import (
@@ -149,16 +145,8 @@ from trainer.research.hrsa_scorer import (
     HierarchicalScore,
     SensitivityResult,
 )
-from trainer.research.hrsa_trends import (
-    HRSATrendEngine,
-    RegressionEvent,
-    TrendPoint,
-    TrendResult,
-)
-from trainer.research.hrsa_whatif import (
-    HRSAWhatIfSimulator,
-    SimulationResult,
-)
+from trainer.research.hrsa_trends import HRSATrendEngine, RegressionEvent, TrendPoint, TrendResult
+from trainer.research.hrsa_whatif import HRSAWhatIfSimulator, SimulationResult
 from trainer.research.hyperparameter import HyperparameterRecord
 from trainer.research.knowledge_graph import (
     EdgeType,
@@ -168,15 +156,8 @@ from trainer.research.knowledge_graph import (
     NodeType,
 )
 from trainer.research.leaderboard import Leaderboard, LeaderboardEntry, ScoringWeights
-from trainer.research.leaderboard_irse import (
-    IRSELeaderboard,
-    IRSELeaderboardEntry,
-)
-from trainer.research.lineage import (
-    ExperimentStatus,
-    LineageNode,
-    LineageTree,
-)
+from trainer.research.leaderboard_irse import IRSELeaderboard, IRSELeaderboardEntry
+from trainer.research.lineage import ExperimentStatus, LineageNode, LineageTree
 from trainer.research.lineage_api import LineageAPI
 from trainer.research.lineage_database import LineageDatabase
 from trainer.research.normalization import (
@@ -213,11 +194,7 @@ from trainer.research.snapshots import (
     ModelSnapshot,
     ValidationSnapshot,
 )
-from trainer.research.timeline import (
-    ResearchTimeline,
-    TimelineEvent,
-    TimelineEventType,
-)
+from trainer.research.timeline import ResearchTimeline, TimelineEvent, TimelineEventType
 from trainer.research.trends import (
     ChampionChange,
     RegressionAlert,

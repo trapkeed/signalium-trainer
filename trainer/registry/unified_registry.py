@@ -393,9 +393,7 @@ class UnifiedModelRegistry:
             if e.rollback_history and e.champion_status == ChampionStatus.CHAMPION:
                 last_rollback = e.rollback_history[-1]
                 if last_rollback.from_entry_id == e.entry_id:
-                    issues.append(
-                        f"{e.entry_id} was rolled back away from but is still CHAMPION"
-                    )
+                    issues.append(f"{e.entry_id} was rolled back away from but is still CHAMPION")
         for fam, ids in champions_by_family.items():
             if len(ids) > 1:
                 issues.append(f"family={fam!r} has multiple CHAMPION entries: {ids}")
@@ -604,9 +602,7 @@ class UnifiedModelRegistry:
             entry = self._entries.get(entry_id)
             if entry is None:
                 raise KeyError(f"Entry {entry_id} not found")
-            record = ExperimentLineageEntry(
-                experiment_id=experiment_id, source=source, notes=notes
-            )
+            record = ExperimentLineageEntry(experiment_id=experiment_id, source=source, notes=notes)
             entry.experiment_lineage.append(record)
             entry.updated_at = time.time()
             self._save()

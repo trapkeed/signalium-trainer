@@ -45,6 +45,7 @@ class DecisionSnapshot:
     champion_model: str = ""
     research_score: float = 0.0
     model_output: float = 0.0
+    ensemble_output: float = 0.0
 
     # Portfolio state
     portfolio_exposure: float = 0.0  # fraction of account
@@ -53,6 +54,7 @@ class DecisionSnapshot:
     # Detailed dicts (stored as JSON)
     risk_metrics: dict = field(default_factory=dict)
     feature_snapshot: dict = field(default_factory=dict)
+    expert_weights: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -75,10 +77,12 @@ class DecisionSnapshot:
             "champion_model": self.champion_model,
             "research_score": round(self.research_score, 4),
             "model_output": round(self.model_output, 4),
+            "ensemble_output": round(self.ensemble_output, 4),
             "portfolio_exposure": round(self.portfolio_exposure, 4),
             "correlation_risk": round(self.correlation_risk, 4),
             "risk_metrics": self.risk_metrics,
             "feature_snapshot": self.feature_snapshot,
+            "expert_weights": self.expert_weights,
         }
 
 

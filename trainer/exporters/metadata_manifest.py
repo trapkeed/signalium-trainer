@@ -39,11 +39,7 @@ from loguru import logger
 
 from trainer.exporters.manifest import ManifestBuilder
 from trainer.traceability.config import TraceabilityConfig
-from trainer.traceability.metadata import (
-    ModelInfo,
-    ReproducibilityInfo,
-    SchemaVersions,
-)
+from trainer.traceability.metadata import ModelInfo, ReproducibilityInfo, SchemaVersions
 
 
 class MetadataManifestBuilder(ManifestBuilder):

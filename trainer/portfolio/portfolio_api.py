@@ -23,19 +23,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from trainer.portfolio.conflict_resolver import ConflictResolver
-from trainer.portfolio.correlation_engine import (
-    CorrelationEngine,
-    CorrelationMethod,
-)
+from trainer.portfolio.correlation_engine import CorrelationEngine, CorrelationMethod
 from trainer.portfolio.dependency_graph import DependencyGraphBuilder
 from trainer.portfolio.exposure_engine import ExposureEngine
 from trainer.portfolio.optimizer import OptimizationObjective, PortfolioOptimizer
 from trainer.portfolio.portfolio_dashboard import PortfolioDashboard
 from trainer.portfolio.portfolio_database import PortfolioDatabase
-from trainer.portfolio.portfolio_instruments import (
-    InstrumentRegistry,
-    ModelForecast,
-)
+from trainer.portfolio.portfolio_instruments import InstrumentRegistry, ModelForecast
 from trainer.portfolio.portfolio_scorer import PortfolioScorer
 from trainer.portfolio.position_allocator import AllocationMethod, PositionAllocator
 from trainer.portfolio.regime_detector import RegimeDetector

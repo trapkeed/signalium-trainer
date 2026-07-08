@@ -1121,9 +1121,7 @@ class ShadowTestRun:
 
         # Average promotion score across all recorded comparisons — the
         # live-traffic counterpart to the backtest engine's dimension scores.
-        self.avg_promotion_score = round(
-            sum(d.promotion_score for d in self.decisions) / n, 4
-        )
+        self.avg_promotion_score = round(sum(d.promotion_score for d in self.decisions) / n, 4)
 
         # Recommendation logic — driven primarily by the averaged promotion
         # score, with agreement rate as a guardrail so a high score built on

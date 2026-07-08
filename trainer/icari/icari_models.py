@@ -38,10 +38,15 @@ class AllocationRequest:
     volatility: float = 0.01  # daily vol
     liquidity: float = 1.0  # 0–1 liquidity score
     model_confidence: float = 0.5
+    ensemble_confidence: float | None = None  # defaults to model_confidence when unset
     decision_quality: float = 0.5
     atr: float = 0.001  # average true range
     capital: float = 100_000.0
     timestamp: float = field(default_factory=time.time)
+
+    def __post_init__(self) -> None:
+        if self.ensemble_confidence is None:
+            self.ensemble_confidence = self.model_confidence
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}

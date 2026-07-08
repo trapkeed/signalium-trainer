@@ -345,7 +345,7 @@ class ExplainabilityEngine:
             model.eval()
             if not hasattr(model, "_encode"):
                 return None
-            context, _, _ = model._encode(input_tensor)
+            context, _, _ = model._encode(input_tensor)  # type: ignore[operator]
             unc = unc_head(context)  # (batch, 2) — [epistemic, aleatoric]
             ep = float(unc[0, 0].item())
             al = float(unc[0, 1].item())

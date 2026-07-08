@@ -96,18 +96,6 @@ _retraining_advisor = _load_standalone(
 # (which will also satisfy trainer.learning_loop.actuators's own imports via
 # sys.modules caching) are used from here on.
 
-from trainer.lifecycle.lifecycle_optimizer import (  # noqa: E402
-    OptimisationFinding,
-    OptimisationReport,
-)
-from trainer.memory.decision_models import CounterfactualResult  # noqa: E402
-from trainer.memory.outcome_tracker import OutcomeSummary  # noqa: E402
-from trainer.memory.pattern_discovery import DiscoveredPattern, PatternReport  # noqa: E402
-from trainer.memory.self_evaluation import SelfAssessment  # noqa: E402
-from trainer.portfolio.optimizer import OptimizationResult  # noqa: E402
-from trainer.portfolio.portfolio_scorer import PortfolioMetrics  # noqa: E402
-from trainer.research_lab.research_lab_api import ResearchLabAPI  # noqa: E402
-
 from trainer.learning_loop.actuators import (  # noqa: E402
     ActionType,
     ActuatorAction,
@@ -120,6 +108,17 @@ from trainer.learning_loop.actuators import (  # noqa: E402
     SlippageReport,
 )
 from trainer.learning_loop.scheduler import LearningLoopScheduler  # noqa: E402
+from trainer.lifecycle.lifecycle_optimizer import (  # noqa: E402
+    OptimisationFinding,
+    OptimisationReport,
+)
+from trainer.memory.decision_models import CounterfactualResult  # noqa: E402
+from trainer.memory.outcome_tracker import OutcomeSummary  # noqa: E402
+from trainer.memory.pattern_discovery import DiscoveredPattern, PatternReport  # noqa: E402
+from trainer.memory.self_evaluation import SelfAssessment  # noqa: E402
+from trainer.portfolio.optimizer import OptimizationResult  # noqa: E402
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics  # noqa: E402
+from trainer.research_lab.research_lab_api import ResearchLabAPI  # noqa: E402
 
 
 def _make_actuator() -> LearningLoopActuator:
@@ -534,7 +533,9 @@ class TestRunCycle(unittest.TestCase):
         self.assertEqual(result.actions, [])
 
     def test_run_cycle_aggregates_multiple_reports(self):
-        assessment = SelfAssessment(period="2026-06", overall_win_rate=0.20, overall_quality_score=0.2)
+        assessment = SelfAssessment(
+            period="2026-06", overall_win_rate=0.20, overall_quality_score=0.2
+        )
         summary = OutcomeSummary(total=50, with_outcome=50, win_rate=0.55, hit_sl_count=30)
         result = self.actuator.run_cycle(self_assessment=assessment, outcome_summary=summary)
         self.assertGreaterEqual(len(result.actions), 2)
@@ -631,16 +632,26 @@ class TestSlippageReportActuator(unittest.TestCase):
 
     def test_slippage_atr_direction_handling(self):
         buy_adverse = SlippageRecord(
-            instrument="EURUSD", direction="BUY", expected_price=1.1000, actual_price=1.1010, atr=0.0010
+            instrument="EURUSD",
+            direction="BUY",
+            expected_price=1.1000,
+            actual_price=1.1010,
+            atr=0.0010,
         )
         sell_adverse = SlippageRecord(
-            instrument="EURUSD", direction="SELL", expected_price=1.1000, actual_price=1.0990, atr=0.0010
+            instrument="EURUSD",
+            direction="SELL",
+            expected_price=1.1000,
+            actual_price=1.0990,
+            atr=0.0010,
         )
         self.assertAlmostEqual(buy_adverse.slippage_atr(), 1.0)
         self.assertAlmostEqual(sell_adverse.slippage_atr(), 1.0)
 
     def test_zero_atr_is_safe(self):
-        rec = SlippageRecord(instrument="EURUSD", direction="BUY", expected_price=1.1, actual_price=1.11, atr=0.0)
+        rec = SlippageRecord(
+            instrument="EURUSD", direction="BUY", expected_price=1.1, actual_price=1.11, atr=0.0
+        )
         self.assertEqual(rec.slippage_atr(), 0.0)
 
 
@@ -769,7 +780,11 @@ class TestRunCycleNewTriggers(unittest.TestCase):
         slippage = SlippageReport(
             records=[
                 SlippageRecord(
-                    instrument="EURUSD", direction="BUY", expected_price=1.1, actual_price=1.1005, atr=0.001
+                    instrument="EURUSD",
+                    direction="BUY",
+                    expected_price=1.1,
+                    actual_price=1.1005,
+                    atr=0.001,
                 )
                 for _ in range(6)
             ]
@@ -777,7 +792,10 @@ class TestRunCycleNewTriggers(unittest.TestCase):
         scaling = ScalingReport(
             outcomes=[
                 ScalingOutcome(
-                    instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=-0.003
+                    instrument="EURUSD",
+                    action="SCALE_IN",
+                    confidence_at_action=0.8,
+                    pnl_impact=-0.003,
                 )
                 for _ in range(6)
             ]
@@ -804,7 +822,9 @@ class TestLearningLoopScheduler(unittest.TestCase):
         self.actuator = _make_actuator()
 
     def test_run_once_invokes_collector_and_returns_result(self):
-        assessment = SelfAssessment(period="2026-06", overall_win_rate=0.20, overall_quality_score=0.2)
+        assessment = SelfAssessment(
+            period="2026-06", overall_win_rate=0.20, overall_quality_score=0.2
+        )
         calls = []
 
         def collector():

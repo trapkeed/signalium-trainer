@@ -31,37 +31,22 @@ Usage::
 """
 
 # ── Entry Quality ──────────────────────────────────────────────────────────────
-from trainer.execution.entry_quality import (
-    EntryQualityEngine,
-    EntryQualityResult,
-)
+from trainer.execution.entry_quality import EntryQualityEngine, EntryQualityResult
 
 # ── Entry Zones ────────────────────────────────────────────────────────────────
-from trainer.execution.entry_zones import (
-    EntryZoneEngine,
-    EntryZones,
-)
+from trainer.execution.entry_zones import EntryZoneEngine, EntryZones
 
 # ── API ────────────────────────────────────────────────────────────────────────
-from trainer.execution.execution_api import (
-    ExecutionApi,
-)
+from trainer.execution.execution_api import ExecutionApi
 
 # ── Dashboard ──────────────────────────────────────────────────────────────────
-from trainer.execution.execution_dashboard import (
-    ExecutionDashboard,
-)
+from trainer.execution.execution_dashboard import ExecutionDashboard
 
 # ── Database ───────────────────────────────────────────────────────────────────
-from trainer.execution.execution_database import (
-    ExecutionDatabase,
-)
+from trainer.execution.execution_database import ExecutionDatabase
 
 # ── Execution Planner ──────────────────────────────────────────────────────────
-from trainer.execution.execution_planner import (
-    ExecutionPlan,
-    ExecutionPlanner,
-)
+from trainer.execution.execution_planner import ExecutionPlan, ExecutionPlanner
 
 # ── Execution Simulator ────────────────────────────────────────────────────────
 from trainer.execution.execution_simulator import (
@@ -71,11 +56,7 @@ from trainer.execution.execution_simulator import (
 )
 
 # ── Execution Timing ───────────────────────────────────────────────────────────
-from trainer.execution.execution_timing import (
-    ExecutionTiming,
-    TimingAssessment,
-    TimingFactor,
-)
+from trainer.execution.execution_timing import ExecutionTiming, TimingAssessment, TimingFactor
 
 # ── Core Types ─────────────────────────────────────────────────────────────────
 from trainer.execution.execution_types import (
@@ -92,48 +73,25 @@ from trainer.execution.execution_types import (
 )
 
 # ── Order Strategy ─────────────────────────────────────────────────────────────
-from trainer.execution.order_strategy import (
-    OrderRecommendation,
-    OrderStrategyEngine,
-)
+from trainer.execution.order_strategy import OrderRecommendation, OrderStrategyEngine
 
 # ── Position Sizing ────────────────────────────────────────────────────────────
-from trainer.execution.position_sizer import (
-    PositionSizer,
-    RiskLimits,
-    SizingResult,
-)
+from trainer.execution.position_sizer import PositionSizer, RiskLimits, SizingResult
 
 # ── Risk Engine ────────────────────────────────────────────────────────────────
-from trainer.execution.risk_engine import (
-    RiskEngine,
-    RiskProfile,
-)
+from trainer.execution.risk_engine import RiskEngine, RiskProfile
 
 # ── Stop Loss ──────────────────────────────────────────────────────────────────
-from trainer.execution.stop_loss_engine import (
-    StopLossEngine,
-    StopLossRecommendation,
-)
+from trainer.execution.stop_loss_engine import StopLossEngine, StopLossRecommendation
 
 # ── Take Profit ────────────────────────────────────────────────────────────────
-from trainer.execution.take_profit_engine import (
-    TakeProfitEngine,
-    TakeProfitRecommendation,
-)
+from trainer.execution.take_profit_engine import TakeProfitEngine, TakeProfitRecommendation
 
 # ── Trade Management ───────────────────────────────────────────────────────────
-from trainer.execution.trade_manager import (
-    ManagementPlan,
-    ManagementRule,
-    TradeManager,
-)
+from trainer.execution.trade_manager import ManagementPlan, ManagementRule, TradeManager
 
 # ── Trade Scorer ───────────────────────────────────────────────────────────────
-from trainer.execution.trade_scorer import (
-    TradeScore,
-    TradeScorer,
-)
+from trainer.execution.trade_scorer import TradeScore, TradeScorer
 
 __all__ = [
     # Types

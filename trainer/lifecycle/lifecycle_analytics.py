@@ -21,10 +21,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.lifecycle.lifecycle_models import StateRecord
-from trainer.lifecycle.lifecycle_states import (
-    CLOSING_STATES,
-    LifecycleState,
-)
+from trainer.lifecycle.lifecycle_states import CLOSING_STATES, LifecycleState
 
 
 @dataclass

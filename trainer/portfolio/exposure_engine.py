@@ -10,10 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from trainer.portfolio.portfolio_instruments import (
-    InstrumentRegistry,
-    ModelForecast,
-)
+from trainer.portfolio.portfolio_instruments import InstrumentRegistry, ModelForecast
 
 
 class ExposureAlert(str, Enum):

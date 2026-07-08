@@ -36,18 +36,10 @@ import torch.nn as nn
 
 from trainer.validation.api import ValidationAPI, _error, _ok
 from trainer.validation.calibration_validator import CalibrationReport, CalibrationValidator
-from trainer.validation.comparison import (
-    ComparisonReport,
-    ModelComparison,
-    ModelSnapshot,
-)
+from trainer.validation.comparison import ComparisonReport, ModelComparison, ModelSnapshot
 from trainer.validation.database import ValidationDatabase, ValidationRunRecord
 from trainer.validation.drift import DriftAnalyzer
-from trainer.validation.engine import (
-    EngineConfig,
-    InstitutionalValidationEngine,
-    ValidationResult,
-)
+from trainer.validation.engine import EngineConfig, InstitutionalValidationEngine, ValidationResult
 from trainer.validation.export import ExportConfig, ReportExporter
 from trainer.validation.failure_analysis import FailureAnalyzer
 from trainer.validation.head_validator import PredictionHeadValidator
@@ -66,11 +58,7 @@ from trainer.validation.promotion import PromotionPolicy, PromotionRule
 from trainer.validation.regime import MarketRegime, MarketRegimeClassifier, RegimeDistribution
 from trainer.validation.robustness import RobustnessReport, RobustnessTester
 from trainer.validation.statistical import StatisticalMetrics, StatisticalMetricsEngine
-from trainer.validation.trading import (
-    TradeResult,
-    TradeSimulator,
-    TradingMetricsEngine,
-)
+from trainer.validation.trading import TradeResult, TradeSimulator, TradingMetricsEngine
 from trainer.validation.visualization import VisualizationDataBuilder
 from trainer.validation.windows import (
     AnchoredWalkForward,

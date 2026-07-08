@@ -1147,9 +1147,7 @@ class ResearchLabAPI:
         )
         return _ok("authorize_lifecycle_action", auth.to_dict())
 
-    def consume_lifecycle_authorization(
-        self, version_id: str, action: str
-    ) -> ApiResponse:
+    def consume_lifecycle_authorization(self, version_id: str, action: str) -> ApiResponse:
         """Atomically find-and-consume the most recent APPROVED, unconsumed
         authorization for (version_id, action). Called by the gateway
         immediately before it executes the corresponding registry mutation;
@@ -1220,9 +1218,11 @@ class ResearchLabAPI:
                 instrument=(affected_instruments[0] if affected_instruments else ""),
                 loss_amount=loss_pct,
                 tags=affected_instruments,
-                metadata={"notes": notes, "detected_at_override": detected_at}
-                if (notes or detected_at is not None)
-                else None,
+                metadata=(
+                    {"notes": notes, "detected_at_override": detected_at}
+                    if (notes or detected_at is not None)
+                    else None
+                ),
             )
             self._db.upsert_failure(failure.to_dict())
             logger.warning(

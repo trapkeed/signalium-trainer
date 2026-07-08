@@ -28,12 +28,7 @@ import pytest
 
 from trainer.research.cost_tracker import CostTracker
 from trainer.research.dashboard import DashboardBuilder
-from trainer.research.differencing import (
-    DatasetDiff,
-    ExperimentDiffer,
-    ModelDiff,
-    ValidationDiff,
-)
+from trainer.research.differencing import DatasetDiff, ExperimentDiffer, ModelDiff, ValidationDiff
 from trainer.research.export import ResearchExporter
 from trainer.research.knowledge_graph import EdgeType, KnowledgeGraph, NodeType
 from trainer.research.lineage import ExperimentStatus, LineageNode, LineageTree

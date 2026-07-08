@@ -15,11 +15,7 @@ import torch
 import torch.nn as nn
 
 from trainer.config.schema import TrainerConfig
-from trainer.framework import (
-    InferenceAdapterFactory,
-    MetricsEngine,
-    ModelFactory,
-)
+from trainer.framework import InferenceAdapterFactory, MetricsEngine, ModelFactory
 from trainer.framework.abstractions import (
     BaseClassificationHead,
     BaseConfidenceHead,

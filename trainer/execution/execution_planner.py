@@ -247,7 +247,8 @@ class ExecutionPlanner:
             market=market,
             portfolio=portfolio or default_portfolio_snapshot(),
             position=position or PositionMetrics(),
-            account=account or QDEAccountSnapshot(
+            account=account
+            or QDEAccountSnapshot(
                 balance=forecast.account_size,
                 equity=forecast.account_size,
                 margin_available=forecast.account_size,

@@ -169,9 +169,7 @@ class TestResearchLabRestartSurvival(unittest.TestCase):
         # 4. Failures
         failure = api2.list_failures()
         self.assertTrue(failure.success, failure.error)
-        self.assertTrue(
-            any(f["failure_id"] == ids["failure_id"] for f in failure.data["failures"])
-        )
+        self.assertTrue(any(f["failure_id"] == ids["failure_id"] for f in failure.data["failures"]))
 
         # 5. Shadow Tests
         shadow = api2.get_shadow_test(ids["shadow_test_id"])

@@ -71,10 +71,7 @@ from trainer.models.quant_v1.head import (  # Phase 14.5; Phase 14.6
 )
 from trainer.models.quant_v1.hybrid.encoder import HybridEncoder
 from trainer.models.quant_v1.hybrid.input import HybridInput
-from trainer.models.quant_v1.output import (
-    MultiTaskQuantModelOutput,
-    OutputLayer,
-)
+from trainer.models.quant_v1.output import MultiTaskQuantModelOutput, OutputLayer
 from trainer.registry.registry import ModelRegistry
 
 

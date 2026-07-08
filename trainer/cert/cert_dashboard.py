@@ -11,13 +11,8 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.cert.cert_models import (
-    CertificationRun,
-)
-from trainer.cert.cert_types import (
-    CheckStatus,
-    DashboardType,
-)
+from trainer.cert.cert_models import CertificationRun
+from trainer.cert.cert_types import CheckStatus, DashboardType
 
 
 class CertDashboard:

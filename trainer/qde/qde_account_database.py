@@ -267,8 +267,7 @@ class QDEAccountDatabase:
         job; this returns the count of history rows (ticks) recorded in the
         window, useful as an activity-rate denominator."""
         row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM account_history "
-            "WHERE account_id = ? AND created_at >= ?",
+            "SELECT COUNT(*) AS n FROM account_history " "WHERE account_id = ? AND created_at >= ?",
             (account_id, since_ts),
         ).fetchone()
         return int(row["n"]) if row else 0

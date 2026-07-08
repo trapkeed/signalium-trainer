@@ -143,9 +143,7 @@ class QDEMemorySnapshot:
         scored = [r for r in records if r.has_outcome]
         wins = [r for r in scored if r.outcome and r.outcome.actual_direction_correct]
         win_rate = (len(wins) / len(scored)) if scored else None
-        avg_pnl = (
-            sum(r.outcome.actual_pnl_pct for r in scored) / len(scored) if scored else 0.0
-        )
+        avg_pnl = sum(r.outcome.actual_pnl_pct for r in scored) / len(scored) if scored else 0.0
         latest = records[0]  # DecisionMemory.filter returns newest-first
 
         return cls(
@@ -379,9 +377,7 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         direction = (
             Direction.LONG
             if fc.is_buy
-            else Direction.SHORT
-            if fc.direction.upper() == "SELL"
-            else Direction.FLAT
+            else Direction.SHORT if fc.direction.upper() == "SELL" else Direction.FLAT
         )
 
         reduce_signal = 0.0
@@ -389,7 +385,9 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         management_confidence = conviction
         if has_position:
             risk_pressure = _clamp01(inputs.market.news_risk)
-            reduce_signal = _clamp01(max(risk_pressure, 1.0 - conviction) if conviction < 0.5 else risk_pressure * 0.5)
+            reduce_signal = _clamp01(
+                max(risk_pressure, 1.0 - conviction) if conviction < 0.5 else risk_pressure * 0.5
+            )
             if inputs.market.news_risk > 0.6 or conviction < 0.35:
                 reduce_signal = max(reduce_signal, 0.7)
             scale_signal = _clamp01((conviction - 0.75) * 4.0) if conviction > 0.75 else 0.0
@@ -409,9 +407,7 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
             model_version_id=self.version_id,
         )
 
-    def _decision_from_heads(
-        self, heads: QDEOutputHeads, inputs: QDEInferenceInput
-    ) -> QDEDecision:
+    def _decision_from_heads(self, heads: QDEOutputHeads, inputs: QDEInferenceInput) -> QDEDecision:
         fc = inputs.forecast
         has_position = inputs.position.lots > 1e-9
 

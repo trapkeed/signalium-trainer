@@ -23,7 +23,7 @@ import sqlite3
 from typing import Any
 
 from trainer.mlops.registry import ModelRecord, _model_record_to_entry
-from trainer.qde.qde_models import QDEVersion, QDEStage
+from trainer.qde.qde_models import QDEStage, QDEVersion
 from trainer.qde.qde_registry import _qde_version_to_entry
 from trainer.registry.unified_registry import UnifiedModelRegistry
 

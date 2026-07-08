@@ -67,7 +67,8 @@ class IRSEScoreDatabase:
 
     def _create_tables(self) -> None:
         with self._lock:
-            self._conn.executescript("""
+            self._conn.executescript(
+                """
                 CREATE TABLE IF NOT EXISTS research_scores (
                     score_id              TEXT PRIMARY KEY,
                     experiment_id         TEXT NOT NULL,
@@ -169,7 +170,8 @@ class IRSEScoreDatabase:
                     ON score_history(experiment_id);
                 CREATE INDEX IF NOT EXISTS idx_history_recorded
                     ON score_history(recorded_at);
-            """)
+            """
+            )
 
     # ------------------------------------------------------------------
     # Research scores

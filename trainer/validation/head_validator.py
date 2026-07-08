@@ -157,14 +157,14 @@ class PredictionHeadValidator:
             # Run the model to get all head outputs
             with torch.no_grad():
                 try:
-                    all_outputs = model.forward_multi_task(x_val)
+                    all_outputs = model.forward_multi_task(x_val)  # type: ignore[operator]
                 except Exception:
                     all_outputs = {}
 
             if probs is None:
                 with torch.no_grad():
                     try:
-                        logits = model(x_val)
+                        logits = model(x_val)  # type: ignore[operator]
                         probs = torch.softmax(logits, dim=-1)
                     except Exception:
                         probs = torch.zeros(len(x_val), 3)

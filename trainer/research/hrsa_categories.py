@@ -34,10 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from trainer.research.normalization import (
-    CategoryNormaliser,
-    NormMethod,
-)
+from trainer.research.normalization import CategoryNormaliser, NormMethod
 from trainer.research.raw_metrics import RawMetricsBundle, RawMetricsRegistry
 
 # ---------------------------------------------------------------------------

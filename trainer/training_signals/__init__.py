@@ -17,7 +17,20 @@ feature, evaluation-dimension, and telemetry sources rather than decision
 makers.
 """
 
+from trainer.training_signals.lifecycle_transition_labels import (
+    HindsightLifecycleLabel,
+    HindsightLifecycleLabeler,
+    LifecycleTransitionPoint,
+)
 from trainer.training_signals.outcome_path import TradeOutcomePath
+from trainer.training_signals.portfolio_allocation_labels import (
+    HindsightAllocationLabel,
+    HindsightAllocationLabeler,
+)
+from trainer.training_signals.position_size_labels import (
+    HindsightPositionSizeLabel,
+    HindsightPositionSizeLabeler,
+)
 from trainer.training_signals.stop_loss_labels import (
     HindsightStopLossLabel,
     HindsightStopLossLabeler,
@@ -25,19 +38,6 @@ from trainer.training_signals.stop_loss_labels import (
 from trainer.training_signals.take_profit_labels import (
     HindsightTakeProfitLabel,
     HindsightTakeProfitLabeler,
-)
-from trainer.training_signals.position_size_labels import (
-    HindsightPositionSizeLabel,
-    HindsightPositionSizeLabeler,
-)
-from trainer.training_signals.portfolio_allocation_labels import (
-    HindsightAllocationLabel,
-    HindsightAllocationLabeler,
-)
-from trainer.training_signals.lifecycle_transition_labels import (
-    HindsightLifecycleLabel,
-    HindsightLifecycleLabeler,
-    LifecycleTransitionPoint,
 )
 
 __all__ = [

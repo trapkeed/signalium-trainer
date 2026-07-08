@@ -58,7 +58,7 @@ except ImportError:  # pragma: no cover
 from trainer.lifecycle.lifecycle_optimizer import OptimisationFinding, OptimisationReport
 from trainer.memory.decision_models import CounterfactualResult
 from trainer.memory.outcome_tracker import OutcomeSummary
-from trainer.memory.pattern_discovery import DiscoveredPattern, PatternReport
+from trainer.memory.pattern_discovery import PatternReport
 from trainer.memory.self_evaluation import SelfAssessment
 from trainer.portfolio.optimizer import OptimizationResult
 from trainer.research.retraining_advisor import RetrainingAdvisor, build_default_advisor
@@ -325,9 +325,7 @@ class LearningLoopActuator:
         self._history.append(action)
         return action
 
-    def _request_retraining(
-        self, source: str, context: dict[str, Any]
-    ) -> list[ActuatorAction]:
+    def _request_retraining(self, source: str, context: dict[str, Any]) -> list[ActuatorAction]:
         """Route a retraining signal through the advisory-only advisor.
 
         Never triggers retraining directly — only produces
@@ -395,9 +393,13 @@ class LearningLoopActuator:
             if fm == placeholder:
                 continue
             category = (
-                "MARKET_CONDITION_FAILURE" if "missed opportunit" in fm.lower() else
-                "REGIME_FAILURE" if "unexpected market event" in fm.lower() else
-                "EXECUTION_FAILURE"
+                "MARKET_CONDITION_FAILURE"
+                if "missed opportunit" in fm.lower()
+                else (
+                    "REGIME_FAILURE"
+                    if "unexpected market event" in fm.lower()
+                    else "EXECUTION_FAILURE"
+                )
             )
             severity = "HIGH" if assessment.grade in ("POOR", "REJECT") else "MEDIUM"
             resp = self._lab.record_failure(
@@ -607,9 +609,8 @@ class LearningLoopActuator:
                         )
                     )
 
-        if (
-            report.total_analysed >= self.LIFECYCLE_EXPERIMENT_MIN_TRADES
-            and any(f.priority == 1 for f in strong_positive)
+        if report.total_analysed >= self.LIFECYCLE_EXPERIMENT_MIN_TRADES and any(
+            f.priority == 1 for f in strong_positive
         ):
             resp = self._lab.create_experiment(
                 name=f"lifecycle-candidate-{self.qde_version}",
@@ -698,9 +699,7 @@ class LearningLoopActuator:
             )
 
         metrics = result.optimal_metrics
-        if (
-            getattr(metrics, "diversification_score", 1.0) < self.PORTFOLIO_LOW_DIVERSIFICATION
-        ):
+        if getattr(metrics, "diversification_score", 1.0) < self.PORTFOLIO_LOW_DIVERSIFICATION:
             resp = self._lab.create_dataset(
                 name=f"enrichment-diversification-{_slug(result.objective)}",
                 version="proposed",
@@ -940,9 +939,7 @@ class LearningLoopActuator:
 
     # -- 9. PortfolioAllocator utilization → CapitalUtilizationReport --------
 
-    def act_on_capital_utilization(
-        self, report: CapitalUtilizationReport
-    ) -> list[ActuatorAction]:
+    def act_on_capital_utilization(self, report: CapitalUtilizationReport) -> list[ActuatorAction]:
         """Detect idle capital / poor capital utilization at the portfolio
         level, distinct from single-trade position sizing.
 
@@ -1053,7 +1050,6 @@ class LearningLoopActuator:
             result.extend(self.act_on_capital_utilization(capital_utilization))
 
         logger.info(
-            f"LearningLoopActuator.run_cycle: {len(result.actions)} actions "
-            f"({result.by_type})"
+            f"LearningLoopActuator.run_cycle: {len(result.actions)} actions " f"({result.by_type})"
         )
         return result

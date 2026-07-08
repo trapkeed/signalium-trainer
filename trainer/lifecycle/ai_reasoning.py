@@ -17,11 +17,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.lifecycle.lifecycle_models import (
-    LifecycleConfidence,
-    MarketContext,
-    PositionMetrics,
-)
+from trainer.lifecycle.lifecycle_models import LifecycleConfidence, MarketContext, PositionMetrics
 from trainer.lifecycle.lifecycle_states import LifecycleState
 
 

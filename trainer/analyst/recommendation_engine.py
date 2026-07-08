@@ -22,12 +22,7 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.analyst.analyst_models import Citation, Recommendation, ResearchQuery
-from trainer.analyst.analyst_types import (
-    Permission,
-    QueryType,
-    RecommendationType,
-    has_permission,
-)
+from trainer.analyst.analyst_types import Permission, QueryType, RecommendationType, has_permission
 from trainer.analyst.citation_engine import CitationEngine
 from trainer.analyst.knowledge_index import KnowledgeIndex
 from trainer.analyst.llm_provider import LLMProvider, MockLLMProvider

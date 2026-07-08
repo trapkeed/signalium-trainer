@@ -20,12 +20,7 @@ from trainer.cert.cert_models import (
     StressTestResult,
     ValidationResult,
 )
-from trainer.cert.cert_types import (
-    SCORECARD_WEIGHTS,
-    CheckStatus,
-    ScorecardCategory,
-    clamp,
-)
+from trainer.cert.cert_types import SCORECARD_WEIGHTS, CheckStatus, ScorecardCategory, clamp
 
 
 def _score_from_results(

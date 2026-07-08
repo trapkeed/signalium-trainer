@@ -81,17 +81,8 @@ from trainer.automl.backbone_search import (
     BackboneSpec,
 )
 from trainer.automl.database import AutoMLDatabase
-from trainer.automl.engine import (
-    AutoMLConfig,
-    AutoMLEngine,
-    AutoMLResult,
-)
-from trainer.automl.experiment import (
-    ExperimentRecord,
-    SearchJob,
-    Trial,
-    TrialStatus,
-)
+from trainer.automl.engine import AutoMLConfig, AutoMLEngine, AutoMLResult
+from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial, TrialStatus
 from trainer.automl.objectives import (
     STANDARD_OBJECTIVES,
     Objective,
@@ -108,16 +99,8 @@ from trainer.automl.pruning import (
     SuccessiveHalvingPruner,
     build_pruner,
 )
-from trainer.automl.ranking import (
-    ExperimentRanker,
-    RankingEntry,
-    RankingResult,
-)
-from trainer.automl.resource_manager import (
-    ResourceManager,
-    ResourceSnapshot,
-    WorkerSlot,
-)
+from trainer.automl.ranking import ExperimentRanker, RankingEntry, RankingResult
+from trainer.automl.resource_manager import ResourceManager, ResourceSnapshot, WorkerSlot
 from trainer.automl.search_space import (
     BaseParameter,
     CategoricalParameter,

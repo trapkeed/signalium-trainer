@@ -684,9 +684,7 @@ def list_lifecycle_authorizations(
 
 
 @app.get("/research/lifecycle/authorizations/{authorization_id}")
-def get_lifecycle_authorization(
-    authorization_id: str, _: None = Depends(_require_admin)
-) -> dict:
+def get_lifecycle_authorization(authorization_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_lifecycle_authorization(authorization_id))
 
 

@@ -79,9 +79,7 @@ class PyTorchInferenceAdapter(BaseInferenceAdapter):
             result_dict = out.to_dict()
             # Apply confidence gate to direction if threshold set
             if self._threshold is not None:
-                from trainer.framework.contracts.model_output import (
-                    ModelOutput,
-                )
+                from trainer.framework.contracts.model_output import ModelOutput
 
                 base = ModelOutput(
                     logits=out.logits,

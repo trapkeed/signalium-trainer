@@ -48,10 +48,7 @@ from typing import Any
 from loguru import logger
 
 from trainer.automl.api import AutoMLAPI
-from trainer.automl.backbone_search import (
-    BackboneCatalog,
-    BackboneSpec,
-)
+from trainer.automl.backbone_search import BackboneCatalog, BackboneSpec
 from trainer.automl.database import AutoMLDatabase
 from trainer.automl.experiment import ExperimentRecord, SearchJob, Trial, TrialStatus
 from trainer.automl.objectives import (

@@ -52,10 +52,7 @@ from trainer.mlops.health import DriftThresholds, ModelHealthMonitor
 from trainer.mlops.lifecycle import LifecycleManager
 from trainer.mlops.monitoring import ProductionMonitor
 from trainer.mlops.registry import ModelRecord, ModelRegistry
-from trainer.mlops.retraining import (
-    RetrainingPolicyManager,
-    build_default_policies,
-)
+from trainer.mlops.retraining import RetrainingPolicyManager, build_default_policies
 from trainer.mlops.visualization import MLOpsVisualizationBuilder
 
 # ---------------------------------------------------------------------------

@@ -323,16 +323,12 @@ def eligible_rollback_targets() -> dict:
 
 @app.post("/qde/versions/{version_id}/archive")
 def archive_version(version_id: str, req: ArchiveVersionRequest) -> dict:
-    return _respond(
-        _api.archive_version(version_id, archiver=req.archiver, reason=req.reason)
-    )
+    return _respond(_api.archive_version(version_id, archiver=req.archiver, reason=req.reason))
 
 
 @app.post("/qde/versions/{version_id}/retire")
 def retire_version(version_id: str, req: RetireVersionRequest) -> dict:
-    return _respond(
-        _api.retire_version(version_id, retirer=req.retirer, reason=req.reason)
-    )
+    return _respond(_api.retire_version(version_id, retirer=req.retirer, reason=req.reason))
 
 
 # ── A/B Testing Endpoints ─────────────────────────────────────────────────────

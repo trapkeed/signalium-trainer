@@ -113,11 +113,12 @@ class AllocationEngine:
         if req.portfolio_exposure > 0.80:
             recs.append(AllocationRecommendation.INCREASE_DIVERSIFICATION)
 
+        rounded_frac = round(frac, 4)
         result = AllocationResult(
             instrument=req.instrument,
             status=status,
-            allocation_frac=round(frac, 4),
-            allocation_usd=round(frac * req.capital, 2),
+            allocation_frac=rounded_frac,
+            allocation_usd=round(rounded_frac * req.capital, 2),
             confidence=round(confidence, 4),
             rationale=self._rationale(frac, confidence, regime_mult, exposure_penalty),
             factors=factors,

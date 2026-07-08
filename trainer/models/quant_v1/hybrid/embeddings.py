@@ -15,9 +15,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from trainer.models.quant_v1.hybrid.config import (
-    ContextEmbeddingStreamConfig,
-)
+from trainer.models.quant_v1.hybrid.config import ContextEmbeddingStreamConfig
 
 
 class ContextEmbeddingStream(nn.Module):

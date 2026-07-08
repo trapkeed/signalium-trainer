@@ -19,12 +19,7 @@ from trainer.mie.mie_models import (
     RiskIntelligenceResult,
     TradeabilityResult,
 )
-from trainer.mie.mie_types import (
-    MarketRegime,
-    RiskRegime,
-    TradeabilityGrade,
-    clamp,
-)
+from trainer.mie.mie_types import MarketRegime, RiskRegime, TradeabilityGrade, clamp
 
 # ── Template fragments ────────────────────────────────────────────────────────
 
