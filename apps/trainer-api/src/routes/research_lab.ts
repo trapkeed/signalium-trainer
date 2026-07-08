@@ -12,6 +12,17 @@ import { adminAuth } from "../middlewares/admin_auth";
  * - No retail user may access any endpoint in this router.
  * - No public documentation, no public dashboards, no frontend.
  *
+ * RESPONSIBILITIES (8 confirmed)
+ * ================================
+ *  1. Experiment tracking
+ *  2. Backtesting
+ *  3. Validation (deployment gates)
+ *  4. Dataset generation
+ *  5. Failure analysis
+ *  6. Version comparisons
+ *  7. Promotion approval
+ *  8. Rollback approval
+ *
  * The Signalium Admin Portal is the sole authorised consumer of these routes.
  */
 
@@ -67,7 +78,7 @@ router.get("/admin/research/summary", async (req, res) => {
   await proxyGet("/research/summary", req, res);
 });
 
-// ── Datasets ──────────────────────────────────────────────────────────────────
+// ── 1. Datasets ───────────────────────────────────────────────────────────────
 
 router.post("/admin/research/datasets", async (req, res) => {
   await proxyPost("/research/datasets", req, res);
@@ -81,7 +92,55 @@ router.get("/admin/research/datasets/:datasetId", async (req, res) => {
   await proxyGet(`/research/datasets/${req.params["datasetId"]}`, req, res);
 });
 
-// ── Feature Discovery ─────────────────────────────────────────────────────────
+// ── 4. Dataset Generation Jobs ────────────────────────────────────────────────
+//
+// A generation job tracks the full pipeline for building a dataset:
+//   PENDING → GENERATING → VALIDATING → READY
+//                                     ↘ FAILED
+//
+// POST   /datasets/:id/generate            — create a generation job
+// GET    /datasets/:id/generation-jobs     — list jobs for a dataset
+// GET    /generation-jobs                  — list all jobs (filterable by status)
+// GET    /generation-jobs/:jobId           — get a specific job
+// POST   /generation-jobs/:jobId/start     — PENDING → GENERATING
+// POST   /generation-jobs/:jobId/validating — GENERATING → VALIDATING
+// POST   /generation-jobs/:jobId/complete  — VALIDATING → READY
+// POST   /generation-jobs/:jobId/fail      — * → FAILED
+
+router.post("/admin/research/datasets/:datasetId/generate", async (req, res) => {
+  await proxyPost(`/research/datasets/${req.params["datasetId"]}/generate`, req, res);
+});
+
+router.get("/admin/research/datasets/:datasetId/generation-jobs", async (req, res) => {
+  await proxyGet(`/research/datasets/${req.params["datasetId"]}/generation-jobs`, req, res);
+});
+
+router.get("/admin/research/generation-jobs", async (req: Request, res: Response) => {
+  const qs = req.query["status"] ? `?status=${req.query["status"]}` : "";
+  await proxyGet(`/research/generation-jobs${qs}`, req, res);
+});
+
+router.get("/admin/research/generation-jobs/:jobId", async (req, res) => {
+  await proxyGet(`/research/generation-jobs/${req.params["jobId"]}`, req, res);
+});
+
+router.post("/admin/research/generation-jobs/:jobId/start", async (req, res) => {
+  await proxyPost(`/research/generation-jobs/${req.params["jobId"]}/start`, req, res);
+});
+
+router.post("/admin/research/generation-jobs/:jobId/validating", async (req, res) => {
+  await proxyPost(`/research/generation-jobs/${req.params["jobId"]}/validating`, req, res);
+});
+
+router.post("/admin/research/generation-jobs/:jobId/complete", async (req, res) => {
+  await proxyPost(`/research/generation-jobs/${req.params["jobId"]}/complete`, req, res);
+});
+
+router.post("/admin/research/generation-jobs/:jobId/fail", async (req, res) => {
+  await proxyPost(`/research/generation-jobs/${req.params["jobId"]}/fail`, req, res);
+});
+
+// ── 2. Feature Discovery ──────────────────────────────────────────────────────
 
 router.post("/admin/research/features", async (req, res) => {
   await proxyPost("/research/features", req, res);
@@ -100,7 +159,7 @@ router.get("/admin/research/features", async (req, res) => {
   await proxyGet(`/research/features${qs}`, req, res);
 });
 
-// ── Experiments / Training Runs ───────────────────────────────────────────────
+// ── 3. Experiments / Training Runs ────────────────────────────────────────────
 
 router.post("/admin/research/experiments", async (req, res) => {
   await proxyPost("/research/experiments", req, res);
@@ -134,7 +193,7 @@ router.get("/admin/research/experiments/:experimentId", async (req, res) => {
   await proxyGet(`/research/experiments/${req.params["experimentId"]}`, req, res);
 });
 
-// ── Benchmarking ──────────────────────────────────────────────────────────────
+// ── Backtesting ───────────────────────────────────────────────────────────────
 
 router.post("/admin/research/benchmarks", async (req, res) => {
   await proxyPost("/research/benchmarks", req, res);
@@ -147,8 +206,6 @@ router.get("/admin/research/benchmarks", async (req, res) => {
 router.get("/admin/research/benchmarks/:benchmarkId", async (req, res) => {
   await proxyGet(`/research/benchmarks/${req.params["benchmarkId"]}`, req, res);
 });
-
-// ── Backtesting ───────────────────────────────────────────────────────────────
 
 router.post("/admin/research/backtests", async (req, res) => {
   await proxyPost("/research/backtests", req, res);
@@ -171,7 +228,8 @@ router.post("/admin/research/shadow-tests", async (req, res) => {
 
 router.get("/admin/research/shadow-tests", async (req: Request, res: Response) => {
   const p = new URLSearchParams();
-  if (req.query["challenger_version"]) p.set("challenger_version", String(req.query["challenger_version"]));
+  if (req.query["challenger_version"])
+    p.set("challenger_version", String(req.query["challenger_version"]));
   if (req.query["status"]) p.set("status", String(req.query["status"]));
   await proxyGet(`/research/shadow-tests${p.toString() ? "?" + p.toString() : ""}`, req, res);
 });
@@ -211,17 +269,21 @@ router.get("/admin/research/searches", async (req: Request, res: Response) => {
   await proxyGet(`/research/searches${qs}`, req, res);
 });
 
-// ── Deployment Gates & Validation ─────────────────────────────────────────────
+// ── Validation (Deployment Gates) ─────────────────────────────────────────────
 
 router.post("/admin/research/experiments/:experimentId/gates", async (req, res) => {
   await proxyPost(`/research/experiments/${req.params["experimentId"]}/gates`, req, res);
 });
 
 router.post("/admin/research/experiments/:experimentId/validate-retraining", async (req, res) => {
-  await proxyPost(`/research/experiments/${req.params["experimentId"]}/validate-retraining`, req, res);
+  await proxyPost(
+    `/research/experiments/${req.params["experimentId"]}/validate-retraining`,
+    req,
+    res,
+  );
 });
 
-// ── Deployment Approval ───────────────────────────────────────────────────────
+// ── Promotion Approval ────────────────────────────────────────────────────────
 
 router.post("/admin/research/experiments/:experimentId/approve", async (req, res) => {
   await proxyPost(`/research/experiments/${req.params["experimentId"]}/approve`, req, res);
@@ -233,6 +295,45 @@ router.post("/admin/research/experiments/:experimentId/reject", async (req, res)
 
 router.get("/admin/research/deployments", async (req, res) => {
   await proxyGet("/research/deployments", req, res);
+});
+
+// ── Rollback Approval ─────────────────────────────────────────────────────────
+//
+// Rollback approval is a two-administrator workflow:
+//  1. Admin A creates a rollback request (current → target version, with reason).
+//  2. Admin B approves or rejects it.
+//  3. Admin A may withdraw their own pending request at any time.
+//
+// POST   /rollbacks                        — create a rollback request
+// GET    /rollbacks                        — list all requests (filterable by status)
+// GET    /rollbacks/:id                    — get a specific request
+// POST   /rollbacks/:id/approve            — approve (must be a different admin)
+// POST   /rollbacks/:id/reject             — reject
+// POST   /rollbacks/:id/withdraw           — requester withdraws their own request
+
+router.post("/admin/research/rollbacks", async (req, res) => {
+  await proxyPost("/research/rollbacks", req, res);
+});
+
+router.get("/admin/research/rollbacks", async (req: Request, res: Response) => {
+  const qs = req.query["status"] ? `?status=${req.query["status"]}` : "";
+  await proxyGet(`/research/rollbacks${qs}`, req, res);
+});
+
+router.get("/admin/research/rollbacks/:requestId", async (req, res) => {
+  await proxyGet(`/research/rollbacks/${req.params["requestId"]}`, req, res);
+});
+
+router.post("/admin/research/rollbacks/:requestId/approve", async (req, res) => {
+  await proxyPost(`/research/rollbacks/${req.params["requestId"]}/approve`, req, res);
+});
+
+router.post("/admin/research/rollbacks/:requestId/reject", async (req, res) => {
+  await proxyPost(`/research/rollbacks/${req.params["requestId"]}/reject`, req, res);
+});
+
+router.post("/admin/research/rollbacks/:requestId/withdraw", async (req, res) => {
+  await proxyPost(`/research/rollbacks/${req.params["requestId"]}/withdraw`, req, res);
 });
 
 // ── Failure Analysis ──────────────────────────────────────────────────────────
@@ -276,7 +377,7 @@ router.get("/admin/research/regime/:reportId", async (req, res) => {
   await proxyGet(`/research/regime/${req.params["reportId"]}`, req, res);
 });
 
-// ── Model Comparison ──────────────────────────────────────────────────────────
+// ── Version Comparisons ───────────────────────────────────────────────────────
 
 router.post("/admin/research/comparisons", async (req, res) => {
   await proxyPost("/research/comparisons", req, res);

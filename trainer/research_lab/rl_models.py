@@ -1,7 +1,17 @@
-"""Phase 28.4 — Research Lab data models.
+"""Phase 28.5 — Research Lab data models.
 
 All models in this file are internal to the trainer's Research Lab.
 No model is exposed to retail users. All access is via admin APIs only.
+
+Responsibilities covered:
+ - Experiment tracking     (ExperimentRecord)
+ - Backtesting             (embedded in ExperimentRecord / backtest dicts)
+ - Validation              (DeploymentGateResult)
+ - Dataset generation      (ResearchDataset, DatasetGenerationJob)
+ - Failure analysis        (FailureEvent)
+ - Version comparisons     (ModelComparisonResult)
+ - Promotion approval      (DeploymentStatus, approve_deployment flow)
+ - Rollback approval       (RollbackRequest, RollbackStatus)
 """
 
 from __future__ import annotations
@@ -76,6 +86,21 @@ class ShadowTestRecommendation(str, Enum):
     REJECT = "REJECT"
     EXTEND = "EXTEND"  # Collect more data before deciding
     INCONCLUSIVE = "INCONCLUSIVE"
+
+
+class RollbackStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    WITHDRAWN = "WITHDRAWN"
+
+
+class DatasetGenerationStatus(str, Enum):
+    PENDING = "PENDING"
+    GENERATING = "GENERATING"
+    VALIDATING = "VALIDATING"
+    READY = "READY"
+    FAILED = "FAILED"
 
 
 # ── Experiment ────────────────────────────────────────────────────────────────
@@ -1005,6 +1030,186 @@ class ShadowTestRun:
             "per_instrument_agreement": self.per_instrument_agreement,
             "recommendation": self.recommendation.value,
             "conclusion_notes": self.conclusion_notes,
+        }
+
+
+# ── Rollback Approval ──────────────────────────────────────────────────────────
+
+
+@dataclass
+class RollbackRequest:
+    """A formal request to roll the active QDE version back to a previous one.
+
+    Rollbacks require explicit administrator approval before the QDE registry
+    is updated. The approval workflow is separate from the promotion workflow
+    so that each direction of version change has its own audit trail.
+    """
+
+    request_id: str
+    current_version_id: str
+    target_version_id: str
+    reason: str
+    requested_by: str
+    status: RollbackStatus
+    created_at: float
+
+    resolved_at: float | None = None
+    resolved_by: str = ""
+    resolution_notes: str = ""
+
+    @classmethod
+    def new(
+        cls,
+        current_version_id: str,
+        target_version_id: str,
+        reason: str,
+        requested_by: str,
+    ) -> RollbackRequest:
+        return cls(
+            request_id=f"rb-{str(uuid.uuid4())[:12]}",
+            current_version_id=current_version_id,
+            target_version_id=target_version_id,
+            reason=reason,
+            requested_by=requested_by,
+            status=RollbackStatus.PENDING,
+            created_at=time.time(),
+        )
+
+    def approve(self, approver: str, notes: str = "") -> None:
+        self.status = RollbackStatus.APPROVED
+        self.resolved_at = time.time()
+        self.resolved_by = approver
+        self.resolution_notes = notes
+
+    def reject(self, rejector: str, notes: str = "") -> None:
+        self.status = RollbackStatus.REJECTED
+        self.resolved_at = time.time()
+        self.resolved_by = rejector
+        self.resolution_notes = notes
+
+    def withdraw(self, notes: str = "") -> None:
+        self.status = RollbackStatus.WITHDRAWN
+        self.resolved_at = time.time()
+        self.resolution_notes = notes
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "current_version_id": self.current_version_id,
+            "target_version_id": self.target_version_id,
+            "reason": self.reason,
+            "requested_by": self.requested_by,
+            "status": self.status.value,
+            "created_at": round(self.created_at, 3),
+            "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
+            "resolved_by": self.resolved_by,
+            "resolution_notes": self.resolution_notes,
+        }
+
+
+# ── Dataset Generation Job ─────────────────────────────────────────────────────
+
+
+@dataclass
+class DatasetGenerationJob:
+    """Tracks the pipeline for generating a Research Lab dataset.
+
+    A generation job represents one full execution of the data pipeline:
+    raw extraction → feature engineering → label generation → quality validation.
+
+    Status machine:
+        PENDING → GENERATING → VALIDATING → READY
+                                          ↘ FAILED (from any stage)
+    """
+
+    job_id: str
+    dataset_id: str
+    name: str
+    instruments: list[str]
+    start_date: str
+    end_date: str
+    feature_schema: dict[str, Any]
+    label_schema: dict[str, Any]
+    status: DatasetGenerationStatus
+    created_at: float
+    requested_by: str
+
+    started_at: float | None = None
+    completed_at: float | None = None
+    row_count: int = 0
+    feature_count: int = 0
+    quality_metrics: dict[str, float] = field(default_factory=dict)
+    error: str = ""
+    notes: str = ""
+
+    @classmethod
+    def new(
+        cls,
+        dataset_id: str,
+        name: str,
+        instruments: list[str],
+        start_date: str,
+        end_date: str,
+        feature_schema: dict[str, Any] | None = None,
+        label_schema: dict[str, Any] | None = None,
+        requested_by: str = "",
+        notes: str = "",
+    ) -> DatasetGenerationJob:
+        return cls(
+            job_id=f"gen-{str(uuid.uuid4())[:12]}",
+            dataset_id=dataset_id,
+            name=name,
+            instruments=instruments,
+            start_date=start_date,
+            end_date=end_date,
+            feature_schema=feature_schema or {},
+            label_schema=label_schema or {},
+            status=DatasetGenerationStatus.PENDING,
+            created_at=time.time(),
+            requested_by=requested_by,
+            notes=notes,
+        )
+
+    def mark_generating(self) -> None:
+        self.status = DatasetGenerationStatus.GENERATING
+        self.started_at = time.time()
+
+    def mark_validating(self, row_count: int = 0, feature_count: int = 0) -> None:
+        self.status = DatasetGenerationStatus.VALIDATING
+        self.row_count = row_count
+        self.feature_count = feature_count
+
+    def mark_ready(self, quality_metrics: dict[str, float] | None = None) -> None:
+        self.status = DatasetGenerationStatus.READY
+        self.completed_at = time.time()
+        if quality_metrics:
+            self.quality_metrics = quality_metrics
+
+    def mark_failed(self, error: str) -> None:
+        self.status = DatasetGenerationStatus.FAILED
+        self.completed_at = time.time()
+        self.error = error
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "job_id": self.job_id,
+            "dataset_id": self.dataset_id,
+            "name": self.name,
+            "instruments": self.instruments,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "feature_schema": self.feature_schema,
+            "label_schema": self.label_schema,
+            "status": self.status.value,
+            "created_at": round(self.created_at, 3),
+            "requested_by": self.requested_by,
+            "started_at": round(self.started_at, 3) if self.started_at else None,
+            "completed_at": round(self.completed_at, 3) if self.completed_at else None,
+            "row_count": self.row_count,
+            "feature_count": self.feature_count,
+            "quality_metrics": {k: round(v, 6) for k, v in self.quality_metrics.items()},
+            "error": self.error,
+            "notes": self.notes,
         }
 
     def summary(self) -> dict[str, Any]:

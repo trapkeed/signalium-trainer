@@ -1,27 +1,32 @@
-"""Phase 28.4 — Research Lab API.
+"""Phase 28.5 — Research Lab API.
 
 Administrator-only interface for the Research Lab subsystem.
 
 Responsibilities:
- 1.  Dataset Creation          — register and manage research datasets
- 2.  Feature Discovery         — track and rank discovered features
- 3.  Experiment Tracking       — full lifecycle tracking for all experiments
- 4.  Training Runs             — start / complete / fail training jobs
- 5.  Validation                — deployment gate evaluation
- 6.  Backtesting               — register backtest runs against experiments
- 7.  Shadow Testing            — observe challenger QDE against champion without execution
- 8.  Version Promotion         — gate-controlled deployment sign-off
- 9.  Failure Analysis          — record and investigate failure events
-10.  Deployment Approval       — approve or reject deployment after gates pass
-11.  Parameter Search          — hyperparameter search runs
-12.  Model Comparison          — side-by-side benchmarking across QDE versions
-13.  Market Regime Analysis    — per-regime performance breakdown
+ 1.  Dataset Generation    — register datasets and track their generation pipeline
+ 2.  Feature Discovery     — track and rank discovered features
+ 3.  Experiment Tracking   — full lifecycle tracking for all experiments
+ 4.  Training Runs         — start / complete / fail training jobs
+ 5.  Validation            — deployment gate evaluation
+ 6.  Backtesting           — register backtest runs against experiments
+ 7.  Shadow Testing        — observe challenger QDE against champion without execution
+ 8.  Version Promotion     — gate-controlled promotion approval
+ 9.  Rollback Approval     — formal approval workflow for version rollbacks
+10.  Failure Analysis      — record and investigate failure events
+11.  Version Comparisons   — side-by-side benchmarking across QDE versions
+12.  Parameter Search      — hyperparameter search runs
+13.  Market Regime Analysis — per-regime performance breakdown
 
 ACCESS MODEL
 ------------
 All methods in this class are for administrator use only.
 This class is instantiated once in research_lab_server.py and is never imported
 by retail-facing code. No retail user may call these methods.
+
+PERSISTENCE
+-----------
+All state is persisted to SQLite via ResearchLabDatabase. No in-memory-only
+stores exist. A server restart does not lose research state.
 """
 
 from __future__ import annotations
@@ -37,8 +42,10 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.rl_models import (
-    DeploymentGateResult,
+    DatasetGenerationJob,
+    DatasetGenerationStatus,
     DeploymentStatus,
     DiscoveredFeature,
     ExperimentRecord,
@@ -50,6 +57,8 @@ from trainer.research_lab.rl_models import (
     ParameterSearchRun,
     RegimeAnalysisReport,
     ResearchDataset,
+    RollbackRequest,
+    RollbackStatus,
     SearchStrategy,
     ShadowDecisionRecord,
     ShadowTestRun,
@@ -94,48 +103,24 @@ def _err(endpoint: str, error: str) -> ApiResponse:
 class ResearchLabAPI:
     """Administrator-only Research Lab API.
 
-    All stores are in-memory; extend with a database adapter for persistence.
+    All state is persisted to SQLite via ResearchLabDatabase. Accepts an
+    optional db argument for dependency injection (useful in tests). If no db
+    is provided, the default path is used.
 
     This class is the sole internal implementation of all Research Lab
     responsibilities. It is never imported by retail-facing code.
     """
 
-    def __init__(self) -> None:
-        self._datasets: dict[str, ResearchDataset] = {}
-        self._features: dict[str, DiscoveredFeature] = {}
-        self._experiments: dict[str, ExperimentRecord] = {}
-        self._benchmarks: dict[str, dict[str, Any]] = {}
-        self._backtests: dict[str, dict[str, Any]] = {}
-        self._searches: dict[str, ParameterSearchRun] = {}
-        self._gate_results: dict[str, DeploymentGateResult] = {}
-        self._failures: dict[str, FailureEvent] = {}
-        self._regime_reports: dict[str, RegimeAnalysisReport] = {}
-        self._comparisons: dict[str, ModelComparisonResult] = {}
-        self._deployments: list[dict[str, Any]] = []
-        self._shadow_tests: dict[str, ShadowTestRun] = {}
+    def __init__(self, db: ResearchLabDatabase | None = None) -> None:
+        self._db = db or ResearchLabDatabase()
 
     # ── System Summary ────────────────────────────────────────────────────────
 
     def system_summary(self) -> ApiResponse:
-        return _ok(
-            "system_summary",
-            {
-                "datasets": len(self._datasets),
-                "features": len(self._features),
-                "experiments": len(self._experiments),
-                "benchmarks": len(self._benchmarks),
-                "backtests": len(self._backtests),
-                "parameter_searches": len(self._searches),
-                "deployment_gate_runs": len(self._gate_results),
-                "failures": len(self._failures),
-                "regime_reports": len(self._regime_reports),
-                "model_comparisons": len(self._comparisons),
-                "deployments": len(self._deployments),
-                "shadow_tests": len(self._shadow_tests),
-            },
-        )
+        stats = self._db.stats()
+        return _ok("system_summary", stats)
 
-    # ── 1. Datasets ───────────────────────────────────────────────────────────
+    # ── 1. Dataset Generation ────────────────────────────────────────────────
 
     def create_dataset(
         self,
@@ -163,61 +148,184 @@ class ResearchLabAPI:
                 tags=tags,
                 notes=notes,
             )
-            self._datasets[ds.dataset_id] = ds
+            self._db.upsert_dataset(ds.to_dict())
             logger.info(f"ResearchLab.create_dataset: {ds.dataset_id} ({ds.name} v{ds.version})")
             return _ok("create_dataset", ds.to_dict())
         except Exception as exc:
             return _err("create_dataset", str(exc))
 
     def get_dataset(self, dataset_id: str) -> ApiResponse:
-        ds = self._datasets.get(dataset_id)
-        if not ds:
+        record = self._db.get_dataset(dataset_id)
+        if not record:
             return _err("get_dataset", f"Dataset {dataset_id!r} not found")
-        return _ok("get_dataset", ds.to_dict())
+        return _ok("get_dataset", record)
 
     def list_datasets(self) -> ApiResponse:
-        items = sorted(self._datasets.values(), key=lambda d: d.created_at)
-        return _ok("list_datasets", {"count": len(items), "datasets": [d.to_dict() for d in items]})
+        items = self._db.list_datasets()
+        return _ok("list_datasets", {"datasets": items, "total": len(items)})
+
+    def create_generation_job(
+        self,
+        dataset_id: str,
+        name: str,
+        instruments: list[str],
+        start_date: str,
+        end_date: str,
+        feature_schema: dict[str, Any] | None = None,
+        label_schema: dict[str, Any] | None = None,
+        requested_by: str = "",
+        notes: str = "",
+    ) -> ApiResponse:
+        try:
+            existing = self._db.get_dataset(dataset_id)
+            if not existing:
+                return _err(
+                    "create_generation_job",
+                    f"Dataset {dataset_id!r} not found — register the dataset first",
+                )
+            job = DatasetGenerationJob.new(
+                dataset_id=dataset_id,
+                name=name,
+                instruments=instruments,
+                start_date=start_date,
+                end_date=end_date,
+                feature_schema=feature_schema,
+                label_schema=label_schema,
+                requested_by=requested_by,
+                notes=notes,
+            )
+            self._db.upsert_generation_job(job.to_dict())
+            logger.info(f"ResearchLab.create_generation_job: {job.job_id} for dataset {dataset_id}")
+            return _ok("create_generation_job", job.to_dict())
+        except Exception as exc:
+            return _err("create_generation_job", str(exc))
+
+    def start_generation_job(self, job_id: str) -> ApiResponse:
+        record = self._db.get_generation_job(job_id)
+        if not record:
+            return _err("start_generation_job", f"Generation job {job_id!r} not found")
+        if record.get("status") != DatasetGenerationStatus.PENDING.value:
+            return _err(
+                "start_generation_job",
+                f"Job {job_id} is {record['status']} — only PENDING jobs can be started",
+            )
+        record["status"] = DatasetGenerationStatus.GENERATING.value
+        record["started_at"] = time.time()
+        self._db.upsert_generation_job(record)
+        logger.info(f"ResearchLab.start_generation_job: {job_id}")
+        return _ok("start_generation_job", record)
+
+    def validating_generation_job(
+        self, job_id: str, row_count: int = 0, feature_count: int = 0
+    ) -> ApiResponse:
+        record = self._db.get_generation_job(job_id)
+        if not record:
+            return _err("validating_generation_job", f"Generation job {job_id!r} not found")
+        if record.get("status") != DatasetGenerationStatus.GENERATING.value:
+            return _err(
+                "validating_generation_job",
+                f"Job {job_id} is {record['status']} — expected GENERATING",
+            )
+        record["status"] = DatasetGenerationStatus.VALIDATING.value
+        record["row_count"] = row_count
+        record["feature_count"] = feature_count
+        self._db.upsert_generation_job(record)
+        logger.info(f"ResearchLab.validating_generation_job: {job_id} rows={row_count}")
+        return _ok("validating_generation_job", record)
+
+    def complete_generation_job(
+        self, job_id: str, quality_metrics: dict[str, float] | None = None
+    ) -> ApiResponse:
+        record = self._db.get_generation_job(job_id)
+        if not record:
+            return _err("complete_generation_job", f"Generation job {job_id!r} not found")
+        if record.get("status") != DatasetGenerationStatus.VALIDATING.value:
+            return _err(
+                "complete_generation_job",
+                f"Job {job_id} is {record['status']} — expected VALIDATING",
+            )
+        record["status"] = DatasetGenerationStatus.READY.value
+        record["completed_at"] = time.time()
+        if quality_metrics:
+            record["quality_metrics"] = quality_metrics
+        self._db.upsert_generation_job(record)
+        logger.info(f"ResearchLab.complete_generation_job: {job_id} → READY")
+        return _ok("complete_generation_job", record)
+
+    def fail_generation_job(self, job_id: str, error: str) -> ApiResponse:
+        record = self._db.get_generation_job(job_id)
+        if not record:
+            return _err("fail_generation_job", f"Generation job {job_id!r} not found")
+        record["status"] = DatasetGenerationStatus.FAILED.value
+        record["completed_at"] = time.time()
+        record["error"] = error
+        self._db.upsert_generation_job(record)
+        logger.warning(f"ResearchLab.fail_generation_job: {job_id} — {error}")
+        return _ok("fail_generation_job", record)
+
+    def get_generation_job(self, job_id: str) -> ApiResponse:
+        record = self._db.get_generation_job(job_id)
+        if not record:
+            return _err("get_generation_job", f"Generation job {job_id!r} not found")
+        return _ok("get_generation_job", record)
+
+    def list_generation_jobs(
+        self,
+        dataset_id: str | None = None,
+        status: str | None = None,
+    ) -> ApiResponse:
+        items = self._db.list_generation_jobs(dataset_id=dataset_id, status=status)
+        return _ok("list_generation_jobs", {"jobs": items, "total": len(items)})
 
     # ── 2. Feature Discovery ──────────────────────────────────────────────────
 
     def record_feature(
-        self, name: str, category: str, importance_score: float, notes: str = ""
+        self,
+        name: str,
+        source: str,
+        importance_score: float,
+        method: str = "",
+        notes: str = "",
     ) -> ApiResponse:
         try:
-            feat = DiscoveredFeature.new(name, category, importance_score, notes=notes)
-            self._features[feat.feature_id] = feat
+            feat = DiscoveredFeature.new(
+                name=name,
+                source=source,
+                importance_score=importance_score,
+                method=method,
+                notes=notes,
+            )
+            self._db.upsert_feature(feat.to_dict())
             logger.info(f"ResearchLab.record_feature: {feat.feature_id} ({feat.name})")
             return _ok("record_feature", feat.to_dict())
         except Exception as exc:
             return _err("record_feature", str(exc))
 
     def accept_feature(self, feature_id: str, notes: str = "") -> ApiResponse:
-        feat = self._features.get(feature_id)
-        if not feat:
+        record = self._db.get_feature(feature_id)
+        if not record:
             return _err("accept_feature", f"Feature {feature_id!r} not found")
-        feat.status = "ACCEPTED"
+        record["status"] = "ACCEPTED"
         if notes:
-            feat.notes = notes
-        return _ok("accept_feature", feat.to_dict())
+            record["notes"] = notes
+        self._db.upsert_feature(record)
+        return _ok("accept_feature", record)
 
     def reject_feature(self, feature_id: str, notes: str = "") -> ApiResponse:
-        feat = self._features.get(feature_id)
-        if not feat:
+        record = self._db.get_feature(feature_id)
+        if not record:
             return _err("reject_feature", f"Feature {feature_id!r} not found")
-        feat.status = "REJECTED"
+        record["status"] = "REJECTED"
         if notes:
-            feat.notes = notes
-        return _ok("reject_feature", feat.to_dict())
+            record["notes"] = notes
+        self._db.upsert_feature(record)
+        return _ok("reject_feature", record)
 
     def list_features(self, status: str | None = None) -> ApiResponse:
-        items = list(self._features.values())
-        if status:
-            items = [f for f in items if f.status == status]
-        items.sort(key=lambda f: f.importance_score, reverse=True)
-        return _ok("list_features", {"count": len(items), "features": [f.to_dict() for f in items]})
+        items = self._db.list_features(status=status)
+        return _ok("list_features", {"features": items, "total": len(items)})
 
-    # ── 3 & 4. Experiment Tracking / Training Runs ────────────────────────────
+    # ── 3. Experiment Tracking ────────────────────────────────────────────────
 
     def create_experiment(
         self,
@@ -239,41 +347,90 @@ class ResearchLabAPI:
                 hyperparameters=hyperparameters,
                 notes=notes,
             )
-            self._experiments[exp.experiment_id] = exp
-            logger.info(f"ResearchLab.create_experiment: {exp.experiment_id} ({exp.name})")
+            self._db.upsert_experiment(exp.to_dict())
+            logger.info(
+                f"ResearchLab.create_experiment: {exp.experiment_id} ({exp.name})"
+                f" qde={qde_version}"
+            )
             return _ok("create_experiment", exp.to_dict())
         except Exception as exc:
             return _err("create_experiment", str(exc))
 
     def start_experiment(self, experiment_id: str) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
-        if not exp:
+        record = self._db.get_experiment(experiment_id)
+        if not record:
             return _err("start_experiment", f"Experiment {experiment_id!r} not found")
-        exp.start_training()
-        return _ok("start_experiment", exp.to_dict())
+        if record.get("status") != ExperimentStatus.PENDING.value:
+            return _err(
+                "start_experiment",
+                f"Experiment {experiment_id} is {record['status']} — only PENDING can start",
+            )
+        record["status"] = ExperimentStatus.RUNNING.value
+        record["training_started_at"] = time.time()
+        record["updated_at"] = record["training_started_at"]
+        self._db.upsert_experiment(record)
+        logger.info(f"ResearchLab.start_experiment: {experiment_id}")
+        return _ok("start_experiment", record)
 
     def complete_experiment(
         self, experiment_id: str, metrics: dict[str, float], notes: str = ""
     ) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
-        if not exp:
+        record = self._db.get_experiment(experiment_id)
+        if not record:
             return _err("complete_experiment", f"Experiment {experiment_id!r} not found")
-        exp.complete(metrics=metrics, notes=notes)
-        logger.info(f"ResearchLab.complete_experiment: {experiment_id}")
-        return _ok("complete_experiment", exp.to_dict())
+        if record.get("status") != ExperimentStatus.RUNNING.value:
+            return _err(
+                "complete_experiment",
+                f"Experiment {experiment_id} is {record['status']} — only RUNNING can complete",
+            )
+        now = time.time()
+        record["status"] = ExperimentStatus.COMPLETED.value
+        record["training_completed_at"] = now
+        record["updated_at"] = now
+        started = record.get("training_started_at")
+        if started:
+            record["training_duration_s"] = round(now - started, 1)
+        record.setdefault("validation_metrics", {}).update(metrics)
+        for attr in (
+            "sharpe_ratio",
+            "sortino_ratio",
+            "max_drawdown",
+            "avg_drawdown",
+            "profit_factor",
+            "win_rate",
+            "expected_value",
+            "expected_value_per_trade",
+            "decision_quality",
+            "capital_efficiency",
+            "recovery_factor",
+        ):
+            if attr in metrics:
+                record[attr] = metrics[attr]
+        if notes:
+            record["notes"] = notes
+        self._db.upsert_experiment(record)
+        logger.info(
+            f"ResearchLab.complete_experiment: {experiment_id}"
+            f" sharpe={metrics.get('sharpe_ratio')}"
+        )
+        return _ok("complete_experiment", record)
 
     def fail_experiment(self, experiment_id: str, error: str) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
-        if not exp:
+        record = self._db.get_experiment(experiment_id)
+        if not record:
             return _err("fail_experiment", f"Experiment {experiment_id!r} not found")
-        exp.fail(error=error)
-        return _ok("fail_experiment", exp.to_dict())
+        record["status"] = ExperimentStatus.FAILED.value
+        record["error"] = error
+        record["updated_at"] = time.time()
+        self._db.upsert_experiment(record)
+        logger.warning(f"ResearchLab.fail_experiment: {experiment_id} — {error}")
+        return _ok("fail_experiment", record)
 
     def get_experiment(self, experiment_id: str) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
-        if not exp:
+        record = self._db.get_experiment(experiment_id)
+        if not record:
             return _err("get_experiment", f"Experiment {experiment_id!r} not found")
-        return _ok("get_experiment", exp.to_dict())
+        return _ok("get_experiment", record)
 
     def list_experiments(
         self,
@@ -281,134 +438,139 @@ class ResearchLabAPI:
         status: str | None = None,
         researcher: str | None = None,
     ) -> ApiResponse:
-        items = list(self._experiments.values())
-        if qde_version:
-            items = [e for e in items if e.qde_version == qde_version]
-        if status:
-            items = [e for e in items if e.status.value == status]
-        if researcher:
-            items = [e for e in items if e.researcher == researcher]
-        items.sort(key=lambda e: e.created_at, reverse=True)
+        items = self._db.list_experiments(
+            qde_version=qde_version, status=status, researcher=researcher
+        )
+        by_status: dict[str, int] = {}
+        for item in items:
+            s = item.get("status", "UNKNOWN")
+            by_status[s] = by_status.get(s, 0) + 1
         return _ok(
-            "list_experiments", {"count": len(items), "experiments": [e.to_dict() for e in items]}
+            "list_experiments",
+            {"experiments": items, "total": len(items), "by_status": by_status},
         )
 
     def experiment_summary(self) -> ApiResponse:
-        exps = list(self._experiments.values())
+        all_items = self._db.list_experiments()
         by_status: dict[str, int] = {}
-        by_version: dict[str, int] = {}
-        for e in exps:
-            by_status[e.status.value] = by_status.get(e.status.value, 0) + 1
-            by_version[e.qde_version] = by_version.get(e.qde_version, 0) + 1
-        completed = [e for e in exps if e.status == ExperimentStatus.COMPLETED]
-        best = max(completed, key=lambda e: e.sharpe_ratio or 0.0) if completed else None
+        for item in all_items:
+            s = item.get("status", "UNKNOWN")
+            by_status[s] = by_status.get(s, 0) + 1
+        completed = [
+            item for item in all_items if item.get("status") == ExperimentStatus.COMPLETED.value
+        ]
+        sharpe_values = [
+            item["sharpe_ratio"] for item in completed if item.get("sharpe_ratio") is not None
+        ]
+        avg_sharpe = round(sum(sharpe_values) / len(sharpe_values), 4) if sharpe_values else None
         return _ok(
             "experiment_summary",
             {
-                "total": len(exps),
+                "total": len(all_items),
                 "by_status": by_status,
-                "by_version": by_version,
-                "best_experiment": best.to_dict() if best else None,
+                "completed": len(completed),
+                "avg_sharpe_ratio": avg_sharpe,
+                "top_experiments": sorted(
+                    completed,
+                    key=lambda x: x.get("sharpe_ratio") or 0,
+                    reverse=True,
+                )[:5],
             },
         )
 
-    # ── Model Benchmarking ────────────────────────────────────────────────────
+    # ── 4. Backtesting ────────────────────────────────────────────────────────
 
     def run_benchmark(
         self,
         name: str,
-        version_ids: list[str],
-        metrics_per_version: dict[str, dict[str, float]],
-        notes: str = "",
+        qde_version: str,
+        benchmark_type: str,
+        parameters: dict[str, Any] | None = None,
+        results: dict[str, Any] | None = None,
     ) -> ApiResponse:
         try:
-            import uuid as _uuid
+            import uuid
 
-            benchmark_id = f"bench-{str(_uuid.uuid4())[:10]}"
-            result = {
+            benchmark_id = f"bm-{str(uuid.uuid4())[:12]}"
+            record: dict[str, Any] = {
                 "benchmark_id": benchmark_id,
                 "name": name,
-                "version_ids": version_ids,
-                "metrics": {
-                    v: {k: round(val, 6) for k, val in m.items()}
-                    for v, m in metrics_per_version.items()
-                },
-                "created_at": round(time.time(), 3),
-                "notes": notes,
+                "qde_version": qde_version,
+                "benchmark_type": benchmark_type,
+                "parameters": parameters or {},
+                "results": results or {},
+                "created_at": time.time(),
             }
-            self._benchmarks[benchmark_id] = result
+            self._db.upsert_benchmark(record)
             logger.info(f"ResearchLab.run_benchmark: {benchmark_id} ({name})")
-            return _ok("run_benchmark", result)
+            return _ok("run_benchmark", record)
         except Exception as exc:
             return _err("run_benchmark", str(exc))
 
     def get_benchmark(self, benchmark_id: str) -> ApiResponse:
-        b = self._benchmarks.get(benchmark_id)
-        if not b:
+        record = self._db.get_benchmark(benchmark_id)
+        if not record:
             return _err("get_benchmark", f"Benchmark {benchmark_id!r} not found")
-        return _ok("get_benchmark", b)
+        return _ok("get_benchmark", record)
 
     def list_benchmarks(self) -> ApiResponse:
-        items = sorted(self._benchmarks.values(), key=lambda b: b["created_at"], reverse=True)
-        return _ok("list_benchmarks", {"count": len(items), "benchmarks": items})
-
-    # ── 6. Backtesting ────────────────────────────────────────────────────────
+        items = self._db.list_benchmarks()
+        return _ok("list_benchmarks", {"benchmarks": items, "total": len(items)})
 
     def register_backtest(
         self,
         experiment_id: str,
-        dataset_id: str,
+        start_date: str,
+        end_date: str,
+        instruments: list[str],
         metrics: dict[str, float],
+        regime_breakdown: dict[str, Any] | None = None,
         notes: str = "",
     ) -> ApiResponse:
         try:
-            import uuid as _uuid
+            exp = self._db.get_experiment(experiment_id)
+            if not exp:
+                return _err("register_backtest", f"Experiment {experiment_id!r} not found")
+            import uuid
 
-            bt_id = f"bt-{str(_uuid.uuid4())[:10]}"
-            bt = {
-                "backtest_id": bt_id,
+            backtest_id = f"bt-{str(uuid.uuid4())[:12]}"
+            record: dict[str, Any] = {
+                "backtest_id": backtest_id,
                 "experiment_id": experiment_id,
-                "dataset_id": dataset_id,
-                "metrics": {k: round(v, 6) for k, v in metrics.items()},
-                "created_at": round(time.time(), 3),
+                "qde_version": exp.get("qde_version", ""),
+                "start_date": start_date,
+                "end_date": end_date,
+                "instruments": instruments,
+                "metrics": metrics,
+                "regime_breakdown": regime_breakdown or {},
                 "notes": notes,
+                "created_at": time.time(),
             }
-            self._backtests[bt_id] = bt
-            exp = self._experiments.get(experiment_id)
-            if exp:
-                exp.validation_metrics.update(metrics)
-                for attr in ("sharpe_ratio", "max_drawdown", "profit_factor", "win_rate"):
-                    if attr in metrics:
-                        setattr(exp, attr, metrics[attr])
-            logger.info(f"ResearchLab.register_backtest: {bt_id}")
-            return _ok("register_backtest", bt)
+            self._db.upsert_backtest(record)
+            logger.info(
+                f"ResearchLab.register_backtest: {backtest_id}" f" for experiment {experiment_id}"
+            )
+            return _ok("register_backtest", record)
         except Exception as exc:
             return _err("register_backtest", str(exc))
 
     def list_backtests(self, experiment_id: str | None = None) -> ApiResponse:
-        items = list(self._backtests.values())
-        if experiment_id:
-            items = [b for b in items if b["experiment_id"] == experiment_id]
-        return _ok("list_backtests", {"count": len(items), "backtests": items})
+        items = self._db.list_backtests(experiment_id=experiment_id)
+        return _ok("list_backtests", {"backtests": items, "total": len(items)})
 
-    # ── 7. Shadow Testing ─────────────────────────────────────────────────────
+    # ── 5. Shadow Testing ─────────────────────────────────────────────────────
 
     def create_shadow_test(
         self,
         name: str,
         challenger_version: str,
         champion_version: str,
-        instruments: list[str],
-        min_decisions: int = 500,
+        instruments: list[str] | None = None,
+        min_decisions: int = 100,
         notes: str = "",
     ) -> ApiResponse:
-        """Create a new shadow test run.
-
-        The challenger receives live snapshots but its decisions are NEVER executed.
-        All comparison is observational only.
-        """
         try:
-            run = ShadowTestRun.new(
+            test = ShadowTestRun.new(
                 name=name,
                 challenger_version=challenger_version,
                 champion_version=champion_version,
@@ -416,12 +578,12 @@ class ResearchLabAPI:
                 min_decisions=min_decisions,
                 notes=notes,
             )
-            self._shadow_tests[run.test_id] = run
+            self._db.upsert_shadow_test(test.to_dict())
             logger.info(
-                f"ResearchLab.create_shadow_test: {run.test_id} "
-                f"challenger={challenger_version} champion={champion_version}"
+                f"ResearchLab.create_shadow_test: {test.test_id}"
+                f" challenger={challenger_version} vs champion={champion_version}"
             )
-            return _ok("create_shadow_test", run.to_dict())
+            return _ok("create_shadow_test", test.to_dict())
         except Exception as exc:
             return _err("create_shadow_test", str(exc))
 
@@ -429,299 +591,508 @@ class ResearchLabAPI:
         self,
         test_id: str,
         instrument: str,
-        champion_decision_type: str,
-        challenger_decision_type: str,
+        champion_decision: str,
+        challenger_decision: str,
         champion_confidence: float,
         challenger_confidence: float,
-        regime: str = "",
-        market_context: dict[str, Any] | None = None,
+        regime: str | None = None,
     ) -> ApiResponse:
-        """Record one decision comparison in a running shadow test."""
-        run = self._shadow_tests.get(test_id)
-        if not run:
+        row = self._db.get_shadow_test(test_id)
+        if not row:
             return _err("record_shadow_decision", f"Shadow test {test_id!r} not found")
-        if run.status != ShadowTestStatus.RUNNING:
+        if row.get("status") != ShadowTestStatus.RUNNING.value:
             return _err(
                 "record_shadow_decision",
-                f"Shadow test {test_id!r} is not RUNNING (status={run.status.value})",
+                f"Shadow test {test_id} is {row['status']} — can only record to RUNNING tests",
             )
-        record = ShadowDecisionRecord.new(
+        import uuid
+
+        decision = ShadowDecisionRecord(
+            record_id=f"sd-{str(uuid.uuid4())[:12]}",
             test_id=test_id,
             instrument=instrument,
-            champion_decision_type=champion_decision_type,
-            challenger_decision_type=challenger_decision_type,
+            champion_decision=champion_decision,
+            challenger_decision=challenger_decision,
             champion_confidence=champion_confidence,
             challenger_confidence=challenger_confidence,
             regime=regime,
-            market_context=market_context,
+            recorded_at=time.time(),
         )
-        run.add_decision(record)
+        self._db.save_shadow_decision(decision.to_dict())
+        count = self._db.count_shadow_decisions(test_id)
         return _ok(
             "record_shadow_decision",
-            {
-                "record": record.to_dict(),
-                "total_decisions": len(run.decisions),
-                "decisions_remaining": max(0, run.min_decisions - len(run.decisions)),
-            },
+            {"record_id": decision.record_id, "total_decisions": count},
         )
 
     def conclude_shadow_test(self, test_id: str, notes: str = "") -> ApiResponse:
-        """Conclude a shadow test and compute its recommendation."""
-        run = self._shadow_tests.get(test_id)
-        if not run:
+        row = self._db.get_shadow_test(test_id)
+        if not row:
             return _err("conclude_shadow_test", f"Shadow test {test_id!r} not found")
-        if run.status != ShadowTestStatus.RUNNING:
-            return _err("conclude_shadow_test", f"Shadow test {test_id!r} is not RUNNING")
-        run.conclude(notes=notes)
-        logger.info(
-            f"ResearchLab.conclude_shadow_test: {test_id} "
-            f"decisions={run.total_decisions} "
-            f"agreement={run.agreement_rate:.1%} "
-            f"recommendation={run.recommendation.value}"
+        if row.get("status") != ShadowTestStatus.RUNNING.value:
+            return _err(
+                "conclude_shadow_test",
+                f"Shadow test {test_id} is {row['status']} — can only conclude RUNNING tests",
+            )
+        decisions = self._db.list_shadow_decisions(test_id)
+        decision_objs = [ShadowDecisionRecord(**d) for d in decisions]
+        test_obj = ShadowTestRun(
+            test_id=row["test_id"],
+            name=row["name"],
+            challenger_version=row["challenger_version"],
+            champion_version=row["champion_version"],
+            instruments=row.get("instruments", []),
+            status=ShadowTestStatus.RUNNING,
+            started_at=row["started_at"],
+            min_decisions=row.get("min_decisions", 100),
+            notes=row.get("notes", ""),
+            decisions=decision_objs,
         )
-        return _ok("conclude_shadow_test", run.to_dict())
+        test_obj.conclude(notes=notes)
+        self._db.upsert_shadow_test(test_obj.to_dict())
+        logger.info(
+            f"ResearchLab.conclude_shadow_test: {test_id}"
+            f" recommendation={test_obj.recommendation.value}"
+        )
+        return _ok("conclude_shadow_test", test_obj.to_dict())
 
     def get_shadow_test(self, test_id: str) -> ApiResponse:
-        run = self._shadow_tests.get(test_id)
-        if not run:
+        row = self._db.get_shadow_test(test_id)
+        if not row:
             return _err("get_shadow_test", f"Shadow test {test_id!r} not found")
-        return _ok("get_shadow_test", run.summary())
+        return _ok("get_shadow_test", row)
 
     def list_shadow_tests(
         self,
         challenger_version: str | None = None,
         status: str | None = None,
     ) -> ApiResponse:
-        items = list(self._shadow_tests.values())
-        if challenger_version:
-            items = [r for r in items if r.challenger_version == challenger_version]
-        if status:
-            items = [r for r in items if r.status.value == status]
-        items.sort(key=lambda r: r.started_at, reverse=True)
-        return _ok(
-            "list_shadow_tests",
-            {
-                "count": len(items),
-                "shadow_tests": [r.summary() for r in items],
-            },
-        )
+        items = self._db.list_shadow_tests(challenger_version=challenger_version, status=status)
+        return _ok("list_shadow_tests", {"shadow_tests": items, "total": len(items)})
 
-    # ── Parameter Search ──────────────────────────────────────────────────────
+    # ── 6. Parameter Search ───────────────────────────────────────────────────
 
     def create_search(
         self,
         name: str,
-        strategy: str,
-        search_space: dict[str, Any],
-        objective: str,
-        maximize: bool = True,
-        n_trials: int = 20,
-        qde_version: str = "",
+        qde_version: str,
+        parameter_space: dict[str, Any],
+        strategy: str = "BAYESIAN",
+        max_trials: int = 50,
         notes: str = "",
     ) -> ApiResponse:
         try:
-            run = ParameterSearchRun.new(
+            search_strategy = SearchStrategy(strategy)
+        except ValueError:
+            return _err(
+                "create_search",
+                f"Unknown strategy {strategy!r}. Valid: {[s.value for s in SearchStrategy]}",
+            )
+        try:
+            search = ParameterSearchRun.new(
                 name=name,
-                strategy=SearchStrategy(strategy),
-                search_space=search_space,
-                objective=objective,
-                maximize=maximize,
-                n_trials=n_trials,
                 qde_version=qde_version,
+                parameter_space=parameter_space,
+                strategy=search_strategy,
+                max_trials=max_trials,
                 notes=notes,
             )
-            self._searches[run.search_id] = run
-            logger.info(f"ResearchLab.create_search: {run.search_id} ({run.name})")
-            return _ok("create_search", run.to_dict())
-        except ValueError as exc:
-            return _err("create_search", f"Invalid strategy: {exc}")
+            self._db.upsert_search(search.to_dict())
+            logger.info(f"ResearchLab.create_search: {search.search_id} ({name})")
+            return _ok("create_search", search.to_dict())
+        except Exception as exc:
+            return _err("create_search", str(exc))
 
     def record_trial(
         self,
         search_id: str,
-        params: dict[str, Any],
-        score: float,
-        metadata: dict[str, Any] | None = None,
+        parameters: dict[str, float],
+        metrics: dict[str, float],
     ) -> ApiResponse:
-        run = self._searches.get(search_id)
-        if not run:
+        record = self._db.get_search(search_id)
+        if not record:
             return _err("record_trial", f"Search {search_id!r} not found")
-        run.record_trial(params, score, metadata)
-        return _ok(
-            "record_trial",
-            {"search_id": search_id, "trial": run.trials[-1], "best_score": run.best_score},
-        )
+        trials: list[dict[str, Any]] = record.get("trials", [])
+        trial: dict[str, Any] = {
+            "trial_number": len(trials) + 1,
+            "parameters": parameters,
+            "metrics": metrics,
+            "recorded_at": time.time(),
+        }
+        trials.append(trial)
+        record["trials"] = trials
+        record["total_trials"] = len(trials)
+        if trials:
+            best_score = record.get("best_score")
+            score = metrics.get("sharpe_ratio", metrics.get("score", 0.0))
+            if best_score is None or score > best_score:
+                record["best_score"] = score
+                record["best_parameters"] = parameters
+        self._db.upsert_search(record)
+        return _ok("record_trial", {"trial": trial, "total_trials": len(trials)})
 
     def complete_search(self, search_id: str) -> ApiResponse:
-        run = self._searches.get(search_id)
-        if not run:
+        record = self._db.get_search(search_id)
+        if not record:
             return _err("complete_search", f"Search {search_id!r} not found")
-        run.complete()
-        return _ok("complete_search", run.to_dict())
+        record["status"] = "COMPLETED"
+        record["completed_at"] = time.time()
+        self._db.upsert_search(record)
+        logger.info(f"ResearchLab.complete_search: {search_id}")
+        return _ok("complete_search", record)
 
     def get_search(self, search_id: str) -> ApiResponse:
-        run = self._searches.get(search_id)
-        if not run:
+        record = self._db.get_search(search_id)
+        if not record:
             return _err("get_search", f"Search {search_id!r} not found")
-        return _ok("get_search", run.to_dict())
+        return _ok("get_search", record)
 
     def list_searches(self, qde_version: str | None = None) -> ApiResponse:
-        items = list(self._searches.values())
-        if qde_version:
-            items = [s for s in items if s.qde_version == qde_version]
-        items.sort(key=lambda s: s.created_at, reverse=True)
-        return _ok("list_searches", {"count": len(items), "searches": [s.to_dict() for s in items]})
+        items = self._db.list_searches(qde_version=qde_version)
+        return _ok("list_searches", {"searches": items, "total": len(items)})
 
-    # ── 5. Validation / Deployment Gates ──────────────────────────────────────
+    # ── 7. Validation (Deployment Gates) ──────────────────────────────────────
 
     def evaluate_deployment_gates(
         self,
         experiment_id: str,
-        baseline_experiment_id: str | None = None,
-        max_drawdown_tolerance: float = 0.02,
+        baseline_version: str,
+        min_sharpe: float = 0.5,
+        max_drawdown_pct: float = 15.0,
+        min_win_rate: float = 0.45,
+        min_profit_factor: float = 1.2,
     ) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
+        exp = self._db.get_experiment(experiment_id)
         if not exp:
             return _err("evaluate_deployment_gates", f"Experiment {experiment_id!r} not found")
-        baseline_metrics: dict[str, float] | None = None
-        if baseline_experiment_id:
-            b_exp = self._experiments.get(baseline_experiment_id)
-            if b_exp:
-                baseline_metrics = b_exp.validation_metrics
-        result = DeploymentGateResult.evaluate(
-            experiment=exp,
-            baseline_metrics=baseline_metrics,
-            max_drawdown_tolerance=max_drawdown_tolerance,
-        )
-        self._gate_results[result.gate_id] = result
+        if exp.get("status") != ExperimentStatus.COMPLETED.value:
+            return _err(
+                "evaluate_deployment_gates",
+                f"Experiment {experiment_id} is {exp['status']} — must be COMPLETED",
+            )
+        import uuid
+
+        gate_id = f"gate-{str(uuid.uuid4())[:12]}"
+        checks: list[dict[str, Any]] = [
+            {
+                "gate": "min_sharpe",
+                "threshold": min_sharpe,
+                "actual": exp.get("sharpe_ratio"),
+                "passed": (exp.get("sharpe_ratio") or 0) >= min_sharpe,
+            },
+            {
+                "gate": "max_drawdown",
+                "threshold": max_drawdown_pct,
+                "actual": exp.get("max_drawdown"),
+                "passed": (exp.get("max_drawdown") or 100) <= max_drawdown_pct,
+            },
+            {
+                "gate": "min_win_rate",
+                "threshold": min_win_rate,
+                "actual": exp.get("win_rate"),
+                "passed": (exp.get("win_rate") or 0) >= min_win_rate,
+            },
+            {
+                "gate": "min_profit_factor",
+                "threshold": min_profit_factor,
+                "actual": exp.get("profit_factor"),
+                "passed": (exp.get("profit_factor") or 0) >= min_profit_factor,
+            },
+        ]
+        all_passed = all(c["passed"] for c in checks)
+        record: dict[str, Any] = {
+            "gate_id": gate_id,
+            "experiment_id": experiment_id,
+            "qde_version": exp.get("qde_version", ""),
+            "baseline_version": baseline_version,
+            "passed": all_passed,
+            "checks": checks,
+            "evaluated_at": time.time(),
+        }
+        self._db.upsert_gate_result(record)
         logger.info(
-            f"ResearchLab.evaluate_deployment_gates: {result.gate_id} "
-            f"experiment={experiment_id} passed={result.passed}"
+            f"ResearchLab.evaluate_deployment_gates: {gate_id}"
+            f" experiment={experiment_id} passed={all_passed}"
         )
-        return _ok("evaluate_deployment_gates", result.to_dict())
+        return _ok("evaluate_deployment_gates", record)
 
-    def validate_retraining(
-        self,
-        experiment_id: str,
-        incumbent_experiment_id: str,
-    ) -> ApiResponse:
-        return self.evaluate_deployment_gates(
-            experiment_id=experiment_id,
-            baseline_experiment_id=incumbent_experiment_id,
+    def validate_retraining(self, experiment_id: str, baseline_version: str) -> ApiResponse:
+        exp = self._db.get_experiment(experiment_id)
+        if not exp:
+            return _err("validate_retraining", f"Experiment {experiment_id!r} not found")
+        gates = self._db.list_gate_results(experiment_id=experiment_id)
+        latest_gate = gates[0] if gates else None
+        return _ok(
+            "validate_retraining",
+            {
+                "experiment_id": experiment_id,
+                "baseline_version": baseline_version,
+                "experiment_status": exp.get("status"),
+                "gates_evaluated": latest_gate is not None,
+                "gates_passed": latest_gate.get("passed") if latest_gate else None,
+                "recommendation": (
+                    "PROCEED" if latest_gate and latest_gate.get("passed") else "ABORT"
+                ),
+            },
         )
 
-    # ── 10. Deployment Approval ───────────────────────────────────────────────
+    # ── 8. Promotion Approval ─────────────────────────────────────────────────
 
     def approve_deployment(
         self,
         experiment_id: str,
-        gate_id: str,
         approver: str,
         notes: str = "",
     ) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
+        exp = self._db.get_experiment(experiment_id)
         if not exp:
             return _err("approve_deployment", f"Experiment {experiment_id!r} not found")
-        gate = self._gate_results.get(gate_id)
-        if not gate:
-            return _err("approve_deployment", f"Gate result {gate_id!r} not found")
-        if not gate.passed:
+        gates = self._db.list_gate_results(experiment_id=experiment_id)
+        latest_gate = gates[0] if gates else None
+        if not latest_gate or not latest_gate.get("passed"):
             return _err(
                 "approve_deployment",
-                f"Cannot approve: deployment gates failed — {gate.failed_gates}",
+                f"Experiment {experiment_id} has not passed all deployment gates",
             )
-        exp.deployment_status = DeploymentStatus.ACTIVE
-        exp.deployment_notes = f"Approved by {approver}. {notes}".strip()
-        record = {
+        now = time.time()
+        exp["deployment_status"] = DeploymentStatus.ACTIVE.value
+        exp["deployment_notes"] = notes
+        exp["updated_at"] = now
+        self._db.upsert_experiment(exp)
+        deployment_record: dict[str, Any] = {
             "action": "APPROVED",
             "experiment_id": experiment_id,
-            "gate_id": gate_id,
+            "qde_version": exp.get("qde_version", ""),
             "approver": approver,
             "notes": notes,
-            "timestamp": round(time.time(), 3),
+            "timestamp": now,
         }
-        self._deployments.append(record)
-        logger.info(f"ResearchLab.approve_deployment: {experiment_id} by {approver!r}")
-        return _ok("approve_deployment", {"record": record, "experiment": exp.to_dict()})
+        self._db.save_deployment(deployment_record)
+        logger.info(
+            f"ResearchLab.approve_deployment: experiment={experiment_id}"
+            f" version={exp.get('qde_version')} approver={approver}"
+        )
+        return _ok("approve_deployment", {**exp, "deployment_record": deployment_record})
 
     def reject_deployment(self, experiment_id: str, rejector: str, reason: str) -> ApiResponse:
-        exp = self._experiments.get(experiment_id)
+        exp = self._db.get_experiment(experiment_id)
         if not exp:
             return _err("reject_deployment", f"Experiment {experiment_id!r} not found")
-        exp.deployment_status = DeploymentStatus.NOT_DEPLOYED
-        exp.deployment_notes = f"Rejected by {rejector}: {reason}"
-        record = {
+        now = time.time()
+        exp["deployment_status"] = DeploymentStatus.RETIRED.value
+        exp["deployment_notes"] = reason
+        exp["updated_at"] = now
+        self._db.upsert_experiment(exp)
+        deployment_record: dict[str, Any] = {
             "action": "REJECTED",
             "experiment_id": experiment_id,
+            "qde_version": exp.get("qde_version", ""),
             "rejector": rejector,
             "reason": reason,
-            "timestamp": round(time.time(), 3),
+            "timestamp": now,
         }
-        self._deployments.append(record)
-        return _ok("reject_deployment", {"record": record, "experiment": exp.to_dict()})
+        self._db.save_deployment(deployment_record)
+        logger.info(
+            f"ResearchLab.reject_deployment: experiment={experiment_id} rejector={rejector}"
+        )
+        return _ok("reject_deployment", {**exp, "deployment_record": deployment_record})
 
     def deployment_history(self) -> ApiResponse:
+        items = self._db.list_deployments()
+        return _ok("deployment_history", {"deployments": items, "total": len(items)})
+
+    # ── 9. Rollback Approval ──────────────────────────────────────────────────
+
+    def create_rollback_request(
+        self,
+        current_version_id: str,
+        target_version_id: str,
+        reason: str,
+        requested_by: str,
+    ) -> ApiResponse:
+        """Create a formal request to roll the active QDE version back.
+
+        The request begins in PENDING status. A second administrator must call
+        approve_rollback() before any version change takes effect.
+        """
+        if not current_version_id:
+            return _err("create_rollback_request", "current_version_id is required")
+        if not target_version_id:
+            return _err("create_rollback_request", "target_version_id is required")
+        if current_version_id == target_version_id:
+            return _err(
+                "create_rollback_request",
+                "current_version_id and target_version_id must differ",
+            )
+        if not reason:
+            return _err("create_rollback_request", "reason is required")
+        try:
+            pending = self._db.list_rollback_requests(status=RollbackStatus.PENDING.value)
+            for p in pending:
+                if p.get("target_version_id") == target_version_id:
+                    return _err(
+                        "create_rollback_request",
+                        f"A pending rollback to {target_version_id!r} already exists"
+                        f" ({p['request_id']}). Approve, reject, or withdraw it first.",
+                    )
+            req = RollbackRequest.new(
+                current_version_id=current_version_id,
+                target_version_id=target_version_id,
+                reason=reason,
+                requested_by=requested_by,
+            )
+            self._db.upsert_rollback_request(req.to_dict())
+            logger.info(
+                f"ResearchLab.create_rollback_request: {req.request_id}"
+                f" {current_version_id} → {target_version_id}"
+                f" requested_by={requested_by}"
+            )
+            return _ok("create_rollback_request", req.to_dict())
+        except Exception as exc:
+            return _err("create_rollback_request", str(exc))
+
+    def approve_rollback(self, request_id: str, approver: str, notes: str = "") -> ApiResponse:
+        """Approve a pending rollback request.
+
+        Records the approval. Does not automatically switch the QDE version —
+        the caller is responsible for triggering the actual registry update
+        after receiving a successful response.
+        """
+        record = self._db.get_rollback_request(request_id)
+        if not record:
+            return _err("approve_rollback", f"Rollback request {request_id!r} not found")
+        if record.get("status") != RollbackStatus.PENDING.value:
+            return _err(
+                "approve_rollback",
+                f"Request {request_id} is {record['status']} — only PENDING requests can be approved",
+            )
+        if record.get("requested_by") == approver:
+            return _err(
+                "approve_rollback",
+                f"Approver {approver!r} cannot approve their own rollback request",
+            )
+        record["status"] = RollbackStatus.APPROVED.value
+        record["resolved_at"] = time.time()
+        record["resolved_by"] = approver
+        record["resolution_notes"] = notes
+        self._db.upsert_rollback_request(record)
+        logger.info(
+            f"ResearchLab.approve_rollback: {request_id}"
+            f" {record['current_version_id']} → {record['target_version_id']}"
+            f" approver={approver}"
+        )
+        return _ok("approve_rollback", record)
+
+    def reject_rollback(self, request_id: str, rejector: str, notes: str = "") -> ApiResponse:
+        """Reject a pending rollback request."""
+        record = self._db.get_rollback_request(request_id)
+        if not record:
+            return _err("reject_rollback", f"Rollback request {request_id!r} not found")
+        if record.get("status") != RollbackStatus.PENDING.value:
+            return _err(
+                "reject_rollback",
+                f"Request {request_id} is {record['status']} — only PENDING requests can be rejected",
+            )
+        record["status"] = RollbackStatus.REJECTED.value
+        record["resolved_at"] = time.time()
+        record["resolved_by"] = rejector
+        record["resolution_notes"] = notes
+        self._db.upsert_rollback_request(record)
+        logger.info(f"ResearchLab.reject_rollback: {request_id} rejector={rejector}")
+        return _ok("reject_rollback", record)
+
+    def withdraw_rollback(self, request_id: str, notes: str = "") -> ApiResponse:
+        """Withdraw a pending rollback request (by the original requester)."""
+        record = self._db.get_rollback_request(request_id)
+        if not record:
+            return _err("withdraw_rollback", f"Rollback request {request_id!r} not found")
+        if record.get("status") != RollbackStatus.PENDING.value:
+            return _err(
+                "withdraw_rollback",
+                f"Request {request_id} is {record['status']} — only PENDING requests can be withdrawn",
+            )
+        record["status"] = RollbackStatus.WITHDRAWN.value
+        record["resolved_at"] = time.time()
+        record["resolution_notes"] = notes
+        self._db.upsert_rollback_request(record)
+        logger.info(f"ResearchLab.withdraw_rollback: {request_id}")
+        return _ok("withdraw_rollback", record)
+
+    def get_rollback_request(self, request_id: str) -> ApiResponse:
+        record = self._db.get_rollback_request(request_id)
+        if not record:
+            return _err("get_rollback_request", f"Rollback request {request_id!r} not found")
+        return _ok("get_rollback_request", record)
+
+    def list_rollback_requests(self, status: str | None = None) -> ApiResponse:
+        items = self._db.list_rollback_requests(status=status)
+        pending = sum(1 for i in items if i.get("status") == RollbackStatus.PENDING.value)
         return _ok(
-            "deployment_history", {"count": len(self._deployments), "history": self._deployments}
+            "list_rollback_requests",
+            {"requests": items, "total": len(items), "pending": pending},
         )
 
-    # ── 9. Failure Analysis ───────────────────────────────────────────────────
+    # ── 10. Failure Analysis ──────────────────────────────────────────────────
 
     def record_failure(
         self,
+        qde_version: str,
         category: str,
         severity: str,
-        qde_version: str,
         description: str,
-        instrument: str = "",
-        regime: str = "",
-        loss_amount: float | None = None,
-        drawdown_magnitude: float | None = None,
-        tags: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
+        detected_at: float | None = None,
+        affected_instruments: list[str] | None = None,
+        loss_pct: float | None = None,
+        notes: str = "",
     ) -> ApiResponse:
         try:
-            event = FailureEvent.new(
-                category=FailureCategory(category),
-                severity=FailureSeverity(severity),
-                qde_version=qde_version,
-                description=description,
-                instrument=instrument,
-                regime=regime,
-                loss_amount=loss_amount,
-                drawdown_magnitude=drawdown_magnitude,
-                tags=tags,
-                metadata=metadata,
-            )
-            self._failures[event.failure_id] = event
-            logger.warning(
-                f"ResearchLab.record_failure: {event.failure_id} "
-                f"category={category} severity={severity} version={qde_version}"
-            )
-            return _ok("record_failure", event.to_dict())
+            cat = FailureCategory(category)
+            sev = FailureSeverity(severity)
         except ValueError as exc:
-            return _err("record_failure", f"Invalid category or severity: {exc}")
+            return _err("record_failure", str(exc))
+        try:
+            failure = FailureEvent.new(
+                qde_version=qde_version,
+                category=cat,
+                severity=sev,
+                description=description,
+                detected_at=detected_at,
+                affected_instruments=affected_instruments,
+                loss_pct=loss_pct,
+                notes=notes,
+            )
+            self._db.upsert_failure(failure.to_dict())
+            logger.warning(
+                f"ResearchLab.record_failure: {failure.failure_id}"
+                f" {sev.value} {cat.value} on {qde_version}"
+            )
+            return _ok("record_failure", failure.to_dict())
+        except Exception as exc:
+            return _err("record_failure", str(exc))
 
     def investigate_failure(self, failure_id: str, root_cause: str, notes: str = "") -> ApiResponse:
-        event = self._failures.get(failure_id)
-        if not event:
+        record = self._db.get_failure(failure_id)
+        if not record:
             return _err("investigate_failure", f"Failure {failure_id!r} not found")
-        event.root_cause = root_cause
-        event.status = "INVESTIGATING"
+        record["root_cause"] = root_cause
+        record["status"] = "INVESTIGATING"
         if notes:
-            event.metadata["investigation_notes"] = notes
-        return _ok("investigate_failure", event.to_dict())
+            record["notes"] = notes
+        self._db.upsert_failure(record)
+        logger.info(f"ResearchLab.investigate_failure: {failure_id} — {root_cause[:80]}")
+        return _ok("investigate_failure", record)
 
     def resolve_failure(self, failure_id: str, resolution: str, resolver: str = "") -> ApiResponse:
-        event = self._failures.get(failure_id)
-        if not event:
+        record = self._db.get_failure(failure_id)
+        if not record:
             return _err("resolve_failure", f"Failure {failure_id!r} not found")
-        event.resolution = resolution
-        event.status = "RESOLVED"
-        if resolver:
-            event.metadata["resolver"] = resolver
-        logger.info(f"ResearchLab.resolve_failure: {failure_id}")
-        return _ok("resolve_failure", event.to_dict())
+        record["resolution"] = resolution
+        record["resolver"] = resolver
+        record["status"] = "RESOLVED"
+        record["resolved_at"] = time.time()
+        self._db.upsert_failure(record)
+        logger.info(f"ResearchLab.resolve_failure: {failure_id} resolver={resolver}")
+        return _ok("resolve_failure", record)
 
     def list_failures(
         self,
@@ -730,96 +1101,122 @@ class ResearchLabAPI:
         qde_version: str | None = None,
         status: str | None = None,
     ) -> ApiResponse:
-        items = list(self._failures.values())
-        if category:
-            items = [f for f in items if f.category.value == category]
-        if severity:
-            items = [f for f in items if f.severity.value == severity]
-        if qde_version:
-            items = [f for f in items if f.qde_version == qde_version]
-        if status:
-            items = [f for f in items if f.status == status]
-        items.sort(key=lambda f: f.detected_at, reverse=True)
-        return _ok("list_failures", {"count": len(items), "failures": [f.to_dict() for f in items]})
+        items = self._db.list_failures(
+            category=category,
+            severity=severity,
+            qde_version=qde_version,
+            status=status,
+        )
+        return _ok("list_failures", {"failures": items, "total": len(items)})
 
     def failure_summary(self) -> ApiResponse:
-        failures = list(self._failures.values())
-        by_category: dict[str, int] = {}
+        all_failures = self._db.list_failures()
         by_severity: dict[str, int] = {}
+        by_category: dict[str, int] = {}
         by_status: dict[str, int] = {}
-        for f in failures:
-            by_category[f.category.value] = by_category.get(f.category.value, 0) + 1
-            by_severity[f.severity.value] = by_severity.get(f.severity.value, 0) + 1
-            by_status[f.status] = by_status.get(f.status, 0) + 1
+        for f in all_failures:
+            s = f.get("severity", "UNKNOWN")
+            by_severity[s] = by_severity.get(s, 0) + 1
+            c = f.get("category", "UNKNOWN")
+            by_category[c] = by_category.get(c, 0) + 1
+            st = f.get("status", "UNKNOWN")
+            by_status[st] = by_status.get(st, 0) + 1
+        critical = [f for f in all_failures if f.get("severity") == FailureSeverity.CRITICAL.value]
         return _ok(
             "failure_summary",
             {
-                "total": len(failures),
-                "by_category": by_category,
+                "total": len(all_failures),
                 "by_severity": by_severity,
+                "by_category": by_category,
                 "by_status": by_status,
-                "open": by_status.get("OPEN", 0),
-                "critical": by_severity.get("CRITICAL", 0),
+                "open_critical": len([f for f in critical if f.get("status") != "RESOLVED"]),
+                "recent_critical": critical[:5],
             },
         )
 
-    # ── Market Regime Analysis ─────────────────────────────────────────────────
+    # ── 11. Market Regime Analysis ─────────────────────────────────────────────
 
     def analyze_regime(
         self,
         qde_version: str,
-        regime_results: dict[str, dict[str, float]],
+        regime_metrics: dict[str, Any],
         notes: str = "",
     ) -> ApiResponse:
         try:
-            report = RegimeAnalysisReport.build(qde_version, regime_results, notes)
-            self._regime_reports[report.report_id] = report
-            logger.info(f"ResearchLab.analyze_regime: {report.report_id} version={qde_version}")
+            report = RegimeAnalysisReport.new(
+                qde_version=qde_version,
+                regime_metrics=regime_metrics,
+                notes=notes,
+            )
+            self._db.upsert_regime_report(report.to_dict())
+            logger.info(f"ResearchLab.analyze_regime: {report.report_id}" f" qde={qde_version}")
             return _ok("analyze_regime", report.to_dict())
         except Exception as exc:
             return _err("analyze_regime", str(exc))
 
     def get_regime_report(self, report_id: str) -> ApiResponse:
-        r = self._regime_reports.get(report_id)
-        if not r:
+        record = self._db.get_regime_report(report_id)
+        if not record:
             return _err("get_regime_report", f"Report {report_id!r} not found")
-        return _ok("get_regime_report", r.to_dict())
+        return _ok("get_regime_report", record)
 
     def list_regime_reports(self, qde_version: str | None = None) -> ApiResponse:
-        items = list(self._regime_reports.values())
-        if qde_version:
-            items = [r for r in items if r.qde_version == qde_version]
-        items.sort(key=lambda r: r.created_at, reverse=True)
-        return _ok(
-            "list_regime_reports", {"count": len(items), "reports": [r.to_dict() for r in items]}
-        )
+        items = self._db.list_regime_reports(qde_version=qde_version)
+        return _ok("list_regime_reports", {"reports": items, "total": len(items)})
 
-    # ── Model Comparison ──────────────────────────────────────────────────────
+    # ── 12. Version Comparisons ───────────────────────────────────────────────
 
     def compare_models(
         self,
-        version_ids: list[str],
-        metrics_per_version: dict[str, dict[str, float]],
+        versions: list[str],
+        metrics: list[str] | None = None,
+        regime_filter: str | None = None,
         notes: str = "",
     ) -> ApiResponse:
+        if len(versions) < 2:
+            return _err("compare_models", "At least 2 versions are required for comparison")
         try:
-            result = ModelComparisonResult.build(version_ids, metrics_per_version, notes)
-            self._comparisons[result.comparison_id] = result
+            result = ModelComparisonResult.new(
+                versions=versions,
+                metrics=metrics,
+                regime_filter=regime_filter,
+                notes=notes,
+            )
+            exp_data: dict[str, Any] = {}
+            for v in versions:
+                exps = self._db.list_experiments(qde_version=v, status="COMPLETED")
+                if exps:
+                    best = max(exps, key=lambda e: e.get("sharpe_ratio") or 0)
+                    exp_data[v] = {
+                        "sharpe_ratio": best.get("sharpe_ratio"),
+                        "max_drawdown": best.get("max_drawdown"),
+                        "win_rate": best.get("win_rate"),
+                        "profit_factor": best.get("profit_factor"),
+                        "capital_efficiency": best.get("capital_efficiency"),
+                        "decision_quality": best.get("decision_quality"),
+                    }
+            result.version_metrics = exp_data
+            if exp_data:
+                result.ranked_versions = sorted(
+                    exp_data.keys(),
+                    key=lambda v: exp_data[v].get("sharpe_ratio") or 0,
+                    reverse=True,
+                )
+                result.recommended_version = result.ranked_versions[0]
+            self._db.upsert_comparison(result.to_dict())
             logger.info(
-                f"ResearchLab.compare_models: {result.comparison_id} winner={result.overall_winner}"
+                f"ResearchLab.compare_models: {result.comparison_id}" f" versions={versions}"
             )
             return _ok("compare_models", result.to_dict())
         except Exception as exc:
             return _err("compare_models", str(exc))
 
     def get_comparison(self, comparison_id: str) -> ApiResponse:
-        c = self._comparisons.get(comparison_id)
-        if not c:
+        record = self._db.get_comparison(comparison_id)
+        if not record:
             return _err("get_comparison", f"Comparison {comparison_id!r} not found")
-        return _ok("get_comparison", c.to_dict())
+        return _ok("get_comparison", record)
 
     def list_comparisons(self) -> ApiResponse:
-        items = sorted(self._comparisons.values(), key=lambda c: c.created_at, reverse=True)
-        return _ok(
-            "list_comparisons", {"count": len(items), "comparisons": [c.to_dict() for c in items]}
-        )
+        items = self._db.list_comparisons()
+        return _ok("list_comparisons", {"comparisons": items, "total": len(items)})

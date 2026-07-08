@@ -1,4 +1,4 @@
-"""Phase 28.4 — Research Lab HTTP Server.
+"""Phase 28.5 — Research Lab HTTP Server.
 
 Admin-only FastAPI server. Every endpoint is protected by a static bearer token.
 The server has no public documentation UI, no API browser, and no frontend.
@@ -9,6 +9,7 @@ Start with:
 
 Environment variables:
     RESEARCH_LAB_ADMIN_TOKEN  Required. Shared secret for all admin requests.
+    RESEARCH_LAB_DB_PATH      Path to the SQLite database file (default: data/research_lab.db).
     RESEARCH_LAB_PORT         Port (default 8002).
 
 ACCESS MODEL
@@ -21,6 +22,17 @@ ACCESS MODEL
 - No retail user may reach any endpoint in this server.
 - No public documentation UI is served (docs_url=None, redoc_url=None).
 - No OpenAPI schema endpoint is served (openapi_url=None).
+
+RESPONSIBILITIES (8 core, confirmed by administrator specification)
+-------------------------------------------------------------------
+ 1. Experiment tracking
+ 2. Backtesting
+ 3. Validation (deployment gates)
+ 4. Dataset generation
+ 5. Failure analysis
+ 6. Version comparisons
+ 7. Promotion approval
+ 8. Rollback approval
 """
 
 from __future__ import annotations
@@ -38,6 +50,7 @@ except ImportError as exc:
     ) from exc
 
 from trainer.research_lab.research_lab_api import ResearchLabAPI
+from trainer.research_lab.rl_database import ResearchLabDatabase
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -47,16 +60,17 @@ app = FastAPI(
         "Administrator-only QDE research and improvement subsystem. "
         "No public access. No frontend. Internal use only."
     ),
-    version="28.4.0",
-    docs_url=None,  # No public API browser — admin subsystem has no UI
-    redoc_url=None,  # No public documentation UI
-    openapi_url=None,  # No public schema endpoint
+    version="28.5.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
-# No CORS middleware — this server is internal. Browsers do not contact it
-# directly. All external traffic arrives via the Express proxy on port 8080.
+# No CORS middleware — internal server. All traffic arrives via the Express proxy.
 
-_api = ResearchLabAPI()
+_db_path = os.environ.get("RESEARCH_LAB_DB_PATH", "data/research_lab.db")
+_db = ResearchLabDatabase(_db_path)
+_api = ResearchLabAPI(db=_db)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -98,10 +112,35 @@ class CreateDatasetRequest(BaseModel):
     notes: str = ""
 
 
+class CreateGenerationJobRequest(BaseModel):
+    name: str
+    instruments: list[str]
+    start_date: str
+    end_date: str
+    feature_schema: dict[str, Any] = {}
+    label_schema: dict[str, Any] = {}
+    requested_by: str = ""
+    notes: str = ""
+
+
+class ValidatingGenerationJobRequest(BaseModel):
+    row_count: int = 0
+    feature_count: int = 0
+
+
+class CompleteGenerationJobRequest(BaseModel):
+    quality_metrics: dict[str, float] = {}
+
+
+class FailGenerationJobRequest(BaseModel):
+    error: str
+
+
 class RecordFeatureRequest(BaseModel):
     name: str
-    category: str
+    source: str
     importance_score: float
+    method: str = ""
     notes: str = ""
 
 
@@ -130,42 +169,49 @@ class FailExperimentRequest(BaseModel):
 
 class RunBenchmarkRequest(BaseModel):
     name: str
-    version_ids: list[str]
-    metrics_per_version: dict[str, dict[str, float]]
-    notes: str = ""
+    qde_version: str
+    benchmark_type: str
+    parameters: dict[str, Any] = {}
+    results: dict[str, Any] = {}
 
 
 class RegisterBacktestRequest(BaseModel):
     experiment_id: str
-    dataset_id: str
+    start_date: str
+    end_date: str
+    instruments: list[str]
     metrics: dict[str, float]
+    regime_breakdown: dict[str, Any] = {}
     notes: str = ""
 
 
 class CreateSearchRequest(BaseModel):
     name: str
-    strategy: str
-    search_space: dict[str, Any]
-    objective: str
-    maximize: bool = True
-    n_trials: int = 20
-    qde_version: str = ""
+    qde_version: str
+    parameter_space: dict[str, Any]
+    strategy: str = "BAYESIAN"
+    max_trials: int = 50
     notes: str = ""
 
 
 class RecordTrialRequest(BaseModel):
-    params: dict[str, Any]
-    score: float
-    metadata: dict[str, Any] = {}
+    parameters: dict[str, float]
+    metrics: dict[str, float]
 
 
 class EvaluateGatesRequest(BaseModel):
-    baseline_experiment_id: str | None = None
-    max_drawdown_tolerance: float = 0.02
+    baseline_version: str
+    min_sharpe: float = 0.5
+    max_drawdown_pct: float = 15.0
+    min_win_rate: float = 0.45
+    min_profit_factor: float = 1.2
+
+
+class ValidateRetrainingRequest(BaseModel):
+    baseline_version: str
 
 
 class ApproveDeploymentRequest(BaseModel):
-    gate_id: str
     approver: str
     notes: str = ""
 
@@ -175,17 +221,35 @@ class RejectDeploymentRequest(BaseModel):
     reason: str
 
 
+class CreateRollbackRequestModel(BaseModel):
+    current_version_id: str
+    target_version_id: str
+    reason: str
+    requested_by: str
+
+
+class ApproveRollbackRequest(BaseModel):
+    approver: str
+    notes: str = ""
+
+
+class RejectRollbackRequest(BaseModel):
+    rejector: str
+    notes: str = ""
+
+
+class WithdrawRollbackRequest(BaseModel):
+    notes: str = ""
+
+
 class RecordFailureRequest(BaseModel):
+    qde_version: str
     category: str
     severity: str
-    qde_version: str
     description: str
-    instrument: str = ""
-    regime: str = ""
-    loss_amount: float | None = None
-    drawdown_magnitude: float | None = None
-    tags: list[str] = []
-    metadata: dict[str, Any] = {}
+    affected_instruments: list[str] = []
+    loss_pct: float | None = None
+    notes: str = ""
 
 
 class InvestigateFailureRequest(BaseModel):
@@ -200,36 +264,33 @@ class ResolveFailureRequest(BaseModel):
 
 class AnalyzeRegimeRequest(BaseModel):
     qde_version: str
-    regime_results: dict[str, dict[str, float]]
+    regime_metrics: dict[str, Any]
     notes: str = ""
 
 
 class CompareModelsRequest(BaseModel):
-    version_ids: list[str]
-    metrics_per_version: dict[str, dict[str, float]]
+    versions: list[str]
+    metrics: list[str] = []
+    regime_filter: str | None = None
     notes: str = ""
-
-
-# ── Shadow Testing Request Models ──────────────────────────────────────────────
 
 
 class CreateShadowTestRequest(BaseModel):
     name: str
     challenger_version: str
     champion_version: str
-    instruments: list[str]
-    min_decisions: int = 500
+    instruments: list[str] = []
+    min_decisions: int = 100
     notes: str = ""
 
 
 class RecordShadowDecisionRequest(BaseModel):
     instrument: str
-    champion_decision_type: str
-    challenger_decision_type: str
+    champion_decision: str
+    challenger_decision: str
     champion_confidence: float
     challenger_confidence: float
-    regime: str = ""
-    market_context: dict[str, Any] = {}
+    regime: str | None = None
 
 
 class ConcludeShadowTestRequest(BaseModel):
@@ -252,7 +313,8 @@ def _respond(response: Any) -> dict:
 @app.get("/research/healthz")
 def health(_: None = Depends(_require_admin)) -> dict:
     """Admin health check. Requires valid admin token."""
-    return {"status": "ok", "service": "research-lab", "access": "admin-only"}
+    stats = _db.stats()
+    return {"status": "ok", "service": "research-lab", "access": "admin-only", "db": stats}
 
 
 @app.get("/research/summary")
@@ -260,7 +322,7 @@ def system_summary(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.system_summary())
 
 
-# ── Datasets ──────────────────────────────────────────────────────────────────
+# ── 1. Dataset Generation ─────────────────────────────────────────────────────
 
 
 @app.post("/research/datasets")
@@ -278,7 +340,75 @@ def get_dataset(dataset_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_dataset(dataset_id))
 
 
-# ── Features ──────────────────────────────────────────────────────────────────
+@app.post("/research/datasets/{dataset_id}/generate")
+def create_generation_job(
+    dataset_id: str, req: CreateGenerationJobRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.create_generation_job(
+            dataset_id=dataset_id,
+            **req.model_dump(),
+        )
+    )
+
+
+@app.get("/research/datasets/{dataset_id}/generation-jobs")
+def list_generation_jobs_for_dataset(dataset_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.list_generation_jobs(dataset_id=dataset_id))
+
+
+@app.get("/research/generation-jobs")
+def list_all_generation_jobs(status: str | None = None, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.list_generation_jobs(status=status))
+
+
+@app.get("/research/generation-jobs/{job_id}")
+def get_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.get_generation_job(job_id))
+
+
+@app.post("/research/generation-jobs/{job_id}/start")
+def start_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.start_generation_job(job_id))
+
+
+@app.post("/research/generation-jobs/{job_id}/validating")
+def validating_generation_job(
+    job_id: str,
+    req: ValidatingGenerationJobRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.validating_generation_job(
+            job_id,
+            row_count=req.row_count,
+            feature_count=req.feature_count,
+        )
+    )
+
+
+@app.post("/research/generation-jobs/{job_id}/complete")
+def complete_generation_job(
+    job_id: str,
+    req: CompleteGenerationJobRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.complete_generation_job(
+            job_id,
+            quality_metrics=req.quality_metrics or None,
+        )
+    )
+
+
+@app.post("/research/generation-jobs/{job_id}/fail")
+def fail_generation_job(
+    job_id: str, req: FailGenerationJobRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.fail_generation_job(job_id, error=req.error))
+
+
+# ── 2. Feature Discovery ───────────────────────────────────────────────────────
 
 
 @app.post("/research/features")
@@ -305,7 +435,7 @@ def list_features(status: str | None = None, _: None = Depends(_require_admin)) 
     return _respond(_api.list_features(status=status))
 
 
-# ── Experiments ───────────────────────────────────────────────────────────────
+# ── 3. Experiment Tracking ─────────────────────────────────────────────────────
 
 
 @app.post("/research/experiments")
@@ -332,6 +462,11 @@ def fail_experiment(
     return _respond(_api.fail_experiment(experiment_id, error=req.error))
 
 
+@app.get("/research/experiments/summary")
+def experiment_summary(_: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.experiment_summary())
+
+
 @app.get("/research/experiments/{experiment_id}")
 def get_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_experiment(experiment_id))
@@ -349,12 +484,7 @@ def list_experiments(
     )
 
 
-@app.get("/research/experiments/summary")
-def experiment_summary(_: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.experiment_summary())
-
-
-# ── Benchmarking ──────────────────────────────────────────────────────────────
+# ── 4. Backtesting ────────────────────────────────────────────────────────────
 
 
 @app.post("/research/benchmarks")
@@ -372,9 +502,6 @@ def list_benchmarks(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.list_benchmarks())
 
 
-# ── Backtests ─────────────────────────────────────────────────────────────────
-
-
 @app.post("/research/backtests")
 def register_backtest(req: RegisterBacktestRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.register_backtest(**req.model_dump()))
@@ -385,39 +512,7 @@ def list_backtests(experiment_id: str | None = None, _: None = Depends(_require_
     return _respond(_api.list_backtests(experiment_id=experiment_id))
 
 
-# ── Parameter Search ──────────────────────────────────────────────────────────
-
-
-@app.post("/research/searches")
-def create_search(req: CreateSearchRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.create_search(**req.model_dump()))
-
-
-@app.post("/research/searches/{search_id}/trials")
-def record_trial(
-    search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)
-) -> dict:
-    return _respond(
-        _api.record_trial(search_id, params=req.params, score=req.score, metadata=req.metadata)
-    )
-
-
-@app.post("/research/searches/{search_id}/complete")
-def complete_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.complete_search(search_id))
-
-
-@app.get("/research/searches/{search_id}")
-def get_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.get_search(search_id))
-
-
-@app.get("/research/searches")
-def list_searches(qde_version: str | None = None, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.list_searches(qde_version=qde_version))
-
-
-# ── Deployment Gates / Validation ─────────────────────────────────────────────
+# ── 5. Validation (Deployment Gates) ──────────────────────────────────────────
 
 
 @app.post("/research/experiments/{experiment_id}/gates")
@@ -427,25 +522,28 @@ def evaluate_gates(
     return _respond(
         _api.evaluate_deployment_gates(
             experiment_id=experiment_id,
-            baseline_experiment_id=req.baseline_experiment_id,
-            max_drawdown_tolerance=req.max_drawdown_tolerance,
+            baseline_version=req.baseline_version,
+            min_sharpe=req.min_sharpe,
+            max_drawdown_pct=req.max_drawdown_pct,
+            min_win_rate=req.min_win_rate,
+            min_profit_factor=req.min_profit_factor,
         )
     )
 
 
 @app.post("/research/experiments/{experiment_id}/validate-retraining")
 def validate_retraining(
-    experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)
+    experiment_id: str, req: ValidateRetrainingRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(
         _api.validate_retraining(
             experiment_id=experiment_id,
-            incumbent_experiment_id=req.baseline_experiment_id or "",
+            baseline_version=req.baseline_version,
         )
     )
 
 
-# ── Deployment Approval ───────────────────────────────────────────────────────
+# ── 6. Promotion Approval ─────────────────────────────────────────────────────
 
 
 @app.post("/research/experiments/{experiment_id}/approve")
@@ -455,7 +553,6 @@ def approve_deployment(
     return _respond(
         _api.approve_deployment(
             experiment_id=experiment_id,
-            gate_id=req.gate_id,
             approver=req.approver,
             notes=req.notes,
         )
@@ -480,7 +577,48 @@ def deployment_history(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.deployment_history())
 
 
-# ── Failure Analysis ──────────────────────────────────────────────────────────
+# ── 7. Rollback Approval ──────────────────────────────────────────────────────
+
+
+@app.post("/research/rollbacks")
+def create_rollback_request(
+    req: CreateRollbackRequestModel, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.create_rollback_request(**req.model_dump()))
+
+
+@app.get("/research/rollbacks")
+def list_rollback_requests(status: str | None = None, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.list_rollback_requests(status=status))
+
+
+@app.get("/research/rollbacks/{request_id}")
+def get_rollback_request(request_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.get_rollback_request(request_id))
+
+
+@app.post("/research/rollbacks/{request_id}/approve")
+def approve_rollback(
+    request_id: str, req: ApproveRollbackRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.approve_rollback(request_id, approver=req.approver, notes=req.notes))
+
+
+@app.post("/research/rollbacks/{request_id}/reject")
+def reject_rollback(
+    request_id: str, req: RejectRollbackRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.reject_rollback(request_id, rejector=req.rejector, notes=req.notes))
+
+
+@app.post("/research/rollbacks/{request_id}/withdraw")
+def withdraw_rollback(
+    request_id: str, req: WithdrawRollbackRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.withdraw_rollback(request_id, notes=req.notes))
+
+
+# ── 8. Failure Analysis ───────────────────────────────────────────────────────
 
 
 @app.post("/research/failures")
@@ -506,6 +644,11 @@ def resolve_failure(
     )
 
 
+@app.get("/research/failures/summary")
+def failure_summary(_: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.failure_summary())
+
+
 @app.get("/research/failures")
 def list_failures(
     category: str | None = None,
@@ -519,11 +662,6 @@ def list_failures(
             category=category, severity=severity, qde_version=qde_version, status=status
         )
     )
-
-
-@app.get("/research/failures/summary")
-def failure_summary(_: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.failure_summary())
 
 
 # ── Market Regime Analysis ────────────────────────────────────────────────────
@@ -544,7 +682,7 @@ def list_regime_reports(qde_version: str | None = None, _: None = Depends(_requi
     return _respond(_api.list_regime_reports(qde_version=qde_version))
 
 
-# ── Model Comparison ──────────────────────────────────────────────────────────
+# ── Version Comparisons ───────────────────────────────────────────────────────
 
 
 @app.post("/research/comparisons")
@@ -560,6 +698,36 @@ def get_comparison(comparison_id: str, _: None = Depends(_require_admin)) -> dic
 @app.get("/research/comparisons")
 def list_comparisons(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.list_comparisons())
+
+
+# ── Parameter Search ──────────────────────────────────────────────────────────
+
+
+@app.post("/research/searches")
+def create_search(req: CreateSearchRequest, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.create_search(**req.model_dump()))
+
+
+@app.post("/research/searches/{search_id}/trials")
+def record_trial(
+    search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.record_trial(search_id, parameters=req.parameters, metrics=req.metrics))
+
+
+@app.post("/research/searches/{search_id}/complete")
+def complete_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.complete_search(search_id))
+
+
+@app.get("/research/searches/{search_id}")
+def get_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.get_search(search_id))
+
+
+@app.get("/research/searches")
+def list_searches(qde_version: str | None = None, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.list_searches(qde_version=qde_version))
 
 
 # ── Shadow Testing ────────────────────────────────────────────────────────────
