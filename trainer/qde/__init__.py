@@ -5,17 +5,17 @@ Phase 28.3: Intelligence (single decision-maker with 11 internal capabilities).
 """
 
 from trainer.qde.qde_api import QDELifecycleAPI
-from trainer.qde.qde_intelligence import QDEIntelligence, QDEConfig
+from trainer.qde.qde_intelligence import QDEConfig, QDEIntelligence
 from trainer.qde.qde_models import (
-    QDEVersion,
-    QDEStage,
-    QDEPromotionCriteria,
-    QDEPromotionDecision,
-    QDEABTest,
-    QDEABTestType,
-    QDERollbackRecord,
     PipelineRun,
     PipelineStage,
+    QDEABTest,
+    QDEABTestType,
+    QDEPromotionCriteria,
+    QDEPromotionDecision,
+    QDERollbackRecord,
+    QDEStage,
+    QDEVersion,
 )
 
 __all__ = [

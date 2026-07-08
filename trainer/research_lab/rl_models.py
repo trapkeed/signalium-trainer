@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 
@@ -75,7 +74,7 @@ class ShadowTestStatus(str, Enum):
 class ShadowTestRecommendation(str, Enum):
     PROMOTE = "PROMOTE"
     REJECT = "REJECT"
-    EXTEND = "EXTEND"   # Collect more data before deciding
+    EXTEND = "EXTEND"  # Collect more data before deciding
     INCONCLUSIVE = "INCONCLUSIVE"
 
 
@@ -171,9 +170,17 @@ class ExperimentRecord:
             self.training_duration_s = now - self.training_started_at
         self.validation_metrics.update(metrics)
         for attr in (
-            "sharpe_ratio", "sortino_ratio", "max_drawdown", "avg_drawdown",
-            "profit_factor", "win_rate", "expected_value", "expected_value_per_trade",
-            "decision_quality", "capital_efficiency", "recovery_factor",
+            "sharpe_ratio",
+            "sortino_ratio",
+            "max_drawdown",
+            "avg_drawdown",
+            "profit_factor",
+            "win_rate",
+            "expected_value",
+            "expected_value_per_trade",
+            "decision_quality",
+            "capital_efficiency",
+            "recovery_factor",
         ):
             if attr in metrics:
                 setattr(self, attr, metrics[attr])
@@ -194,21 +201,43 @@ class ExperimentRecord:
             "status": self.status.value,
             "created_at": round(self.created_at, 3),
             "updated_at": round(self.updated_at, 3),
-            "training_started_at": round(self.training_started_at, 3) if self.training_started_at else None,
-            "training_completed_at": round(self.training_completed_at, 3) if self.training_completed_at else None,
-            "training_duration_s": round(self.training_duration_s, 1) if self.training_duration_s else None,
+            "training_started_at": (
+                round(self.training_started_at, 3) if self.training_started_at else None
+            ),
+            "training_completed_at": (
+                round(self.training_completed_at, 3) if self.training_completed_at else None
+            ),
+            "training_duration_s": (
+                round(self.training_duration_s, 1) if self.training_duration_s else None
+            ),
             "validation_metrics": {k: round(v, 6) for k, v in self.validation_metrics.items()},
             "max_drawdown": round(self.max_drawdown, 6) if self.max_drawdown is not None else None,
             "avg_drawdown": round(self.avg_drawdown, 6) if self.avg_drawdown is not None else None,
-            "recovery_factor": round(self.recovery_factor, 4) if self.recovery_factor is not None else None,
-            "expected_value": round(self.expected_value, 6) if self.expected_value is not None else None,
-            "expected_value_per_trade": round(self.expected_value_per_trade, 6) if self.expected_value_per_trade is not None else None,
-            "profit_factor": round(self.profit_factor, 4) if self.profit_factor is not None else None,
+            "recovery_factor": (
+                round(self.recovery_factor, 4) if self.recovery_factor is not None else None
+            ),
+            "expected_value": (
+                round(self.expected_value, 6) if self.expected_value is not None else None
+            ),
+            "expected_value_per_trade": (
+                round(self.expected_value_per_trade, 6)
+                if self.expected_value_per_trade is not None
+                else None
+            ),
+            "profit_factor": (
+                round(self.profit_factor, 4) if self.profit_factor is not None else None
+            ),
             "win_rate": round(self.win_rate, 4) if self.win_rate is not None else None,
             "sharpe_ratio": round(self.sharpe_ratio, 4) if self.sharpe_ratio is not None else None,
-            "sortino_ratio": round(self.sortino_ratio, 4) if self.sortino_ratio is not None else None,
-            "decision_quality": round(self.decision_quality, 4) if self.decision_quality is not None else None,
-            "capital_efficiency": round(self.capital_efficiency, 4) if self.capital_efficiency is not None else None,
+            "sortino_ratio": (
+                round(self.sortino_ratio, 4) if self.sortino_ratio is not None else None
+            ),
+            "decision_quality": (
+                round(self.decision_quality, 4) if self.decision_quality is not None else None
+            ),
+            "capital_efficiency": (
+                round(self.capital_efficiency, 4) if self.capital_efficiency is not None else None
+            ),
             "deployment_status": self.deployment_status.value,
             "deployment_notes": self.deployment_notes,
             "tags": self.tags,
@@ -282,7 +311,9 @@ class ResearchDataset:
             "created_at": round(self.created_at, 3),
             "row_count": self.row_count,
             "feature_count": self.feature_count,
-            "label_quality_score": round(self.label_quality_score, 4) if self.label_quality_score is not None else None,
+            "label_quality_score": (
+                round(self.label_quality_score, 4) if self.label_quality_score is not None else None
+            ),
             "tags": self.tags,
             "notes": self.notes,
             "checksum": self.checksum,
@@ -302,7 +333,7 @@ class DiscoveredFeature:
     importance_score: float
     discovered_at: float
     experiments: list[str] = field(default_factory=list)
-    status: str = "CANDIDATE"   # CANDIDATE | ACCEPTED | REJECTED
+    status: str = "CANDIDATE"  # CANDIDATE | ACCEPTED | REJECTED
     notes: str = ""
 
     @classmethod
@@ -399,8 +430,7 @@ class ModelComparisonResult:
             "comparison_id": self.comparison_id,
             "version_ids": self.version_ids,
             "metrics": {
-                v: {k: round(val, 6) for k, val in m.items()}
-                for v, m in self.metrics.items()
+                v: {k: round(val, 6) for k, val in m.items()} for v, m in self.metrics.items()
             },
             "rankings": self.rankings,
             "overall_winner": self.overall_winner,
@@ -428,7 +458,7 @@ class FailureEvent:
     drawdown_magnitude: float | None = None
     root_cause: str = ""
     resolution: str = ""
-    status: str = "OPEN"   # OPEN | INVESTIGATING | RESOLVED | WONT_FIX
+    status: str = "OPEN"  # OPEN | INVESTIGATING | RESOLVED | WONT_FIX
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -473,7 +503,9 @@ class FailureEvent:
             "instrument": self.instrument,
             "regime": self.regime,
             "loss_amount": round(self.loss_amount, 6) if self.loss_amount is not None else None,
-            "drawdown_magnitude": round(self.drawdown_magnitude, 6) if self.drawdown_magnitude is not None else None,
+            "drawdown_magnitude": (
+                round(self.drawdown_magnitude, 6) if self.drawdown_magnitude is not None else None
+            ),
             "root_cause": self.root_cause,
             "resolution": self.resolution,
             "status": self.status,
@@ -495,7 +527,7 @@ class ParameterSearchRun:
     search_space: dict[str, Any]
     objective: str
     maximize: bool
-    status: str   # RUNNING | COMPLETED | FAILED
+    status: str  # RUNNING | COMPLETED | FAILED
     created_at: float
     completed_at: float | None = None
     best_params: dict[str, Any] = field(default_factory=dict)
@@ -531,7 +563,9 @@ class ParameterSearchRun:
             notes=notes,
         )
 
-    def record_trial(self, params: dict[str, Any], score: float, metadata: dict[str, Any] | None = None) -> None:
+    def record_trial(
+        self, params: dict[str, Any], score: float, metadata: dict[str, Any] | None = None
+    ) -> None:
         trial = {
             "trial_id": len(self.trials) + 1,
             "params": params,
@@ -539,9 +573,11 @@ class ParameterSearchRun:
             "metadata": metadata or {},
         }
         self.trials.append(trial)
-        if self.best_score is None or (
-            self.maximize and score > self.best_score
-        ) or (not self.maximize and score < self.best_score):
+        if (
+            self.best_score is None
+            or (self.maximize and score > self.best_score)
+            or (not self.maximize and score < self.best_score)
+        ):
             self.best_score = score
             self.best_params = params
 
@@ -598,7 +634,9 @@ class RegimeAnalysisReport:
         best = max(sharpes, key=lambda r: sharpes[r]) if sharpes else None
         worst = min(sharpes, key=lambda r: sharpes[r]) if sharpes else None
         values = list(sharpes.values())
-        stability = 1.0 - (max(values) - min(values)) / (max(values) + 1e-9) if len(values) > 1 else 1.0
+        stability = (
+            1.0 - (max(values) - min(values)) / (max(values) + 1e-9) if len(values) > 1 else 1.0
+        )
         return cls(
             report_id=f"regime-{str(uuid.uuid4())[:10]}",
             qde_version=qde_version,
@@ -616,8 +654,7 @@ class RegimeAnalysisReport:
             "qde_version": self.qde_version,
             "created_at": round(self.created_at, 3),
             "regime_results": {
-                r: {k: round(v, 6) for k, v in m.items()}
-                for r, m in self.regime_results.items()
+                r: {k: round(v, 6) for k, v in m.items()} for r, m in self.regime_results.items()
             },
             "worst_regime": self.worst_regime,
             "best_regime": self.best_regime,
@@ -676,53 +713,64 @@ class DeploymentGateResult:
 
         # Gate 1: Sharpe ratio >= 1.0
         sharpe = m.get("sharpe_ratio", experiment.sharpe_ratio or 0.0)
-        gate_results.append(GateCheckResult(
-            gate="sharpe_ratio_min",
-            passed=sharpe >= 1.0,
-            value=sharpe,
-            baseline=baseline_metrics.get("sharpe_ratio") if baseline_metrics else None,
-            delta=sharpe - (baseline_metrics.get("sharpe_ratio", 0.0) if baseline_metrics else 0.0),
-            notes="Sharpe ratio must be >= 1.0",
-        ))
+        gate_results.append(
+            GateCheckResult(
+                gate="sharpe_ratio_min",
+                passed=sharpe >= 1.0,
+                value=sharpe,
+                baseline=baseline_metrics.get("sharpe_ratio") if baseline_metrics else None,
+                delta=sharpe
+                - (baseline_metrics.get("sharpe_ratio", 0.0) if baseline_metrics else 0.0),
+                notes="Sharpe ratio must be >= 1.0",
+            )
+        )
         if not gate_results[-1].passed:
             failed.append("sharpe_ratio_min")
 
         # Gate 2: Max drawdown <= threshold
         mdd = abs(m.get("max_drawdown", experiment.max_drawdown or 1.0))
-        gate_results.append(GateCheckResult(
-            gate="max_drawdown_limit",
-            passed=mdd <= max_drawdown_tolerance + 0.05,
-            value=mdd,
-            baseline=baseline_metrics.get("max_drawdown") if baseline_metrics else None,
-            delta=mdd - (baseline_metrics.get("max_drawdown", 0.0) if baseline_metrics else 0.0),
-            notes=f"Max drawdown must be <= {max_drawdown_tolerance + 0.05:.0%}",
-        ))
+        gate_results.append(
+            GateCheckResult(
+                gate="max_drawdown_limit",
+                passed=mdd <= max_drawdown_tolerance + 0.05,
+                value=mdd,
+                baseline=baseline_metrics.get("max_drawdown") if baseline_metrics else None,
+                delta=mdd
+                - (baseline_metrics.get("max_drawdown", 0.0) if baseline_metrics else 0.0),
+                notes=f"Max drawdown must be <= {max_drawdown_tolerance + 0.05:.0%}",
+            )
+        )
         if not gate_results[-1].passed:
             failed.append("max_drawdown_limit")
 
         # Gate 3: Profit factor >= 1.2
         pf = m.get("profit_factor", experiment.profit_factor or 0.0)
-        gate_results.append(GateCheckResult(
-            gate="profit_factor_min",
-            passed=pf >= 1.2,
-            value=pf,
-            baseline=baseline_metrics.get("profit_factor") if baseline_metrics else None,
-            delta=pf - (baseline_metrics.get("profit_factor", 0.0) if baseline_metrics else 0.0),
-            notes="Profit factor must be >= 1.2",
-        ))
+        gate_results.append(
+            GateCheckResult(
+                gate="profit_factor_min",
+                passed=pf >= 1.2,
+                value=pf,
+                baseline=baseline_metrics.get("profit_factor") if baseline_metrics else None,
+                delta=pf
+                - (baseline_metrics.get("profit_factor", 0.0) if baseline_metrics else 0.0),
+                notes="Profit factor must be >= 1.2",
+            )
+        )
         if not gate_results[-1].passed:
             failed.append("profit_factor_min")
 
         # Gate 4: Win rate >= 40%
         wr = m.get("win_rate", experiment.win_rate or 0.0)
-        gate_results.append(GateCheckResult(
-            gate="win_rate_min",
-            passed=wr >= 0.40,
-            value=wr,
-            baseline=baseline_metrics.get("win_rate") if baseline_metrics else None,
-            delta=wr - (baseline_metrics.get("win_rate", 0.0) if baseline_metrics else 0.0),
-            notes="Win rate must be >= 40%",
-        ))
+        gate_results.append(
+            GateCheckResult(
+                gate="win_rate_min",
+                passed=wr >= 0.40,
+                value=wr,
+                baseline=baseline_metrics.get("win_rate") if baseline_metrics else None,
+                delta=wr - (baseline_metrics.get("win_rate", 0.0) if baseline_metrics else 0.0),
+                notes="Win rate must be >= 40%",
+            )
+        )
         if not gate_results[-1].passed:
             failed.append("win_rate_min")
 
@@ -730,14 +778,16 @@ class DeploymentGateResult:
         if baseline_metrics and "sharpe_ratio" in baseline_metrics:
             base_sharpe = baseline_metrics["sharpe_ratio"]
             regression = sharpe < base_sharpe * 0.90
-            gate_results.append(GateCheckResult(
-                gate="no_sharpe_regression",
-                passed=not regression,
-                value=sharpe,
-                baseline=base_sharpe,
-                delta=sharpe - base_sharpe,
-                notes="New version must not regress Sharpe by more than 10%",
-            ))
+            gate_results.append(
+                GateCheckResult(
+                    gate="no_sharpe_regression",
+                    passed=not regression,
+                    value=sharpe,
+                    baseline=base_sharpe,
+                    delta=sharpe - base_sharpe,
+                    notes="New version must not regress Sharpe by more than 10%",
+                )
+            )
             if regression:
                 failed.append("no_sharpe_regression")
 
@@ -907,8 +957,7 @@ class ShadowTestRun:
         self.agreement_rate = agreements / n
 
         higher_conf = sum(
-            1 for d in self.decisions
-            if d.challenger_confidence > d.champion_confidence
+            1 for d in self.decisions if d.challenger_confidence > d.champion_confidence
         )
         self.challenger_higher_confidence_rate = higher_conf / n
 
@@ -917,18 +966,14 @@ class ShadowTestRun:
         for d in self.decisions:
             regime = d.regime or "UNKNOWN"
             by_regime.setdefault(regime, []).append(d.decisions_agree)
-        self.per_regime_agreement = {
-            r: round(sum(v) / len(v), 4)
-            for r, v in by_regime.items()
-        }
+        self.per_regime_agreement = {r: round(sum(v) / len(v), 4) for r, v in by_regime.items()}
 
         # Per-instrument agreement
         by_instrument: dict[str, list[bool]] = {}
         for d in self.decisions:
             by_instrument.setdefault(d.instrument, []).append(d.decisions_agree)
         self.per_instrument_agreement = {
-            i: round(sum(v) / len(v), 4)
-            for i, v in by_instrument.items()
+            i: round(sum(v) / len(v), 4) for i, v in by_instrument.items()
         }
 
         # Recommendation logic

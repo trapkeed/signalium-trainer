@@ -13,8 +13,6 @@ CONTRACT
 
 from __future__ import annotations
 
-import math
-
 from trainer.qde.capabilities.cap_models import (
     EVScore,
     MarketContext,
@@ -151,7 +149,7 @@ class PositionManagementCapability:
         if env == "HIGH":
             return 0.65
         if env == "LOW":
-            return 1.10   # slight size increase in calm markets
+            return 1.10  # slight size increase in calm markets
         if ctx and ctx.volatility_state == "EXTREME":
             return 0.40
         if ctx and ctx.volatility_state == "HIGH":

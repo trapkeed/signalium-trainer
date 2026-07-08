@@ -270,7 +270,11 @@ class OpportunityDiscoveryCapability:
 
         stop_distance = snap.atr_14 * 1.0 if snap.atr_14 > 0 else 0.0
         entry_zone = (snap.mid * (1 - 0.0001), snap.mid * (1 + 0.0001))
-        stop_est = (snap.mid - stop_distance) if direction == Direction.LONG else (snap.mid + stop_distance)
+        stop_est = (
+            (snap.mid - stop_distance)
+            if direction == Direction.LONG
+            else (snap.mid + stop_distance)
+        )
 
         return SetupCandidate(
             direction=direction,
@@ -283,9 +287,7 @@ class OpportunityDiscoveryCapability:
             notes=f"Range breakout {direction.value}",
         )
 
-    def _empty_report(
-        self, snapshot: MarketSnapshot, warnings: list[str]
-    ) -> OpportunityReport:
+    def _empty_report(self, snapshot: MarketSnapshot, warnings: list[str]) -> OpportunityReport:
         return OpportunityReport(
             capability=self.CAPABILITY_NAME,
             snapshot_id=snapshot.snapshot_id,

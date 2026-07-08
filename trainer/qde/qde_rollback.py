@@ -12,9 +12,10 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
-from trainer.qde.qde_models import QDERollbackRecord, QDEStage, QDEVersion
+from trainer.qde.qde_models import QDERollbackRecord, QDEStage
 from trainer.qde.qde_registry import QDERegistry
 
 
@@ -115,7 +116,8 @@ class QDERollbackManager:
         all_versions = self._registry.list_all()
 
         retired = [
-            v for v in all_versions
+            v
+            for v in all_versions
             if v.stage in (QDEStage.RETIRED, QDEStage.ROLLED_BACK)
             and (active is None or v.version_number < active.version_number)
         ]
@@ -138,8 +140,4 @@ class QDERollbackManager:
     def eligible_targets(self) -> list[dict[str, Any]]:
         """List all versions that are currently eligible as rollback targets."""
         all_versions = self._registry.list_all()
-        return [
-            v.to_dict()
-            for v in all_versions
-            if v.stage in self._ELIGIBLE_TARGET_STAGES
-        ]
+        return [v.to_dict() for v in all_versions if v.stage in self._ELIGIBLE_TARGET_STAGES]

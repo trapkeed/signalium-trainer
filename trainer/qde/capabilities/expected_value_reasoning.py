@@ -143,6 +143,7 @@ class ExpectedValueReasoningCapability:
     def _adjust_for_regime(self, base: float, ctx: MarketContext) -> float:
         """Adjust win probability based on regime suitability."""
         from trainer.qde.capabilities.cap_models import RegimeType
+
         regime_adjustments = {
             RegimeType.TRENDING_BULL: 0.04,
             RegimeType.TRENDING_BEAR: 0.04,

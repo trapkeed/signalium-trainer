@@ -14,6 +14,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_models import QDEStage, QDEVersion

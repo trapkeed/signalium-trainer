@@ -19,7 +19,6 @@ from trainer.qde.capabilities.cap_models import (
     Direction,
     ExposureReport,
     MarketSnapshot,
-    OpenTrade,
 )
 
 
@@ -44,11 +43,20 @@ class ExposureReasoningCapability:
 
     # Currency groups for correlation estimation
     CURRENCY_GROUPS: dict[str, str] = {
-        "EURUSD": "EUR", "EURGBP": "EUR", "EURJPY": "EUR",
-        "GBPUSD": "GBP", "GBPJPY": "GBP", "GBPCHF": "GBP",
-        "USDJPY": "USD", "USDCAD": "USD", "USDCHF": "USD",
-        "AUDUSD": "AUD", "NZDUSD": "NZD", "USDMXN": "USD",
-        "XAUUSD": "GOLD", "BTCUSD": "CRYPTO",
+        "EURUSD": "EUR",
+        "EURGBP": "EUR",
+        "EURJPY": "EUR",
+        "GBPUSD": "GBP",
+        "GBPJPY": "GBP",
+        "GBPCHF": "GBP",
+        "USDJPY": "USD",
+        "USDCAD": "USD",
+        "USDCHF": "USD",
+        "AUDUSD": "AUD",
+        "NZDUSD": "NZD",
+        "USDMXN": "USD",
+        "XAUUSD": "GOLD",
+        "BTCUSD": "CRYPTO",
     }
 
     def analyse(
@@ -105,15 +113,16 @@ class ExposureReasoningCapability:
         correlated_pairs = sum(len(v) - 1 for v in groups.values() if len(v) > 1)
         corr_risk = min(1.0, correlated_pairs * self.SAME_GROUP_CORRELATION / max(1, len(trades)))
 
-        adding_safe = (
-            gross < self.MAX_GROSS_EXPOSURE
-            and concentration < 1.0
-        )
+        adding_safe = gross < self.MAX_GROSS_EXPOSURE and concentration < 1.0
 
         if gross >= self.MAX_GROSS_EXPOSURE:
-            warnings.append(f"Gross exposure {gross:.1%} at or above maximum {self.MAX_GROSS_EXPOSURE:.1%}")
+            warnings.append(
+                f"Gross exposure {gross:.1%} at or above maximum {self.MAX_GROSS_EXPOSURE:.1%}"
+            )
         if concentration > 0.8:
-            warnings.append(f"High concentration: one instrument = {concentration:.1%} of gross risk")
+            warnings.append(
+                f"High concentration: one instrument = {concentration:.1%} of gross risk"
+            )
         if corr_risk > 0.5:
             warnings.append(f"High correlation risk: {corr_risk:.1%}")
 

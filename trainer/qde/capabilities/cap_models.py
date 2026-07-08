@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 
@@ -49,13 +48,14 @@ class RegimeTransition(str, Enum):
 
 class DecisionType(str, Enum):
     """The type of decision the QDE has produced."""
+
     ENTER = "ENTER"
     EXIT = "EXIT"
     SCALE = "SCALE"
     PARTIAL_CLOSE = "PARTIAL_CLOSE"
     BREAK_EVEN = "BREAK_EVEN"
     HOLD = "HOLD"
-    PRESERVE = "PRESERVE"   # capital preservation circuit fired — no new entries
+    PRESERVE = "PRESERVE"  # capital preservation circuit fired — no new entries
 
 
 class TrendStrength(str, Enum):
@@ -84,6 +84,7 @@ class CircuitBreakerStatus(str, Enum):
 @dataclass
 class OHLCV:
     """Single bar of market data."""
+
     open: float
     high: float
     low: float
@@ -95,6 +96,7 @@ class OHLCV:
 @dataclass
 class OpenTrade:
     """A currently open trade position."""
+
     trade_id: str
     instrument: str
     direction: Direction
@@ -127,11 +129,12 @@ class OpenTrade:
 @dataclass
 class AccountState:
     """Live account state at the moment of reasoning."""
+
     balance: float
     equity: float
     free_margin: float
     margin_used: float
-    drawdown_from_peak: float         # 0.0 – 1.0
+    drawdown_from_peak: float  # 0.0 – 1.0
     daily_pnl: float
     daily_pnl_pct: float
     session_pnl: float
@@ -147,6 +150,7 @@ class MarketSnapshot:
     All 11 capabilities receive this object. It is immutable during a
     reasoning cycle; capabilities must not modify it.
     """
+
     # Identity
     instrument: str
     snapshot_id: str = field(default_factory=lambda: f"snap-{uuid.uuid4().hex[:10]}")
@@ -156,21 +160,21 @@ class MarketSnapshot:
     bid: float = 0.0
     ask: float = 0.0
     spread_pips: float = 0.0
-    recent_bars: list[OHLCV] = field(default_factory=list)   # newest-last
+    recent_bars: list[OHLCV] = field(default_factory=list)  # newest-last
 
     # Computed market metrics
-    atr_14: float = 0.0         # Average True Range (14-period)
+    atr_14: float = 0.0  # Average True Range (14-period)
     atr_50: float = 0.0
     rsi_14: float = 50.0
-    adx_14: float = 0.0         # Trend strength
-    bb_width: float = 0.0       # Bollinger Band width (normalised)
-    ema_fast: float = 0.0       # e.g. 20-period
-    ema_slow: float = 0.0       # e.g. 50-period
-    volume_ratio: float = 1.0   # current / average volume
+    adx_14: float = 0.0  # Trend strength
+    bb_width: float = 0.0  # Bollinger Band width (normalised)
+    ema_fast: float = 0.0  # e.g. 20-period
+    ema_slow: float = 0.0  # e.g. 50-period
+    volume_ratio: float = 1.0  # current / average volume
 
     # Market session
-    session: str = ""           # LONDON | NEW_YORK | TOKYO | SYDNEY | OVERLAP
-    day_of_week: int = 0        # 0=Mon … 4=Fri
+    session: str = ""  # LONDON | NEW_YORK | TOKYO | SYDNEY | OVERLAP
+    day_of_week: int = 0  # 0=Mon … 4=Fri
 
     # Liquidity
     liquidity: LiquidityLevel = LiquidityLevel.NORMAL
@@ -222,10 +226,11 @@ class CapabilityOutput:
     All outputs are advisory — they describe market state or provide scored
     candidates. They do NOT instruct trades or produce decisions.
     """
+
     capability: str
     snapshot_id: str
     produced_at: float = field(default_factory=time.time)
-    confidence: float = 0.5           # 0.0 – 1.0
+    confidence: float = 0.5  # 0.0 – 1.0
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -248,35 +253,42 @@ class MarketContext(CapabilityOutput):
     Synthesises raw market data into a structured context object.
     Does not advise trades.
     """
+
     regime: RegimeType = RegimeType.UNKNOWN
     regime_transition: RegimeTransition = RegimeTransition.STABLE
     regime_confidence: float = 0.5
     trend_direction: Direction = Direction.FLAT
     trend_strength: TrendStrength = TrendStrength.NONE
-    volatility_state: str = "NORMAL"       # LOW | NORMAL | HIGH | EXTREME
-    volatility_percentile: float = 50.0    # 0-100 vs. recent history
-    spread_state: str = "NORMAL"           # NORMAL | WIDE | VERY_WIDE
-    session_quality: float = 0.5           # 0-1; higher = better for trading
+    volatility_state: str = "NORMAL"  # LOW | NORMAL | HIGH | EXTREME
+    volatility_percentile: float = 50.0  # 0-100 vs. recent history
+    spread_state: str = "NORMAL"  # NORMAL | WIDE | VERY_WIDE
+    session_quality: float = 0.5  # 0-1; higher = better for trading
     structural_level_above: float | None = None
     structural_level_below: float | None = None
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "regime": self.regime.value,
-            "regime_transition": self.regime_transition.value,
-            "regime_confidence": round(self.regime_confidence, 4),
-            "trend_direction": self.trend_direction.value,
-            "trend_strength": self.trend_strength.value,
-            "volatility_state": self.volatility_state,
-            "volatility_percentile": round(self.volatility_percentile, 2),
-            "spread_state": self.spread_state,
-            "session_quality": round(self.session_quality, 4),
-            "structural_level_above": round(self.structural_level_above, 6) if self.structural_level_above else None,
-            "structural_level_below": round(self.structural_level_below, 6) if self.structural_level_below else None,
-            "notes": self.notes,
-        })
+        d.update(
+            {
+                "regime": self.regime.value,
+                "regime_transition": self.regime_transition.value,
+                "regime_confidence": round(self.regime_confidence, 4),
+                "trend_direction": self.trend_direction.value,
+                "trend_strength": self.trend_strength.value,
+                "volatility_state": self.volatility_state,
+                "volatility_percentile": round(self.volatility_percentile, 2),
+                "spread_state": self.spread_state,
+                "session_quality": round(self.session_quality, 4),
+                "structural_level_above": (
+                    round(self.structural_level_above, 6) if self.structural_level_above else None
+                ),
+                "structural_level_below": (
+                    round(self.structural_level_below, 6) if self.structural_level_below else None
+                ),
+                "notes": self.notes,
+            }
+        )
         return d
 
 
@@ -286,9 +298,10 @@ class MarketContext(CapabilityOutput):
 @dataclass
 class SetupCandidate:
     """A scored setup candidate. Not a trade decision."""
+
     setup_id: str = field(default_factory=lambda: f"setup-{uuid.uuid4().hex[:8]}")
     direction: Direction = Direction.FLAT
-    setup_type: str = ""           # e.g. TREND_CONTINUATION | REVERSAL | BREAKOUT
+    setup_type: str = ""  # e.g. TREND_CONTINUATION | REVERSAL | BREAKOUT
     confluence_score: float = 0.0  # 0-1; how many signals align
     signal_count: int = 0
     signals: list[str] = field(default_factory=list)
@@ -304,7 +317,10 @@ class SetupCandidate:
             "confluence_score": round(self.confluence_score, 4),
             "signal_count": self.signal_count,
             "signals": self.signals,
-            "ideal_entry_zone": [round(self.ideal_entry_zone[0], 6), round(self.ideal_entry_zone[1], 6)],
+            "ideal_entry_zone": [
+                round(self.ideal_entry_zone[0], 6),
+                round(self.ideal_entry_zone[1], 6),
+            ],
             "initial_stop_estimate": round(self.initial_stop_estimate, 6),
             "notes": self.notes,
         }
@@ -313,20 +329,23 @@ class SetupCandidate:
 @dataclass
 class OpportunityReport(CapabilityOutput):
     """Output of Opportunity Discovery.  Advisory — no trade instructions."""
+
     candidates: list[SetupCandidate] = field(default_factory=list)
     best_candidate: SetupCandidate | None = None
-    opportunity_quality: float = 0.0    # 0-1
+    opportunity_quality: float = 0.0  # 0-1
     market_is_tradeable: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "opportunity_quality": round(self.opportunity_quality, 4),
-            "market_is_tradeable": self.market_is_tradeable,
-            "candidate_count": len(self.candidates),
-            "candidates": [c.to_dict() for c in self.candidates],
-            "best_candidate": self.best_candidate.to_dict() if self.best_candidate else None,
-        })
+        d.update(
+            {
+                "opportunity_quality": round(self.opportunity_quality, 4),
+                "market_is_tradeable": self.market_is_tradeable,
+                "candidate_count": len(self.candidates),
+                "candidates": [c.to_dict() for c in self.candidates],
+                "best_candidate": self.best_candidate.to_dict() if self.best_candidate else None,
+            }
+        )
         return d
 
 
@@ -336,31 +355,34 @@ class OpportunityReport(CapabilityOutput):
 @dataclass
 class EVScore(CapabilityOutput):
     """Output of Expected Value Reasoning.  Advisory — no trade instructions."""
-    ev: float = 0.0                     # Expected value in account currency
-    ev_per_unit: float = 0.0            # EV per pip or per lot
-    win_probability: float = 0.0        # 0-1
-    loss_probability: float = 0.0       # 0-1 = 1 - win_probability
-    expected_gain: float = 0.0          # if win
-    expected_loss: float = 0.0          # if lose (positive magnitude)
-    risk_reward_ratio: float = 0.0      # reward / risk
+
+    ev: float = 0.0  # Expected value in account currency
+    ev_per_unit: float = 0.0  # EV per pip or per lot
+    win_probability: float = 0.0  # 0-1
+    loss_probability: float = 0.0  # 0-1 = 1 - win_probability
+    expected_gain: float = 0.0  # if win
+    expected_loss: float = 0.0  # if lose (positive magnitude)
+    risk_reward_ratio: float = 0.0  # reward / risk
     ev_is_positive: bool = False
-    ev_threshold_met: bool = False      # True if EV exceeds minimum threshold
+    ev_threshold_met: bool = False  # True if EV exceeds minimum threshold
     setup_candidate_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "ev": round(self.ev, 6),
-            "ev_per_unit": round(self.ev_per_unit, 6),
-            "win_probability": round(self.win_probability, 4),
-            "loss_probability": round(self.loss_probability, 4),
-            "expected_gain": round(self.expected_gain, 6),
-            "expected_loss": round(self.expected_loss, 6),
-            "risk_reward_ratio": round(self.risk_reward_ratio, 4),
-            "ev_is_positive": self.ev_is_positive,
-            "ev_threshold_met": self.ev_threshold_met,
-            "setup_candidate_id": self.setup_candidate_id,
-        })
+        d.update(
+            {
+                "ev": round(self.ev, 6),
+                "ev_per_unit": round(self.ev_per_unit, 6),
+                "win_probability": round(self.win_probability, 4),
+                "loss_probability": round(self.loss_probability, 4),
+                "expected_gain": round(self.expected_gain, 6),
+                "expected_loss": round(self.expected_loss, 6),
+                "risk_reward_ratio": round(self.risk_reward_ratio, 4),
+                "ev_is_positive": self.ev_is_positive,
+                "ev_threshold_met": self.ev_threshold_met,
+                "setup_candidate_id": self.setup_candidate_id,
+            }
+        )
         return d
 
 
@@ -370,31 +392,38 @@ class EVScore(CapabilityOutput):
 @dataclass
 class RiskAssessment(CapabilityOutput):
     """Output of Risk Reasoning.  Advisory — no trade instructions."""
+
     stop_loss_price: float = 0.0
     take_profit_price: float | None = None
     stop_distance_pips: float = 0.0
     tp_distance_pips: float | None = None
-    atr_stop_multiple: float = 1.5     # stop = entry ± N × ATR
-    risk_per_trade_pct: float = 0.01   # fraction of equity at risk
-    risk_environment: str = "NORMAL"   # LOW | NORMAL | HIGH | EXTREME
+    atr_stop_multiple: float = 1.5  # stop = entry ± N × ATR
+    risk_per_trade_pct: float = 0.01  # fraction of equity at risk
+    risk_environment: str = "NORMAL"  # LOW | NORMAL | HIGH | EXTREME
     volatility_adjusted: bool = True
     structural_stop_valid: bool = False
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "stop_loss_price": round(self.stop_loss_price, 6),
-            "take_profit_price": round(self.take_profit_price, 6) if self.take_profit_price else None,
-            "stop_distance_pips": round(self.stop_distance_pips, 2),
-            "tp_distance_pips": round(self.tp_distance_pips, 2) if self.tp_distance_pips else None,
-            "atr_stop_multiple": round(self.atr_stop_multiple, 3),
-            "risk_per_trade_pct": round(self.risk_per_trade_pct, 4),
-            "risk_environment": self.risk_environment,
-            "volatility_adjusted": self.volatility_adjusted,
-            "structural_stop_valid": self.structural_stop_valid,
-            "notes": self.notes,
-        })
+        d.update(
+            {
+                "stop_loss_price": round(self.stop_loss_price, 6),
+                "take_profit_price": (
+                    round(self.take_profit_price, 6) if self.take_profit_price else None
+                ),
+                "stop_distance_pips": round(self.stop_distance_pips, 2),
+                "tp_distance_pips": (
+                    round(self.tp_distance_pips, 2) if self.tp_distance_pips else None
+                ),
+                "atr_stop_multiple": round(self.atr_stop_multiple, 3),
+                "risk_per_trade_pct": round(self.risk_per_trade_pct, 4),
+                "risk_environment": self.risk_environment,
+                "volatility_adjusted": self.volatility_adjusted,
+                "structural_stop_valid": self.structural_stop_valid,
+                "notes": self.notes,
+            }
+        )
         return d
 
 
@@ -404,27 +433,32 @@ class RiskAssessment(CapabilityOutput):
 @dataclass
 class ExposureReport(CapabilityOutput):
     """Output of Exposure Reasoning.  Advisory — no trade instructions."""
-    gross_exposure_pct: float = 0.0      # total open risk / equity
+
+    gross_exposure_pct: float = 0.0  # total open risk / equity
     net_directional_exposure: float = 0.0  # net long − short exposure
     instrument_exposures: dict[str, float] = field(default_factory=dict)
-    correlation_risk: float = 0.0        # 0-1; how correlated open positions are
-    concentration_risk: float = 0.0      # 0-1; single-instrument concentration
-    exposure_headroom_pct: float = 1.0   # fraction of max exposure still available
+    correlation_risk: float = 0.0  # 0-1; how correlated open positions are
+    concentration_risk: float = 0.0  # 0-1; single-instrument concentration
+    exposure_headroom_pct: float = 1.0  # fraction of max exposure still available
     adding_exposure_is_safe: bool = True
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "gross_exposure_pct": round(self.gross_exposure_pct, 4),
-            "net_directional_exposure": round(self.net_directional_exposure, 4),
-            "instrument_exposures": {k: round(v, 4) for k, v in self.instrument_exposures.items()},
-            "correlation_risk": round(self.correlation_risk, 4),
-            "concentration_risk": round(self.concentration_risk, 4),
-            "exposure_headroom_pct": round(self.exposure_headroom_pct, 4),
-            "adding_exposure_is_safe": self.adding_exposure_is_safe,
-            "notes": self.notes,
-        })
+        d.update(
+            {
+                "gross_exposure_pct": round(self.gross_exposure_pct, 4),
+                "net_directional_exposure": round(self.net_directional_exposure, 4),
+                "instrument_exposures": {
+                    k: round(v, 4) for k, v in self.instrument_exposures.items()
+                },
+                "correlation_risk": round(self.correlation_risk, 4),
+                "concentration_risk": round(self.concentration_risk, 4),
+                "exposure_headroom_pct": round(self.exposure_headroom_pct, 4),
+                "adding_exposure_is_safe": self.adding_exposure_is_safe,
+                "notes": self.notes,
+            }
+        )
         return d
 
 
@@ -434,7 +468,8 @@ class ExposureReport(CapabilityOutput):
 @dataclass
 class TradeManagementSignals(CapabilityOutput):
     """Output of Trade Management.  Advisory — no trade instructions."""
-    trades_needing_exit: list[str] = field(default_factory=list)        # trade_ids
+
+    trades_needing_exit: list[str] = field(default_factory=list)  # trade_ids
     trades_needing_break_even: list[str] = field(default_factory=list)
     trades_needing_partial_close: list[str] = field(default_factory=list)
     trades_eligible_for_scaling: list[str] = field(default_factory=list)
@@ -447,18 +482,20 @@ class TradeManagementSignals(CapabilityOutput):
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "trades_needing_exit": self.trades_needing_exit,
-            "trades_needing_break_even": self.trades_needing_break_even,
-            "trades_needing_partial_close": self.trades_needing_partial_close,
-            "trades_eligible_for_scaling": self.trades_eligible_for_scaling,
-            "trades_exceeding_duration": self.trades_exceeding_duration,
-            "reversal_detected": self.reversal_detected,
-            "continuation_detected": self.continuation_detected,
-            "reversal_confidence": round(self.reversal_confidence, 4),
-            "continuation_confidence": round(self.continuation_confidence, 4),
-            "per_trade_notes": self.per_trade_notes,
-        })
+        d.update(
+            {
+                "trades_needing_exit": self.trades_needing_exit,
+                "trades_needing_break_even": self.trades_needing_break_even,
+                "trades_needing_partial_close": self.trades_needing_partial_close,
+                "trades_eligible_for_scaling": self.trades_eligible_for_scaling,
+                "trades_exceeding_duration": self.trades_exceeding_duration,
+                "reversal_detected": self.reversal_detected,
+                "continuation_detected": self.continuation_detected,
+                "reversal_confidence": round(self.reversal_confidence, 4),
+                "continuation_confidence": round(self.continuation_confidence, 4),
+                "per_trade_notes": self.per_trade_notes,
+            }
+        )
         return d
 
 
@@ -468,29 +505,32 @@ class TradeManagementSignals(CapabilityOutput):
 @dataclass
 class PositionSizeRecommendation(CapabilityOutput):
     """Output of Position Management.  Advisory — no trade instructions."""
-    lot_size: float = 0.0              # Recommended lot size
-    risk_amount: float = 0.0           # In account currency
-    risk_pct: float = 0.0              # Fraction of equity
-    max_lot_size: float = 0.0          # Hard cap
+
+    lot_size: float = 0.0  # Recommended lot size
+    risk_amount: float = 0.0  # In account currency
+    risk_pct: float = 0.0  # Fraction of equity
+    max_lot_size: float = 0.0  # Hard cap
     volatility_adjustment_factor: float = 1.0
-    kelly_fraction: float = 0.0        # Raw Kelly fraction
-    kelly_adjusted: float = 0.0        # Reduced Kelly (e.g. half-Kelly)
+    kelly_fraction: float = 0.0  # Raw Kelly fraction
+    kelly_adjusted: float = 0.0  # Reduced Kelly (e.g. half-Kelly)
     sizing_method: str = "FIXED_RISK"  # FIXED_RISK | KELLY | ATR_SCALED
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "lot_size": round(self.lot_size, 4),
-            "risk_amount": round(self.risk_amount, 2),
-            "risk_pct": round(self.risk_pct, 4),
-            "max_lot_size": round(self.max_lot_size, 4),
-            "volatility_adjustment_factor": round(self.volatility_adjustment_factor, 4),
-            "kelly_fraction": round(self.kelly_fraction, 4),
-            "kelly_adjusted": round(self.kelly_adjusted, 4),
-            "sizing_method": self.sizing_method,
-            "notes": self.notes,
-        })
+        d.update(
+            {
+                "lot_size": round(self.lot_size, 4),
+                "risk_amount": round(self.risk_amount, 2),
+                "risk_pct": round(self.risk_pct, 4),
+                "max_lot_size": round(self.max_lot_size, 4),
+                "volatility_adjustment_factor": round(self.volatility_adjustment_factor, 4),
+                "kelly_fraction": round(self.kelly_fraction, 4),
+                "kelly_adjusted": round(self.kelly_adjusted, 4),
+                "sizing_method": self.sizing_method,
+                "notes": self.notes,
+            }
+        )
         return d
 
 
@@ -500,8 +540,9 @@ class PositionSizeRecommendation(CapabilityOutput):
 @dataclass
 class PreservationStatus(CapabilityOutput):
     """Output of Capital Preservation.  Advisory — no trade instructions."""
+
     circuit_breaker: CircuitBreakerStatus = CircuitBreakerStatus.CLEAR
-    daily_loss_limit_pct: float = 0.03       # configured limit
+    daily_loss_limit_pct: float = 0.03  # configured limit
     daily_loss_current_pct: float = 0.0
     daily_loss_headroom_pct: float = 0.03
     drawdown_limit_pct: float = 0.10
@@ -516,21 +557,23 @@ class PreservationStatus(CapabilityOutput):
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "circuit_breaker": self.circuit_breaker.value,
-            "daily_loss_limit_pct": round(self.daily_loss_limit_pct, 4),
-            "daily_loss_current_pct": round(self.daily_loss_current_pct, 4),
-            "daily_loss_headroom_pct": round(self.daily_loss_headroom_pct, 4),
-            "drawdown_limit_pct": round(self.drawdown_limit_pct, 4),
-            "drawdown_current_pct": round(self.drawdown_current_pct, 4),
-            "drawdown_headroom_pct": round(self.drawdown_headroom_pct, 4),
-            "consecutive_loss_limit": self.consecutive_loss_limit,
-            "consecutive_losses_current": self.consecutive_losses_current,
-            "new_entries_allowed": self.new_entries_allowed,
-            "scaling_allowed": self.scaling_allowed,
-            "forced_exit_required": self.forced_exit_required,
-            "forced_exit_reason": self.forced_exit_reason,
-        })
+        d.update(
+            {
+                "circuit_breaker": self.circuit_breaker.value,
+                "daily_loss_limit_pct": round(self.daily_loss_limit_pct, 4),
+                "daily_loss_current_pct": round(self.daily_loss_current_pct, 4),
+                "daily_loss_headroom_pct": round(self.daily_loss_headroom_pct, 4),
+                "drawdown_limit_pct": round(self.drawdown_limit_pct, 4),
+                "drawdown_current_pct": round(self.drawdown_current_pct, 4),
+                "drawdown_headroom_pct": round(self.drawdown_headroom_pct, 4),
+                "consecutive_loss_limit": self.consecutive_loss_limit,
+                "consecutive_losses_current": self.consecutive_losses_current,
+                "new_entries_allowed": self.new_entries_allowed,
+                "scaling_allowed": self.scaling_allowed,
+                "forced_exit_required": self.forced_exit_required,
+                "forced_exit_reason": self.forced_exit_reason,
+            }
+        )
         return d
 
 
@@ -540,11 +583,12 @@ class PreservationStatus(CapabilityOutput):
 @dataclass
 class MemoryPattern:
     """A historically matched pattern."""
+
     pattern_id: str
-    similarity_score: float      # 0-1
+    similarity_score: float  # 0-1
     pattern_type: str
-    historical_outcome: str      # WIN | LOSS | NEUTRAL
-    historical_pnl_r: float      # R-multiple of historical outcome
+    historical_outcome: str  # WIN | LOSS | NEUTRAL
+    historical_pnl_r: float  # R-multiple of historical outcome
     occurred_at: float
     regime_at_occurrence: str
 
@@ -552,6 +596,7 @@ class MemoryPattern:
 @dataclass
 class MemoryContext(CapabilityOutput):
     """Output of Market Memory.  Advisory — no trade instructions."""
+
     matched_patterns: list[MemoryPattern] = field(default_factory=list)
     pattern_match_quality: float = 0.0  # 0-1
     historical_win_rate_this_setup: float | None = None
@@ -563,16 +608,28 @@ class MemoryContext(CapabilityOutput):
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "pattern_count": len(self.matched_patterns),
-            "pattern_match_quality": round(self.pattern_match_quality, 4),
-            "historical_win_rate_this_setup": round(self.historical_win_rate_this_setup, 4) if self.historical_win_rate_this_setup is not None else None,
-            "historical_ev_this_setup": round(self.historical_ev_this_setup, 6) if self.historical_ev_this_setup is not None else None,
-            "regime_has_been_seen_before": self.regime_has_been_seen_before,
-            "regime_historical_performance": {k: round(v, 6) for k, v in self.regime_historical_performance.items()},
-            "anomaly_detected": self.anomaly_detected,
-            "anomaly_description": self.anomaly_description,
-        })
+        d.update(
+            {
+                "pattern_count": len(self.matched_patterns),
+                "pattern_match_quality": round(self.pattern_match_quality, 4),
+                "historical_win_rate_this_setup": (
+                    round(self.historical_win_rate_this_setup, 4)
+                    if self.historical_win_rate_this_setup is not None
+                    else None
+                ),
+                "historical_ev_this_setup": (
+                    round(self.historical_ev_this_setup, 6)
+                    if self.historical_ev_this_setup is not None
+                    else None
+                ),
+                "regime_has_been_seen_before": self.regime_has_been_seen_before,
+                "regime_historical_performance": {
+                    k: round(v, 6) for k, v in self.regime_historical_performance.items()
+                },
+                "anomaly_detected": self.anomaly_detected,
+                "anomaly_description": self.anomaly_description,
+            }
+        )
         return d
 
 
@@ -582,6 +639,7 @@ class MemoryContext(CapabilityOutput):
 @dataclass
 class TradeOutcome:
     """A completed trade outcome provided to the Reflection capability."""
+
     trade_id: str
     instrument: str
     direction: Direction
@@ -590,7 +648,7 @@ class TradeOutcome:
     stop_loss: float
     lot_size: float
     pnl: float
-    pnl_r: float                  # In R-multiples
+    pnl_r: float  # In R-multiples
     opened_at: float
     closed_at: float
     exit_reason: str
@@ -602,29 +660,36 @@ class TradeOutcome:
 @dataclass
 class ReflectionInsight(CapabilityOutput):
     """Output of the Reflection capability.  Advisory — no trade instructions."""
+
     trade_id: str = ""
     reasoning_was_correct: bool = False
-    capability_accuracy: dict[str, float] = field(default_factory=dict)   # capability → accuracy 0-1
-    setup_quality_actual: float = 0.0     # what confluence score should have been
-    ev_prediction_error: float = 0.0      # predicted EV − actual EV
-    stop_placement_quality: float = 0.5   # 0-1
+    capability_accuracy: dict[str, float] = field(default_factory=dict)  # capability → accuracy 0-1
+    setup_quality_actual: float = 0.0  # what confluence score should have been
+    ev_prediction_error: float = 0.0  # predicted EV − actual EV
+    stop_placement_quality: float = 0.5  # 0-1
     regime_reading_quality: float = 0.5
     key_lesson: str = ""
     suggested_weight_adjustments: dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "trade_id": self.trade_id,
-            "reasoning_was_correct": self.reasoning_was_correct,
-            "capability_accuracy": {k: round(v, 4) for k, v in self.capability_accuracy.items()},
-            "setup_quality_actual": round(self.setup_quality_actual, 4),
-            "ev_prediction_error": round(self.ev_prediction_error, 6),
-            "stop_placement_quality": round(self.stop_placement_quality, 4),
-            "regime_reading_quality": round(self.regime_reading_quality, 4),
-            "key_lesson": self.key_lesson,
-            "suggested_weight_adjustments": {k: round(v, 6) for k, v in self.suggested_weight_adjustments.items()},
-        })
+        d.update(
+            {
+                "trade_id": self.trade_id,
+                "reasoning_was_correct": self.reasoning_was_correct,
+                "capability_accuracy": {
+                    k: round(v, 4) for k, v in self.capability_accuracy.items()
+                },
+                "setup_quality_actual": round(self.setup_quality_actual, 4),
+                "ev_prediction_error": round(self.ev_prediction_error, 6),
+                "stop_placement_quality": round(self.stop_placement_quality, 4),
+                "regime_reading_quality": round(self.regime_reading_quality, 4),
+                "key_lesson": self.key_lesson,
+                "suggested_weight_adjustments": {
+                    k: round(v, 6) for k, v in self.suggested_weight_adjustments.items()
+                },
+            }
+        )
         return d
 
 
@@ -634,29 +699,34 @@ class ReflectionInsight(CapabilityOutput):
 @dataclass
 class LearningUpdate(CapabilityOutput):
     """Output of the Learning capability.  Advisory — no trade instructions."""
+
     updated_weights: dict[str, float] = field(default_factory=dict)
     prior_updates: dict[str, Any] = field(default_factory=dict)
     capability_trust_scores: dict[str, float] = field(default_factory=dict)  # 0-1 per capability
     regime_performance_priors: dict[str, dict[str, float]] = field(default_factory=dict)
     learning_rate_used: float = 0.01
     n_samples_used: int = 0
-    convergence_delta: float = 0.0        # |new_weights − old_weights|
+    convergence_delta: float = 0.0  # |new_weights − old_weights|
     notes: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
-        d.update({
-            "updated_weights": {k: round(v, 6) for k, v in self.updated_weights.items()},
-            "capability_trust_scores": {k: round(v, 4) for k, v in self.capability_trust_scores.items()},
-            "regime_performance_priors": {
-                r: {k: round(v, 6) for k, v in m.items()}
-                for r, m in self.regime_performance_priors.items()
-            },
-            "learning_rate_used": self.learning_rate_used,
-            "n_samples_used": self.n_samples_used,
-            "convergence_delta": round(self.convergence_delta, 8),
-            "notes": self.notes,
-        })
+        d.update(
+            {
+                "updated_weights": {k: round(v, 6) for k, v in self.updated_weights.items()},
+                "capability_trust_scores": {
+                    k: round(v, 4) for k, v in self.capability_trust_scores.items()
+                },
+                "regime_performance_priors": {
+                    r: {k: round(v, 6) for k, v in m.items()}
+                    for r, m in self.regime_performance_priors.items()
+                },
+                "learning_rate_used": self.learning_rate_used,
+                "n_samples_used": self.n_samples_used,
+                "convergence_delta": round(self.convergence_delta, 8),
+                "notes": self.notes,
+            }
+        )
         return d
 
 
@@ -681,7 +751,7 @@ class ExitSignal:
     trade_id: str
     exit_price: float
     reason: str
-    urgency: str = "NORMAL"   # NORMAL | URGENT | FORCED
+    urgency: str = "NORMAL"  # NORMAL | URGENT | FORCED
 
 
 @dataclass
@@ -695,7 +765,7 @@ class ScalingSignal:
 @dataclass
 class PartialCloseSignal:
     trade_id: str
-    close_fraction: float    # 0-1; fraction of current position to close
+    close_fraction: float  # 0-1; fraction of current position to close
     reason: str
 
 
@@ -715,6 +785,7 @@ class QDEDecision:
 
     All 13 QDE responsibilities are encoded here — none live anywhere else.
     """
+
     decision_id: str
     snapshot_id: str
     instrument: str
@@ -796,31 +867,55 @@ class QDEDecision:
             "instrument": self.instrument,
             "decision_type": self.decision_type.value,
             "decided_at": self.decided_at,
-            "entry": {
-                "direction": self.entry.direction.value,
-                "entry_price": round(self.entry.entry_price, 6),
-                "stop_loss": round(self.entry.stop_loss, 6),
-                "take_profit": round(self.entry.take_profit, 6) if self.entry.take_profit else None,
-                "lot_size": round(self.entry.lot_size, 4),
-                "setup_type": self.entry.setup_type,
-                "confluence_score": round(self.entry.confluence_score, 4),
-                "ev_score": round(self.entry.ev_score, 6),
-                "risk_pct": round(self.entry.risk_pct, 4),
-            } if self.entry else None,
+            "entry": (
+                {
+                    "direction": self.entry.direction.value,
+                    "entry_price": round(self.entry.entry_price, 6),
+                    "stop_loss": round(self.entry.stop_loss, 6),
+                    "take_profit": (
+                        round(self.entry.take_profit, 6) if self.entry.take_profit else None
+                    ),
+                    "lot_size": round(self.entry.lot_size, 4),
+                    "setup_type": self.entry.setup_type,
+                    "confluence_score": round(self.entry.confluence_score, 4),
+                    "ev_score": round(self.entry.ev_score, 6),
+                    "risk_pct": round(self.entry.risk_pct, 4),
+                }
+                if self.entry
+                else None
+            ),
             "exits": [
-                {"trade_id": e.trade_id, "exit_price": round(e.exit_price, 6), "reason": e.reason, "urgency": e.urgency}
+                {
+                    "trade_id": e.trade_id,
+                    "exit_price": round(e.exit_price, 6),
+                    "reason": e.reason,
+                    "urgency": e.urgency,
+                }
                 for e in self.exits
             ],
             "scaling": [
-                {"trade_id": s.trade_id, "additional_lot_size": round(s.additional_lot_size, 4), "new_stop_loss": round(s.new_stop_loss, 6), "reason": s.reason}
+                {
+                    "trade_id": s.trade_id,
+                    "additional_lot_size": round(s.additional_lot_size, 4),
+                    "new_stop_loss": round(s.new_stop_loss, 6),
+                    "reason": s.reason,
+                }
                 for s in self.scaling
             ],
             "partial_closes": [
-                {"trade_id": p.trade_id, "close_fraction": round(p.close_fraction, 4), "reason": p.reason}
+                {
+                    "trade_id": p.trade_id,
+                    "close_fraction": round(p.close_fraction, 4),
+                    "reason": p.reason,
+                }
                 for p in self.partial_closes
             ],
             "break_evens": [
-                {"trade_id": b.trade_id, "new_stop_loss": round(b.new_stop_loss, 6), "reason": b.reason}
+                {
+                    "trade_id": b.trade_id,
+                    "new_stop_loss": round(b.new_stop_loss, 6),
+                    "reason": b.reason,
+                }
                 for b in self.break_evens
             ],
             "regime": self.regime.value,
@@ -831,7 +926,9 @@ class QDEDecision:
             "continuation_detected": self.continuation_detected,
             "circuit_breaker": self.circuit_breaker.value,
             "preservation_active": self.preservation_active,
-            "capability_contributions": {k: round(v, 4) for k, v in self.capability_contributions.items()},
+            "capability_contributions": {
+                k: round(v, 4) for k, v in self.capability_contributions.items()
+            },
             "reasoning_summary": self.reasoning_summary,
             "overall_confidence": round(self.overall_confidence, 4),
         }

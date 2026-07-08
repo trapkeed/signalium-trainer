@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 
@@ -184,9 +183,7 @@ class QDEVersion:
             "tags": self.tags,
             "description": self.description,
             "metrics": {k: round(v, 6) for k, v in self.metrics.items()},
-            "stage_timestamps": {
-                k: round(v, 3) for k, v in self.stage_timestamps.items()
-            },
+            "stage_timestamps": {k: round(v, 3) for k, v in self.stage_timestamps.items()},
             "deployed_at": round(self.deployed_at, 3) if self.deployed_at else None,
             "retired_at": round(self.retired_at, 3) if self.retired_at else None,
             "artifact_uri": self.artifact_uri,
@@ -214,7 +211,9 @@ class DimensionResult:
             "dimension": self.dimension,
             "passed": self.passed,
             "challenger_value": round(self.challenger_value, 6),
-            "incumbent_value": round(self.incumbent_value, 6) if self.incumbent_value is not None else None,
+            "incumbent_value": (
+                round(self.incumbent_value, 6) if self.incumbent_value is not None else None
+            ),
             "delta": round(self.delta, 6),
             "threshold": round(self.threshold, 6),
             "notes": self.notes,
@@ -283,7 +282,9 @@ class QDEPromotionDecision:
         ]
         for r in self.dimension_results:
             mark = "PASS" if r.passed else "FAIL"
-            lines.append(f"  [{mark}] {r.dimension}: delta={r.delta:+.4f} (threshold={r.threshold:+.4f})")
+            lines.append(
+                f"  [{mark}] {r.dimension}: delta={r.delta:+.4f} (threshold={r.threshold:+.4f})"
+            )
         if self.notes:
             lines.append(f"  Notes: {self.notes}")
         return "\n".join(lines)
@@ -343,7 +344,9 @@ class QDEABTest:
             control_version_id=control_version_id,
             challenger_version_id=challenger_version_id,
             created_at=time.time(),
-            canary_traffic_fraction=canary_traffic_fraction if test_type == QDEABTestType.CANARY else 0.0,
+            canary_traffic_fraction=(
+                canary_traffic_fraction if test_type == QDEABTestType.CANARY else 0.0
+            ),
         )
 
     def record_results(
@@ -443,9 +446,11 @@ class PipelineStepResult:
             "status": self.status,
             "started_at": round(self.started_at, 3) if self.started_at else None,
             "completed_at": round(self.completed_at, 3) if self.completed_at else None,
-            "duration_s": round(self.completed_at - self.started_at, 3)
-            if self.started_at and self.completed_at
-            else None,
+            "duration_s": (
+                round(self.completed_at - self.started_at, 3)
+                if self.started_at and self.completed_at
+                else None
+            ),
             "metrics": {k: round(v, 6) for k, v in self.metrics.items()},
             "logs": self.logs,
             "error": self.error,
@@ -469,10 +474,7 @@ class PipelineRun:
             run_id=str(uuid.uuid4())[:12],
             version_id=version_id,
             status="RUNNING",
-            steps=[
-                PipelineStepResult(stage=s, status="PENDING")
-                for s in PIPELINE_ORDER
-            ],
+            steps=[PipelineStepResult(stage=s, status="PENDING") for s in PIPELINE_ORDER],
             started_at=time.time(),
         )
 

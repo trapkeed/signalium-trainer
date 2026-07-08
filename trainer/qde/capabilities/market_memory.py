@@ -22,7 +22,6 @@ from trainer.qde.capabilities.cap_models import (
     MarketSnapshot,
     MemoryContext,
     MemoryPattern,
-    RegimeType,
     SetupCandidate,
 )
 
@@ -30,15 +29,16 @@ from trainer.qde.capabilities.cap_models import (
 @dataclass
 class HistoricalOutcome:
     """A stored historical trade outcome for pattern matching."""
+
     outcome_id: str
     setup_type: str
     regime: str
     direction: str
-    result: str          # WIN | LOSS | NEUTRAL
+    result: str  # WIN | LOSS | NEUTRAL
     pnl_r: float
     rsi_at_entry: float
     adx_at_entry: float
-    atr_ratio: float     # atr_14 / atr_50
+    atr_ratio: float  # atr_14 / atr_50
     timestamp: float = field(default_factory=time.time)
 
 
@@ -119,15 +119,17 @@ class MarketMemoryCapability:
         top = scored[:top_k]
 
         for sim, outcome in top:
-            matched.append(MemoryPattern(
-                pattern_id=outcome.outcome_id,
-                similarity_score=sim,
-                pattern_type=outcome.setup_type,
-                historical_outcome=outcome.result,
-                historical_pnl_r=outcome.pnl_r,
-                occurred_at=outcome.timestamp,
-                regime_at_occurrence=outcome.regime,
-            ))
+            matched.append(
+                MemoryPattern(
+                    pattern_id=outcome.outcome_id,
+                    similarity_score=sim,
+                    pattern_type=outcome.setup_type,
+                    historical_outcome=outcome.result,
+                    historical_pnl_r=outcome.pnl_r,
+                    occurred_at=outcome.timestamp,
+                    regime_at_occurrence=outcome.regime,
+                )
+            )
 
         match_quality = sum(m.similarity_score for m in matched) / len(matched) if matched else 0.0
 
@@ -199,12 +201,12 @@ class MarketMemoryCapability:
             "rsi": outcome.rsi_at_entry / 100.0,
             "adx": outcome.adx_at_entry / 100.0,
             "atr_ratio": min(3.0, outcome.atr_ratio) / 3.0,
-            "bb_width": 0.5,   # not stored per-outcome; neutral
+            "bb_width": 0.5,  # not stored per-outcome; neutral
             "vol_ratio": 1.0,
         }
         # Normalised Euclidean distance → similarity
         sq_dist = sum((current.get(k, 0.0) - historical.get(k, 0.0)) ** 2 for k in current)
-        distance = sq_dist ** 0.5
+        distance = sq_dist**0.5
         return max(0.0, 1.0 - distance)
 
     def _regime_win_rate(self, regime: str, setup_type: str) -> float | None:
@@ -227,8 +229,11 @@ class MarketMemoryCapability:
     def _update_regime_stats(self, outcome: HistoricalOutcome) -> None:
         if outcome.regime not in self._regime_stats:
             self._regime_stats[outcome.regime] = {
-                "n": 0, "wins": 0, "total_r": 0.0,
-                "win_rate": 0.0, "avg_r": 0.0,
+                "n": 0,
+                "wins": 0,
+                "total_r": 0.0,
+                "win_rate": 0.0,
+                "avg_r": 0.0,
             }
         s = self._regime_stats[outcome.regime]
         s["n"] += 1

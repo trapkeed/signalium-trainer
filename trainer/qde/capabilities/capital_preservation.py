@@ -14,7 +14,6 @@ CONTRACT
 from __future__ import annotations
 
 from trainer.qde.capabilities.cap_models import (
-    AccountState,
     CircuitBreakerStatus,
     MarketSnapshot,
     PreservationStatus,
@@ -86,7 +85,9 @@ class CapitalPreservationCapability:
             forced_exit = True
             forced_reason = f"Daily loss limit breached ({daily_pct:.2%})"
         elif daily_pct >= self.warning_daily_pct:
-            warnings.append(f"Daily loss {daily_pct:.2%} approaching limit {self.daily_loss_limit_pct:.2%}")
+            warnings.append(
+                f"Daily loss {daily_pct:.2%} approaching limit {self.daily_loss_limit_pct:.2%}"
+            )
 
         # ── Drawdown limit ────────────────────────────────────────────────────
         drawdown_headroom = max(0.0, self.drawdown_limit_pct - drawdown_pct)
@@ -95,11 +96,15 @@ class CapitalPreservationCapability:
             forced_exit = True
             forced_reason = forced_reason or f"Drawdown limit breached ({drawdown_pct:.2%})"
         elif drawdown_pct >= self.warning_drawdown_pct:
-            warnings.append(f"Drawdown {drawdown_pct:.2%} approaching limit {self.drawdown_limit_pct:.2%}")
+            warnings.append(
+                f"Drawdown {drawdown_pct:.2%} approaching limit {self.drawdown_limit_pct:.2%}"
+            )
 
         # ── Consecutive loss limit ────────────────────────────────────────────
         if consec_losses >= self.consecutive_loss_limit:
-            breaches.append(f"Consecutive losses {consec_losses} ≥ limit {self.consecutive_loss_limit}")
+            breaches.append(
+                f"Consecutive losses {consec_losses} ≥ limit {self.consecutive_loss_limit}"
+            )
 
         # ── Determine circuit breaker status ──────────────────────────────────
         if breaches:

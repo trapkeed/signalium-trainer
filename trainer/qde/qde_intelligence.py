@@ -42,11 +42,11 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.capabilities.cap_models import (
     BreakEvenSignal,
-    CircuitBreakerStatus,
     DecisionType,
     Direction,
     EntrySignal,
@@ -55,7 +55,6 @@ from trainer.qde.capabilities.cap_models import (
     MarketSnapshot,
     PartialCloseSignal,
     QDEDecision,
-    RegimeType,
     ScalingSignal,
 )
 from trainer.qde.capabilities.capital_preservation import CapitalPreservationCapability
@@ -69,7 +68,6 @@ from trainer.qde.capabilities.position_management import PositionManagementCapab
 from trainer.qde.capabilities.reflection import ReflectionCapability
 from trainer.qde.capabilities.risk_reasoning import RiskReasoningCapability
 from trainer.qde.capabilities.trade_management import TradeManagementCapability
-
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -89,7 +87,7 @@ class QDEConfig:
 
     # Opportunity thresholds
     min_confluence_to_enter: float = 0.55
-    min_ev_to_enter: float = 0.0          # EV must be ≥ this (in pips)
+    min_ev_to_enter: float = 0.0  # EV must be ≥ this (in pips)
     min_rr_to_enter: float = 1.5
 
     # Exposure limits
@@ -105,19 +103,21 @@ class QDEConfig:
     min_overall_confidence: float = 0.50
 
     # Capability trust weights (can be updated by Learning)
-    capability_weights: dict[str, float] = field(default_factory=lambda: {
-        "market_understanding":    1.00,
-        "opportunity_discovery":   0.90,
-        "expected_value_reasoning": 0.85,
-        "risk_reasoning":          0.95,
-        "exposure_reasoning":      0.90,
-        "trade_management":        0.95,
-        "position_management":     0.90,
-        "capital_preservation":    1.00,   # Always full weight — safety critical
-        "market_memory":           0.75,
-        "reflection":              0.80,
-        "learning":                0.80,
-    })
+    capability_weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "market_understanding": 1.00,
+            "opportunity_discovery": 0.90,
+            "expected_value_reasoning": 0.85,
+            "risk_reasoning": 0.95,
+            "exposure_reasoning": 0.90,
+            "trade_management": 0.95,
+            "position_management": 0.90,
+            "capital_preservation": 1.00,  # Always full weight — safety critical
+            "market_memory": 0.75,
+            "reflection": 0.80,
+            "learning": 0.80,
+        }
+    )
 
 
 # ── QDE Intelligence ──────────────────────────────────────────────────────────
@@ -254,23 +254,34 @@ class QDEIntelligence:
 
         if preservation.new_entries_allowed:
             opportunity = self._opportunity_discovery.discover(snapshot, market_ctx)
-            memory_ctx = self._market_memory.recall(snapshot, opportunity.best_candidate, market_ctx)
+            memory_ctx = self._market_memory.recall(
+                snapshot, opportunity.best_candidate, market_ctx
+            )
 
             if opportunity.market_is_tradeable and opportunity.best_candidate is not None:
                 candidate = opportunity.best_candidate
                 risk_assess = self._risk_reasoning.assess(
-                    snapshot, candidate, market_ctx,
+                    snapshot,
+                    candidate,
+                    market_ctx,
                     risk_per_trade_pct=self.config.risk_per_trade_pct,
                 )
                 ev_score = self._ev_reasoning.score(
                     snapshot, candidate, risk_assess, memory_ctx, market_ctx
                 )
 
-                if ev_score.ev_threshold_met and ev_score.risk_reward_ratio >= self.config.min_rr_to_enter:
+                if (
+                    ev_score.ev_threshold_met
+                    and ev_score.risk_reward_ratio >= self.config.min_rr_to_enter
+                ):
                     exposure = self._exposure_reasoning.analyse(snapshot, equity)
                     if exposure.adding_exposure_is_safe:
                         pos_size = self._position_management.compute(
-                            snapshot, risk_assess, ev_score, market_ctx, equity,
+                            snapshot,
+                            risk_assess,
+                            ev_score,
+                            market_ctx,
+                            equity,
                             risk_pct=self.config.risk_per_trade_pct,
                         )
                         entry_signal = EntrySignal(
@@ -297,8 +308,7 @@ class QDEIntelligence:
             if not exposure.adding_exposure_is_safe:
                 entry_signal = None  # Veto entry due to exposure
                 logger.info(
-                    f"QDE vetoed entry: exposure headroom exhausted "
-                    f"[{snapshot.instrument}]"
+                    f"QDE vetoed entry: exposure headroom exhausted " f"[{snapshot.instrument}]"
                 )
 
         # ═════════════════════════════════════════════════════════════════════
@@ -314,8 +324,15 @@ class QDEIntelligence:
         overall_confidence = self._compute_overall_confidence(cap_contributions)
 
         reasoning = self._build_reasoning_summary(
-            market_ctx, opportunity, ev_score, preservation,
-            entry_signal, exits, scaling_signals, partial_closes, break_evens,
+            market_ctx,
+            opportunity,
+            ev_score,
+            preservation,
+            entry_signal,
+            exits,
+            scaling_signals,
+            partial_closes,
+            break_evens,
             decision_type,
         )
 
@@ -327,7 +344,6 @@ class QDEIntelligence:
             instrument=snapshot.instrument,
             decision_type=decision_type,
             decided_at=self._now_iso(),
-
             # 13 responsibilities
             entry=entry_signal,
             exits=exits,
@@ -342,7 +358,6 @@ class QDEIntelligence:
             continuation_detected=trade_signals.continuation_detected,
             circuit_breaker=preservation.circuit_breaker,
             preservation_active=False,
-
             capability_contributions=cap_contributions,
             reasoning_summary=reasoning,
             overall_confidence=overall_confidence,
@@ -372,19 +387,25 @@ class QDEIntelligence:
         for trade in snapshot.open_trades:
             if trade.trade_id in trade_signals.trades_needing_exit:
                 urgency = "URGENT" if trade.r_multiple < -1.0 else "NORMAL"
-                exits.append(ExitSignal(
-                    trade_id=trade.trade_id,
-                    exit_price=snapshot.mid,
-                    reason=trade_signals.per_trade_notes.get(trade.trade_id, "Management signal"),
-                    urgency=urgency,
-                ))
+                exits.append(
+                    ExitSignal(
+                        trade_id=trade.trade_id,
+                        exit_price=snapshot.mid,
+                        reason=trade_signals.per_trade_notes.get(
+                            trade.trade_id, "Management signal"
+                        ),
+                        urgency=urgency,
+                    )
+                )
             elif trade.trade_id in trade_signals.trades_exceeding_duration:
-                exits.append(ExitSignal(
-                    trade_id=trade.trade_id,
-                    exit_price=snapshot.mid,
-                    reason="Trade duration limit exceeded",
-                    urgency="NORMAL",
-                ))
+                exits.append(
+                    ExitSignal(
+                        trade_id=trade.trade_id,
+                        exit_price=snapshot.mid,
+                        reason="Trade duration limit exceeded",
+                        urgency="NORMAL",
+                    )
+                )
         return exits
 
     def _resolve_break_evens(
@@ -395,11 +416,13 @@ class QDEIntelligence:
         result: list[BreakEvenSignal] = []
         for trade in snapshot.open_trades:
             if trade.trade_id in trade_signals.trades_needing_break_even:
-                result.append(BreakEvenSignal(
-                    trade_id=trade.trade_id,
-                    new_stop_loss=trade.entry_price,
-                    reason=f"Break-even at {trade.r_multiple:.1f}R profit",
-                ))
+                result.append(
+                    BreakEvenSignal(
+                        trade_id=trade.trade_id,
+                        new_stop_loss=trade.entry_price,
+                        reason=f"Break-even at {trade.r_multiple:.1f}R profit",
+                    )
+                )
         return result
 
     def _resolve_partial_closes(
@@ -410,11 +433,13 @@ class QDEIntelligence:
         result: list[PartialCloseSignal] = []
         for trade in snapshot.open_trades:
             if trade.trade_id in trade_signals.trades_needing_partial_close:
-                result.append(PartialCloseSignal(
-                    trade_id=trade.trade_id,
-                    close_fraction=0.50,  # Close 50% at 2R
-                    reason=f"Partial profit lock at {trade.r_multiple:.1f}R",
-                ))
+                result.append(
+                    PartialCloseSignal(
+                        trade_id=trade.trade_id,
+                        close_fraction=0.50,  # Close 50% at 2R
+                        reason=f"Partial profit lock at {trade.r_multiple:.1f}R",
+                    )
+                )
         return result
 
     def _resolve_scaling(
@@ -438,12 +463,14 @@ class QDEIntelligence:
                 new_stop = snapshot.mid - atr * 1.0
             else:
                 new_stop = snapshot.mid + atr * 1.0
-            result.append(ScalingSignal(
-                trade_id=trade.trade_id,
-                additional_lot_size=scale_lot,
-                new_stop_loss=round(new_stop, 6),
-                reason=f"Scale-in at {trade.r_multiple:.1f}R; trend={market_ctx.trend_strength.value}",
-            ))
+            result.append(
+                ScalingSignal(
+                    trade_id=trade.trade_id,
+                    additional_lot_size=scale_lot,
+                    new_stop_loss=round(new_stop, 6),
+                    reason=f"Scale-in at {trade.r_multiple:.1f}R; trend={market_ctx.trend_strength.value}",
+                )
+            )
         return result
 
     # ── Synthesis helpers ─────────────────────────────────────────────────────
@@ -478,15 +505,23 @@ class QDEIntelligence:
     ) -> dict[str, float]:
         weights = self.config.capability_weights
         contributions: dict[str, float] = {
-            "market_understanding": market_ctx.confidence * weights.get("market_understanding", 1.0),
-            "capital_preservation": preservation.confidence * weights.get("capital_preservation", 1.0),
+            "market_understanding": market_ctx.confidence
+            * weights.get("market_understanding", 1.0),
+            "capital_preservation": preservation.confidence
+            * weights.get("capital_preservation", 1.0),
         }
         if opportunity:
-            contributions["opportunity_discovery"] = opportunity.confidence * weights.get("opportunity_discovery", 0.9)
+            contributions["opportunity_discovery"] = opportunity.confidence * weights.get(
+                "opportunity_discovery", 0.9
+            )
         if ev_score:
-            contributions["expected_value_reasoning"] = ev_score.confidence * weights.get("expected_value_reasoning", 0.85)
+            contributions["expected_value_reasoning"] = ev_score.confidence * weights.get(
+                "expected_value_reasoning", 0.85
+            )
         if risk_assess:
-            contributions["risk_reasoning"] = risk_assess.confidence * weights.get("risk_reasoning", 0.95)
+            contributions["risk_reasoning"] = risk_assess.confidence * weights.get(
+                "risk_reasoning", 0.95
+            )
         return {k: round(v, 4) for k, v in contributions.items()}
 
     def _compute_overall_confidence(self, contributions: dict[str, float]) -> float:
@@ -517,7 +552,9 @@ class QDEIntelligence:
         if opportunity:
             parts.append(f"Opportunity={opportunity.opportunity_quality:.2f}")
         if ev_score:
-            parts.append(f"EV={ev_score.ev:.4f} RR={ev_score.risk_reward_ratio:.2f} WinP={ev_score.win_probability:.0%}")
+            parts.append(
+                f"EV={ev_score.ev:.4f} RR={ev_score.risk_reward_ratio:.2f} WinP={ev_score.win_probability:.0%}"
+            )
         if entry:
             parts.append(f"Entry={entry.direction.value} lot={entry.lot_size:.2f}")
         if exits:
@@ -544,9 +581,9 @@ class QDEIntelligence:
         Called post-trade. Updates internal priors.
         Does NOT produce a QDEDecision — this is a maintenance operation.
         """
-        from trainer.qde.capabilities.market_memory import HistoricalOutcome
-        import time as _time
         import uuid as _uuid
+
+        from trainer.qde.capabilities.market_memory import HistoricalOutcome
 
         insight = self._reflection.reflect(outcome, predicted_win_probability, predicted_ev)
         update = self._learning.learn(insight)
@@ -584,7 +621,9 @@ class QDEIntelligence:
         """Return the current state of the QDE for monitoring."""
         return {
             "decision_count": self._decision_count,
-            "capability_weights": {k: round(v, 4) for k, v in self.config.capability_weights.items()},
+            "capability_weights": {
+                k: round(v, 4) for k, v in self.config.capability_weights.items()
+            },
             "capability_trust_scores": self._learning.get_trust_scores(),
             "regime_priors": self._learning.get_regime_priors(),
             "memory_size": len(self._market_memory._outcomes),
@@ -594,4 +633,5 @@ class QDEIntelligence:
     @staticmethod
     def _now_iso() -> str:
         from datetime import UTC, datetime
+
         return datetime.now(UTC).isoformat()

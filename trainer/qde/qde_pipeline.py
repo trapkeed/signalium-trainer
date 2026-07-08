@@ -15,10 +15,10 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_models import (
-    PIPELINE_ORDER,
     PipelineRun,
     PipelineStage,
     PipelineStepResult,
@@ -26,7 +26,6 @@ from trainer.qde.qde_models import (
     QDEVersion,
 )
 from trainer.qde.qde_registry import QDERegistry
-
 
 # Map pipeline stage → QDE lifecycle stage
 _PIPELINE_TO_QDE_STAGE: dict[PipelineStage, QDEStage] = {

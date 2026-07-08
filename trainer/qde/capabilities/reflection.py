@@ -15,7 +15,6 @@ CONTRACT
 from __future__ import annotations
 
 from trainer.qde.capabilities.cap_models import (
-    Direction,
     ReflectionInsight,
     TradeOutcome,
 )
@@ -34,7 +33,7 @@ class ReflectionCapability:
     CAPABILITY_NAME = "reflection"
 
     # Threshold above which we consider the trade outcome "correct"
-    CORRECT_OUTCOME_R_THRESHOLD = 0.0   # breakeven or better
+    CORRECT_OUTCOME_R_THRESHOLD = 0.0  # breakeven or better
 
     def reflect(
         self,
@@ -123,11 +122,11 @@ class ReflectionCapability:
         # Stop was hit — it could be a good stop (loss is small) or bad (loss is large)
         loss_r = abs(outcome.pnl_r)
         if loss_r <= 1.1:
-            return 0.70   # stopped out at approximately 1R — acceptable
+            return 0.70  # stopped out at approximately 1R — acceptable
         elif loss_r <= 1.5:
-            return 0.50   # stopped out at 1.5R — stop was too wide or slippage
+            return 0.50  # stopped out at 1.5R — stop was too wide or slippage
         else:
-            return 0.20   # stopped out at >1.5R — serious stop placement issue
+            return 0.20  # stopped out at >1.5R — serious stop placement issue
 
     def _assess_regime_quality(self, outcome: TradeOutcome, was_correct: bool) -> float:
         """Assess regime reading quality based on outcome."""
@@ -136,13 +135,13 @@ class ReflectionCapability:
         # Loss in a regime that's usually profitable = regime mis-read
         high_prob_regimes = {"TRENDING_BULL", "TRENDING_BEAR"}
         if outcome.regime_at_entry in high_prob_regimes:
-            return 0.35   # should have won in this regime
-        return 0.60       # loss in ranging/volatile regime — partially expected
+            return 0.35  # should have won in this regime
+        return 0.60  # loss in ranging/volatile regime — partially expected
 
     def _compute_actual_confluence(self, outcome: TradeOutcome) -> float:
         """What confluence score would have been accurate in hindsight?"""
         if outcome.pnl_r > 2.0:
-            return 0.90   # great trade — confluence was underestimated
+            return 0.90  # great trade — confluence was underestimated
         elif outcome.pnl_r > 1.0:
             return 0.75
         elif outcome.pnl_r > 0.0:
@@ -150,7 +149,7 @@ class ReflectionCapability:
         elif outcome.pnl_r > -1.0:
             return 0.40
         else:
-            return 0.20   # bad trade — confluence was overestimated
+            return 0.20  # bad trade — confluence was overestimated
 
     def _compute_weight_adjustments(
         self,
@@ -161,9 +160,9 @@ class ReflectionCapability:
         adjustments = {}
         for cap, acc in cap_accuracy.items():
             if acc > 0.70:
-                adjustments[cap] = 0.01    # increase trust
+                adjustments[cap] = 0.01  # increase trust
             elif acc < 0.40:
-                adjustments[cap] = -0.01   # decrease trust
+                adjustments[cap] = -0.01  # decrease trust
             else:
                 adjustments[cap] = 0.0
         return adjustments

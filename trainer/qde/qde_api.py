@@ -41,6 +41,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_ab_testing import QDEABTestingEngine
@@ -168,6 +169,7 @@ class QDELifecycleAPI:
             first = run.current_step()
             if first:
                 import time
+
                 first.started_at = time.time()
                 first.status = "RUNNING"
             return _ok("start_pipeline", run.to_dict())
@@ -268,9 +270,7 @@ class QDELifecycleAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            decision = self._promotion.evaluate(
-                challenger_version_id, notes=notes
-            )
+            decision = self._promotion.evaluate(challenger_version_id, notes=notes)
             if not decision.is_eligible:
                 return _ok(
                     "approve_promotion",
@@ -295,9 +295,7 @@ class QDELifecycleAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            decision = self._promotion.auto_evaluate_and_promote(
-                challenger_version_id, notes=notes
-            )
+            decision = self._promotion.auto_evaluate_and_promote(challenger_version_id, notes=notes)
             return _ok("auto_promote", decision.to_dict())
         except Exception as exc:
             logger.error(f"auto_promote error: {exc}")

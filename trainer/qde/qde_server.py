@@ -28,7 +28,6 @@ except ImportError as exc:
     ) from exc
 
 from trainer.qde.qde_api import QDELifecycleAPI
-from trainer.qde.qde_models import QDEPromotionCriteria
 
 # ── Application Setup ─────────────────────────────────────────────────────────
 
@@ -219,9 +218,7 @@ def evaluate_promotion(version_id: str, req: EvaluatePromotionRequest) -> dict:
 
 @app.post("/qde/versions/{version_id}/promotion/approve")
 def approve_promotion(version_id: str, req: ApprovePromotionRequest) -> dict:
-    return _respond(
-        _api.approve_promotion(version_id, approver=req.approver, notes=req.notes)
-    )
+    return _respond(_api.approve_promotion(version_id, approver=req.approver, notes=req.notes))
 
 
 @app.post("/qde/versions/{version_id}/promotion/auto")

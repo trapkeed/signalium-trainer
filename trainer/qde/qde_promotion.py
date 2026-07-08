@@ -16,6 +16,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.qde_models import (
@@ -23,7 +24,6 @@ from trainer.qde.qde_models import (
     QDEPromotionCriteria,
     QDEPromotionDecision,
     QDEStage,
-    QDEVersion,
 )
 from trainer.qde.qde_registry import QDERegistry
 
@@ -205,12 +205,18 @@ class QDEPromotionEngine:
             i_val = (i_wr + min(i_pf / 3.0, 1.0)) / 2.0
             delta = c_val - i_val
             threshold = self._criteria.min_consistency_delta
-            abs_ok = c_wr >= self._criteria.min_win_rate and c_pf >= self._criteria.min_profit_factor
+            abs_ok = (
+                c_wr >= self._criteria.min_win_rate and c_pf >= self._criteria.min_profit_factor
+            )
             passed = delta >= threshold and abs_ok
         else:
             delta = c_val
-            threshold = (self._criteria.min_win_rate + min(self._criteria.min_profit_factor / 3.0, 1.0)) / 2.0
-            passed = c_wr >= self._criteria.min_win_rate and c_pf >= self._criteria.min_profit_factor
+            threshold = (
+                self._criteria.min_win_rate + min(self._criteria.min_profit_factor / 3.0, 1.0)
+            ) / 2.0
+            passed = (
+                c_wr >= self._criteria.min_win_rate and c_pf >= self._criteria.min_profit_factor
+            )
 
         return DimensionResult(
             dimension="Consistency",

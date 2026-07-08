@@ -15,11 +15,10 @@ CONTRACT
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from trainer.qde.capabilities.cap_models import (
     LearningUpdate,
-    MarketSnapshot,
     ReflectionInsight,
 )
 
@@ -27,8 +26,9 @@ from trainer.qde.capabilities.cap_models import (
 @dataclass
 class CapabilityPrior:
     """Bayesian-style prior for one capability's trust score."""
+
     capability: str
-    trust_score: float = 0.70     # 0-1
+    trust_score: float = 0.70  # 0-1
     n_samples: int = 0
     cumulative_accuracy: float = 0.0
     learning_rate: float = 0.05
@@ -39,8 +39,7 @@ class CapabilityPrior:
         self.cumulative_accuracy += accuracy
         # EMA update: new = old * (1-lr) + accuracy * lr
         self.trust_score = (
-            self.trust_score * (1.0 - self.learning_rate)
-            + accuracy * self.learning_rate
+            self.trust_score * (1.0 - self.learning_rate) + accuracy * self.learning_rate
         )
         self.trust_score = max(0.05, min(0.99, self.trust_score))
         return self.trust_score

@@ -18,7 +18,6 @@ from trainer.qde.capabilities.cap_models import (
     Direction,
     MarketContext,
     MarketSnapshot,
-    OpenTrade,
     TradeManagementSignals,
 )
 
@@ -49,8 +48,8 @@ class TradeManagementCapability:
     MAX_DURATION_HOURS = 24.0
 
     # RSI thresholds for reversal detection
-    RSI_REVERSAL_BULL = 70.0   # Overbought → potential bearish reversal
-    RSI_REVERSAL_BEAR = 30.0   # Oversold → potential bullish reversal
+    RSI_REVERSAL_BULL = 70.0  # Overbought → potential bearish reversal
+    RSI_REVERSAL_BEAR = 30.0  # Oversold → potential bullish reversal
 
     def evaluate(
         self,
@@ -112,9 +111,11 @@ class TradeManagementCapability:
             ):
                 # Only scale if trade direction aligns with trend
                 aligned = (
-                    trade.direction == Direction.LONG and market_context.trend_direction == Direction.LONG
+                    trade.direction == Direction.LONG
+                    and market_context.trend_direction == Direction.LONG
                 ) or (
-                    trade.direction == Direction.SHORT and market_context.trend_direction == Direction.SHORT
+                    trade.direction == Direction.SHORT
+                    and market_context.trend_direction == Direction.SHORT
                 )
                 if aligned:
                     scale_ids.append(trade.trade_id)
@@ -193,6 +194,7 @@ class TradeManagementCapability:
 
         # Regime transition flagging reversal
         from trainer.qde.capabilities.cap_models import RegimeTransition
+
         if ctx and ctx.regime_transition == RegimeTransition.REVERSING:
             signals += 1
             total_weight += 0.30
@@ -232,6 +234,7 @@ class TradeManagementCapability:
             total_weight += 0.20
 
         from trainer.qde.capabilities.cap_models import RegimeTransition
+
         if ctx.regime_transition in (RegimeTransition.STABLE, RegimeTransition.ACCELERATING):
             signals += 1
             total_weight += 0.15

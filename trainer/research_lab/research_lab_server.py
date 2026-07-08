@@ -48,9 +48,9 @@ app = FastAPI(
         "No public access. No frontend. Internal use only."
     ),
     version="28.4.0",
-    docs_url=None,        # No public API browser — admin subsystem has no UI
-    redoc_url=None,       # No public documentation UI
-    openapi_url=None,     # No public schema endpoint
+    docs_url=None,  # No public API browser — admin subsystem has no UI
+    redoc_url=None,  # No public documentation UI
+    openapi_url=None,  # No public schema endpoint
 )
 
 # No CORS middleware — this server is internal. Browsers do not contact it
@@ -287,12 +287,16 @@ def record_feature(req: RecordFeatureRequest, _: None = Depends(_require_admin))
 
 
 @app.post("/research/features/{feature_id}/accept")
-def accept_feature(feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)) -> dict:
+def accept_feature(
+    feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.accept_feature(feature_id, notes=req.notes))
 
 
 @app.post("/research/features/{feature_id}/reject")
-def reject_feature(feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)) -> dict:
+def reject_feature(
+    feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.reject_feature(feature_id, notes=req.notes))
 
 
@@ -315,12 +319,16 @@ def start_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> d
 
 
 @app.post("/research/experiments/{experiment_id}/complete")
-def complete_experiment(experiment_id: str, req: CompleteExperimentRequest, _: None = Depends(_require_admin)) -> dict:
+def complete_experiment(
+    experiment_id: str, req: CompleteExperimentRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.complete_experiment(experiment_id, metrics=req.metrics, notes=req.notes))
 
 
 @app.post("/research/experiments/{experiment_id}/fail")
-def fail_experiment(experiment_id: str, req: FailExperimentRequest, _: None = Depends(_require_admin)) -> dict:
+def fail_experiment(
+    experiment_id: str, req: FailExperimentRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.fail_experiment(experiment_id, error=req.error))
 
 
@@ -336,7 +344,9 @@ def list_experiments(
     researcher: str | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    return _respond(_api.list_experiments(qde_version=qde_version, status=status, researcher=researcher))
+    return _respond(
+        _api.list_experiments(qde_version=qde_version, status=status, researcher=researcher)
+    )
 
 
 @app.get("/research/experiments/summary")
@@ -384,8 +394,12 @@ def create_search(req: CreateSearchRequest, _: None = Depends(_require_admin)) -
 
 
 @app.post("/research/searches/{search_id}/trials")
-def record_trial(search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.record_trial(search_id, params=req.params, score=req.score, metadata=req.metadata))
+def record_trial(
+    search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.record_trial(search_id, params=req.params, score=req.score, metadata=req.metadata)
+    )
 
 
 @app.post("/research/searches/{search_id}/complete")
@@ -407,42 +421,58 @@ def list_searches(qde_version: str | None = None, _: None = Depends(_require_adm
 
 
 @app.post("/research/experiments/{experiment_id}/gates")
-def evaluate_gates(experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.evaluate_deployment_gates(
-        experiment_id=experiment_id,
-        baseline_experiment_id=req.baseline_experiment_id,
-        max_drawdown_tolerance=req.max_drawdown_tolerance,
-    ))
+def evaluate_gates(
+    experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.evaluate_deployment_gates(
+            experiment_id=experiment_id,
+            baseline_experiment_id=req.baseline_experiment_id,
+            max_drawdown_tolerance=req.max_drawdown_tolerance,
+        )
+    )
 
 
 @app.post("/research/experiments/{experiment_id}/validate-retraining")
-def validate_retraining(experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.validate_retraining(
-        experiment_id=experiment_id,
-        incumbent_experiment_id=req.baseline_experiment_id or "",
-    ))
+def validate_retraining(
+    experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.validate_retraining(
+            experiment_id=experiment_id,
+            incumbent_experiment_id=req.baseline_experiment_id or "",
+        )
+    )
 
 
 # ── Deployment Approval ───────────────────────────────────────────────────────
 
 
 @app.post("/research/experiments/{experiment_id}/approve")
-def approve_deployment(experiment_id: str, req: ApproveDeploymentRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.approve_deployment(
-        experiment_id=experiment_id,
-        gate_id=req.gate_id,
-        approver=req.approver,
-        notes=req.notes,
-    ))
+def approve_deployment(
+    experiment_id: str, req: ApproveDeploymentRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.approve_deployment(
+            experiment_id=experiment_id,
+            gate_id=req.gate_id,
+            approver=req.approver,
+            notes=req.notes,
+        )
+    )
 
 
 @app.post("/research/experiments/{experiment_id}/reject")
-def reject_deployment(experiment_id: str, req: RejectDeploymentRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.reject_deployment(
-        experiment_id=experiment_id,
-        rejector=req.rejector,
-        reason=req.reason,
-    ))
+def reject_deployment(
+    experiment_id: str, req: RejectDeploymentRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.reject_deployment(
+            experiment_id=experiment_id,
+            rejector=req.rejector,
+            reason=req.reason,
+        )
+    )
 
 
 @app.get("/research/deployments")
@@ -459,13 +489,21 @@ def record_failure(req: RecordFailureRequest, _: None = Depends(_require_admin))
 
 
 @app.post("/research/failures/{failure_id}/investigate")
-def investigate_failure(failure_id: str, req: InvestigateFailureRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.investigate_failure(failure_id, root_cause=req.root_cause, notes=req.notes))
+def investigate_failure(
+    failure_id: str, req: InvestigateFailureRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.investigate_failure(failure_id, root_cause=req.root_cause, notes=req.notes)
+    )
 
 
 @app.post("/research/failures/{failure_id}/resolve")
-def resolve_failure(failure_id: str, req: ResolveFailureRequest, _: None = Depends(_require_admin)) -> dict:
-    return _respond(_api.resolve_failure(failure_id, resolution=req.resolution, resolver=req.resolver))
+def resolve_failure(
+    failure_id: str, req: ResolveFailureRequest, _: None = Depends(_require_admin)
+) -> dict:
+    return _respond(
+        _api.resolve_failure(failure_id, resolution=req.resolution, resolver=req.resolver)
+    )
 
 
 @app.get("/research/failures")
@@ -476,7 +514,11 @@ def list_failures(
     status: str | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    return _respond(_api.list_failures(category=category, severity=severity, qde_version=qde_version, status=status))
+    return _respond(
+        _api.list_failures(
+            category=category, severity=severity, qde_version=qde_version, status=status
+        )
+    )
 
 
 @app.get("/research/failures/summary")
@@ -529,12 +571,16 @@ def create_shadow_test(req: CreateShadowTestRequest, _: None = Depends(_require_
 
 
 @app.post("/research/shadow-tests/{test_id}/decisions")
-def record_shadow_decision(test_id: str, req: RecordShadowDecisionRequest, _: None = Depends(_require_admin)) -> dict:
+def record_shadow_decision(
+    test_id: str, req: RecordShadowDecisionRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.record_shadow_decision(test_id, **req.model_dump()))
 
 
 @app.post("/research/shadow-tests/{test_id}/conclude")
-def conclude_shadow_test(test_id: str, req: ConcludeShadowTestRequest, _: None = Depends(_require_admin)) -> dict:
+def conclude_shadow_test(
+    test_id: str, req: ConcludeShadowTestRequest, _: None = Depends(_require_admin)
+) -> dict:
     return _respond(_api.conclude_shadow_test(test_id, notes=req.notes))
 
 

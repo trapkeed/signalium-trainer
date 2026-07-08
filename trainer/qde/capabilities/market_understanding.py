@@ -14,7 +14,6 @@ CONTRACT
 from __future__ import annotations
 
 from trainer.qde.capabilities.cap_models import (
-    CapabilityOutput,
     Direction,
     LiquidityLevel,
     MarketContext,
@@ -142,7 +141,7 @@ class MarketUnderstandingCapability:
         adx = snap.adx_14
 
         # Crisis: extreme volatility + illiquid / very low RSI or very high RSI
-        if (vol_ratio > self.ATR_EXTREME_MULT or snap.liquidity == LiquidityLevel.ILLIQUID):
+        if vol_ratio > self.ATR_EXTREME_MULT or snap.liquidity == LiquidityLevel.ILLIQUID:
             return RegimeType.CRISIS, 0.75
 
         # High volatility without clear trend direction
@@ -176,11 +175,13 @@ class MarketUnderstandingCapability:
         # Use RSI momentum as a simple proxy for regime transition
         rsi = snap.rsi_14
         if regime in (RegimeType.TRENDING_BULL, RegimeType.TRENDING_BEAR):
-            if (regime == RegimeType.TRENDING_BULL and rsi < 45) or \
-               (regime == RegimeType.TRENDING_BEAR and rsi > 55):
+            if (regime == RegimeType.TRENDING_BULL and rsi < 45) or (
+                regime == RegimeType.TRENDING_BEAR and rsi > 55
+            ):
                 return RegimeTransition.REVERSING
-            if (regime == RegimeType.TRENDING_BULL and rsi > 70) or \
-               (regime == RegimeType.TRENDING_BEAR and rsi < 30):
+            if (regime == RegimeType.TRENDING_BULL and rsi > 70) or (
+                regime == RegimeType.TRENDING_BEAR and rsi < 30
+            ):
                 return RegimeTransition.ACCELERATING
         if regime == RegimeType.RANGING:
             if snap.adx_14 > self.ADX_MODERATE:
@@ -211,12 +212,12 @@ class MarketUnderstandingCapability:
 
     def _score_session(self, snap: MarketSnapshot) -> float:
         session_scores = {
-            "LONDON":    0.90,
-            "NEW_YORK":  0.85,
-            "OVERLAP":   0.95,   # London/NY overlap — highest liquidity
-            "TOKYO":     0.65,
-            "SYDNEY":    0.50,
-            "":          0.55,
+            "LONDON": 0.90,
+            "NEW_YORK": 0.85,
+            "OVERLAP": 0.95,  # London/NY overlap — highest liquidity
+            "TOKYO": 0.65,
+            "SYDNEY": 0.50,
+            "": 0.55,
         }
         base = session_scores.get(snap.session, 0.55)
         # Penalise for illiquidity and wide spread
@@ -266,7 +267,5 @@ class MarketUnderstandingCapability:
         vol: str,
     ) -> str:
         return (
-            f"Regime={regime.value} "
-            f"Trend={trend.value}/{strength.value} "
-            f"Volatility={vol}"
+            f"Regime={regime.value} " f"Trend={trend.value}/{strength.value} " f"Volatility={vol}"
         )
