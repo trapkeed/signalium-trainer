@@ -1,0 +1,70 @@
+// Phase S2 — QDE 10-head output contract (protobuf reference schema).
+//
+// This file documents the wire-format contract for `QDEOutputHeads`
+// (trainer/qde/qde_outputs.py). It is not currently compiled into the build
+// -- the live path uses the Python dataclass and its to_dict() JSON shape --
+// but is the canonical reference for any future gRPC/protobuf serving layer,
+// and for cross-language consumers (e.g. a future non-Python inference
+// server) that need a stable binary contract.
+//
+// schema_version: s2_v1_10head
+
+syntax = "proto3";
+
+package qde.v1;
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  LONG = 1;
+  SHORT = 2;
+  FLAT = 3;
+}
+
+// The 10 output heads produced by an active QDE model for one instrument.
+// All float heads are normalized to [0.0, 1.0]. No field encodes a named
+// trading strategy.
+message QDEOutputHeads {
+  string instrument = 1;
+
+  // 1. direction
+  Direction direction = 2;
+
+  // 2. confidence — overall conviction in `direction`.
+  float confidence = 3;
+
+  // 3. size_signal — how large a position to take, 0=none, 1=max.
+  float size_signal = 4;
+
+  // 4. risk_signal — how much risk/caution this call carries (advisory).
+  float risk_signal = 5;
+
+  // 5. entry_urgency — 0=wait, 1=act immediately.
+  float entry_urgency = 6;
+
+  // 6. exit_horizon — expected holding-duration signal, 0=short, 1=long.
+  float exit_horizon = 7;
+
+  // 7. scale_signal — propensity to add to an existing position.
+  float scale_signal = 8;
+
+  // 8. reduce_signal — propensity to reduce/exit an existing position.
+  float reduce_signal = 9;
+
+  // 9. management_confidence — confidence in the ongoing management read
+  //    (consumed by the Phase S3 live position-management loop).
+  float management_confidence = 10;
+
+  // 10. attention_focus — how much monitoring attention this
+  //     instrument/position needs right now.
+  float attention_focus = 11;
+
+  string model_version_id = 12;
+  string schema_version = 13;
+}
+
+// Reserved for Phase S3: live position-management loop request/response
+// pair, reasoning every 30s over open-position telemetry. Field numbers are
+// reserved here so the future message does not collide with this one if
+// both are ever included in the same .proto file.
+// message QDEPositionManagementRequest { ... }
+// message QDEPositionManagementResponse { ... }

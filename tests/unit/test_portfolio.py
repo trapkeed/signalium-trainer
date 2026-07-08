@@ -502,11 +502,38 @@ class TestConflictResolver(unittest.TestCase):
         self.assertIn("reinforcement_count", d)
         self.assertIn("conflicts", d)
 
-    def test_reduce_resolution_lowers_confidence(self):
+    def test_reduce_resolution_never_mutates_forecast_confidence(self):
+        # Phase S1: conflict resolver must never rewrite a model's confidence,
+        # expected_return, or direction. REDUCE only surfaces an advisory
+        # risk multiplier for the downstream execution/risk layer.
         fcs = [self._fc("EURUSD", "BUY", 0.72), self._fc("USDCHF", "BUY", 0.70)]
+        original_confidence = {fc.instrument: fc.confidence for fc in fcs}
+        original_expected_return = {fc.instrument: fc.expected_return for fc in fcs}
         report = self.resolver.resolve(fcs)
         for fc in report.adjusted_forecasts:
-            self.assertLessEqual(fc.confidence, 0.72 + 1e-6)
+            self.assertEqual(fc.confidence, original_confidence[fc.instrument])
+            self.assertEqual(fc.expected_return, original_expected_return[fc.instrument])
+
+    def test_reduce_resolution_surfaces_risk_multiplier(self):
+        fcs = [self._fc("EURUSD", "BUY", 0.72), self._fc("USDCHF", "BUY", 0.70)]
+        report = self.resolver.resolve(fcs)
+        self.assertTrue(report.instrument_risk_multipliers)
+        for multiplier in report.instrument_risk_multipliers.values():
+            self.assertLess(multiplier, 1.0)
+        self.assertLess(report.portfolio_risk_multiplier, 1.0)
+
+    def test_no_conflict_gives_full_risk_multiplier(self):
+        fcs = [self._fc("EURUSD", "BUY"), self._fc("XAUUSD", "BUY")]
+        report = self.resolver.resolve(fcs)
+        self.assertEqual(report.instrument_risk_multipliers, {})
+        self.assertEqual(report.portfolio_risk_multiplier, 1.0)
+
+    def test_to_dict_includes_risk_multiplier_fields(self):
+        fcs = [self._fc("EURUSD", "BUY", 0.72), self._fc("USDCHF", "BUY", 0.70)]
+        report = self.resolver.resolve(fcs)
+        d = report.to_dict()
+        self.assertIn("instrument_risk_multipliers", d)
+        self.assertIn("portfolio_risk_multiplier", d)
 
 
 # ════════════════════════════════════════════════════════════════════════════════

@@ -219,4 +219,20 @@ router.get("/qde/ab", async (req: Request, res: Response) => {
   await proxyGet(`/qde/ab${qs}`, res);
 });
 
+// ── Position Management (Phase S3) ──────────────────────────────────────────
+
+router.post(
+  "/qde/position-management/review",
+  async (req: Request, res: Response) => {
+    await proxyPost("/qde/position-management/review", req.body, res);
+  },
+);
+
+router.get(
+  "/qde/position-management/interval",
+  async (_req: Request, res: Response) => {
+    await proxyGet("/qde/position-management/interval", res);
+  },
+);
+
 export default router;

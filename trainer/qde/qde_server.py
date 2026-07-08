@@ -27,7 +27,14 @@ except ImportError as exc:
         "Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
 from trainer.qde.qde_api import QDELifecycleAPI
+from trainer.qde.qde_outputs import Direction, QDEOutputHeads
+from trainer.qde.qde_position_manager import (
+    REVIEW_INTERVAL_SECONDS,
+    PositionTelemetry,
+    QDEPositionManager,
+)
 
 # ── Application Setup ─────────────────────────────────────────────────────────
 
@@ -48,6 +55,8 @@ _api = QDELifecycleAPI(
     storage_path=os.environ.get("QDE_REGISTRY_PATH"),
     auto_promote=os.environ.get("QDE_AUTO_PROMOTE", "").lower() == "true",
 )
+
+_position_manager = QDEPositionManager()
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -115,6 +124,15 @@ class ABResultsRequest(BaseModel):
 class ConcludeABRequest(BaseModel):
     winner: str
     conclusion: str
+
+
+class PositionTelemetryRequest(BaseModel):
+    instrument: str
+    position: dict[str, float] = {}
+    market: dict[str, Any] = {}
+    heads: dict[str, Any] = {}
+    free_margin_pct: float = 1.0
+    seconds_since_last_review: float = 30.0
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -322,6 +340,41 @@ def list_ab_tests(
     test_type: str | None = None,
 ) -> dict:
     return _respond(_api.list_ab_tests(status=status, test_type=test_type))
+
+
+# ── Position Management (Phase S3) ───────────────────────────────────────────
+# Stateless: no registry/DB involved. Callers post a fresh telemetry snapshot
+# every review cycle (default 30s — see trainer/qde/qde_position_manager.py)
+# and get back a single PositionManagementDecision. See
+# docs/qde/phase_s3_api_contract.md for the full contract.
+
+
+@app.post("/qde/position-management/review")
+def review_position_management(req: PositionTelemetryRequest) -> dict:
+    heads_kwargs = dict(req.heads)
+    heads_kwargs.pop("instrument", None)
+    raw_direction = heads_kwargs.pop("direction", "FLAT")
+    try:
+        direction = Direction(raw_direction)
+        heads = QDEOutputHeads(instrument=req.instrument, direction=direction, **heads_kwargs)
+        telemetry = PositionTelemetry(
+            instrument=req.instrument,
+            position=PositionMetrics(**req.position),
+            market=MarketContext(**req.market),
+            heads=heads,
+            free_margin_pct=req.free_margin_pct,
+            seconds_since_last_review=req.seconds_since_last_review,
+        )
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    decision = _position_manager.review(telemetry)
+    return {"success": True, "decision": decision.to_dict()}
+
+
+@app.get("/qde/position-management/interval")
+def position_management_interval() -> dict:
+    return {"success": True, "review_interval_seconds": REVIEW_INTERVAL_SECONDS}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

@@ -135,6 +135,13 @@ class QDEVersion:
     artifact_uri: str = ""
     checksum: str = ""
 
+    # I/O contract this version was trained/registered against (Phase S2:
+    # `trainer.qde.qde_outputs.OUTPUT_SCHEMA_VERSION`). Rollback uses this to
+    # confirm a target version's output shape matches what the live pipeline
+    # expects before swapping it in — see docs/qde/phase_s2_deployment_contract.md.
+    output_schema_version: str = ""
+    feature_contract_version: str = ""
+
     @classmethod
     def new(
         cls,
@@ -144,6 +151,8 @@ class QDEVersion:
         tags: list[str] | None = None,
         description: str = "",
         artifact_uri: str = "",
+        output_schema_version: str = "",
+        feature_contract_version: str = "",
     ) -> QDEVersion:
         now = time.time()
         version_id = f"qde-v{version_number}-{str(uuid.uuid4())[:8]}"
@@ -159,6 +168,8 @@ class QDEVersion:
             description=description,
             artifact_uri=artifact_uri,
             stage_timestamps={QDEStage.REGISTERED.value: now},
+            output_schema_version=output_schema_version,
+            feature_contract_version=feature_contract_version,
         )
 
     def advance_stage(self, new_stage: QDEStage) -> None:
@@ -187,6 +198,8 @@ class QDEVersion:
             "retired_at": round(self.retired_at, 3) if self.retired_at else None,
             "artifact_uri": self.artifact_uri,
             "checksum": self.checksum,
+            "output_schema_version": self.output_schema_version,
+            "feature_contract_version": self.feature_contract_version,
         }
 
 

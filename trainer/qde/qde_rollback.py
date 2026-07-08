@@ -49,6 +49,7 @@ class QDERollbackManager:
         reason: str,
         initiated_by: str = "system",
         notes: str = "",
+        require_schema_match: bool = False,
     ) -> QDERollbackRecord:
         """Immediately roll back to a specific target version.
 
@@ -57,13 +58,21 @@ class QDERollbackManager:
             reason: Human-readable reason for the rollback.
             initiated_by: Actor that triggered the rollback (user / system).
             notes: Optional additional context.
+            require_schema_match: If True, refuse the rollback when the
+                target's ``output_schema_version`` differs from the current
+                active version's (Phase S2: see
+                ``docs/qde/phase_s2_deployment_contract.md``). Defaults to
+                False so legacy versions without a recorded schema (empty
+                string) remain rollback-eligible.
 
         Returns:
             A ``QDERollbackRecord`` capturing the operation.
 
         Raises:
             KeyError: If the target version does not exist.
-            ValueError: If the target version is not in an eligible stage.
+            ValueError: If the target version is not in an eligible stage,
+                or if ``require_schema_match`` is True and the output schema
+                versions differ.
         """
         target = self._registry.get(target_version_id)
         if target is None:
@@ -76,6 +85,20 @@ class QDERollbackManager:
             )
 
         current_active = self._registry.get_active()
+
+        if (
+            require_schema_match
+            and current_active is not None
+            and target.output_schema_version
+            and current_active.output_schema_version
+            and target.output_schema_version != current_active.output_schema_version
+        ):
+            raise ValueError(
+                f"Cannot roll back to version {target_version_id!r}: "
+                f"output_schema_version {target.output_schema_version!r} does not "
+                f"match active version's {current_active.output_schema_version!r}."
+            )
+
         from_version_id = current_active.version_id if current_active else "NONE"
 
         # Mark current active as ROLLED_BACK

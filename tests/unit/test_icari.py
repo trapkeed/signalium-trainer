@@ -865,6 +865,77 @@ class TestDrawdownManager(unittest.TestCase):
         self.assertIn("drawdown", result)
         self.assertIn("risk_multiplier", result)
 
+    # ── Phase S1: capital circuit breaker (scaling/pyramiding) ─────────────
+
+    def test_scaling_and_pyramiding_enabled_in_normal_mode(self):
+        self.assertFalse(self.dm.scaling_disabled)
+        self.assertFalse(self.dm.pyramiding_disabled)
+
+    def test_scaling_and_pyramiding_auto_disabled_in_hard_limit(self):
+        self.dm.update(89_000.0)  # hard limit
+        self.assertTrue(self.dm.scaling_disabled)
+        self.assertTrue(self.dm.pyramiding_disabled)
+
+    def test_scaling_and_pyramiding_auto_disabled_in_lockdown(self):
+        self.dm.update(79_000.0)  # emergency lockdown
+        self.assertTrue(self.dm.scaling_disabled)
+        self.assertTrue(self.dm.pyramiding_disabled)
+
+    def test_scaling_not_auto_disabled_in_soft_limit(self):
+        self.dm.update(94_500.0)  # soft limit
+        self.assertFalse(self.dm.scaling_disabled)
+        self.assertFalse(self.dm.pyramiding_disabled)
+
+    def test_manual_disable_scaling_persists_in_normal_mode(self):
+        self.dm.disable_scaling()
+        self.assertTrue(self.dm.scaling_disabled)
+        self.dm.enable_scaling()
+        self.assertFalse(self.dm.scaling_disabled)
+
+    def test_manual_disable_pyramiding_persists_in_normal_mode(self):
+        self.dm.disable_pyramiding()
+        self.assertTrue(self.dm.pyramiding_disabled)
+        self.dm.enable_pyramiding()
+        self.assertFalse(self.dm.pyramiding_disabled)
+
+    def test_manual_disable_survives_mode_recovery(self):
+        self.dm.disable_scaling()
+        self.dm.update(89_000.0)  # hard limit (auto-restricted too)
+        self.dm.update(100_000.0)  # back to normal
+        self.assertEqual(self.dm.mode, DrawdownMode.NORMAL)
+        self.assertTrue(self.dm.scaling_disabled)  # manual override still active
+
+    def test_update_dict_includes_circuit_breaker_flags(self):
+        result = self.dm.update(89_000.0)
+        self.assertIn("scaling_disabled", result)
+        self.assertIn("pyramiding_disabled", result)
+        self.assertIn("new_trades_paused", result)
+        self.assertFalse(result["new_trades_paused"])  # hard limit still allows new trades
+
+    def test_new_trades_paused_only_in_lockdown(self):
+        result = self.dm.update(79_000.0)
+        self.assertTrue(result["new_trades_paused"])
+
+    def test_stats_includes_circuit_breaker_flags(self):
+        s = self.dm.stats()
+        self.assertIn("scaling_disabled", s)
+        self.assertIn("pyramiding_disabled", s)
+
+    def test_never_exposes_direction_or_target_mutation(self):
+        # Phase S1 guardrail: DrawdownManager must not expose any API surface
+        # for changing direction, stop loss, take profit, targets, confidence,
+        # or hold duration — only capital circuit-breaker actions.
+        forbidden_attrs = {
+            "set_direction",
+            "modify_stop_loss",
+            "modify_take_profit",
+            "set_target",
+            "set_confidence",
+            "set_hold_duration",
+        }
+        public_api = {name for name in dir(self.dm) if not name.startswith("_")}
+        self.assertEqual(forbidden_attrs & public_api, set())
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 10. Correlation Engine

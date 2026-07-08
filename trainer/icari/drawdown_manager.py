@@ -3,6 +3,13 @@
 Adaptive drawdown protection:
 Normal, Soft Limit, Hard Limit, Capital Preservation,
 Recovery Mode, Emergency Capital Lockdown.
+
+Phase S1 (capital protection) constraint: this is a capital circuit breaker,
+not a decision override engine. QDE remains the sole decision maker for
+direction, stop loss, take profit, targets, confidence, and hold duration —
+this class never touches any of those. Its only allowed actions are:
+reducing the global risk multiplier, pausing new trade creation, emergency
+account lockdown, and disabling scaling / pyramiding (adding to winners).
 """
 
 from __future__ import annotations
@@ -43,6 +50,21 @@ class DrawdownManager:
         self._events: list[DrawdownEvent] = []
         self._active_event: DrawdownEvent | None = None
 
+        # Circuit-breaker flags. Auto-derived from mode on every update(), but
+        # may also be forced on manually (e.g. by an operator or a portfolio-
+        # level safety signal) independent of drawdown mode.
+        self._manual_scaling_disabled = False
+        self._manual_pyramiding_disabled = False
+
+    # Modes in which scaling/pyramiding are automatically disabled — the
+    # account is already under stress, so adding to any position is forbidden
+    # even though existing trades and new (smaller) trades may still open.
+    _AUTO_RESTRICT_MODES = (
+        DrawdownMode.HARD_LIMIT,
+        DrawdownMode.PRESERVATION,
+        DrawdownMode.EMERGENCY_LOCKDOWN,
+    )
+
     # ── Equity update ─────────────────────────────────────────────────────────
 
     def update(self, equity: float) -> dict:
@@ -73,6 +95,9 @@ class DrawdownManager:
             "drawdown": round(drawdown, 4),
             "mode": self._mode.value,
             "risk_multiplier": round(self._risk_multiplier(), 4),
+            "scaling_disabled": self.scaling_disabled,
+            "pyramiding_disabled": self.pyramiding_disabled,
+            "new_trades_paused": not self.can_trade(),
         }
 
     def _drawdown_frac(self) -> float:
@@ -148,7 +173,40 @@ class DrawdownManager:
         return self._mode == DrawdownMode.EMERGENCY_LOCKDOWN
 
     def can_trade(self) -> bool:
+        """False when new trade creation must be paused (emergency lockdown)."""
         return self._mode != DrawdownMode.EMERGENCY_LOCKDOWN
+
+    @property
+    def scaling_disabled(self) -> bool:
+        """True if adding to (scaling into) any open position is forbidden.
+
+        Auto-disabled once the account enters HARD_LIMIT/PRESERVATION/
+        EMERGENCY_LOCKDOWN, or if manually forced on via ``disable_scaling()``.
+        """
+        return self._manual_scaling_disabled or self._mode in self._AUTO_RESTRICT_MODES
+
+    @property
+    def pyramiding_disabled(self) -> bool:
+        """True if pyramiding (adding to winners) is forbidden."""
+        return self._manual_pyramiding_disabled or self._mode in self._AUTO_RESTRICT_MODES
+
+    def disable_scaling(self) -> None:
+        """Manually force scaling off, independent of drawdown mode."""
+        self._manual_scaling_disabled = True
+        logger.warning("DrawdownManager: scaling manually disabled")
+
+    def enable_scaling(self) -> None:
+        """Clear the manual scaling override (mode-based auto-restriction still applies)."""
+        self._manual_scaling_disabled = False
+
+    def disable_pyramiding(self) -> None:
+        """Manually force pyramiding off, independent of drawdown mode."""
+        self._manual_pyramiding_disabled = True
+        logger.warning("DrawdownManager: pyramiding manually disabled")
+
+    def enable_pyramiding(self) -> None:
+        """Clear the manual pyramiding override (mode-based auto-restriction still applies)."""
+        self._manual_pyramiding_disabled = False
 
     def events(self, last_n: int = 20) -> list[DrawdownEvent]:
         return self._events[-last_n:]
@@ -180,4 +238,6 @@ class DrawdownManager:
             "total_events": len(self._events),
             "max_dd_ever": round(self.max_drawdown(), 4),
             "can_trade": self.can_trade(),
+            "scaling_disabled": self.scaling_disabled,
+            "pyramiding_disabled": self.pyramiding_disabled,
         }

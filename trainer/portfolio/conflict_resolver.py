@@ -7,6 +7,17 @@ Examples of conflicts:
   EURUSD BUY + USDCHF BUY → USD both sides (conflict)
   EURUSD BUY + GBPUSD BUY → USD short both (reinforcing)
   NAS100 BUY  + BTCUSD BUY → risk-on reinforcing
+
+Phase S1 (portfolio safety) constraint: this module is a pure monitor and
+advisor, not a decision maker. It never rewrites a model's confidence,
+expected_return, direction, or targets. When it recommends REDUCE, it only
+ever surfaces a suggested risk multiplier (``instrument_risk_multipliers`` /
+``portfolio_risk_multiplier``) for the downstream execution/risk layer to
+apply — mirroring how ``ExposureEngine`` is a pure context provider that
+never rescales a decision itself. The only forecast-shaping action taken
+here is dropping (IGNORE) an instrument from this cycle's consideration,
+equivalent to the allowed "pause new trades" action, never mutating a kept
+forecast's decision fields.
 """
 
 from __future__ import annotations
@@ -81,6 +92,12 @@ class ConflictReport:
     conflicted_instruments: set[str]
     clean_forecasts: list[ModelForecast]
     adjusted_forecasts: list[ModelForecast]
+    instrument_risk_multipliers: dict[str, float] = None  # type: ignore[assignment]
+    portfolio_risk_multiplier: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.instrument_risk_multipliers is None:
+            self.instrument_risk_multipliers = {}
 
     def conflict_count(self) -> int:
         return len(self.conflicts)
@@ -100,6 +117,10 @@ class ConflictReport:
             "reinforcements": [r.to_dict() for r in self.reinforcements],
             "clean_forecast_count": len(self.clean_forecasts),
             "adjusted_forecast_count": len(self.adjusted_forecasts),
+            "instrument_risk_multipliers": {
+                k: round(v, 4) for k, v in self.instrument_risk_multipliers.items()
+            },
+            "portfolio_risk_multiplier": round(self.portfolio_risk_multiplier, 4),
         }
 
 
@@ -259,14 +280,20 @@ class ConflictResolver:
 
         conflicted = {c.instrument_a for c in conflicts} | {c.instrument_b for c in conflicts}
         clean = [f for f in forecasts if f.instrument not in ignore_set]
-        adjusted = self._apply_reduce(clean, reduce_set)
+        # Advisory only: no forecast field (confidence/expected_return/direction)
+        # is ever rewritten here. REDUCE only produces a suggested risk
+        # multiplier for the downstream execution/risk layer to apply.
+        instrument_multipliers = {instrument: 0.60 for instrument in reduce_set}
+        portfolio_multiplier = min(instrument_multipliers.values(), default=1.0)
 
         return ConflictReport(
             conflicts=conflicts,
             reinforcements=reinforcements,
             conflicted_instruments=conflicted,
             clean_forecasts=clean,
-            adjusted_forecasts=adjusted,
+            adjusted_forecasts=clean,
+            instrument_risk_multipliers=instrument_multipliers,
+            portfolio_risk_multiplier=portfolio_multiplier,
         )
 
     @staticmethod
@@ -290,23 +317,3 @@ class ConflictResolver:
         if res == Resolution.DELAY:
             return "Both low confidence (<50%): delay until clarity improves."
         return "Keep all positions; monitor correlation risk."
-
-    @staticmethod
-    def _apply_reduce(forecasts: list[ModelForecast], reduce_set: set[str]) -> list[ModelForecast]:
-        result = []
-        for fc in forecasts:
-            if fc.instrument in reduce_set:
-                result.append(
-                    ModelForecast(
-                        instrument=fc.instrument,
-                        direction=fc.direction,
-                        confidence=fc.confidence * 0.60,
-                        expected_return=fc.expected_return * 0.60,
-                        expected_risk=fc.expected_risk,
-                        timestamp=fc.timestamp,
-                        metadata={**fc.metadata, "conflict_reduced": True},
-                    )
-                )
-            else:
-                result.append(fc)
-        return result

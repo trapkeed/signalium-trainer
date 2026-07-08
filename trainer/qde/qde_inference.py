@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from trainer.execution.execution_types import ExecutionForecast, ManagementAction
 from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
 from trainer.portfolio.portfolio_scorer import PortfolioMetrics
+from trainer.qde.qde_outputs import Direction, QDEOutputHeads
 
 if TYPE_CHECKING:
     from trainer.memory.decision_models import DecisionRecord
@@ -234,6 +235,11 @@ class QDEDecision:
     model_version_id: str = ""
     rationale: str = ""
 
+    # Phase S2: the raw 10-head model output this decision was derived from.
+    # Optional so pre-S2 callers/tests that construct a `QDEDecision` directly
+    # (without going through a `QDEOutputHeads`-producing model) keep working.
+    heads: QDEOutputHeads | None = None
+
     decided_at: float = field(default_factory=time.time)
 
     @property
@@ -257,8 +263,60 @@ class QDEDecision:
             "confidence": round(self.confidence, 4),
             "model_version_id": self.model_version_id,
             "rationale": self.rationale,
+            "heads": self.heads.to_dict() if self.heads else None,
             "decided_at": round(self.decided_at, 3),
         }
+
+
+# ── Heads → execution-vocabulary translation ────────────────────────────────
+#
+# This is the single place a `QDEOutputHeads` signal vector is translated
+# into the entry/exit/scale/size vocabulary `ExecutionPlanner` already knows
+# how to execute. No strategy name or id is consulted anywhere in this
+# translation — every branch reads only from the 10 signal heads themselves.
+
+
+def derive_decision_fields(
+    heads: QDEOutputHeads,
+    has_position: bool,
+    free_margin_pct: float,
+) -> tuple[EntryAction, ExitAction, ScaleAction, list[ManagementAction]]:
+    """Translate raw output heads into the legacy execution-facing fields.
+
+    Kept deliberately simple and threshold-based (not a strategy) so it can
+    be swapped for a learned mapping later without changing the heads
+    themselves or any downstream consumer.
+    """
+    if not has_position:
+        if free_margin_pct < 0.05:
+            entry_action = EntryAction.REJECT
+        elif heads.entry_urgency >= 0.55 and heads.confidence >= 0.55:
+            entry_action = EntryAction.ENTER
+        elif heads.confidence >= 0.45:
+            entry_action = EntryAction.WAIT
+        else:
+            entry_action = EntryAction.REJECT
+        return entry_action, ExitAction.HOLD, ScaleAction.NONE, [ManagementAction.HOLD]
+
+    # Existing position: entry_action is irrelevant, management heads decide.
+    entry_action = EntryAction.WAIT
+    exit_action = ExitAction.HOLD
+    scale_action = ScaleAction.NONE
+    management: list[ManagementAction] = [ManagementAction.HOLD]
+
+    if heads.reduce_signal >= 0.65:
+        exit_action = ExitAction.EXIT_NOW
+        management = [ManagementAction.EXIT_EARLY]
+    elif heads.reduce_signal >= 0.4:
+        exit_action = ExitAction.EXIT_PARTIAL
+        management = [ManagementAction.PARTIAL_CLOSE]
+    elif heads.scale_signal >= 0.65 and free_margin_pct > 0.3:
+        scale_action = ScaleAction.SCALE_IN
+        management = [ManagementAction.SCALE_IN, ManagementAction.TRAIL_STOP]
+    else:
+        management = [ManagementAction.MOVE_TO_BREAKEVEN, ManagementAction.TRAIL_STOP]
+
+    return entry_action, exit_action, scale_action, management
 
 
 # ── Decision model interface ─────────────────────────────────────────────────
@@ -297,52 +355,81 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         self.version_id = version.version_id if version else ""
 
     def decide(self, inputs: QDEInferenceInput) -> QDEDecision:
+        heads = self._compute_heads(inputs)
+        return self._decision_from_heads(heads, inputs)
+
+    def _compute_heads(self, inputs: QDEInferenceInput) -> QDEOutputHeads:
+        """Produce the 10-head signal vector for this instrument.
+
+        This is the only place conviction/urgency/risk are blended from raw
+        inputs. It is intentionally threshold-free at the head level — every
+        head is a continuous signal in [0, 1]; thresholding into discrete
+        execution actions happens downstream in `derive_decision_fields`.
+        """
         fc = inputs.forecast
 
-        # Blend forecast confidence with recent memory performance and news
-        # risk into a single conviction score — one coherent read, not
-        # independent sub-engines.
         conviction = fc.confidence
         if inputs.memory.recent_win_rate is not None:
             conviction = (conviction * 0.7) + (inputs.memory.recent_win_rate * 0.3)
         conviction *= 1.0 - _clamp01(inputs.market.news_risk)
-
-        if inputs.account.free_margin_pct < 0.05:
-            entry_action = EntryAction.REJECT
-            rationale = "Account free margin below 5% — cannot open new risk."
-        elif conviction < 0.45:
-            entry_action = EntryAction.REJECT
-            rationale = f"Blended conviction {conviction:.2f} below entry threshold."
-        elif conviction < 0.55:
-            entry_action = EntryAction.WAIT
-            rationale = f"Blended conviction {conviction:.2f} marginal — waiting for confirmation."
-        else:
-            entry_action = EntryAction.ENTER
-            rationale = f"Blended conviction {conviction:.2f} supports entry."
+        conviction = _clamp01(conviction)
 
         has_position = inputs.position.lots > 1e-9
-        exit_action = ExitAction.HOLD
-        scale_action = ScaleAction.NONE
-        management: list[ManagementAction] = [ManagementAction.HOLD]
 
+        direction = (
+            Direction.LONG
+            if fc.is_buy
+            else Direction.SHORT
+            if fc.direction.upper() == "SELL"
+            else Direction.FLAT
+        )
+
+        reduce_signal = 0.0
+        scale_signal = 0.0
+        management_confidence = conviction
         if has_position:
+            risk_pressure = _clamp01(inputs.market.news_risk)
+            reduce_signal = _clamp01(max(risk_pressure, 1.0 - conviction) if conviction < 0.5 else risk_pressure * 0.5)
             if inputs.market.news_risk > 0.6 or conviction < 0.35:
-                exit_action = ExitAction.EXIT_NOW
-                management = [ManagementAction.EXIT_EARLY]
-                rationale += " Existing position exited on elevated risk / low conviction."
-            elif conviction < 0.5:
-                exit_action = ExitAction.EXIT_PARTIAL
-                management = [ManagementAction.PARTIAL_CLOSE]
-            elif conviction > 0.75 and inputs.account.free_margin_pct > 0.3:
-                scale_action = ScaleAction.SCALE_IN
-                management = [ManagementAction.SCALE_IN, ManagementAction.TRAIL_STOP]
-            else:
-                management = [ManagementAction.MOVE_TO_BREAKEVEN, ManagementAction.TRAIL_STOP]
+                reduce_signal = max(reduce_signal, 0.7)
+            scale_signal = _clamp01((conviction - 0.75) * 4.0) if conviction > 0.75 else 0.0
+
+        return QDEOutputHeads(
+            instrument=fc.instrument,
+            direction=direction,
+            confidence=conviction,
+            size_signal=conviction,
+            risk_signal=_clamp01(inputs.market.news_risk),
+            entry_urgency=conviction,
+            exit_horizon=0.5,
+            scale_signal=scale_signal,
+            reduce_signal=reduce_signal,
+            management_confidence=management_confidence,
+            attention_focus=_clamp01(max(inputs.market.news_risk, reduce_signal)),
+            model_version_id=self.version_id,
+        )
+
+    def _decision_from_heads(
+        self, heads: QDEOutputHeads, inputs: QDEInferenceInput
+    ) -> QDEDecision:
+        fc = inputs.forecast
+        has_position = inputs.position.lots > 1e-9
+
+        entry_action, exit_action, scale_action, management = derive_decision_fields(
+            heads, has_position, inputs.account.free_margin_pct
+        )
+
+        rationale = (
+            f"heads: confidence={heads.confidence:.2f} entry_urgency={heads.entry_urgency:.2f} "
+            f"reduce_signal={heads.reduce_signal:.2f} scale_signal={heads.scale_signal:.2f}"
+        )
+        if inputs.account.free_margin_pct < 0.05 and not has_position:
+            rationale = "Account free margin below 5% — cannot open new risk."
 
         risk_allocation_pct = 0.0
         position_size_lots = 0.0
         if entry_action == EntryAction.ENTER or scale_action == ScaleAction.SCALE_IN:
-            risk_allocation_pct = _clamp01(conviction) * 0.02  # up to 2% of equity
+            risk_allocation_pct = heads.size_signal * 0.02  # up to 2% of equity
             risk_allocation_pct = min(risk_allocation_pct, inputs.account.free_margin_pct * 0.5)
             entry = inputs.entry_price_hint or fc.current_price
             stop = inputs.stop_price_hint or (
@@ -361,9 +448,10 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
             position_size_lots=max(position_size_lots, 0.0),
             risk_allocation_pct=max(risk_allocation_pct, 0.0),
             management_actions=management,
-            confidence=_clamp01(conviction),
+            confidence=heads.confidence,
             model_version_id=self.version_id,
             rationale=rationale,
+            heads=heads,
         )
 
 
