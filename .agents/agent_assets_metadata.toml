@@ -6,3 +6,9 @@ id = "a0DUACqm32sHJEIl9-KCY"
 uri = "file://signalium-trainer/Signalium_Quant_Documentation.pdf"
 type = "pdf"
 title = "Signalium Quant — System Documentation"
+
+[[outputs]]
+id = "yPWibmhaSwJI_P4Y6tcPI"
+uri = "file://docs/gap_analysis.md"
+type = "text"
+title = "Signalium Trainer — Gap Analysis"
