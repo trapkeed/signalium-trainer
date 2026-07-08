@@ -32,7 +32,6 @@ class QDEStage(str, Enum):
 
 class QDEABTestType(str, Enum):
     SHADOW = "SHADOW"
-    CANARY = "CANARY"
     SIDE_BY_SIDE = "SIDE_BY_SIDE"
 
 
@@ -310,7 +309,11 @@ class QDEPromotionDecision:
 
 @dataclass
 class QDEABTest:
-    """An active A/B / shadow / canary test between two QDE versions."""
+    """An active A/B test between two QDE versions (SHADOW or SIDE_BY_SIDE only).
+
+    Neither test type routes live decisions to the challenger.
+    Only one model produces live decisions at any time.
+    """
 
     test_id: str
     test_type: QDEABTestType
@@ -319,9 +322,6 @@ class QDEABTest:
     created_at: float
     ended_at: float | None = None
     status: str = "RUNNING"
-
-    # Canary: fraction of live traffic routed to challenger (0.0 – 1.0)
-    canary_traffic_fraction: float = 0.0
 
     # Accumulated results per version
     control_metrics: dict[str, float] = field(default_factory=dict)
@@ -336,7 +336,6 @@ class QDEABTest:
         test_type: QDEABTestType,
         control_version_id: str,
         challenger_version_id: str,
-        canary_traffic_fraction: float = 0.05,
     ) -> QDEABTest:
         return cls(
             test_id=str(uuid.uuid4())[:12],
@@ -344,9 +343,6 @@ class QDEABTest:
             control_version_id=control_version_id,
             challenger_version_id=challenger_version_id,
             created_at=time.time(),
-            canary_traffic_fraction=(
-                canary_traffic_fraction if test_type == QDEABTestType.CANARY else 0.0
-            ),
         )
 
     def record_results(
@@ -372,7 +368,6 @@ class QDEABTest:
             "status": self.status,
             "created_at": round(self.created_at, 3),
             "ended_at": round(self.ended_at, 3) if self.ended_at else None,
-            "canary_traffic_fraction": self.canary_traffic_fraction,
             "control_metrics": {k: round(v, 6) for k, v in self.control_metrics.items()},
             "challenger_metrics": {k: round(v, 6) for k, v in self.challenger_metrics.items()},
             "winner": self.winner,

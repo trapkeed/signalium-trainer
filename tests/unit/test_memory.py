@@ -117,14 +117,13 @@ def make_snap(
         tp_probability=tp_prob,
         sl_probability=sl_prob,
         model_version=model_version,
-        champion_model="ensemble_v3",
+        champion_model="qde_v1",
         research_score=0.72,
-        ensemble_output=0.68,
+        model_output=0.68,
         portfolio_exposure=portfolio_exposure,
         correlation_risk=correlation_risk,
         risk_metrics={"var": 0.002, "max_drawdown": 0.05},
         feature_snapshot={"rsi": 58.0, "macd": 0.001},
-        expert_weights={"trend": 0.5, "momentum": 0.3, "value": 0.2},
     )
 
 

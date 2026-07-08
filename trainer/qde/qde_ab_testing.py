@@ -1,9 +1,11 @@
 """Phase 27.6 — QDE A/B Testing Engine.
 
-Supports three deployment strategies:
-  - SHADOW:      Challenger runs in parallel but decisions are not acted upon.
-  - CANARY:      A configurable fraction of live traffic is routed to the challenger.
+Supports two observation-only deployment strategies:
+  - SHADOW:       Challenger runs in parallel but decisions are not acted upon.
   - SIDE_BY_SIDE: Both versions receive identical inputs and results are compared.
+
+CANARY mode (routing live traffic to a challenger) has been removed.
+Only one model produces live decisions at any time.
 """
 
 from __future__ import annotations
@@ -52,39 +54,6 @@ class QDEABTestingEngine:
         logger.info(
             f"QDEABTest SHADOW created: {test.test_id} "
             f"control={control_id} challenger={challenger_version_id}"
-        )
-        return test
-
-    def create_canary(
-        self,
-        challenger_version_id: str,
-        traffic_fraction: float = 0.05,
-        control_version_id: str | None = None,
-    ) -> QDEABTest:
-        """Canary deployment: route a small fraction of live traffic to challenger.
-
-        Args:
-            challenger_version_id: The new version to expose.
-            traffic_fraction: Fraction of decisions routed to challenger (0.01–0.50).
-            control_version_id: Defaults to the current ACTIVE version.
-        """
-        if not 0.0 < traffic_fraction <= 0.50:
-            raise ValueError(
-                f"canary traffic_fraction must be in (0.0, 0.50], got {traffic_fraction}"
-            )
-        control_id = control_version_id or self._require_active_id()
-        self._validate_versions(control_id, challenger_version_id)
-
-        test = QDEABTest.create(
-            test_type=QDEABTestType.CANARY,
-            control_version_id=control_id,
-            challenger_version_id=challenger_version_id,
-            canary_traffic_fraction=traffic_fraction,
-        )
-        self._tests[test.test_id] = test
-        logger.info(
-            f"QDEABTest CANARY created: {test.test_id} "
-            f"traffic={traffic_fraction:.1%} challenger={challenger_version_id}"
         )
         return test
 

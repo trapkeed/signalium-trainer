@@ -19,17 +19,16 @@ Endpoints:
 14.  rollback_history        — Full rollback audit trail
 15.  eligible_rollback_targets — List rollback-eligible versions
 16.  create_shadow_test      — Create a shadow deployment test
-17.  create_canary_test      — Create a canary deployment test
-18.  create_side_by_side_test — Create a side-by-side evaluation
-19.  record_ab_results       — Record A/B test metrics
-20.  conclude_ab_test        — Conclude an A/B test with a winner
-21.  compare_ab_test         — Statistical comparison of A/B test results
-22.  list_ab_tests           — List all A/B tests
-23.  active_version          — Get the current active QDE version
-24.  registry_summary        — High-level registry statistics
-25.  version_lineage         — Ancestry chain for a version
-26.  promotion_history       — All past promotion decisions
-27.  promotion_criteria      — Current promotion criteria configuration
+17.  create_side_by_side_test — Create a side-by-side evaluation
+18.  record_ab_results       — Record A/B test metrics
+19.  conclude_ab_test        — Conclude an A/B test with a winner
+20.  compare_ab_test         — Statistical comparison of A/B test results
+21.  list_ab_tests           — List all A/B tests
+22.  active_version          — Get the current active QDE version
+23.  registry_summary        — High-level registry statistics
+24.  version_lineage         — Ancestry chain for a version
+25.  promotion_history       — All past promotion decisions
+26.  promotion_criteria      — Current promotion criteria configuration
 """
 
 from __future__ import annotations
@@ -387,26 +386,7 @@ class QDELifecycleAPI:
             logger.error(f"create_shadow_test error: {exc}")
             return _err("create_shadow_test", str(exc))
 
-    # ── 17. Create Canary Test ────────────────────────────────────────────────
-
-    def create_canary_test(
-        self,
-        challenger_version_id: str,
-        traffic_fraction: float = 0.05,
-        control_version_id: str | None = None,
-    ) -> ApiResponse:
-        try:
-            test = self._ab.create_canary(
-                challenger_version_id=challenger_version_id,
-                traffic_fraction=traffic_fraction,
-                control_version_id=control_version_id,
-            )
-            return _ok("create_canary_test", test.to_dict())
-        except Exception as exc:
-            logger.error(f"create_canary_test error: {exc}")
-            return _err("create_canary_test", str(exc))
-
-    # ── 18. Create Side-by-Side Test ──────────────────────────────────────────
+    # ── 17. Create Side-by-Side Test ──────────────────────────────────────────
 
     def create_side_by_side_test(
         self,

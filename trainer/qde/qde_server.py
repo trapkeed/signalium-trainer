@@ -102,12 +102,6 @@ class ShadowTestRequest(BaseModel):
     control_version_id: str | None = None
 
 
-class CanaryTestRequest(BaseModel):
-    challenger_version_id: str
-    traffic_fraction: float = 0.05
-    control_version_id: str | None = None
-
-
 class SideBySideRequest(BaseModel):
     challenger_version_id: str
     control_version_id: str | None = None
@@ -280,17 +274,6 @@ def create_shadow_test(req: ShadowTestRequest) -> dict:
     return _respond(
         _api.create_shadow_test(
             challenger_version_id=req.challenger_version_id,
-            control_version_id=req.control_version_id,
-        )
-    )
-
-
-@app.post("/qde/ab/canary")
-def create_canary_test(req: CanaryTestRequest) -> dict:
-    return _respond(
-        _api.create_canary_test(
-            challenger_version_id=req.challenger_version_id,
-            traffic_fraction=req.traffic_fraction,
             control_version_id=req.control_version_id,
         )
     )

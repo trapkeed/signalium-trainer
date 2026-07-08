@@ -96,7 +96,6 @@ def make_request(**kwargs) -> AllocationRequest:
         volatility=0.008,
         liquidity=0.90,
         model_confidence=0.72,
-        ensemble_confidence=0.68,
         decision_quality=0.70,
         atr=0.00080,
         capital=100_000.0,
@@ -290,7 +289,6 @@ class TestAllocationEngine(unittest.TestCase):
             research_score=0.88,
             execution_score=0.85,
             model_confidence=0.90,
-            ensemble_confidence=0.88,
             decision_quality=0.85,
             liquidity=0.95,
         )
@@ -305,7 +303,6 @@ class TestAllocationEngine(unittest.TestCase):
             research_score=0.10,
             execution_score=0.10,
             model_confidence=0.10,
-            ensemble_confidence=0.10,
             decision_quality=0.10,
             liquidity=0.10,
             expected_value=-0.01,
@@ -322,7 +319,6 @@ class TestAllocationEngine(unittest.TestCase):
             research_score=0.05,
             execution_score=0.05,
             model_confidence=0.05,
-            ensemble_confidence=0.05,
             decision_quality=0.05,
             liquidity=0.05,
             expected_value=-0.01,
@@ -356,7 +352,6 @@ class TestAllocationEngine(unittest.TestCase):
             research_score=1.0,
             execution_score=1.0,
             model_confidence=1.0,
-            ensemble_confidence=1.0,
             decision_quality=1.0,
             liquidity=1.0,
         )
@@ -1450,7 +1445,6 @@ class TestIcariAPI(unittest.TestCase):
             forecast_confidence=0.90,
             research_score=0.88,
             model_confidence=0.88,
-            ensemble_confidence=0.85,
             decision_quality=0.87,
         )
         d = self.api.allocate(req)
@@ -1463,7 +1457,6 @@ class TestIcariAPI(unittest.TestCase):
             research_score=0.01,
             execution_score=0.01,
             model_confidence=0.01,
-            ensemble_confidence=0.01,
             decision_quality=0.01,
             liquidity=0.01,
         )

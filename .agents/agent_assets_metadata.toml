@@ -24,3 +24,9 @@ id = "KscTJt9kf0TbGBLCyRsQU"
 uri = "file://docs/architecture_audit_v2.md"
 type = "text"
 title = "Signalium Trainer 2.0 — Architecture Audit & Migration Plan"
+
+[[outputs]]
+id = "pyOFT-qOKT2_GG8h6aOEp"
+uri = "file://docs/ensemble_removal_migration.md"
+type = "text"
+title = "Ensemble Removal Migration Report"

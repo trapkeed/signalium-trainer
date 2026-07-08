@@ -38,7 +38,6 @@ class AllocationRequest:
     volatility: float = 0.01  # daily vol
     liquidity: float = 1.0  # 0–1 liquidity score
     model_confidence: float = 0.5
-    ensemble_confidence: float = 0.5
     decision_quality: float = 0.5
     atr: float = 0.001  # average true range
     capital: float = 100_000.0
