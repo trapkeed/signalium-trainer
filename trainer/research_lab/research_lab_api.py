@@ -597,7 +597,19 @@ class ResearchLabAPI:
         champion_confidence: float,
         challenger_confidence: float,
         regime: str | None = None,
+        pnl_diff: float = 0.0,
+        latency_diff_ms: float = 0.0,
+        risk_diff: float = 0.0,
     ) -> ApiResponse:
+        """Record a manually-supplied champion/challenger comparison.
+
+        For decisions produced by live dual dispatch (both models invoked
+        together on the same input), prefer `record_dual_dispatch_decision`,
+        which persists an already-built `ShadowDecisionRecord` — this method
+        remains for callers that only have the raw decision strings/confidences
+        on hand and still benefits from the same widened comparison fields and
+        computed `promotion_score`.
+        """
         row = self._db.get_shadow_test(test_id)
         if not row:
             return _err("record_shadow_decision", f"Shadow test {test_id!r} not found")
@@ -606,24 +618,57 @@ class ResearchLabAPI:
                 "record_shadow_decision",
                 f"Shadow test {test_id} is {row['status']} — can only record to RUNNING tests",
             )
-        import uuid
 
-        decision = ShadowDecisionRecord(
-            record_id=f"sd-{str(uuid.uuid4())[:12]}",
+        decision = ShadowDecisionRecord.new(
             test_id=test_id,
             instrument=instrument,
-            champion_decision=champion_decision,
-            challenger_decision=challenger_decision,
+            champion_decision_type=champion_decision,
+            challenger_decision_type=challenger_decision,
             champion_confidence=champion_confidence,
             challenger_confidence=challenger_confidence,
-            regime=regime,
-            recorded_at=time.time(),
+            regime=regime or "",
+            pnl_diff=pnl_diff,
+            latency_diff_ms=latency_diff_ms,
+            risk_diff=risk_diff,
         )
         self._db.save_shadow_decision(decision.to_dict())
         count = self._db.count_shadow_decisions(test_id)
         return _ok(
             "record_shadow_decision",
-            {"record_id": decision.record_id, "total_decisions": count},
+            {
+                "record_id": decision.record_id,
+                "total_decisions": count,
+                "promotion_score": decision.promotion_score,
+            },
+        )
+
+    def record_dual_dispatch_decision(self, record: ShadowDecisionRecord) -> ApiResponse:
+        """Persist a `ShadowDecisionRecord` already built by live dual dispatch.
+
+        See `trainer.qde.qde_shadow.ShadowDispatcher` — every live inference
+        input is sent to both champion and challenger models simultaneously,
+        and the resulting comparison (including `promotion_score`) is built
+        there. This method is the Research Lab's side of that hand-off.
+        """
+        row = self._db.get_shadow_test(record.test_id)
+        if not row:
+            return _err(
+                "record_dual_dispatch_decision", f"Shadow test {record.test_id!r} not found"
+            )
+        if row.get("status") != ShadowTestStatus.RUNNING.value:
+            return _err(
+                "record_dual_dispatch_decision",
+                f"Shadow test {record.test_id} is {row['status']} — can only record to RUNNING tests",
+            )
+        self._db.save_shadow_decision(record.to_dict())
+        count = self._db.count_shadow_decisions(record.test_id)
+        return _ok(
+            "record_dual_dispatch_decision",
+            {
+                "record_id": record.record_id,
+                "total_decisions": count,
+                "promotion_score": record.promotion_score,
+            },
         )
 
     def conclude_shadow_test(self, test_id: str, notes: str = "") -> ApiResponse:

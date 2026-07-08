@@ -29,6 +29,9 @@ Endpoints:
 24.  version_lineage         — Ancestry chain for a version
 25.  promotion_history       — All past promotion decisions
 26.  promotion_criteria      — Current promotion criteria configuration
+27.  dispatch_shadow_decision — Dual-dispatch one live input to champion + challenger
+28.  evaluate_shadow_promotion — Feed a concluded shadow test's live-traffic signal
+                                 into the backtest-based promotion engine
 """
 
 from __future__ import annotations
@@ -54,6 +57,12 @@ from trainer.qde.qde_pipeline import QDEPipeline
 from trainer.qde.qde_promotion import QDEPromotionEngine
 from trainer.qde.qde_registry import QDERegistry
 from trainer.qde.qde_rollback import QDERollbackManager
+from trainer.qde.qde_shadow import ShadowDispatcher, evaluate_and_maybe_promote
+from trainer.research_lab.rl_models import (
+    ShadowTestRecommendation,
+    ShadowTestRun,
+    ShadowTestStatus,
+)
 
 
 @dataclass
@@ -103,6 +112,7 @@ class QDELifecycleAPI:
         )
         self._rollback = QDERollbackManager(self._registry)
         self._ab = QDEABTestingEngine(self._registry)
+        self._shadow_dispatcher = ShadowDispatcher(self._registry)
 
     # ── 1. Register Version ───────────────────────────────────────────────────
 
@@ -492,7 +502,79 @@ class QDELifecycleAPI:
         history = self._promotion.history()
         return _ok("promotion_history", {"count": len(history), "history": history})
 
-    # ── 27. Promotion Criteria ────────────────────────────────────────────────
+    # ── 26. Promotion Criteria ────────────────────────────────────────────────
 
     def promotion_criteria(self) -> ApiResponse:
         return _ok("promotion_criteria", {"criteria": self._promotion.criteria()})
+
+    # ── 27. Dispatch Shadow Decision ──────────────────────────────────────────
+
+    def dispatch_shadow_decision(
+        self,
+        test_id: str,
+        challenger_version_id: str,
+        inputs: Any,
+        regime: str = "",
+    ) -> ApiResponse:
+        """Dual-dispatch one live `QDEInferenceInput` to champion + challenger.
+
+        Both models decide on the exact same input; only the champion's
+        decision is ever executed elsewhere (e.g. `ExecutionPlanner`). The
+        resulting comparison — including the computed `promotion_score` — is
+        returned so a caller can persist it via the Research Lab API
+        (`ResearchLabAPI.record_dual_dispatch_decision`).
+        """
+        try:
+            result = self._shadow_dispatcher.dispatch(
+                test_id=test_id,
+                challenger_version_id=challenger_version_id,
+                inputs=inputs,
+                regime=regime,
+            )
+            return _ok("dispatch_shadow_decision", result.to_dict())
+        except Exception as exc:
+            logger.error(f"dispatch_shadow_decision error: {exc}")
+            return _err("dispatch_shadow_decision", str(exc))
+
+    # ── 28. Evaluate Shadow Promotion ─────────────────────────────────────────
+
+    def evaluate_shadow_promotion(
+        self,
+        shadow_test: dict[str, Any],
+        notes: str = "",
+    ) -> ApiResponse:
+        """Feed a concluded Research Lab shadow test's live-traffic signal
+        (`avg_promotion_score` / `recommendation`) into this registry's
+        backtest-based `QDEPromotionEngine`, alongside — not instead of — its
+        existing five-dimension backtest gates.
+
+        `shadow_test` is the dict produced by
+        `ResearchLabAPI.conclude_shadow_test` (a `ShadowTestRun.to_dict()`).
+        """
+        try:
+            # `ShadowTestRun.to_dict()` does not serialise the per-decision
+            # `decisions` list (only the aggregated summary), and
+            # `evaluate_and_maybe_promote` only reads that summary — so it is
+            # reconstructed here without decisions.
+            test_obj = ShadowTestRun(
+                test_id=shadow_test["test_id"],
+                name=shadow_test["name"],
+                challenger_version=shadow_test["challenger_version"],
+                champion_version=shadow_test["champion_version"],
+                instruments=shadow_test.get("instruments", []),
+                status=ShadowTestStatus(shadow_test["status"]),
+                started_at=shadow_test["started_at"],
+                min_decisions=shadow_test.get("min_decisions", 100),
+                concluded_at=shadow_test.get("concluded_at"),
+                notes=shadow_test.get("notes", ""),
+                total_decisions=shadow_test.get("total_decisions", 0),
+                agreement_rate=shadow_test.get("agreement_rate", 0.0),
+                avg_promotion_score=shadow_test.get("avg_promotion_score", 0.0),
+                recommendation=ShadowTestRecommendation(shadow_test["recommendation"]),
+                conclusion_notes=shadow_test.get("conclusion_notes", ""),
+            )
+            result = evaluate_and_maybe_promote(test_obj, self._promotion, notes=notes)
+            return _ok("evaluate_shadow_promotion", result)
+        except Exception as exc:
+            logger.error(f"evaluate_shadow_promotion error: {exc}")
+            return _err("evaluate_shadow_promotion", str(exc))

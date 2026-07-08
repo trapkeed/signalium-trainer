@@ -178,6 +178,23 @@ class QDERegistry:
             _DECISION_MODELS[active.version_id] = model
         return model
 
+    def get_model_for_version(self, version_id: str) -> QDEDecisionModel:
+        """Resolve the invocable decision model for an arbitrary version.
+
+        Unlike `get_active_model()`, this is not restricted to the current
+        champion — it is used for dual-dispatch shadow testing, where a
+        designated challenger version must be invoked alongside the champion
+        on every live inference input without ever becoming active itself.
+        Falls back to `HeuristicQDEDecisionModel` the same way as
+        `get_active_model()` if no trained artifact has been registered.
+        """
+        version = self.get(version_id)
+        model = _DECISION_MODELS.get(version_id)
+        if model is None:
+            model = HeuristicQDEDecisionModel(version=version)
+            _DECISION_MODELS[version_id] = model
+        return model
+
     def set_active(self, version_id: str) -> QDEVersion:
         version = self.get(version_id)
         if not version:

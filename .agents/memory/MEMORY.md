@@ -11,3 +11,4 @@
 - [RiskBudgetEngine mutation bug](risk-budget-mutation-bug.md) — scale_to_budget() mutated caller's dict in place; advisory-context utilities must always copy input before transforming
 - [Decision engines → context providers](decision-engines-context-providers.md) — Risk/Exposure/Lifecycle/Portfolio engines are pure info providers now; only structural FSM validity + true safety rails may hard-block
 - [torch broken, lazy registry import](torch-broken-lazy-registry-import.md) — torch's .so is missing here; trainer.registry exposes ModelRegistry lazily so unrelated imports don't force-load torch and break isolated test harnesses
+- [QDE ↔ Research Lab dependency direction](qde-research-lab-dependency-direction.md) — trainer.qde may import rl_models dataclasses; trainer.research_lab must never import trainer.qde; bridging logic lives under trainer/qde/

@@ -846,12 +846,75 @@ class DeploymentGateResult:
 # ── Shadow Testing ────────────────────────────────────────────────────────────
 
 
+def compute_promotion_score(
+    decisions_agree: bool,
+    confidence_diff: float,
+    pnl_diff: float,
+    latency_diff_ms: float,
+    risk_diff: float,
+) -> float:
+    """Composite [0, 1] score for a single champion/challenger comparison.
+
+    Blends five signals into one number so live shadow-traffic results can
+    drive automated promote/reject/extend decisions the same way the
+    five-dimension backtest engine (`QDEPromotionEngine`) does for offline
+    metrics. This score is intentionally cheap and deterministic — it never
+    replaces the backtest engine, only supplies an additional, independent
+    signal derived from real-time traffic.
+
+    - Agreement (35%): the challenger deciding the same way as the champion
+      is the single strongest signal that it is safe to trust.
+    - Expected-PnL (25%): positive means the challenger's decision would have
+      been more profitable on the same input (see `pnl_diff` semantics on
+      `ShadowDecisionRecord`).
+    - Confidence (15%): rewards a more confident challenger, centred at 0.5
+      so equal confidence is neutral.
+    - Latency (15%): a slower challenger is penalised on a 100ms scale — pure
+      inference latency should not regress meaningfully.
+    - Risk (10%): rewards similar or lower risk allocation; a large swing in
+      either direction (even "more aggressive") is treated as unproven.
+    """
+    agreement_component = 1.0 if decisions_agree else 0.0
+
+    if pnl_diff > 0:
+        pnl_component = 1.0
+    elif pnl_diff == 0:
+        pnl_component = 0.5
+    else:
+        pnl_component = 0.0
+
+    confidence_component = _clamp01(0.5 + confidence_diff)
+
+    latency_component = 1.0 if latency_diff_ms <= 0 else max(0.0, 1.0 - latency_diff_ms / 100.0)
+
+    risk_component = 1.0 if abs(risk_diff) <= 0.01 else max(0.0, 1.0 - abs(risk_diff) / 0.02)
+
+    return round(
+        0.35 * agreement_component
+        + 0.25 * pnl_component
+        + 0.15 * confidence_component
+        + 0.15 * latency_component
+        + 0.10 * risk_component,
+        4,
+    )
+
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
 @dataclass
 class ShadowDecisionRecord:
     """A single decision comparison between champion and challenger in shadow mode.
 
-    The challenger QDE receives the same market snapshot as the champion.
-    The challenger's decision is NOT executed — only observed and recorded.
+    The challenger QDE receives the same market snapshot as the champion
+    (dual dispatch — see `trainer.qde.qde_shadow.ShadowDispatcher`). The
+    challenger's decision is NOT executed — only observed and recorded.
+
+    Widened comparison fields (`confidence_diff`, `pnl_diff`,
+    `latency_diff_ms`, `risk_diff`, `promotion_score`) capture more than
+    simple agreement so the automated promotion pathway has enough signal to
+    act on live traffic, not just backtests.
     """
 
     record_id: str
@@ -866,6 +929,13 @@ class ShadowDecisionRecord:
     recorded_at: float
     market_context: dict[str, Any] = field(default_factory=dict)
 
+    # Widened comparison fields (Task #5 — inference traffic splitting)
+    confidence_diff: float = 0.0
+    pnl_diff: float = 0.0
+    latency_diff_ms: float = 0.0
+    risk_diff: float = 0.0
+    promotion_score: float = 0.0
+
     @classmethod
     def new(
         cls,
@@ -877,7 +947,21 @@ class ShadowDecisionRecord:
         challenger_confidence: float,
         regime: str = "",
         market_context: dict[str, Any] | None = None,
+        pnl_diff: float = 0.0,
+        latency_diff_ms: float = 0.0,
+        risk_diff: float = 0.0,
+        promotion_score: float | None = None,
     ) -> ShadowDecisionRecord:
+        decisions_agree = champion_decision_type == challenger_decision_type
+        confidence_diff = challenger_confidence - champion_confidence
+        if promotion_score is None:
+            promotion_score = compute_promotion_score(
+                decisions_agree=decisions_agree,
+                confidence_diff=confidence_diff,
+                pnl_diff=pnl_diff,
+                latency_diff_ms=latency_diff_ms,
+                risk_diff=risk_diff,
+            )
         return cls(
             record_id=f"sdr-{str(uuid.uuid4())[:10]}",
             test_id=test_id,
@@ -886,10 +970,15 @@ class ShadowDecisionRecord:
             challenger_decision_type=challenger_decision_type,
             champion_confidence=champion_confidence,
             challenger_confidence=challenger_confidence,
-            decisions_agree=(champion_decision_type == challenger_decision_type),
+            decisions_agree=decisions_agree,
             regime=regime,
             recorded_at=time.time(),
             market_context=market_context or {},
+            confidence_diff=confidence_diff,
+            pnl_diff=pnl_diff,
+            latency_diff_ms=latency_diff_ms,
+            risk_diff=risk_diff,
+            promotion_score=promotion_score,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -905,6 +994,11 @@ class ShadowDecisionRecord:
             "regime": self.regime,
             "recorded_at": round(self.recorded_at, 3),
             "market_context": self.market_context,
+            "confidence_diff": round(self.confidence_diff, 4),
+            "pnl_diff": round(self.pnl_diff, 5),
+            "latency_diff_ms": round(self.latency_diff_ms, 3),
+            "risk_diff": round(self.risk_diff, 5),
+            "promotion_score": round(self.promotion_score, 4),
         }
 
 
@@ -939,6 +1033,11 @@ class ShadowTestRun:
     per_instrument_agreement: dict[str, float] = field(default_factory=dict)
     recommendation: ShadowTestRecommendation = ShadowTestRecommendation.INCONCLUSIVE
     conclusion_notes: str = ""
+
+    # Live-traffic promotion signal (Task #5 — averaged from each decision's
+    # `promotion_score`; feeds the automated promote/reject/extend call below
+    # and, separately, `trainer.qde.qde_shadow.evaluate_and_maybe_promote`).
+    avg_promotion_score: float = 0.0
 
     @classmethod
     def new(
@@ -1001,12 +1100,20 @@ class ShadowTestRun:
             i: round(sum(v) / len(v), 4) for i, v in by_instrument.items()
         }
 
-        # Recommendation logic
+        # Average promotion score across all recorded comparisons — the
+        # live-traffic counterpart to the backtest engine's dimension scores.
+        self.avg_promotion_score = round(
+            sum(d.promotion_score for d in self.decisions) / n, 4
+        )
+
+        # Recommendation logic — driven primarily by the averaged promotion
+        # score, with agreement rate as a guardrail so a high score built on
+        # mostly-disagreeing decisions still can't slip through as PROMOTE.
         if n < self.min_decisions:
             self.recommendation = ShadowTestRecommendation.EXTEND
-        elif self.agreement_rate >= 0.85 and self.challenger_higher_confidence_rate >= 0.50:
+        elif self.avg_promotion_score >= 0.70 and self.agreement_rate >= 0.60:
             self.recommendation = ShadowTestRecommendation.PROMOTE
-        elif self.agreement_rate < 0.60:
+        elif self.avg_promotion_score < 0.40 or self.agreement_rate < 0.40:
             self.recommendation = ShadowTestRecommendation.REJECT
         else:
             self.recommendation = ShadowTestRecommendation.EXTEND
@@ -1028,6 +1135,7 @@ class ShadowTestRun:
             "challenger_higher_confidence_rate": round(self.challenger_higher_confidence_rate, 4),
             "per_regime_agreement": self.per_regime_agreement,
             "per_instrument_agreement": self.per_instrument_agreement,
+            "avg_promotion_score": round(self.avg_promotion_score, 4),
             "recommendation": self.recommendation.value,
             "conclusion_notes": self.conclusion_notes,
         }
