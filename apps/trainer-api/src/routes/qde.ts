@@ -308,4 +308,96 @@ router.get(
   },
 );
 
+// ── Market Observer (Phase S7) ──────────────────────────────────────────────
+// Always-running per-symbol monitoring. Internal-service routes, same as
+// position management above — not lifecycle-authority-gated.
+
+router.post(
+  "/qde/observer/:instrument/observe",
+  async (req: Request, res: Response) => {
+    await proxyPost(
+      `/qde/observer/${req.params["instrument"]}/observe`,
+      req.body,
+      res,
+    );
+  },
+);
+
+router.get(
+  "/qde/observer/:instrument/state",
+  async (req: Request, res: Response) => {
+    await proxyGet(`/qde/observer/${req.params["instrument"]}/state`, res);
+  },
+);
+
+router.get("/qde/observer/states", async (req: Request, res: Response) => {
+  const state = req.query["state"] ? `?state=${req.query["state"]}` : "";
+  await proxyGet(`/qde/observer/states${state}`, res);
+});
+
+router.get(
+  "/qde/observer/:instrument/history",
+  async (req: Request, res: Response) => {
+    const limit = req.query["limit"] ? `?limit=${req.query["limit"]}` : "";
+    await proxyGet(
+      `/qde/observer/${req.params["instrument"]}/history${limit}`,
+      res,
+    );
+  },
+);
+
+router.get("/qde/observer/summary", async (_req: Request, res: Response) => {
+  await proxyGet("/qde/observer/summary", res);
+});
+
+router.get(
+  "/qde/observer/:instrument/telemetry",
+  async (req: Request, res: Response) => {
+    await proxyGet(`/qde/observer/${req.params["instrument"]}/telemetry`, res);
+  },
+);
+
+router.get("/qde/observer/telemetry", async (_req: Request, res: Response) => {
+  await proxyGet("/qde/observer/telemetry", res);
+});
+
+router.get(
+  "/qde/observer/dashboard/state-timeline",
+  async (req: Request, res: Response) => {
+    const params = new URLSearchParams();
+    if (req.query["granularity"])
+      params.set("granularity", String(req.query["granularity"]));
+    if (req.query["limit"]) params.set("limit", String(req.query["limit"]));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    await proxyGet(`/qde/observer/dashboard/state-timeline${qs}`, res);
+  },
+);
+
+router.get(
+  "/qde/observer/dashboard/dwell-histogram",
+  async (_req: Request, res: Response) => {
+    await proxyGet("/qde/observer/dashboard/dwell-histogram", res);
+  },
+);
+
+router.get(
+  "/qde/observer/dashboard/transition-funnel",
+  async (req: Request, res: Response) => {
+    const limit = req.query["limit"] ? `?limit=${req.query["limit"]}` : "";
+    await proxyGet(`/qde/observer/dashboard/transition-funnel${limit}`, res);
+  },
+);
+
+router.get(
+  "/qde/observer/dashboard/guard-trips",
+  async (req: Request, res: Response) => {
+    const params = new URLSearchParams();
+    if (req.query["granularity"])
+      params.set("granularity", String(req.query["granularity"]));
+    if (req.query["limit"]) params.set("limit", String(req.query["limit"]));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    await proxyGet(`/qde/observer/dashboard/guard-trips${qs}`, res);
+  },
+);
+
 export default router;

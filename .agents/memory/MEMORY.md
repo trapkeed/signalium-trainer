@@ -17,3 +17,4 @@
 - [Hindsight training-signal labelers](hindsight-training-signal-labelers.md) — trainer/training_signals/ derives stop/TP/size/allocation/lifecycle labels from realized future outcome paths, never from the live engines' own heuristic rules
 - [Ensemble already removed pre-history](ensemble-already-removed.md) — trainer/ensemble/ doesn't exist in any reachable commit; graft root commit itself is the removal; don't assume future "remove ensemble" asks are unstarted
 - [Gateway-mediated lifecycle authority](gateway-mediated-lifecycle-authority.md) — enforce cross-service sole-authority (e.g. Research Lab over QDE) via gateway middleware + atomic-consume authorization record, never a direct Python import
+- [QDE always-on observer state machine](qde-observer-state-machine.md) — per-symbol OBSERVING..COOLDOWN lifecycle is advisory context/telemetry, never a trade-placing/blocking authority

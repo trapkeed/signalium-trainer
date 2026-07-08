@@ -28,7 +28,10 @@ except ImportError as exc:
     ) from exc
 
 from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics
 from trainer.qde.qde_api import QDELifecycleAPI
+from trainer.qde.qde_observer_api import QDEObserverAPI
+from trainer.qde.qde_observer_models import SymbolObservationInput
 from trainer.qde.qde_outputs import Direction, QDEOutputHeads
 from trainer.qde.qde_position_manager import (
     REVIEW_INTERVAL_SECONDS,
@@ -57,6 +60,8 @@ _api = QDELifecycleAPI(
 )
 
 _position_manager = QDEPositionManager()
+
+_observer_api = QDEObserverAPI(db_path=os.environ.get("QDE_OBSERVER_DB_PATH"))
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -143,6 +148,25 @@ class PositionTelemetryRequest(BaseModel):
     heads: dict[str, Any] = {}
     free_margin_pct: float = 1.0
     seconds_since_last_review: float = 30.0
+
+
+class ObservationRequest(BaseModel):
+    instrument: str
+    market: dict[str, Any] = {}
+    microstructure_quality: float = 0.5
+    volatility_state: str = "NORMAL"
+    volatility_quality: float = 0.5
+    liquidity_state: str = "NORMAL"
+    liquidity_quality: float = 0.5
+    session_quality: float = 0.5
+    market_regime: str = "RANGE"
+    portfolio: dict[str, Any] | None = None
+    free_margin_pct: float = 1.0
+    has_open_position: bool = False
+    position: dict[str, float] | None = None
+    position_just_opened: bool = False
+    position_just_closed: bool = False
+    last_close_was_loss: bool = False
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -402,6 +426,90 @@ def review_position_management(req: PositionTelemetryRequest) -> dict:
 @app.get("/qde/position-management/interval")
 def position_management_interval() -> dict:
     return {"success": True, "review_interval_seconds": REVIEW_INTERVAL_SECONDS}
+
+
+# ── Market Observer (Phase S7) ───────────────────────────────────────────────
+# Always-running per-symbol monitoring: callers tick `/qde/observer/{instrument}
+# /observe` on their own cadence (including for symbols with no open
+# position) so QDE maintains a live lifecycle state per symbol even between
+# trades. State/telemetry persist across restarts via QDEObserverDatabase.
+
+
+@app.post("/qde/observer/{instrument}/observe")
+def observe_symbol(instrument: str, req: ObservationRequest) -> dict:
+    try:
+        inp = SymbolObservationInput(
+            instrument=instrument,
+            market=MarketContext(**req.market),
+            microstructure_quality=req.microstructure_quality,
+            volatility_state=req.volatility_state,
+            volatility_quality=req.volatility_quality,
+            liquidity_state=req.liquidity_state,
+            liquidity_quality=req.liquidity_quality,
+            session_quality=req.session_quality,
+            market_regime=req.market_regime,
+            portfolio=PortfolioMetrics(**req.portfolio) if req.portfolio else None,
+            free_margin_pct=req.free_margin_pct,
+            has_open_position=req.has_open_position,
+            position=PositionMetrics(**req.position) if req.position else None,
+            position_just_opened=req.position_just_opened,
+            position_just_closed=req.position_just_closed,
+            last_close_was_loss=req.last_close_was_loss,
+        )
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return _respond(_observer_api.observe(inp))
+
+
+@app.get("/qde/observer/{instrument}/state")
+def observer_state(instrument: str) -> dict:
+    return _respond(_observer_api.get_state(instrument))
+
+
+@app.get("/qde/observer/states")
+def observer_states(state: str | None = None) -> dict:
+    return _respond(_observer_api.list_states(state=state))
+
+
+@app.get("/qde/observer/{instrument}/history")
+def observer_history(instrument: str, limit: int = 200) -> dict:
+    return _respond(_observer_api.history(instrument, limit=limit))
+
+
+@app.get("/qde/observer/summary")
+def observer_summary() -> dict:
+    return _respond(_observer_api.summary())
+
+
+@app.get("/qde/observer/{instrument}/telemetry")
+def observer_telemetry(instrument: str) -> dict:
+    return _respond(_observer_api.telemetry(instrument))
+
+
+@app.get("/qde/observer/telemetry")
+def observer_telemetry_all() -> dict:
+    return _respond(_observer_api.telemetry_all())
+
+
+@app.get("/qde/observer/dashboard/state-timeline")
+def observer_dashboard_state_timeline(granularity: str = "hour", limit: int = 2000) -> dict:
+    return _respond(_observer_api.dashboard_state_timeline(granularity=granularity, limit=limit))
+
+
+@app.get("/qde/observer/dashboard/dwell-histogram")
+def observer_dashboard_dwell_histogram() -> dict:
+    return _respond(_observer_api.dashboard_dwell_histogram())
+
+
+@app.get("/qde/observer/dashboard/transition-funnel")
+def observer_dashboard_transition_funnel(limit: int = 2000) -> dict:
+    return _respond(_observer_api.dashboard_transition_funnel(limit=limit))
+
+
+@app.get("/qde/observer/dashboard/guard-trips")
+def observer_dashboard_guard_trips(granularity: str = "day", limit: int = 2000) -> dict:
+    return _respond(_observer_api.dashboard_guard_trips(granularity=granularity, limit=limit))
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
