@@ -36,3 +36,9 @@ id = "liIzEbO9xZ4NAvS70QgaT"
 uri = "file://docs/qde/hardcoded_behavior_audit.md"
 type = "text"
 title = "Hardcoded Trading Behavior Audit"
+
+[[outputs]]
+id = "Y-wNPDrtihHBeIQt9KGss"
+uri = "file://docs/qde/learning_dimensions_architecture.md"
+type = "text"
+title = "Legacy Engines → Learning Dimensions Architecture"
