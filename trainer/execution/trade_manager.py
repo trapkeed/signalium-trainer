@@ -7,6 +7,7 @@ Recommends active trade management actions based on current trade state:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
@@ -19,6 +20,9 @@ from trainer.execution.execution_types import ExecutionForecast, ManagementActio
 from trainer.execution.position_sizer import SizingResult
 from trainer.execution.stop_loss_engine import StopLossRecommendation
 from trainer.execution.take_profit_engine import TakeProfitRecommendation
+
+if TYPE_CHECKING:
+    from trainer.qde.qde_inference import QDEDecision
 
 
 @dataclass
@@ -102,6 +106,114 @@ class TradeManager:
       - Trail stop after TP1 hit (1× ATR trail)
       - Low confidence or news risk → exit early is primary action
     """
+
+    def plan_from_decision(
+        self,
+        forecast: ExecutionForecast,
+        decision: "QDEDecision",
+        sizing: SizingResult | None = None,
+        stop_loss: StopLossRecommendation | None = None,
+        take_profit: TakeProfitRecommendation | None = None,
+    ) -> ManagementPlan:
+        """Build a `ManagementPlan` that executes the QDE decision's chosen
+        management actions.
+
+        The concrete price levels (breakeven trigger, trail distance,
+        scale-in price) are still execution mechanics computed from
+        stop/take-profit/zone context — they are not decisions, just where
+        to place the decision's chosen action. `primary_action` and `rules`
+        reflect the decision itself, never an independently re-derived
+        choice.
+        """
+        entry = forecast.current_price
+        sign = 1.0 if forecast.is_buy else -1.0
+        atr = forecast.atr
+
+        be_trigger = take_profit.tp1 if take_profit else round(entry + sign * atr, 5)
+        be_stop = stop_loss.adaptive_stop if stop_loss else round(entry + sign * atr * 0.05, 5)
+        trail_dist = round(atr, 5)
+        trail_step = round(atr * 0.25, 5)
+
+        primary = decision.primary_management_action
+        rules: list[ManagementRule] = [
+            ManagementRule(
+                primary,
+                "QDE decision",
+                decision.rationale or f"confidence={decision.confidence:.2f}",
+                priority=1,
+            )
+        ]
+        for extra in decision.management_actions[1:]:
+            rules.append(
+                ManagementRule(
+                    extra,
+                    "QDE decision (secondary action)",
+                    decision.rationale or f"confidence={decision.confidence:.2f}",
+                    priority=2,
+                )
+            )
+
+        if take_profit:
+            rules.append(
+                ManagementRule(
+                    ManagementAction.PARTIAL_CLOSE,
+                    "Partial close 50% at TP1",
+                    f"TP1 = {round(take_profit.tp1, 5)}",
+                    priority=3,
+                )
+            )
+            rules.append(
+                ManagementRule(
+                    ManagementAction.PARTIAL_CLOSE,
+                    "Partial close 30% at TP2",
+                    f"TP2 = {round(take_profit.tp2, 5)}",
+                    priority=4,
+                )
+            )
+
+        rules.append(
+            ManagementRule(
+                ManagementAction.MOVE_TO_BREAKEVEN,
+                "Move stop to breakeven when TP1 reached",
+                f"Trigger={round(be_trigger, 5)} → Stop={round(be_stop, 5)}",
+                priority=5,
+            )
+        )
+        rules.append(
+            ManagementRule(
+                ManagementAction.TRAIL_STOP,
+                "Trail stop at 1× ATR after TP1",
+                f"Trail distance={round(trail_dist, 5)} step={round(trail_step, 5)}",
+                priority=6,
+            )
+        )
+
+        from trainer.execution.entry_zones import EntryZoneEngine
+
+        zones = EntryZoneEngine().calculate(forecast)
+        scale_price = zones.conservative_entry
+        scale_pct = 0.50 if decision.scale_action.value == "SCALE_IN" else 0.0
+
+        logger.debug(
+            f"TradeManager.plan_from_decision {forecast.instrument}: "
+            f"primary={primary.value} rules={len(rules)}"
+        )
+
+        return ManagementPlan(
+            instrument=forecast.instrument,
+            direction=forecast.direction,
+            primary_action=primary,
+            rules=rules,
+            breakeven_trigger_price=round(be_trigger, 5),
+            breakeven_stop_price=round(be_stop, 5),
+            trail_distance=trail_dist,
+            trail_step=trail_step,
+            partial_close_tp1_pct=0.50,
+            partial_close_tp2_pct=0.30,
+            runner_pct=0.20,
+            scale_in_price=round(scale_price, 5),
+            scale_in_lots_pct=scale_pct,
+        )
 
     def plan(
         self,

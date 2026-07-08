@@ -943,6 +943,75 @@ class TestExecutionPlanner(unittest.TestCase):
         p = self.planner.plan(_fc(direction="SELL"))
         self.assertEqual(p.direction, "SELL")
 
+    def test_plan_carries_unified_qde_decision(self):
+        p = self.planner.plan(_fc())
+        self.assertIsNotNone(p.decision)
+        self.assertEqual(p.decision.instrument, "EURUSD")
+        self.assertIn(p.decision.entry_action.value, ("ENTER", "WAIT", "REJECT"))
+
+    def test_is_executable_matches_decision(self):
+        p = self.planner.plan(_fc())
+        expected = p.decision.is_entry or p.decision.scale_action.value == "SCALE_IN"
+        self.assertEqual(p.is_executable(), expected)
+
+    def test_sizing_and_management_derive_from_decision(self):
+        p = self.planner.plan(_fc())
+        self.assertEqual(p.sizing.method, "QDE_DECISION")
+        self.assertEqual(p.management.primary_action, p.decision.primary_management_action)
+
+    def test_to_dict_includes_decision(self):
+        d = self.planner.plan(_fc()).to_dict()
+        self.assertIn("decision", d)
+        self.assertIn("entry_action", d["decision"])
+
+    def test_custom_decision_model_is_used(self):
+        class _AlwaysEnter:
+            version_id = "test-v1"
+
+            def decide(self, inputs):
+                from trainer.qde.qde_inference import EntryAction, QDEDecision
+
+                return QDEDecision(
+                    instrument=inputs.forecast.instrument,
+                    direction=inputs.forecast.direction,
+                    entry_action=EntryAction.ENTER,
+                    position_size_lots=0.5,
+                    risk_allocation_pct=0.01,
+                    confidence=0.99,
+                    model_version_id=self.version_id,
+                    rationale="forced entry for test",
+                )
+
+        planner = _ep.ExecutionPlanner(decision_model=_AlwaysEnter())
+        p = planner.plan(_fc())
+        self.assertTrue(p.decision.is_entry)
+        self.assertTrue(p.is_executable())
+        self.assertEqual(p.decision.model_version_id, "test-v1")
+        self.assertGreater(p.sizing.lots, 0.0)
+
+    def test_plan_accepts_position_portfolio_account_and_memory(self):
+        from trainer.lifecycle.lifecycle_models import PositionMetrics
+        from trainer.qde.qde_inference import QDEAccountSnapshot, default_portfolio_snapshot
+
+        position = PositionMetrics(lots=0.3, entry_price=1.0800, current_price=1.0850)
+        account = QDEAccountSnapshot(balance=5_000.0, equity=5_000.0, margin_available=4_000.0)
+        portfolio = default_portfolio_snapshot()
+
+        p = self.planner.plan(
+            _fc(),
+            position=position,
+            portfolio=portfolio,
+            account=account,
+        )
+        self.assertIsNotNone(p.decision)
+
+    def test_plan_uses_decision_memory_for_context(self):
+        from trainer.memory.decision_memory import DecisionMemory
+
+        memory = DecisionMemory()
+        p = self.planner.plan(_fc(), decision_memory=memory)
+        self.assertIsNotNone(p.decision)
+
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 14. execution_database

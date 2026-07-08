@@ -23,6 +23,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.qde.qde_inference import HeuristicQDEDecisionModel, QDEDecisionModel
 from trainer.qde.qde_models import QDEStage, QDEVersion
 from trainer.registry.unified_registry import (
     ChampionStatus,
@@ -31,6 +32,11 @@ from trainer.registry.unified_registry import (
 )
 
 _QDE_FAMILY = "qde"
+
+# In-process map of version_id -> registered decision-model implementation.
+# Populated via `QDERegistry.register_decision_model` once a real trained
+# artifact is wired up; falls back to `HeuristicQDEDecisionModel` otherwise.
+_DECISION_MODELS: dict[str, QDEDecisionModel] = {}
 
 
 def _qde_version_to_entry(version: QDEVersion) -> UnifiedModelEntry:
@@ -143,6 +149,34 @@ class QDERegistry:
     def get_active(self) -> QDEVersion | None:
         champion = self._unified.get_champion(_QDE_FAMILY)
         return self._unified.get_native(champion.entry_id) if champion else None
+
+    def register_decision_model(self, version_id: str, model: QDEDecisionModel) -> None:
+        """Attach an invocable `QDEDecisionModel` to a specific QDE version.
+
+        Call this once a real trained artifact is available for a version;
+        until then, `get_active_model()` falls back to a heuristic baseline.
+        """
+        model.version_id = version_id
+        _DECISION_MODELS[version_id] = model
+
+    def get_active_model(self) -> QDEDecisionModel:
+        """The single live decision-making model entry point.
+
+        Resolves the current active/champion QDE version (via the unified
+        registry's champion tracking) and returns its registered decision
+        model, falling back to `HeuristicQDEDecisionModel` if none has been
+        registered yet. This is the one place `ExecutionPlanner` asks "what
+        model makes the decision right now?" — it never re-derives the
+        decision itself.
+        """
+        active = self.get_active()
+        if active is None:
+            return HeuristicQDEDecisionModel(version=None)
+        model = _DECISION_MODELS.get(active.version_id)
+        if model is None:
+            model = HeuristicQDEDecisionModel(version=active)
+            _DECISION_MODELS[active.version_id] = model
+        return model
 
     def set_active(self, version_id: str) -> QDEVersion:
         version = self.get(version_id)

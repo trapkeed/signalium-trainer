@@ -7,6 +7,7 @@ Enforces maximum daily / weekly / portfolio risk limits.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
@@ -23,6 +24,9 @@ from trainer.execution.execution_types import (
     default_broker,
 )
 from trainer.execution.stop_loss_engine import StopLossRecommendation
+
+if TYPE_CHECKING:
+    from trainer.qde.qde_inference import QDEDecision
 
 
 @dataclass
@@ -122,6 +126,71 @@ class PositionSizer:
     ):
         self._broker = broker or default_broker()
         self._limits = risk_limits or RiskLimits()
+
+    def from_decision(
+        self,
+        forecast: ExecutionForecast,
+        decision: "QDEDecision",
+        stop_loss: StopLossRecommendation | None = None,
+    ) -> SizingResult:
+        """Build a `SizingResult` that executes the QDE's chosen position size.
+
+        Unlike `calculate()`, this does not derive lots from a sizing
+        method — the QDE decision already carries `position_size_lots` and
+        `risk_allocation_pct`. This method only applies broker validation
+        (the one allowed hard safety rail, see
+        `docs/qde/unified_qde_architecture.md` §6) and computes the
+        informational fields (margin, commission, kelly info) that other
+        consumers of `SizingResult` still rely on.
+        """
+        entry = forecast.current_price
+        stop = (
+            stop_loss.initial_stop
+            if stop_loss
+            else (entry - forecast.atr * 1.5 if forecast.is_buy else entry + forecast.atr * 1.5)
+        )
+        stop_dist = max(abs(entry - stop), self._broker.min_stop_distance)
+
+        raw_lots = decision.position_size_lots
+        lots = self._broker.validate_lot(raw_lots) if raw_lots > 1e-9 else 0.0
+
+        kf, kl = self._kelly_info(forecast, stop_dist, entry)
+
+        margin = round(lots * self.UNITS_PER_LOT * entry * self._broker.margin_rate, 2)
+        commiss = round(self._broker.commission_per_lot * lots, 2)
+
+        actual_risk = round(lots * self.UNITS_PER_LOT * stop_dist, 2)
+        actual_pct = round(actual_risk / max(forecast.account_size, 1.0), 4)
+
+        d_ok = actual_pct <= self._limits.available_daily()
+        w_ok = actual_pct <= self._limits.available_weekly()
+        p_ok = actual_pct <= self._limits.available_portfolio()
+
+        size_reduced = lots < raw_lots - 0.001
+
+        logger.debug(
+            f"PositionSizer.from_decision {forecast.instrument}: "
+            f"lots={lots} risk={actual_pct:.2%} entry_action={decision.entry_action.value}"
+        )
+
+        return SizingResult(
+            instrument=forecast.instrument,
+            direction=forecast.direction,
+            method="QDE_DECISION",
+            lots=lots,
+            units=round(lots * self.UNITS_PER_LOT),
+            risk_amount=actual_risk,
+            risk_pct=actual_pct,
+            stop_distance=round(stop_dist, 5),
+            kelly_fraction=round(kf, 4),
+            kelly_lots=round(kl, 2),
+            margin_required=margin,
+            commission_cost=commiss,
+            daily_risk_ok=d_ok,
+            weekly_risk_ok=w_ok,
+            portfolio_risk_ok=p_ok,
+            size_reduced=size_reduced,
+        )
 
     def calculate(
         self,

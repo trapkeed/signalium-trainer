@@ -10,3 +10,4 @@
 - [Hardcoded behavior audit location](hardcoded-behavior-audit-location.md) — the trading-rules audit deliverable lives at docs/qde/hardcoded_behavior_audit.md; extend it in place rather than creating a duplicate
 - [RiskBudgetEngine mutation bug](risk-budget-mutation-bug.md) — scale_to_budget() mutated caller's dict in place; advisory-context utilities must always copy input before transforming
 - [Decision engines → context providers](decision-engines-context-providers.md) — Risk/Exposure/Lifecycle/Portfolio engines are pure info providers now; only structural FSM validity + true safety rails may hard-block
+- [torch broken, lazy registry import](torch-broken-lazy-registry-import.md) — torch's .so is missing here; trainer.registry exposes ModelRegistry lazily so unrelated imports don't force-load torch and break isolated test harnesses

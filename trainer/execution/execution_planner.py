@@ -3,12 +3,21 @@
 Orchestrates all execution engines into a single, coherent ExecutionPlan
 for every forecast.
 
+Under the unified QDE architecture (see `docs/qde/unified_qde_architecture.md`),
+`ExecutionPlanner` is a pure *executor* of the active QDE model's decision.
+Supporting engines (zones, stop/tp, timing, order strategy, scoring,
+simulation) still run — they supply execution mechanics (concrete price
+levels, fill/timing detail) and act as context fed into the QDE decision —
+but entry/exit/scale/size/risk-allocation/management are decided exactly
+once, by the QDE, and simply carried out here.
+
 Does NOT place trades. Produces institutional-grade recommendations only.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
@@ -34,13 +43,38 @@ from trainer.execution.stop_loss_engine import StopLossEngine, StopLossRecommend
 from trainer.execution.take_profit_engine import TakeProfitEngine, TakeProfitRecommendation
 from trainer.execution.trade_manager import ManagementPlan, TradeManager
 from trainer.execution.trade_scorer import TradeScore, TradeScorer
+from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
+from trainer.memory.decision_memory import DecisionMemory
+from trainer.portfolio.portfolio_scorer import PortfolioMetrics
+
+# `trainer.qde` imports `trainer.execution.execution_types` (for the shared
+# `ManagementAction` enum), which — because Python must fully run a
+# package's `__init__.py` before handing back any submodule — would
+# otherwise re-enter this very module while `trainer.execution` is still
+# initializing. Importing the QDE pieces lazily (inside functions/methods
+# below, not here at module scope) keeps both packages independently
+# importable regardless of which one loads first.
+if TYPE_CHECKING:
+    from trainer.qde.qde_inference import (
+        QDEAccountSnapshot,
+        QDEDecision,
+        QDEDecisionModel,
+        QDEInferenceInput,
+    )
+    from trainer.qde.qde_registry import QDERegistry
 
 
 @dataclass
 class ExecutionPlan:
-    """Complete institutional execution plan for one instrument."""
+    """Complete institutional execution plan for one instrument.
+
+    `decision` is the single unified QDE output; every other field is
+    supporting execution detail that carries the decision out (or, for
+    `sizing`/`management`, is populated directly from it).
+    """
 
     forecast: ExecutionForecast
+    decision: QDEDecision
     zones: EntryZones
     entry_quality: EntryQualityResult
     stop_loss: StopLossRecommendation
@@ -62,13 +96,14 @@ class ExecutionPlan:
         return self.forecast.direction
 
     def is_executable(self) -> bool:
-        """True if timing is not AVOID and entry quality is not REJECT."""
-        from trainer.execution.execution_types import ExecutionGrade, TimingRecommendation
+        """True iff the QDE decided to enter (or scale in) this instrument.
 
-        return (
-            self.timing.recommendation != TimingRecommendation.AVOID
-            and self.entry_quality.grade != ExecutionGrade.REJECT
-        )
+        Timing/entry-quality grades remain available as informational
+        context on the plan, but they no longer independently gate
+        execution — the QDE decision already accounted for that context
+        when it decided.
+        """
+        return self.decision.is_entry or self.decision.scale_action.value == "SCALE_IN"
 
     def executive_summary(self) -> dict:
         """One-screen institutional summary."""
@@ -76,6 +111,7 @@ class ExecutionPlan:
             "instrument": self.instrument,
             "direction": self.direction,
             "executable": self.is_executable(),
+            "decision": self.decision.entry_action.value,
             "timing": self.timing.recommendation.value,
             "entry_grade": self.entry_quality.grade.value,
             "trade_grade": self.score.grade.value,
@@ -94,12 +130,14 @@ class ExecutionPlan:
             "management": self.management.primary_action.value,
             "expected_fill": round(self.simulation.expected_fill, 5),
             "slippage": round(self.simulation.expected_slippage, 5),
+            "confidence": round(self.decision.confidence, 4),
         }
 
     def to_dict(self) -> dict:
         return {
             "executive_summary": self.executive_summary(),
             "forecast": self.forecast.to_dict(),
+            "decision": self.decision.to_dict(),
             "entry_zones": self.zones.to_dict(),
             "entry_quality": self.entry_quality.to_dict(),
             "stop_loss": self.stop_loss.to_dict(),
@@ -122,6 +160,10 @@ class ExecutionPlanner:
         planner = ExecutionPlanner()
         plan = planner.plan(forecast)
         print(plan.executive_summary())
+
+    The planner asks the QDE registry for the currently active decision
+    model and executes exactly what it decides; it does not compute entry,
+    exit, scale, sizing, or management decisions itself.
     """
 
     def __init__(
@@ -129,6 +171,8 @@ class ExecutionPlanner:
         broker: BrokerConstraints | None = None,
         risk_limits: RiskLimits | None = None,
         sizing_method: SizingMethod = SizingMethod.FIXED_RISK,
+        qde_registry: "QDERegistry | None" = None,
+        decision_model: "QDEDecisionModel | None" = None,
     ):
         self._broker = broker or default_broker()
         self._risk_limits = risk_limits or RiskLimits()
@@ -146,46 +190,124 @@ class ExecutionPlanner:
         self._scorer = TradeScorer()
         self._simulator = ExecutionSimulator(self._broker)
 
-    def plan(self, forecast: ExecutionForecast) -> ExecutionPlan:
-        """Generate a complete institutional execution plan."""
+        # `decision_model` allows direct injection (tests, or a caller that
+        # already resolved a model); otherwise the registry's active-model
+        # lookup is consulted on every `plan()` call so a promotion/rollback
+        # takes effect immediately without recreating the planner. Imported
+        # lazily — see the module-level note above on the qde/execution
+        # import cycle.
+        self._decision_model = decision_model
+        self._qde_registry = qde_registry if decision_model is None else None
+        if self._decision_model is None and self._qde_registry is None:
+            from trainer.qde.qde_registry import QDERegistry
+
+            self._qde_registry = QDERegistry()
+
+    def _resolve_decision_model(self) -> "QDEDecisionModel":
+        if self._decision_model is not None:
+            return self._decision_model
+        return self._qde_registry.get_active_model()
+
+    def _build_inference_input(
+        self,
+        forecast: ExecutionForecast,
+        zones: EntryZones,
+        stop: StopLossRecommendation,
+        tp: TakeProfitRecommendation,
+        position: PositionMetrics | None,
+        portfolio: PortfolioMetrics | None,
+        account: "QDEAccountSnapshot | None",
+        decision_memory: DecisionMemory | None,
+    ) -> "QDEInferenceInput":
+        from trainer.qde.qde_inference import (
+            QDEAccountSnapshot,
+            QDEInferenceInput,
+            QDEMemorySnapshot,
+            default_portfolio_snapshot,
+        )
+
+        market = MarketContext(
+            price=forecast.current_price,
+            atr=forecast.atr,
+            spread=forecast.spread,
+            volatility=forecast.volatility,
+            momentum=forecast.momentum,
+            news_risk=forecast.news_risk,
+            session=forecast.session.value,
+            trend_valid=True,
+        )
+
+        memory_snapshot = QDEMemorySnapshot(instrument=forecast.instrument)
+        if decision_memory is not None:
+            records = decision_memory.filter(instrument=forecast.instrument, limit=50)
+            memory_snapshot = QDEMemorySnapshot.from_records(forecast.instrument, records)
+
+        return QDEInferenceInput(
+            forecast=forecast,
+            market=market,
+            portfolio=portfolio or default_portfolio_snapshot(),
+            position=position or PositionMetrics(),
+            account=account or QDEAccountSnapshot(
+                balance=forecast.account_size,
+                equity=forecast.account_size,
+                margin_available=forecast.account_size,
+            ),
+            memory=memory_snapshot,
+            entry_price_hint=zones.primary_entry,
+            stop_price_hint=stop.initial_stop,
+            take_profit_hint=tp.tp1,
+        )
+
+    def plan(
+        self,
+        forecast: ExecutionForecast,
+        position: PositionMetrics | None = None,
+        portfolio: PortfolioMetrics | None = None,
+        account: QDEAccountSnapshot | None = None,
+        decision_memory: DecisionMemory | None = None,
+    ) -> ExecutionPlan:
+        """Generate a complete institutional execution plan.
+
+        Args:
+            forecast: Raw instrument forecast/context from upstream models.
+            position: Live metrics for an existing open position, if any.
+            portfolio: Current portfolio-level metrics, if any.
+            account: Live account state; defaults to a snapshot derived
+                from `forecast.account_size` when omitted.
+            decision_memory: Decision history store, used to build the
+                memory snapshot handed to the QDE.
+        """
 
         logger.info(f"ExecutionPlanner: planning {forecast.instrument} {forecast.direction}")
 
-        # Step 1: Entry zones
+        # ── Supporting execution mechanics (context for, and carried out by,
+        # the QDE decision — never an independent decision source) ─────────
         zones = self._zone_engine.calculate(forecast)
-
-        # Step 2: Entry quality (uses zones)
         quality = self._quality_engine.evaluate(forecast, zones)
-
-        # Step 3: Stop loss (uses zones)
         stop = self._stop_engine.recommend(forecast, zones)
-
-        # Step 4: Take profit (uses zones + stop)
         tp = self._tp_engine.recommend(forecast, zones, stop)
-
-        # Step 5: Position sizing (uses stop)
-        sizing = self._sizer.calculate(forecast, stop, self._sizing_method)
-
-        # Step 6: Trade management (uses sizing + stop + tp)
-        management = self._manager.plan(forecast, sizing, stop, tp)
-
-        # Step 7: Execution timing
         timing = self._timer.evaluate(forecast)
 
-        # Step 8: Risk profile (uses stop + tp + sizing)
+        # ── The single unified decision ──────────────────────────────────
+        inference_input = self._build_inference_input(
+            forecast, zones, stop, tp, position, portfolio, account, decision_memory
+        )
+        model = self._resolve_decision_model()
+        decision = model.decide(inference_input)
+
+        # ── Execute the decision ─────────────────────────────────────────
+        sizing = self._sizer.from_decision(forecast, decision, stop)
+        management = self._manager.plan_from_decision(forecast, decision, sizing, stop, tp)
+
+        # ── Remaining execution mechanics, informed by the executed size ──
         risk = self._risk_engine.analyze(forecast, stop, tp, sizing.lots)
-
-        # Step 9: Order strategy (uses zones + timing)
         order = self._order_engine.recommend(forecast, zones, timing, self._broker)
-
-        # Step 10: Trade score (uses quality + risk + timing)
         score = self._scorer.score(forecast, quality, risk, timing)
-
-        # Step 11: Simulation (uses zones + stop + tp)
         simulation = self._simulator.simulate(forecast, zones, stop, tp)
 
         plan = ExecutionPlan(
             forecast=forecast,
+            decision=decision,
             zones=zones,
             entry_quality=quality,
             stop_loss=stop,
@@ -201,13 +323,17 @@ class ExecutionPlanner:
 
         logger.info(
             f"ExecutionPlanner: {forecast.instrument} plan complete — "
-            f"grade={score.grade.value} executable={plan.is_executable()}"
+            f"decision={decision.entry_action.value} executable={plan.is_executable()}"
         )
 
         return plan
 
-    def plan_batch(self, forecasts: list[ExecutionForecast]) -> list[ExecutionPlan]:
+    def plan_batch(
+        self,
+        forecasts: list[ExecutionForecast],
+        decision_memory: DecisionMemory | None = None,
+    ) -> list[ExecutionPlan]:
         """Generate plans for a list of forecasts."""
-        plans = [self.plan(f) for f in forecasts]
+        plans = [self.plan(f, decision_memory=decision_memory) for f in forecasts]
         plans.sort(key=lambda p: p.score.overall_score, reverse=True)
         return plans

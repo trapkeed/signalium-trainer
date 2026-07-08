@@ -509,6 +509,19 @@ class UnifiedModelRegistry:
                 return e
         return None
 
+    def get_active_native(self, family: str) -> Any | None:
+        """Convenience entry point: the native object backing the current
+        champion of `family`, or None if no champion is set.
+
+        Combines `get_champion` + `get_native` into the single "give me the
+        current live model for this family" lookup that consumers of the
+        registry (e.g. `ExecutionPlanner` via `QDERegistry`) need.
+        """
+        champion = self.get_champion(family)
+        if champion is None:
+            return None
+        return self.get_native(champion.entry_id)
+
     def set_shadow(self, entry_id: str, active: bool = True) -> UnifiedModelEntry:
         with self._lock:
             entry = self._entries.get(entry_id)
