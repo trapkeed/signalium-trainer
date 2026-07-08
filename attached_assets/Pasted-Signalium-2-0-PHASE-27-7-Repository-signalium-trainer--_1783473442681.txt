@@ -1,0 +1,168 @@
+Signalium 2.0
+
+PHASE 27.7
+
+Repository:
+signalium-trainer
+
+=========================================================
+OBJECTIVE
+=========================================================
+
+Integrate the Research Lab as an internal trainer subsystem.
+
+The Research Lab is an administrator-only capability.
+
+No public users may access it.
+
+The Research Lab exists to continuously improve the QDE.
+
+=========================================================
+RESEARCH LAB RESPONSIBILITIES
+=========================================================
+
+Dataset Creation
+
+Feature Discovery
+
+Experiment Tracking
+
+Model Benchmarking
+
+Backtesting
+
+A/B Evaluation
+
+Parameter Search
+
+Retraining Validation
+
+Deployment Approval
+
+Failure Analysis
+
+Market Regime Analysis
+
+=========================================================
+NO FRONTEND
+=========================================================
+
+The trainer repository must remain headless.
+
+No frontend application.
+
+No dashboards.
+
+No user interface.
+
+Research functionality must be exposed via internal APIs only.
+
+=========================================================
+ADMIN ACCESS
+=========================================================
+
+Only administrators may invoke research endpoints.
+
+Signalium admin frontend may consume these APIs.
+
+Retail users may never access research functionality.
+
+=========================================================
+EXPERIMENT TRACKING
+=========================================================
+
+Track:
+
+Experiment ID
+
+Training Dataset
+
+Training Duration
+
+Validation Metrics
+
+Drawdown Metrics
+
+Expected Value Metrics
+
+Profit Factor
+
+Deployment Status
+
+QDE Version
+
+=========================================================
+MODEL COMPARISON
+=========================================================
+
+Support comparison between:
+
+QDE v11
+
+QDE v12
+
+QDE v13
+
+etc.
+
+Comparison metrics:
+
+Sharpe Ratio
+
+Profit Factor
+
+Drawdown
+
+Recovery Factor
+
+Win Rate
+
+Decision Quality
+
+Expected Value
+
+Capital Efficiency
+
+=========================================================
+FAILURE ANALYSIS
+=========================================================
+
+Support investigation of:
+
+Large Losses
+
+Unexpected Drawdowns
+
+Regime Failures
+
+Execution Failures
+
+Market Condition Failures
+
+=========================================================
+DEPLOYMENT GATES
+=========================================================
+
+A QDE version cannot be promoted unless:
+
+Decision Quality improves.
+
+Risk Adjusted Return improves.
+
+Maximum Drawdown does not increase materially.
+
+=========================================================
+FINAL VALIDATION
+=========================================================
+
+Generate documentation showing:
+
+Research Flow
+
+Experiment Flow
+
+Deployment Flow
+
+Validation Flow
+
+Rollback Flow
