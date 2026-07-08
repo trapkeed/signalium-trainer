@@ -1,6 +1,8 @@
-"""Phase 27.7 — Research Lab HTTP Server.
+"""Phase 28.4 — Research Lab HTTP Server.
 
 Admin-only FastAPI server. Every endpoint is protected by a static bearer token.
+The server has no public documentation UI, no API browser, and no frontend.
+It is consumed exclusively by the Signalium Admin Portal via the Express proxy.
 
 Start with:
     RESEARCH_LAB_ADMIN_TOKEN=<secret> uvicorn trainer.research_lab.research_lab_server:app --port 8002
@@ -8,6 +10,17 @@ Start with:
 Environment variables:
     RESEARCH_LAB_ADMIN_TOKEN  Required. Shared secret for all admin requests.
     RESEARCH_LAB_PORT         Port (default 8002).
+
+ACCESS MODEL
+------------
+- This server runs on a private port (8002) inside the trainer container.
+- It is NEVER exposed directly to the public internet.
+- The Express API (port 8080) acts as the sole entry point for external callers.
+- The Express API enforces admin authentication before proxying to this server.
+- This server also enforces its own admin token as a defence-in-depth measure.
+- No retail user may reach any endpoint in this server.
+- No public documentation UI is served (docs_url=None, redoc_url=None).
+- No OpenAPI schema endpoint is served (openapi_url=None).
 """
 
 from __future__ import annotations
@@ -17,7 +30,6 @@ from typing import Any
 
 try:
     from fastapi import Depends, FastAPI, HTTPException, Security
-    from fastapi.middleware.cors import CORSMiddleware
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
     from pydantic import BaseModel
 except ImportError as exc:
@@ -31,19 +43,18 @@ from trainer.research_lab.research_lab_api import ResearchLabAPI
 
 app = FastAPI(
     title="Research Lab API",
-    description="Administrator-only QDE research and improvement subsystem. No public access.",
-    version="27.7.0",
-    docs_url="/research/docs",
-    redoc_url="/research/redoc",
-    openapi_url="/research/openapi.json",
+    description=(
+        "Administrator-only QDE research and improvement subsystem. "
+        "No public access. No frontend. Internal use only."
+    ),
+    version="28.4.0",
+    docs_url=None,        # No public API browser — admin subsystem has no UI
+    redoc_url=None,       # No public documentation UI
+    openapi_url=None,     # No public schema endpoint
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# No CORS middleware — this server is internal. Browsers do not contact it
+# directly. All external traffic arrives via the Express proxy on port 8080.
 
 _api = ResearchLabAPI()
 _bearer = HTTPBearer(auto_error=False)
@@ -56,8 +67,16 @@ _CONFIGURED_TOKEN = os.environ.get("RESEARCH_LAB_ADMIN_TOKEN", "")
 def _require_admin(
     credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
 ) -> None:
+    """Defence-in-depth admin auth. The Express proxy enforces auth first.
+
+    Even if a caller bypasses the Express proxy and contacts port 8002 directly,
+    they cannot access any endpoint without a valid admin token.
+    """
     if not _CONFIGURED_TOKEN:
-        raise HTTPException(503, detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)")
+        raise HTTPException(
+            503,
+            detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)",
+        )
     token = credentials.credentials if credentials else None
     if not token or token != _CONFIGURED_TOKEN:
         raise HTTPException(403, detail="Forbidden. Invalid or missing admin token.")
@@ -191,6 +210,32 @@ class CompareModelsRequest(BaseModel):
     notes: str = ""
 
 
+# ── Shadow Testing Request Models ──────────────────────────────────────────────
+
+
+class CreateShadowTestRequest(BaseModel):
+    name: str
+    challenger_version: str
+    champion_version: str
+    instruments: list[str]
+    min_decisions: int = 500
+    notes: str = ""
+
+
+class RecordShadowDecisionRequest(BaseModel):
+    instrument: str
+    champion_decision_type: str
+    challenger_decision_type: str
+    champion_confidence: float
+    challenger_confidence: float
+    regime: str = ""
+    market_context: dict[str, Any] = {}
+
+
+class ConcludeShadowTestRequest(BaseModel):
+    notes: str = ""
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 
@@ -206,7 +251,8 @@ def _respond(response: Any) -> dict:
 
 @app.get("/research/healthz")
 def health(_: None = Depends(_require_admin)) -> dict:
-    return {"status": "ok", "service": "research-lab"}
+    """Admin health check. Requires valid admin token."""
+    return {"status": "ok", "service": "research-lab", "access": "admin-only"}
 
 
 @app.get("/research/summary")
@@ -472,3 +518,35 @@ def get_comparison(comparison_id: str, _: None = Depends(_require_admin)) -> dic
 @app.get("/research/comparisons")
 def list_comparisons(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.list_comparisons())
+
+
+# ── Shadow Testing ────────────────────────────────────────────────────────────
+
+
+@app.post("/research/shadow-tests")
+def create_shadow_test(req: CreateShadowTestRequest, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.create_shadow_test(**req.model_dump()))
+
+
+@app.post("/research/shadow-tests/{test_id}/decisions")
+def record_shadow_decision(test_id: str, req: RecordShadowDecisionRequest, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.record_shadow_decision(test_id, **req.model_dump()))
+
+
+@app.post("/research/shadow-tests/{test_id}/conclude")
+def conclude_shadow_test(test_id: str, req: ConcludeShadowTestRequest, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.conclude_shadow_test(test_id, notes=req.notes))
+
+
+@app.get("/research/shadow-tests/{test_id}")
+def get_shadow_test(test_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.get_shadow_test(test_id))
+
+
+@app.get("/research/shadow-tests")
+def list_shadow_tests(
+    challenger_version: str | None = None,
+    status: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    return _respond(_api.list_shadow_tests(challenger_version=challenger_version, status=status))

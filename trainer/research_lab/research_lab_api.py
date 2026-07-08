@@ -1,4 +1,4 @@
-"""Phase 27.7 — Research Lab API.
+"""Phase 28.4 — Research Lab API.
 
 Administrator-only interface for the Research Lab subsystem.
 
@@ -6,30 +6,22 @@ Responsibilities:
  1.  Dataset Creation          — register and manage research datasets
  2.  Feature Discovery         — track and rank discovered features
  3.  Experiment Tracking       — full lifecycle tracking for all experiments
- 4.  Model Benchmarking        — structured benchmark runs across QDE versions
- 5.  Backtesting               — register backtest runs against experiments
- 6.  A/B Evaluation            — delegate to QDE A/B testing engine
- 7.  Parameter Search          — hyperparameter search runs
- 8.  Retraining Validation     — deployment gate evaluation
- 9.  Deployment Approval       — gate-controlled deployment sign-off
-10.  Failure Analysis          — record and investigate failure events
-11.  Market Regime Analysis    — per-regime performance breakdown
+ 4.  Training Runs             — start / complete / fail training jobs
+ 5.  Validation                — deployment gate evaluation
+ 6.  Backtesting               — register backtest runs against experiments
+ 7.  Shadow Testing            — observe challenger QDE against champion without execution
+ 8.  Version Promotion         — gate-controlled deployment sign-off
+ 9.  Failure Analysis          — record and investigate failure events
+10.  Deployment Approval       — approve or reject deployment after gates pass
+11.  Parameter Search          — hyperparameter search runs
+12.  Model Comparison          — side-by-side benchmarking across QDE versions
+13.  Market Regime Analysis    — per-regime performance breakdown
 
-Endpoints:
-  Datasets:        create_dataset, get_dataset, list_datasets
-  Features:        record_feature, accept_feature, reject_feature, list_features
-  Experiments:     create_experiment, start_experiment, complete_experiment,
-                   fail_experiment, get_experiment, list_experiments,
-                   experiment_summary
-  Benchmarking:    run_benchmark, get_benchmark, list_benchmarks
-  Backtesting:     register_backtest, list_backtests
-  Parameters:      create_search, record_trial, complete_search, get_search, list_searches
-  Validation:      evaluate_deployment_gates, validate_retraining
-  Deployment:      approve_deployment, reject_deployment, deployment_history
-  Failure:         record_failure, investigate_failure, resolve_failure,
-                   list_failures, failure_summary
-  Regime:          analyze_regime, get_regime_report, list_regime_reports
-  Comparison:      compare_models, get_comparison, list_comparisons
+ACCESS MODEL
+------------
+All methods in this class are for administrator use only.
+This class is instantiated once in research_lab_server.py and is never imported
+by retail-facing code. No retail user may call these methods.
 """
 
 from __future__ import annotations
@@ -59,6 +51,10 @@ from trainer.research_lab.rl_models import (
     RegimeAnalysisReport,
     ResearchDataset,
     SearchStrategy,
+    ShadowDecisionRecord,
+    ShadowTestRecommendation,
+    ShadowTestRun,
+    ShadowTestStatus,
 )
 
 
@@ -101,6 +97,9 @@ class ResearchLabAPI:
     """Administrator-only Research Lab API.
 
     All stores are in-memory; extend with a database adapter for persistence.
+
+    This class is the sole internal implementation of all Research Lab
+    responsibilities. It is never imported by retail-facing code.
     """
 
     def __init__(self) -> None:
@@ -115,6 +114,25 @@ class ResearchLabAPI:
         self._regime_reports: dict[str, RegimeAnalysisReport] = {}
         self._comparisons: dict[str, ModelComparisonResult] = {}
         self._deployments: list[dict[str, Any]] = []
+        self._shadow_tests: dict[str, ShadowTestRun] = {}
+
+    # ── System Summary ────────────────────────────────────────────────────────
+
+    def system_summary(self) -> ApiResponse:
+        return _ok("system_summary", {
+            "datasets": len(self._datasets),
+            "features": len(self._features),
+            "experiments": len(self._experiments),
+            "benchmarks": len(self._benchmarks),
+            "backtests": len(self._backtests),
+            "parameter_searches": len(self._searches),
+            "deployment_gate_runs": len(self._gate_results),
+            "failures": len(self._failures),
+            "regime_reports": len(self._regime_reports),
+            "model_comparisons": len(self._comparisons),
+            "deployments": len(self._deployments),
+            "shadow_tests": len(self._shadow_tests),
+        })
 
     # ── 1. Datasets ───────────────────────────────────────────────────────────
 
@@ -133,16 +151,10 @@ class ResearchLabAPI:
     ) -> ApiResponse:
         try:
             ds = ResearchDataset.new(
-                name=name,
-                version=version,
-                source=source,
-                instruments=instruments,
-                start_date=start_date,
-                end_date=end_date,
-                row_count=row_count,
-                feature_count=feature_count,
-                tags=tags,
-                notes=notes,
+                name=name, version=version, source=source,
+                instruments=instruments, start_date=start_date, end_date=end_date,
+                row_count=row_count, feature_count=feature_count,
+                tags=tags, notes=notes,
             )
             self._datasets[ds.dataset_id] = ds
             logger.info(f"ResearchLab.create_dataset: {ds.dataset_id} ({ds.name} v{ds.version})")
@@ -162,13 +174,7 @@ class ResearchLabAPI:
 
     # ── 2. Feature Discovery ──────────────────────────────────────────────────
 
-    def record_feature(
-        self,
-        name: str,
-        category: str,
-        importance_score: float,
-        notes: str = "",
-    ) -> ApiResponse:
+    def record_feature(self, name: str, category: str, importance_score: float, notes: str = "") -> ApiResponse:
         try:
             feat = DiscoveredFeature.new(name, category, importance_score, notes=notes)
             self._features[feat.feature_id] = feat
@@ -202,7 +208,7 @@ class ResearchLabAPI:
         items.sort(key=lambda f: f.importance_score, reverse=True)
         return _ok("list_features", {"count": len(items), "features": [f.to_dict() for f in items]})
 
-    # ── 3. Experiment Tracking ────────────────────────────────────────────────
+    # ── 3 & 4. Experiment Tracking / Training Runs ────────────────────────────
 
     def create_experiment(
         self,
@@ -216,13 +222,8 @@ class ResearchLabAPI:
     ) -> ApiResponse:
         try:
             exp = ExperimentRecord.new(
-                name=name,
-                qde_version=qde_version,
-                training_dataset=training_dataset,
-                researcher=researcher,
-                tags=tags,
-                hyperparameters=hyperparameters,
-                notes=notes,
+                name=name, qde_version=qde_version, training_dataset=training_dataset,
+                researcher=researcher, tags=tags, hyperparameters=hyperparameters, notes=notes,
             )
             self._experiments[exp.experiment_id] = exp
             logger.info(f"ResearchLab.create_experiment: {exp.experiment_id} ({exp.name})")
@@ -237,12 +238,7 @@ class ResearchLabAPI:
         exp.start_training()
         return _ok("start_experiment", exp.to_dict())
 
-    def complete_experiment(
-        self,
-        experiment_id: str,
-        metrics: dict[str, float],
-        notes: str = "",
-    ) -> ApiResponse:
+    def complete_experiment(self, experiment_id: str, metrics: dict[str, float], notes: str = "") -> ApiResponse:
         exp = self._experiments.get(experiment_id)
         if not exp:
             return _err("complete_experiment", f"Experiment {experiment_id!r} not found")
@@ -295,7 +291,7 @@ class ResearchLabAPI:
             "best_experiment": best.to_dict() if best else None,
         })
 
-    # ── 4. Model Benchmarking ─────────────────────────────────────────────────
+    # ── Model Benchmarking ────────────────────────────────────────────────────
 
     def run_benchmark(
         self,
@@ -305,8 +301,8 @@ class ResearchLabAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            import uuid, time as _time
-            benchmark_id = f"bench-{str(uuid.uuid4())[:10]}"
+            import uuid as _uuid
+            benchmark_id = f"bench-{str(_uuid.uuid4())[:10]}"
             result = {
                 "benchmark_id": benchmark_id,
                 "name": name,
@@ -315,7 +311,7 @@ class ResearchLabAPI:
                     v: {k: round(val, 6) for k, val in m.items()}
                     for v, m in metrics_per_version.items()
                 },
-                "created_at": round(_time.time(), 3),
+                "created_at": round(time.time(), 3),
                 "notes": notes,
             }
             self._benchmarks[benchmark_id] = result
@@ -334,7 +330,7 @@ class ResearchLabAPI:
         items = sorted(self._benchmarks.values(), key=lambda b: b["created_at"], reverse=True)
         return _ok("list_benchmarks", {"count": len(items), "benchmarks": items})
 
-    # ── 5. Backtesting ────────────────────────────────────────────────────────
+    # ── 6. Backtesting ────────────────────────────────────────────────────────
 
     def register_backtest(
         self,
@@ -344,18 +340,17 @@ class ResearchLabAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            import uuid, time as _time
-            bt_id = f"bt-{str(uuid.uuid4())[:10]}"
+            import uuid as _uuid
+            bt_id = f"bt-{str(_uuid.uuid4())[:10]}"
             bt = {
                 "backtest_id": bt_id,
                 "experiment_id": experiment_id,
                 "dataset_id": dataset_id,
                 "metrics": {k: round(v, 6) for k, v in metrics.items()},
-                "created_at": round(_time.time(), 3),
+                "created_at": round(time.time(), 3),
                 "notes": notes,
             }
             self._backtests[bt_id] = bt
-            # Mirror key metrics back to experiment
             exp = self._experiments.get(experiment_id)
             if exp:
                 exp.validation_metrics.update(metrics)
@@ -373,11 +368,113 @@ class ResearchLabAPI:
             items = [b for b in items if b["experiment_id"] == experiment_id]
         return _ok("list_backtests", {"count": len(items), "backtests": items})
 
-    # ── 6. A/B Evaluation — proxied via QDE AB engine ─────────────────────────
-    # (Callers should use the QDE API's A/B endpoints directly; this method
-    #  records the research lab's own reference to A/B test decisions.)
+    # ── 7. Shadow Testing ─────────────────────────────────────────────────────
 
-    # ── 7. Parameter Search ───────────────────────────────────────────────────
+    def create_shadow_test(
+        self,
+        name: str,
+        challenger_version: str,
+        champion_version: str,
+        instruments: list[str],
+        min_decisions: int = 500,
+        notes: str = "",
+    ) -> ApiResponse:
+        """Create a new shadow test run.
+
+        The challenger receives live snapshots but its decisions are NEVER executed.
+        All comparison is observational only.
+        """
+        try:
+            run = ShadowTestRun.new(
+                name=name,
+                challenger_version=challenger_version,
+                champion_version=champion_version,
+                instruments=instruments,
+                min_decisions=min_decisions,
+                notes=notes,
+            )
+            self._shadow_tests[run.test_id] = run
+            logger.info(
+                f"ResearchLab.create_shadow_test: {run.test_id} "
+                f"challenger={challenger_version} champion={champion_version}"
+            )
+            return _ok("create_shadow_test", run.to_dict())
+        except Exception as exc:
+            return _err("create_shadow_test", str(exc))
+
+    def record_shadow_decision(
+        self,
+        test_id: str,
+        instrument: str,
+        champion_decision_type: str,
+        challenger_decision_type: str,
+        champion_confidence: float,
+        challenger_confidence: float,
+        regime: str = "",
+        market_context: dict[str, Any] | None = None,
+    ) -> ApiResponse:
+        """Record one decision comparison in a running shadow test."""
+        run = self._shadow_tests.get(test_id)
+        if not run:
+            return _err("record_shadow_decision", f"Shadow test {test_id!r} not found")
+        if run.status != ShadowTestStatus.RUNNING:
+            return _err("record_shadow_decision", f"Shadow test {test_id!r} is not RUNNING (status={run.status.value})")
+        record = ShadowDecisionRecord.new(
+            test_id=test_id,
+            instrument=instrument,
+            champion_decision_type=champion_decision_type,
+            challenger_decision_type=challenger_decision_type,
+            champion_confidence=champion_confidence,
+            challenger_confidence=challenger_confidence,
+            regime=regime,
+            market_context=market_context,
+        )
+        run.add_decision(record)
+        return _ok("record_shadow_decision", {
+            "record": record.to_dict(),
+            "total_decisions": len(run.decisions),
+            "decisions_remaining": max(0, run.min_decisions - len(run.decisions)),
+        })
+
+    def conclude_shadow_test(self, test_id: str, notes: str = "") -> ApiResponse:
+        """Conclude a shadow test and compute its recommendation."""
+        run = self._shadow_tests.get(test_id)
+        if not run:
+            return _err("conclude_shadow_test", f"Shadow test {test_id!r} not found")
+        if run.status != ShadowTestStatus.RUNNING:
+            return _err("conclude_shadow_test", f"Shadow test {test_id!r} is not RUNNING")
+        run.conclude(notes=notes)
+        logger.info(
+            f"ResearchLab.conclude_shadow_test: {test_id} "
+            f"decisions={run.total_decisions} "
+            f"agreement={run.agreement_rate:.1%} "
+            f"recommendation={run.recommendation.value}"
+        )
+        return _ok("conclude_shadow_test", run.to_dict())
+
+    def get_shadow_test(self, test_id: str) -> ApiResponse:
+        run = self._shadow_tests.get(test_id)
+        if not run:
+            return _err("get_shadow_test", f"Shadow test {test_id!r} not found")
+        return _ok("get_shadow_test", run.summary())
+
+    def list_shadow_tests(
+        self,
+        challenger_version: str | None = None,
+        status: str | None = None,
+    ) -> ApiResponse:
+        items = list(self._shadow_tests.values())
+        if challenger_version:
+            items = [r for r in items if r.challenger_version == challenger_version]
+        if status:
+            items = [r for r in items if r.status.value == status]
+        items.sort(key=lambda r: r.started_at, reverse=True)
+        return _ok("list_shadow_tests", {
+            "count": len(items),
+            "shadow_tests": [r.summary() for r in items],
+        })
+
+    # ── Parameter Search ──────────────────────────────────────────────────────
 
     def create_search(
         self,
@@ -392,14 +489,10 @@ class ResearchLabAPI:
     ) -> ApiResponse:
         try:
             run = ParameterSearchRun.new(
-                name=name,
-                strategy=SearchStrategy(strategy),
-                search_space=search_space,
-                objective=objective,
-                maximize=maximize,
-                n_trials=n_trials,
-                qde_version=qde_version,
-                notes=notes,
+                name=name, strategy=SearchStrategy(strategy),
+                search_space=search_space, objective=objective,
+                maximize=maximize, n_trials=n_trials,
+                qde_version=qde_version, notes=notes,
             )
             self._searches[run.search_id] = run
             logger.info(f"ResearchLab.create_search: {run.search_id} ({run.name})")
@@ -440,7 +533,7 @@ class ResearchLabAPI:
         items.sort(key=lambda s: s.created_at, reverse=True)
         return _ok("list_searches", {"count": len(items), "searches": [s.to_dict() for s in items]})
 
-    # ── 8. Retraining Validation ──────────────────────────────────────────────
+    # ── 5. Validation / Deployment Gates ──────────────────────────────────────
 
     def evaluate_deployment_gates(
         self,
@@ -473,13 +566,12 @@ class ResearchLabAPI:
         experiment_id: str,
         incumbent_experiment_id: str,
     ) -> ApiResponse:
-        """Validate that a retrained version is genuinely better than the incumbent."""
         return self.evaluate_deployment_gates(
             experiment_id=experiment_id,
             baseline_experiment_id=incumbent_experiment_id,
         )
 
-    # ── 9. Deployment Approval ────────────────────────────────────────────────
+    # ── 10. Deployment Approval ───────────────────────────────────────────────
 
     def approve_deployment(
         self,
@@ -513,12 +605,7 @@ class ResearchLabAPI:
         logger.info(f"ResearchLab.approve_deployment: {experiment_id} by {approver!r}")
         return _ok("approve_deployment", {"record": record, "experiment": exp.to_dict()})
 
-    def reject_deployment(
-        self,
-        experiment_id: str,
-        rejector: str,
-        reason: str,
-    ) -> ApiResponse:
+    def reject_deployment(self, experiment_id: str, rejector: str, reason: str) -> ApiResponse:
         exp = self._experiments.get(experiment_id)
         if not exp:
             return _err("reject_deployment", f"Experiment {experiment_id!r} not found")
@@ -537,7 +624,7 @@ class ResearchLabAPI:
     def deployment_history(self) -> ApiResponse:
         return _ok("deployment_history", {"count": len(self._deployments), "history": self._deployments})
 
-    # ── 10. Failure Analysis ──────────────────────────────────────────────────
+    # ── 9. Failure Analysis ───────────────────────────────────────────────────
 
     def record_failure(
         self,
@@ -568,18 +655,13 @@ class ResearchLabAPI:
             self._failures[event.failure_id] = event
             logger.warning(
                 f"ResearchLab.record_failure: {event.failure_id} "
-                f"[{event.severity.value}] {event.category.value} — {description[:60]}"
+                f"category={category} severity={severity} version={qde_version}"
             )
             return _ok("record_failure", event.to_dict())
         except ValueError as exc:
             return _err("record_failure", f"Invalid category or severity: {exc}")
 
-    def investigate_failure(
-        self,
-        failure_id: str,
-        root_cause: str,
-        notes: str = "",
-    ) -> ApiResponse:
+    def investigate_failure(self, failure_id: str, root_cause: str, notes: str = "") -> ApiResponse:
         event = self._failures.get(failure_id)
         if not event:
             return _err("investigate_failure", f"Failure {failure_id!r} not found")
@@ -589,12 +671,7 @@ class ResearchLabAPI:
             event.metadata["investigation_notes"] = notes
         return _ok("investigate_failure", event.to_dict())
 
-    def resolve_failure(
-        self,
-        failure_id: str,
-        resolution: str,
-        resolver: str = "",
-    ) -> ApiResponse:
+    def resolve_failure(self, failure_id: str, resolution: str, resolver: str = "") -> ApiResponse:
         event = self._failures.get(failure_id)
         if not event:
             return _err("resolve_failure", f"Failure {failure_id!r} not found")
@@ -602,6 +679,7 @@ class ResearchLabAPI:
         event.status = "RESOLVED"
         if resolver:
             event.metadata["resolver"] = resolver
+        logger.info(f"ResearchLab.resolve_failure: {failure_id}")
         return _ok("resolve_failure", event.to_dict())
 
     def list_failures(
@@ -624,24 +702,24 @@ class ResearchLabAPI:
         return _ok("list_failures", {"count": len(items), "failures": [f.to_dict() for f in items]})
 
     def failure_summary(self) -> ApiResponse:
-        items = list(self._failures.values())
-        by_cat: dict[str, int] = {}
-        by_sev: dict[str, int] = {}
+        failures = list(self._failures.values())
+        by_category: dict[str, int] = {}
+        by_severity: dict[str, int] = {}
         by_status: dict[str, int] = {}
-        for f in items:
-            by_cat[f.category.value] = by_cat.get(f.category.value, 0) + 1
-            by_sev[f.severity.value] = by_sev.get(f.severity.value, 0) + 1
+        for f in failures:
+            by_category[f.category.value] = by_category.get(f.category.value, 0) + 1
+            by_severity[f.severity.value] = by_severity.get(f.severity.value, 0) + 1
             by_status[f.status] = by_status.get(f.status, 0) + 1
-        critical = [f.to_dict() for f in items if f.severity == FailureSeverity.CRITICAL and f.status != "RESOLVED"]
         return _ok("failure_summary", {
-            "total": len(items),
-            "by_category": by_cat,
-            "by_severity": by_sev,
+            "total": len(failures),
+            "by_category": by_category,
+            "by_severity": by_severity,
             "by_status": by_status,
-            "open_critical": critical,
+            "open": by_status.get("OPEN", 0),
+            "critical": by_severity.get("CRITICAL", 0),
         })
 
-    # ── 11. Market Regime Analysis ────────────────────────────────────────────
+    # ── Market Regime Analysis ─────────────────────────────────────────────────
 
     def analyze_regime(
         self,
@@ -650,22 +728,18 @@ class ResearchLabAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            report = RegimeAnalysisReport.build(
-                qde_version=qde_version,
-                regime_results=regime_results,
-                notes=notes,
-            )
+            report = RegimeAnalysisReport.build(qde_version, regime_results, notes)
             self._regime_reports[report.report_id] = report
-            logger.info(f"ResearchLab.analyze_regime: {report.report_id} for {qde_version}")
+            logger.info(f"ResearchLab.analyze_regime: {report.report_id} version={qde_version}")
             return _ok("analyze_regime", report.to_dict())
         except Exception as exc:
             return _err("analyze_regime", str(exc))
 
     def get_regime_report(self, report_id: str) -> ApiResponse:
-        report = self._regime_reports.get(report_id)
-        if not report:
+        r = self._regime_reports.get(report_id)
+        if not r:
             return _err("get_regime_report", f"Report {report_id!r} not found")
-        return _ok("get_regime_report", report.to_dict())
+        return _ok("get_regime_report", r.to_dict())
 
     def list_regime_reports(self, qde_version: str | None = None) -> ApiResponse:
         items = list(self._regime_reports.values())
@@ -683,41 +757,19 @@ class ResearchLabAPI:
         notes: str = "",
     ) -> ApiResponse:
         try:
-            if len(version_ids) < 2:
-                return _err("compare_models", "At least two version IDs required for comparison")
-            result = ModelComparisonResult.build(
-                version_ids=version_ids,
-                metrics_per_version=metrics_per_version,
-                notes=notes,
-            )
+            result = ModelComparisonResult.build(version_ids, metrics_per_version, notes)
             self._comparisons[result.comparison_id] = result
-            logger.info(f"ResearchLab.compare_models: {result.comparison_id} ({len(version_ids)} versions)")
+            logger.info(f"ResearchLab.compare_models: {result.comparison_id} winner={result.overall_winner}")
             return _ok("compare_models", result.to_dict())
         except Exception as exc:
             return _err("compare_models", str(exc))
 
     def get_comparison(self, comparison_id: str) -> ApiResponse:
-        cmp = self._comparisons.get(comparison_id)
-        if not cmp:
+        c = self._comparisons.get(comparison_id)
+        if not c:
             return _err("get_comparison", f"Comparison {comparison_id!r} not found")
-        return _ok("get_comparison", cmp.to_dict())
+        return _ok("get_comparison", c.to_dict())
 
     def list_comparisons(self) -> ApiResponse:
         items = sorted(self._comparisons.values(), key=lambda c: c.created_at, reverse=True)
         return _ok("list_comparisons", {"count": len(items), "comparisons": [c.to_dict() for c in items]})
-
-    # ── System Summary ────────────────────────────────────────────────────────
-
-    def system_summary(self) -> ApiResponse:
-        return _ok("system_summary", {
-            "datasets": len(self._datasets),
-            "features": len(self._features),
-            "experiments": len(self._experiments),
-            "benchmarks": len(self._benchmarks),
-            "backtests": len(self._backtests),
-            "parameter_searches": len(self._searches),
-            "gate_evaluations": len(self._gate_results),
-            "failures": len(self._failures),
-            "regime_reports": len(self._regime_reports),
-            "comparisons": len(self._comparisons),
-        })

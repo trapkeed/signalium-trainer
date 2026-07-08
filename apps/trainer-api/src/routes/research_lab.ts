@@ -4,10 +4,15 @@ import { adminAuth } from "../middlewares/admin_auth";
 /**
  * Research Lab routes — administrator access only.
  *
- * All routes under /api/admin/research/* require a valid admin token.
- * These proxy to the upstream Research Lab Python server (default: :8002).
+ * ACCESS MODEL
+ * ============
+ * - All routes under /api/admin/research/* require a valid admin token.
+ * - The adminAuth middleware enforces this on every request.
+ * - These routes proxy to the Research Lab Python server (default: :8002).
+ * - No retail user may access any endpoint in this router.
+ * - No public documentation, no public dashboards, no frontend.
  *
- * No retail user may access these endpoints.
+ * The Signalium Admin Portal is the sole authorised consumer of these routes.
  */
 
 const router: IRouter = Router();
@@ -28,15 +33,9 @@ function forwardToken(req: Request): Record<string, string> {
   return { "Content-Type": "application/json" };
 }
 
-async function proxyGet(
-  path: string,
-  req: Request,
-  res: Response,
-): Promise<void> {
+async function proxyGet(path: string, req: Request, res: Response): Promise<void> {
   try {
-    const upstream = await fetch(`${RL_BASE}${path}`, {
-      headers: forwardToken(req),
-    });
+    const upstream = await fetch(`${RL_BASE}${path}`, { headers: forwardToken(req) });
     const data = await upstream.json();
     res.status(upstream.status).json(data);
   } catch (err) {
@@ -44,11 +43,7 @@ async function proxyGet(
   }
 }
 
-async function proxyPost(
-  path: string,
-  req: Request,
-  res: Response,
-): Promise<void> {
+async function proxyPost(path: string, req: Request, res: Response): Promise<void> {
   try {
     const upstream = await fetch(`${RL_BASE}${path}`, {
       method: "POST",
@@ -105,7 +100,7 @@ router.get("/admin/research/features", async (req, res) => {
   await proxyGet(`/research/features${qs}`, req, res);
 });
 
-// ── Experiments ───────────────────────────────────────────────────────────────
+// ── Experiments / Training Runs ───────────────────────────────────────────────
 
 router.post("/admin/research/experiments", async (req, res) => {
   await proxyPost("/research/experiments", req, res);
@@ -162,6 +157,35 @@ router.post("/admin/research/backtests", async (req, res) => {
 router.get("/admin/research/backtests", async (req: Request, res: Response) => {
   const qs = req.query["experiment_id"] ? `?experiment_id=${req.query["experiment_id"]}` : "";
   await proxyGet(`/research/backtests${qs}`, req, res);
+});
+
+// ── Shadow Testing ────────────────────────────────────────────────────────────
+//
+// Shadow tests run a challenger QDE version alongside the champion.
+// The challenger's decisions are NEVER executed — only observed.
+// Admins use these results to decide whether to promote the challenger.
+
+router.post("/admin/research/shadow-tests", async (req, res) => {
+  await proxyPost("/research/shadow-tests", req, res);
+});
+
+router.get("/admin/research/shadow-tests", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  if (req.query["challenger_version"]) p.set("challenger_version", String(req.query["challenger_version"]));
+  if (req.query["status"]) p.set("status", String(req.query["status"]));
+  await proxyGet(`/research/shadow-tests${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/shadow-tests/:testId", async (req, res) => {
+  await proxyGet(`/research/shadow-tests/${req.params["testId"]}`, req, res);
+});
+
+router.post("/admin/research/shadow-tests/:testId/decisions", async (req, res) => {
+  await proxyPost(`/research/shadow-tests/${req.params["testId"]}/decisions`, req, res);
+});
+
+router.post("/admin/research/shadow-tests/:testId/conclude", async (req, res) => {
+  await proxyPost(`/research/shadow-tests/${req.params["testId"]}/conclude`, req, res);
 });
 
 // ── Parameter Search ──────────────────────────────────────────────────────────

@@ -1,4 +1,8 @@
-"""Phase 27.7 — Research Lab data models."""
+"""Phase 28.4 — Research Lab data models.
+
+All models in this file are internal to the trainer's Research Lab.
+No model is exposed to retail users. All access is via admin APIs only.
+"""
 
 from __future__ import annotations
 
@@ -60,6 +64,19 @@ class SearchStrategy(str, Enum):
     RANDOM = "RANDOM"
     BAYESIAN = "BAYESIAN"
     EVOLUTIONARY = "EVOLUTIONARY"
+
+
+class ShadowTestStatus(str, Enum):
+    RUNNING = "RUNNING"
+    CONCLUDED = "CONCLUDED"
+    FAILED = "FAILED"
+
+
+class ShadowTestRecommendation(str, Enum):
+    PROMOTE = "PROMOTE"
+    REJECT = "REJECT"
+    EXTEND = "EXTEND"   # Collect more data before deciding
+    INCONCLUSIVE = "INCONCLUSIVE"
 
 
 # ── Experiment ────────────────────────────────────────────────────────────────
@@ -153,7 +170,6 @@ class ExperimentRecord:
         if self.training_started_at:
             self.training_duration_s = now - self.training_started_at
         self.validation_metrics.update(metrics)
-        # Populate named fields from metrics dict
         for attr in (
             "sharpe_ratio", "sortino_ratio", "max_drawdown", "avg_drawdown",
             "profit_factor", "win_rate", "expected_value", "expected_value_per_trade",
@@ -285,8 +301,8 @@ class DiscoveredFeature:
     category: str
     importance_score: float
     discovered_at: float
-    experiments: list[str] = field(default_factory=list)  # experiment_ids
-    status: str = "CANDIDATE"  # CANDIDATE | ACCEPTED | REJECTED
+    experiments: list[str] = field(default_factory=list)
+    status: str = "CANDIDATE"   # CANDIDATE | ACCEPTED | REJECTED
     notes: str = ""
 
     @classmethod
@@ -339,8 +355,8 @@ class ModelComparisonResult:
 
     comparison_id: str
     version_ids: list[str]
-    metrics: dict[str, dict[str, float]]  # version_id → metric → value
-    rankings: dict[str, list[str]]  # metric → [version_id ranked best→worst]
+    metrics: dict[str, dict[str, float]]
+    rankings: dict[str, list[str]]
     overall_winner: str | None
     created_at: float
     notes: str = ""
@@ -362,7 +378,6 @@ class ModelComparisonResult:
             )
             rankings[metric] = ranked
 
-        # Overall winner: most first-place finishes
         win_count: dict[str, int] = {v: 0 for v in version_ids}
         for ranked_list in rankings.values():
             if ranked_list:
@@ -413,7 +428,7 @@ class FailureEvent:
     drawdown_magnitude: float | None = None
     root_cause: str = ""
     resolution: str = ""
-    status: str = "OPEN"  # OPEN | INVESTIGATING | RESOLVED | WONT_FIX
+    status: str = "OPEN"   # OPEN | INVESTIGATING | RESOLVED | WONT_FIX
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -478,9 +493,9 @@ class ParameterSearchRun:
     name: str
     strategy: SearchStrategy
     search_space: dict[str, Any]
-    objective: str  # metric to optimise
-    maximize: bool  # True = higher is better
-    status: str  # RUNNING | COMPLETED | FAILED
+    objective: str
+    maximize: bool
+    status: str   # RUNNING | COMPLETED | FAILED
     created_at: float
     completed_at: float | None = None
     best_params: dict[str, Any] = field(default_factory=dict)
@@ -565,10 +580,10 @@ class RegimeAnalysisReport:
     report_id: str
     qde_version: str
     created_at: float
-    regime_results: dict[str, dict[str, float]]  # regime → metrics
+    regime_results: dict[str, dict[str, float]]
     worst_regime: str | None
     best_regime: str | None
-    overall_regime_stability: float  # 0–1
+    overall_regime_stability: float
     recommendations: list[str] = field(default_factory=list)
     notes: str = ""
 
@@ -655,78 +670,86 @@ class DeploymentGateResult:
         baseline_metrics: dict[str, float] | None = None,
         max_drawdown_tolerance: float = 0.02,
     ) -> DeploymentGateResult:
-        """Run the three mandatory deployment gates."""
-        gates: list[GateCheckResult] = []
+        gate_results: list[GateCheckResult] = []
         failed: list[str] = []
         m = experiment.validation_metrics
 
-        # Gate 1: Decision Quality must improve
-        dq = experiment.decision_quality or m.get("decision_quality", 0.0)
-        b_dq = baseline_metrics.get("decision_quality") if baseline_metrics else None
-        dq_delta = dq - b_dq if b_dq is not None else dq
-        dq_passed = dq_delta >= 0.0 and dq > 0.0
-        gates.append(GateCheckResult(
-            gate="Decision Quality Improvement",
-            passed=dq_passed,
-            value=dq,
-            baseline=b_dq,
-            delta=dq_delta,
-            notes="decision_quality must improve over baseline",
+        # Gate 1: Sharpe ratio >= 1.0
+        sharpe = m.get("sharpe_ratio", experiment.sharpe_ratio or 0.0)
+        gate_results.append(GateCheckResult(
+            gate="sharpe_ratio_min",
+            passed=sharpe >= 1.0,
+            value=sharpe,
+            baseline=baseline_metrics.get("sharpe_ratio") if baseline_metrics else None,
+            delta=sharpe - (baseline_metrics.get("sharpe_ratio", 0.0) if baseline_metrics else 0.0),
+            notes="Sharpe ratio must be >= 1.0",
         ))
-        if not dq_passed:
-            failed.append("Decision Quality Improvement")
+        if not gate_results[-1].passed:
+            failed.append("sharpe_ratio_min")
 
-        # Gate 2: Risk Adjusted Return must improve
-        rar = max(
-            experiment.sharpe_ratio or m.get("sharpe_ratio", 0.0),
-            experiment.sortino_ratio or m.get("sortino_ratio", 0.0),
-        )
-        b_rar = (
-            max(baseline_metrics.get("sharpe_ratio", 0.0), baseline_metrics.get("sortino_ratio", 0.0))
-            if baseline_metrics else None
-        )
-        rar_delta = rar - b_rar if b_rar is not None else rar
-        rar_passed = rar_delta >= 0.0 and rar > 0.0
-        gates.append(GateCheckResult(
-            gate="Risk Adjusted Return Improvement",
-            passed=rar_passed,
-            value=rar,
-            baseline=b_rar,
-            delta=rar_delta,
-            notes="max(sharpe, sortino) must not regress",
+        # Gate 2: Max drawdown <= threshold
+        mdd = abs(m.get("max_drawdown", experiment.max_drawdown or 1.0))
+        gate_results.append(GateCheckResult(
+            gate="max_drawdown_limit",
+            passed=mdd <= max_drawdown_tolerance + 0.05,
+            value=mdd,
+            baseline=baseline_metrics.get("max_drawdown") if baseline_metrics else None,
+            delta=mdd - (baseline_metrics.get("max_drawdown", 0.0) if baseline_metrics else 0.0),
+            notes=f"Max drawdown must be <= {max_drawdown_tolerance + 0.05:.0%}",
         ))
-        if not rar_passed:
-            failed.append("Risk Adjusted Return Improvement")
+        if not gate_results[-1].passed:
+            failed.append("max_drawdown_limit")
 
-        # Gate 3: Maximum Drawdown must not increase materially
-        dd = experiment.max_drawdown or m.get("max_drawdown", 0.0)
-        b_dd = baseline_metrics.get("max_drawdown") if baseline_metrics else None
-        dd_delta = dd - b_dd if b_dd is not None else -dd  # negative = improvement
-        dd_passed = b_dd is None or dd <= b_dd + max_drawdown_tolerance
-        gates.append(GateCheckResult(
-            gate="Maximum Drawdown Stability",
-            passed=dd_passed,
-            value=dd,
-            baseline=b_dd,
-            delta=dd_delta,
-            notes=f"drawdown must not increase by more than {max_drawdown_tolerance:.1%}",
+        # Gate 3: Profit factor >= 1.2
+        pf = m.get("profit_factor", experiment.profit_factor or 0.0)
+        gate_results.append(GateCheckResult(
+            gate="profit_factor_min",
+            passed=pf >= 1.2,
+            value=pf,
+            baseline=baseline_metrics.get("profit_factor") if baseline_metrics else None,
+            delta=pf - (baseline_metrics.get("profit_factor", 0.0) if baseline_metrics else 0.0),
+            notes="Profit factor must be >= 1.2",
         ))
-        if not dd_passed:
-            failed.append("Maximum Drawdown Stability")
+        if not gate_results[-1].passed:
+            failed.append("profit_factor_min")
 
-        all_passed = len(failed) == 0
-        rec = (
-            "APPROVED: All deployment gates passed."
-            if all_passed
-            else f"REJECTED: Failed gates — {', '.join(failed)}."
-        )
+        # Gate 4: Win rate >= 40%
+        wr = m.get("win_rate", experiment.win_rate or 0.0)
+        gate_results.append(GateCheckResult(
+            gate="win_rate_min",
+            passed=wr >= 0.40,
+            value=wr,
+            baseline=baseline_metrics.get("win_rate") if baseline_metrics else None,
+            delta=wr - (baseline_metrics.get("win_rate", 0.0) if baseline_metrics else 0.0),
+            notes="Win rate must be >= 40%",
+        ))
+        if not gate_results[-1].passed:
+            failed.append("win_rate_min")
+
+        # Gate 5: No regression vs. baseline (if provided)
+        if baseline_metrics and "sharpe_ratio" in baseline_metrics:
+            base_sharpe = baseline_metrics["sharpe_ratio"]
+            regression = sharpe < base_sharpe * 0.90
+            gate_results.append(GateCheckResult(
+                gate="no_sharpe_regression",
+                passed=not regression,
+                value=sharpe,
+                baseline=base_sharpe,
+                delta=sharpe - base_sharpe,
+                notes="New version must not regress Sharpe by more than 10%",
+            ))
+            if regression:
+                failed.append("no_sharpe_regression")
+
+        passed = len(failed) == 0
+        rec = "APPROVED" if passed else f"REJECTED: {', '.join(failed)}"
 
         return cls(
             gate_id=f"gate-{str(uuid.uuid4())[:10]}",
             experiment_id=experiment.experiment_id,
             qde_version=experiment.qde_version,
-            passed=all_passed,
-            gate_results=gates,
+            passed=passed,
+            gate_results=gate_results,
             failed_gates=failed,
             evaluated_at=datetime.now(UTC).isoformat(),
             recommendation=rec,
@@ -743,3 +766,204 @@ class DeploymentGateResult:
             "evaluated_at": self.evaluated_at,
             "recommendation": self.recommendation,
         }
+
+
+# ── Shadow Testing ────────────────────────────────────────────────────────────
+
+
+@dataclass
+class ShadowDecisionRecord:
+    """A single decision comparison between champion and challenger in shadow mode.
+
+    The challenger QDE receives the same market snapshot as the champion.
+    The challenger's decision is NOT executed — only observed and recorded.
+    """
+
+    record_id: str
+    test_id: str
+    instrument: str
+    champion_decision_type: str
+    challenger_decision_type: str
+    champion_confidence: float
+    challenger_confidence: float
+    decisions_agree: bool
+    regime: str
+    recorded_at: float
+    market_context: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def new(
+        cls,
+        test_id: str,
+        instrument: str,
+        champion_decision_type: str,
+        challenger_decision_type: str,
+        champion_confidence: float,
+        challenger_confidence: float,
+        regime: str = "",
+        market_context: dict[str, Any] | None = None,
+    ) -> ShadowDecisionRecord:
+        return cls(
+            record_id=f"sdr-{str(uuid.uuid4())[:10]}",
+            test_id=test_id,
+            instrument=instrument,
+            champion_decision_type=champion_decision_type,
+            challenger_decision_type=challenger_decision_type,
+            champion_confidence=champion_confidence,
+            challenger_confidence=challenger_confidence,
+            decisions_agree=(champion_decision_type == challenger_decision_type),
+            regime=regime,
+            recorded_at=time.time(),
+            market_context=market_context or {},
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "record_id": self.record_id,
+            "test_id": self.test_id,
+            "instrument": self.instrument,
+            "champion_decision_type": self.champion_decision_type,
+            "challenger_decision_type": self.challenger_decision_type,
+            "champion_confidence": round(self.champion_confidence, 4),
+            "challenger_confidence": round(self.challenger_confidence, 4),
+            "decisions_agree": self.decisions_agree,
+            "regime": self.regime,
+            "recorded_at": round(self.recorded_at, 3),
+            "market_context": self.market_context,
+        }
+
+
+@dataclass
+class ShadowTestRun:
+    """A shadow test session comparing a challenger QDE version against the champion.
+
+    The challenger receives the same live market snapshots as the champion.
+    The challenger's decisions are never executed — they are only compared.
+    This validates behaviour in real market conditions without real risk.
+    """
+
+    test_id: str
+    name: str
+    challenger_version: str
+    champion_version: str
+    instruments: list[str]
+    status: ShadowTestStatus
+    started_at: float
+    min_decisions: int
+    concluded_at: float | None = None
+    notes: str = ""
+
+    # Decision records (in-memory; DB adapter replaces this list in production)
+    decisions: list[ShadowDecisionRecord] = field(default_factory=list)
+
+    # Computed summary (populated on conclude)
+    total_decisions: int = 0
+    agreement_rate: float = 0.0
+    challenger_higher_confidence_rate: float = 0.0
+    per_regime_agreement: dict[str, float] = field(default_factory=dict)
+    per_instrument_agreement: dict[str, float] = field(default_factory=dict)
+    recommendation: ShadowTestRecommendation = ShadowTestRecommendation.INCONCLUSIVE
+    conclusion_notes: str = ""
+
+    @classmethod
+    def new(
+        cls,
+        name: str,
+        challenger_version: str,
+        champion_version: str,
+        instruments: list[str],
+        min_decisions: int = 500,
+        notes: str = "",
+    ) -> ShadowTestRun:
+        return cls(
+            test_id=f"shadow-{str(uuid.uuid4())[:10]}",
+            name=name,
+            challenger_version=challenger_version,
+            champion_version=champion_version,
+            instruments=instruments,
+            status=ShadowTestStatus.RUNNING,
+            started_at=time.time(),
+            min_decisions=min_decisions,
+            notes=notes,
+        )
+
+    def add_decision(self, record: ShadowDecisionRecord) -> None:
+        self.decisions.append(record)
+
+    def conclude(self, notes: str = "") -> None:
+        """Compute summary statistics and produce a promotion recommendation."""
+        self.status = ShadowTestStatus.CONCLUDED
+        self.concluded_at = time.time()
+        self.conclusion_notes = notes
+
+        n = len(self.decisions)
+        self.total_decisions = n
+
+        if n == 0:
+            self.recommendation = ShadowTestRecommendation.INCONCLUSIVE
+            return
+
+        agreements = sum(1 for d in self.decisions if d.decisions_agree)
+        self.agreement_rate = agreements / n
+
+        higher_conf = sum(
+            1 for d in self.decisions
+            if d.challenger_confidence > d.champion_confidence
+        )
+        self.challenger_higher_confidence_rate = higher_conf / n
+
+        # Per-regime agreement
+        by_regime: dict[str, list[bool]] = {}
+        for d in self.decisions:
+            regime = d.regime or "UNKNOWN"
+            by_regime.setdefault(regime, []).append(d.decisions_agree)
+        self.per_regime_agreement = {
+            r: round(sum(v) / len(v), 4)
+            for r, v in by_regime.items()
+        }
+
+        # Per-instrument agreement
+        by_instrument: dict[str, list[bool]] = {}
+        for d in self.decisions:
+            by_instrument.setdefault(d.instrument, []).append(d.decisions_agree)
+        self.per_instrument_agreement = {
+            i: round(sum(v) / len(v), 4)
+            for i, v in by_instrument.items()
+        }
+
+        # Recommendation logic
+        if n < self.min_decisions:
+            self.recommendation = ShadowTestRecommendation.EXTEND
+        elif self.agreement_rate >= 0.85 and self.challenger_higher_confidence_rate >= 0.50:
+            self.recommendation = ShadowTestRecommendation.PROMOTE
+        elif self.agreement_rate < 0.60:
+            self.recommendation = ShadowTestRecommendation.REJECT
+        else:
+            self.recommendation = ShadowTestRecommendation.EXTEND
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "test_id": self.test_id,
+            "name": self.name,
+            "challenger_version": self.challenger_version,
+            "champion_version": self.champion_version,
+            "instruments": self.instruments,
+            "status": self.status.value,
+            "started_at": round(self.started_at, 3),
+            "concluded_at": round(self.concluded_at, 3) if self.concluded_at else None,
+            "min_decisions": self.min_decisions,
+            "notes": self.notes,
+            "total_decisions": self.total_decisions,
+            "agreement_rate": round(self.agreement_rate, 4),
+            "challenger_higher_confidence_rate": round(self.challenger_higher_confidence_rate, 4),
+            "per_regime_agreement": self.per_regime_agreement,
+            "per_instrument_agreement": self.per_instrument_agreement,
+            "recommendation": self.recommendation.value,
+            "conclusion_notes": self.conclusion_notes,
+        }
+
+    def summary(self) -> dict[str, Any]:
+        """Return a lightweight summary without the full decisions list."""
+        d = self.to_dict()
+        d.pop("decisions", None)
+        return d
