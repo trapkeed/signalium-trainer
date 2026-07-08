@@ -18,3 +18,9 @@ id = "E75iwA6akGXKM3ySymsUW"
 uri = "file://docs/qde_architectural_violations.md"
 type = "text"
 title = "QDE Architectural Violations Report"
+
+[[outputs]]
+id = "KscTJt9kf0TbGBLCyRsQU"
+uri = "file://docs/architecture_audit_v2.md"
+type = "text"
+title = "Signalium Trainer 2.0 — Architecture Audit & Migration Plan"
