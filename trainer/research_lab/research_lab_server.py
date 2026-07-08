@@ -297,6 +297,14 @@ class ConcludeShadowTestRequest(BaseModel):
     notes: str = ""
 
 
+class CreateNoteRequest(BaseModel):
+    content: str
+    author: str = ""
+    linked_entity_type: str = ""
+    linked_entity_id: str = ""
+    tags: list[str] = []
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 
@@ -764,3 +772,32 @@ def list_shadow_tests(
     _: None = Depends(_require_admin),
 ) -> dict:
     return _respond(_api.list_shadow_tests(challenger_version=challenger_version, status=status))
+
+
+# ── Research Notes ────────────────────────────────────────────────────────────
+
+
+@app.post("/research/notes")
+def create_note(req: CreateNoteRequest, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.create_note(**req.model_dump()))
+
+
+@app.get("/research/notes")
+def list_notes(
+    author: str | None = None,
+    linked_entity_type: str | None = None,
+    linked_entity_id: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.list_notes(
+            author=author,
+            linked_entity_type=linked_entity_type,
+            linked_entity_id=linked_entity_id,
+        )
+    )
+
+
+@app.get("/research/notes/{note_id}")
+def get_note(note_id: str, _: None = Depends(_require_admin)) -> dict:
+    return _respond(_api.get_note(note_id))

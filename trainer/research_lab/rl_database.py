@@ -187,6 +187,19 @@ CREATE TABLE IF NOT EXISTS benchmarks (
     created_at   REAL NOT NULL,
     data_json    TEXT NOT NULL DEFAULT '{}'
 );
+
+-- Research notes (standalone, addressable notes; not embedded in other records)
+CREATE TABLE IF NOT EXISTS research_notes (
+    note_id            TEXT PRIMARY KEY,
+    author             TEXT NOT NULL DEFAULT '',
+    linked_entity_type TEXT NOT NULL DEFAULT '',
+    linked_entity_id   TEXT NOT NULL DEFAULT '',
+    created_at         REAL NOT NULL,
+    data_json          TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_research_notes_author ON research_notes(author);
+CREATE INDEX IF NOT EXISTS idx_research_notes_linked_entity
+    ON research_notes(linked_entity_type, linked_entity_id);
 """
 
 
@@ -800,6 +813,58 @@ class ResearchLabDatabase:
         ).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Research Notes ─────────────────────────────────────────────────────────
+
+    def upsert_research_note(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO research_notes
+                (note_id, author, linked_entity_type, linked_entity_id, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(note_id) DO UPDATE SET
+                author             = excluded.author,
+                linked_entity_type = excluded.linked_entity_type,
+                linked_entity_id   = excluded.linked_entity_id,
+                data_json          = excluded.data_json
+            """,
+            (
+                record["note_id"],
+                record.get("author", ""),
+                record.get("linked_entity_type", ""),
+                record.get("linked_entity_id", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_research_note(self, note_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM research_notes WHERE note_id = ?", (note_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_research_notes(
+        self,
+        author: str | None = None,
+        linked_entity_type: str | None = None,
+        linked_entity_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT data_json FROM research_notes WHERE 1=1"
+        params: list[Any] = []
+        if author:
+            query += " AND author = ?"
+            params.append(author)
+        if linked_entity_type:
+            query += " AND linked_entity_type = ?"
+            params.append(linked_entity_type)
+        if linked_entity_id:
+            query += " AND linked_entity_id = ?"
+            params.append(linked_entity_id)
+        query += " ORDER BY created_at DESC"
+        rows = self._conn.execute(query, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
@@ -819,6 +884,7 @@ class ResearchLabDatabase:
             "regime_reports",
             "features",
             "benchmarks",
+            "research_notes",
         ]
         result: dict[str, int] = {}
         for table in tables:

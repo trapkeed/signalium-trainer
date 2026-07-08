@@ -57,6 +57,7 @@ from trainer.research_lab.rl_models import (
     ParameterSearchRun,
     RegimeAnalysisReport,
     ResearchDataset,
+    ResearchNote,
     RollbackRequest,
     RollbackStatus,
     SearchStrategy,
@@ -1226,3 +1227,48 @@ class ResearchLabAPI:
     def list_comparisons(self) -> ApiResponse:
         items = self._db.list_comparisons()
         return _ok("list_comparisons", {"comparisons": items, "total": len(items)})
+
+    # ── 13. Research Notes ────────────────────────────────────────────────────
+
+    def create_note(
+        self,
+        content: str,
+        author: str = "",
+        linked_entity_type: str = "",
+        linked_entity_id: str = "",
+        tags: list[str] | None = None,
+    ) -> ApiResponse:
+        try:
+            if not content:
+                return _err("create_note", "content is required")
+            note = ResearchNote.new(
+                content=content,
+                author=author,
+                linked_entity_type=linked_entity_type,
+                linked_entity_id=linked_entity_id,
+                tags=tags,
+            )
+            self._db.upsert_research_note(note.to_dict())
+            logger.info(f"ResearchLab.create_note: {note.note_id} author={author!r}")
+            return _ok("create_note", note.to_dict())
+        except Exception as exc:
+            return _err("create_note", str(exc))
+
+    def get_note(self, note_id: str) -> ApiResponse:
+        record = self._db.get_research_note(note_id)
+        if not record:
+            return _err("get_note", f"Note {note_id!r} not found")
+        return _ok("get_note", record)
+
+    def list_notes(
+        self,
+        author: str | None = None,
+        linked_entity_type: str | None = None,
+        linked_entity_id: str | None = None,
+    ) -> ApiResponse:
+        items = self._db.list_research_notes(
+            author=author,
+            linked_entity_type=linked_entity_type,
+            linked_entity_id=linked_entity_id,
+        )
+        return _ok("list_notes", {"notes": items, "total": len(items)})

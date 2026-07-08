@@ -1217,3 +1217,56 @@ class DatasetGenerationJob:
         d = self.to_dict()
         d.pop("decisions", None)
         return d
+
+
+# ── Research Notes ──────────────────────────────────────────────────────────
+
+
+@dataclass
+class ResearchNote:
+    """A standalone, addressable research note.
+
+    Notes are first-class persisted entities — not embedded fields on other
+    records. They may optionally reference another entity (e.g. an experiment
+    or a failure) via linked_entity_type / linked_entity_id, but they can
+    also stand alone as free-form research commentary.
+    """
+
+    note_id: str
+    content: str
+    created_at: float
+    author: str = ""
+    linked_entity_type: str = ""
+    linked_entity_id: str = ""
+    tags: list[str] = field(default_factory=list)
+
+    @classmethod
+    def new(
+        cls,
+        content: str,
+        author: str = "",
+        linked_entity_type: str = "",
+        linked_entity_id: str = "",
+        tags: list[str] | None = None,
+    ) -> ResearchNote:
+        return cls(
+            note_id=f"note-{str(uuid.uuid4())[:12]}",
+            content=content,
+            created_at=time.time(),
+            author=author,
+            linked_entity_type=linked_entity_type,
+            linked_entity_id=linked_entity_id,
+            tags=tags or [],
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "note_id": self.note_id,
+            "content": self.content,
+            "created_at": round(self.created_at, 3),
+            "created_at_iso": datetime.fromtimestamp(self.created_at, tz=UTC).isoformat(),
+            "author": self.author,
+            "linked_entity_type": self.linked_entity_type,
+            "linked_entity_id": self.linked_entity_id,
+            "tags": self.tags,
+        }
