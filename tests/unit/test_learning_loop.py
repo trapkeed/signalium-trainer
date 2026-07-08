@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -111,8 +112,14 @@ from trainer.learning_loop.actuators import (  # noqa: E402
     ActionType,
     ActuatorAction,
     ActuatorCycleResult,
+    CapitalUtilizationReport,
     LearningLoopActuator,
+    ScalingOutcome,
+    ScalingReport,
+    SlippageRecord,
+    SlippageReport,
 )
+from trainer.learning_loop.scheduler import LearningLoopScheduler  # noqa: E402
 
 
 def _make_actuator() -> LearningLoopActuator:
@@ -580,6 +587,287 @@ class TestNoDirectMutationGuarantee(unittest.TestCase):
         for action in actions:
             if action.action_type == ActionType.RETRAINING_RECOMMENDATION:
                 self.assertIn("ADVISORY ONLY", str(action.detail))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 9. ExecutionFills → SlippageReport
+# ══════════════════════════════════════════════════════════════════════════
+class TestSlippageReportActuator(unittest.TestCase):
+
+    def setUp(self):
+        self.actuator = _make_actuator()
+
+    def _record(self, adverse_atr: float, instrument: str = "EURUSD") -> SlippageRecord:
+        # BUY where actual > expected by adverse_atr * atr is adverse slippage.
+        atr = 0.0010
+        return SlippageRecord(
+            instrument=instrument,
+            direction="BUY",
+            expected_price=1.1000,
+            actual_price=1.1000 + adverse_atr * atr,
+            atr=atr,
+        )
+
+    def test_systematic_adverse_slippage_triggers_investigation_and_search(self):
+        records = [self._record(0.30) for _ in range(6)] + [self._record(0.01) for _ in range(2)]
+        report = SlippageReport(records=records)
+        actions = self.actuator.act_on_slippage_report(report)
+        investigations = [a for a in actions if a.action_type == ActionType.INVESTIGATION]
+        searches = [a for a in actions if a.action_type == ActionType.PARAMETER_SEARCH]
+        self.assertEqual(len(investigations), 1)
+        self.assertEqual(len(searches), 1)
+        self.assertTrue(all(a.success for a in actions))
+
+    def test_below_sample_threshold_produces_no_action(self):
+        report = SlippageReport(records=[self._record(0.5) for _ in range(3)])
+        actions = self.actuator.act_on_slippage_report(report)
+        self.assertEqual(actions, [])
+
+    def test_mostly_clean_fills_produce_no_action(self):
+        records = [self._record(0.01) for _ in range(9)] + [self._record(0.5) for _ in range(1)]
+        report = SlippageReport(records=records)
+        actions = self.actuator.act_on_slippage_report(report)
+        self.assertEqual(actions, [])
+
+    def test_slippage_atr_direction_handling(self):
+        buy_adverse = SlippageRecord(
+            instrument="EURUSD", direction="BUY", expected_price=1.1000, actual_price=1.1010, atr=0.0010
+        )
+        sell_adverse = SlippageRecord(
+            instrument="EURUSD", direction="SELL", expected_price=1.1000, actual_price=1.0990, atr=0.0010
+        )
+        self.assertAlmostEqual(buy_adverse.slippage_atr(), 1.0)
+        self.assertAlmostEqual(sell_adverse.slippage_atr(), 1.0)
+
+    def test_zero_atr_is_safe(self):
+        rec = SlippageRecord(instrument="EURUSD", direction="BUY", expected_price=1.1, actual_price=1.11, atr=0.0)
+        self.assertEqual(rec.slippage_atr(), 0.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 10. TradeManager → ScalingReport
+# ══════════════════════════════════════════════════════════════════════════
+class TestScalingReportActuator(unittest.TestCase):
+
+    def setUp(self):
+        self.actuator = _make_actuator()
+
+    def test_failing_scale_in_triggers_investigation_and_shadow_candidate(self):
+        outcomes = [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=-0.002
+            )
+            for _ in range(6)
+        ] + [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=0.001
+            )
+            for _ in range(2)
+        ]
+        report = ScalingReport(outcomes=outcomes)
+        actions = self.actuator.act_on_scaling_report(report)
+        investigations = [a for a in actions if a.action_type == ActionType.INVESTIGATION]
+        shadow = [a for a in actions if a.action_type == ActionType.SHADOW_CANDIDATE]
+        self.assertEqual(len(investigations), 1)
+        self.assertEqual(len(shadow), 1)
+        self.assertTrue(all(a.success for a in actions))
+
+    def test_below_sample_threshold_produces_no_action(self):
+        outcomes = [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_OUT", confidence_at_action=0.8, pnl_impact=-0.01
+            )
+            for _ in range(3)
+        ]
+        report = ScalingReport(outcomes=outcomes)
+        actions = self.actuator.act_on_scaling_report(report)
+        self.assertEqual(actions, [])
+
+    def test_profitable_scaling_produces_no_action(self):
+        outcomes = [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=0.005
+            )
+            for _ in range(8)
+        ]
+        report = ScalingReport(outcomes=outcomes)
+        actions = self.actuator.act_on_scaling_report(report)
+        self.assertEqual(actions, [])
+
+    def test_action_types_are_evaluated_independently(self):
+        good = [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_OUT", confidence_at_action=0.8, pnl_impact=0.003
+            )
+            for _ in range(6)
+        ]
+        bad = [
+            ScalingOutcome(
+                instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=-0.003
+            )
+            for _ in range(6)
+        ]
+        report = ScalingReport(outcomes=good + bad)
+        actions = self.actuator.act_on_scaling_report(report)
+        self.assertTrue(any(a.action_type == ActionType.INVESTIGATION for a in actions))
+        self.assertEqual(len([a for a in actions if a.action_type == ActionType.INVESTIGATION]), 1)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 11. PortfolioAllocator → CapitalUtilizationReport
+# ══════════════════════════════════════════════════════════════════════════
+class TestCapitalUtilizationActuator(unittest.TestCase):
+
+    def setUp(self):
+        self.actuator = _make_actuator()
+
+    def test_high_idle_capital_with_skipped_signals_triggers_actions(self):
+        report = CapitalUtilizationReport(
+            period="2026-06",
+            deployed_capital_pct=0.40,
+            idle_capital_pct=0.60,
+            high_confidence_signals_skipped=5,
+            avg_skipped_confidence=0.82,
+        )
+        actions = self.actuator.act_on_capital_utilization(report)
+        investigations = [a for a in actions if a.action_type == ActionType.INVESTIGATION]
+        searches = [a for a in actions if a.action_type == ActionType.PARAMETER_SEARCH]
+        self.assertEqual(len(investigations), 1)
+        self.assertEqual(len(searches), 1)
+        self.assertTrue(all(a.success for a in actions))
+
+    def test_idle_capital_without_skipped_signals_is_not_flagged(self):
+        report = CapitalUtilizationReport(
+            period="2026-06",
+            deployed_capital_pct=0.30,
+            idle_capital_pct=0.70,
+            high_confidence_signals_skipped=0,
+        )
+        actions = self.actuator.act_on_capital_utilization(report)
+        self.assertEqual(actions, [])
+
+    def test_low_idle_capital_is_not_flagged(self):
+        report = CapitalUtilizationReport(
+            period="2026-06",
+            deployed_capital_pct=0.80,
+            idle_capital_pct=0.20,
+            high_confidence_signals_skipped=3,
+        )
+        actions = self.actuator.act_on_capital_utilization(report)
+        self.assertEqual(actions, [])
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 12. run_cycle wiring for the 3 new trigger kinds
+# ══════════════════════════════════════════════════════════════════════════
+class TestRunCycleNewTriggers(unittest.TestCase):
+
+    def setUp(self):
+        self.actuator = _make_actuator()
+
+    def test_run_cycle_accepts_all_three_new_reports(self):
+        slippage = SlippageReport(
+            records=[
+                SlippageRecord(
+                    instrument="EURUSD", direction="BUY", expected_price=1.1, actual_price=1.1005, atr=0.001
+                )
+                for _ in range(6)
+            ]
+        )
+        scaling = ScalingReport(
+            outcomes=[
+                ScalingOutcome(
+                    instrument="EURUSD", action="SCALE_IN", confidence_at_action=0.8, pnl_impact=-0.003
+                )
+                for _ in range(6)
+            ]
+        )
+        capital = CapitalUtilizationReport(
+            period="2026-06",
+            deployed_capital_pct=0.30,
+            idle_capital_pct=0.70,
+            high_confidence_signals_skipped=4,
+        )
+        result = self.actuator.run_cycle(
+            slippage_report=slippage, scaling_report=scaling, capital_utilization=capital
+        )
+        self.assertGreaterEqual(len(result.actions), 3)
+        self.assertIn(ActionType.INVESTIGATION, result.by_type)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 13. LearningLoopScheduler — autonomous trigger/scheduler loop
+# ══════════════════════════════════════════════════════════════════════════
+class TestLearningLoopScheduler(unittest.TestCase):
+
+    def setUp(self):
+        self.actuator = _make_actuator()
+
+    def test_run_once_invokes_collector_and_returns_result(self):
+        assessment = SelfAssessment(period="2026-06", overall_win_rate=0.20, overall_quality_score=0.2)
+        calls = []
+
+        def collector():
+            calls.append(1)
+            return {"self_assessment": assessment}
+
+        scheduler = LearningLoopScheduler(self.actuator, collector, interval_seconds=60)
+        result = scheduler.run_once()
+        self.assertEqual(len(calls), 1)
+        self.assertGreaterEqual(len(result.actions), 1)
+        status = scheduler.status()
+        self.assertEqual(status["run_count"], 1)
+        self.assertEqual(status["error_count"], 0)
+
+    def test_run_once_survives_collector_exception(self):
+        def bad_collector():
+            raise RuntimeError("boom")
+
+        scheduler = LearningLoopScheduler(self.actuator, bad_collector, interval_seconds=60)
+        result = scheduler.run_once()
+        self.assertEqual(result.actions, [])
+        status = scheduler.status()
+        self.assertEqual(status["run_count"], 1)
+        self.assertEqual(status["error_count"], 1)
+        self.assertIsNotNone(status["last_run"]["error"])
+
+    def test_start_stop_runs_loop_in_background(self):
+        counter = {"n": 0}
+
+        def collector():
+            counter["n"] += 1
+            return {}
+
+        scheduler = LearningLoopScheduler(self.actuator, collector, interval_seconds=0.05)
+        scheduler.start()
+        try:
+            deadline = time.time() + 2.0
+            while counter["n"] < 2 and time.time() < deadline:
+                time.sleep(0.02)
+        finally:
+            scheduler.stop(timeout=2.0)
+        self.assertFalse(scheduler.is_running)
+        self.assertGreaterEqual(counter["n"], 2)
+
+    def test_double_start_is_a_no_op(self):
+        scheduler = LearningLoopScheduler(self.actuator, lambda: {}, interval_seconds=10)
+        scheduler.start()
+        try:
+            scheduler.start()
+            self.assertTrue(scheduler.is_running)
+        finally:
+            scheduler.stop(timeout=2.0)
+
+    def test_invalid_interval_raises(self):
+        with self.assertRaises(ValueError):
+            LearningLoopScheduler(self.actuator, lambda: {}, interval_seconds=0)
+
+    def test_history_respects_limit(self):
+        scheduler = LearningLoopScheduler(self.actuator, lambda: {}, interval_seconds=60)
+        for _ in range(5):
+            scheduler.run_once()
+        hist = scheduler.history(limit=2)
+        self.assertEqual(len(hist), 2)
 
 
 if __name__ == "__main__":

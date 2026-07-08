@@ -74,6 +74,7 @@ class ActionType:
     EXPERIMENT_PROPOSAL = "EXPERIMENT_PROPOSAL"
     PARAMETER_SEARCH = "PARAMETER_SEARCH"
     INVESTIGATION = "INVESTIGATION"
+    SHADOW_CANDIDATE = "SHADOW_CANDIDATE"
 
     ALL = [
         FEATURE_DISCOVERY,
@@ -82,6 +83,7 @@ class ActionType:
         EXPERIMENT_PROPOSAL,
         PARAMETER_SEARCH,
         INVESTIGATION,
+        SHADOW_CANDIDATE,
     ]
 
 
@@ -137,12 +139,92 @@ def _slug(text: str, max_len: int = 40) -> str:
     return s[:max_len] or "unnamed"
 
 
+# ── New trigger input types (slippage / scaling failure / capital efficiency) ─
+#
+# These three trigger events have no dedicated observation module yet (unlike
+# the six report kinds above, which come from SelfEvaluationEngine,
+# PatternDiscovery, etc.). The lightweight dataclasses below are the report
+# shape the actuator expects; whatever collects execution fills, trade-manager
+# outcomes, or portfolio allocation snapshots is responsible for building one
+# of these and handing it to the actuator (directly, or via the autonomous
+# loop's collector — see trainer/learning_loop/scheduler.py).
+
+
+@dataclass
+class SlippageRecord:
+    """A single filled order's expected vs. actual execution price."""
+
+    instrument: str
+    direction: str  # "BUY" or "SELL"
+    expected_price: float
+    actual_price: float
+    atr: float
+
+    def slippage_atr(self) -> float:
+        """Adverse slippage normalised by ATR (positive = worse fill for the trader).
+
+        Regime-agnostic on purpose: 5 pips of slippage is nothing on a
+        wide-ATR gold session and severe on a quiet, tight-range pair.
+        """
+        if self.atr < 1e-9:
+            return 0.0
+        raw = self.actual_price - self.expected_price
+        # BUY: paying more than expected is adverse. SELL: receiving less is adverse.
+        adverse = raw if self.direction.upper() == "BUY" else -raw
+        return adverse / self.atr
+
+
+@dataclass
+class SlippageReport:
+    """Batch of slippage observations across recent fills."""
+
+    records: list[SlippageRecord] = field(default_factory=list)
+
+
+@dataclass
+class ScalingOutcome:
+    """Realised P&L impact attributable to a single scale-in/scale-out action."""
+
+    instrument: str
+    action: str  # ManagementAction.SCALE_IN.value / ManagementAction.SCALE_OUT.value
+    confidence_at_action: float
+    pnl_impact: float  # signed contribution to the trade's P&L from this action
+
+
+@dataclass
+class ScalingReport:
+    """Batch of scaling-action outcomes across recent trades."""
+
+    outcomes: list[ScalingOutcome] = field(default_factory=list)
+
+
+@dataclass
+class CapitalUtilizationReport:
+    """Portfolio-level snapshot of how much allocatable capital was deployed."""
+
+    period: str
+    deployed_capital_pct: float  # 0-1, fraction of allocatable capital actually deployed
+    idle_capital_pct: float  # 0-1, fraction sitting unused
+    high_confidence_signals_skipped: int = 0  # signals above the trade threshold not taken
+    avg_skipped_confidence: float = 0.0
+
+
 # ── Learning Loop Actuator ───────────────────────────────────────────────────
 
 
 class LearningLoopActuator:
-    """Turns observation reports from the six learning-loop modules into
-    concrete requests against ResearchLabAPI and RetrainingAdvisor.
+    """Turns observation reports covering all 9 learning-loop trigger events
+    into concrete requests against ResearchLabAPI and RetrainingAdvisor.
+
+    The 9 trigger events are: large drawdowns, unexpected losses, missed
+    opportunities, premature exits, late exits (all five surfaced via
+    ``act_on_self_assessment`` / ``act_on_pattern_report`` /
+    ``act_on_counterfactual_batch`` / ``act_on_lifecycle_report`` /
+    ``act_on_outcome_summary``), regime failures (``act_on_pattern_report`` /
+    ``act_on_portfolio_result``), slippage (``act_on_slippage_report``),
+    scaling failures (``act_on_scaling_report``), and capital inefficiency
+    (``act_on_capital_utilization``). See docs/qde/autonomous_learning_loop.md
+    for the full trigger -> output mapping.
 
     Every ``act_on_*`` method is independent and idempotent-ish (repeated
     identical inputs will create new proposal/request records — the
@@ -164,6 +246,23 @@ class LearningLoopActuator:
     PORTFOLIO_IMPROVEMENT_RATIO = 0.10
     PORTFOLIO_LOW_DIVERSIFICATION = 0.30
 
+    # Slippage: fraction of ATR that counts as "meaningful" adverse slippage
+    # on a single fill, and the fraction of a batch that must clear it before
+    # we treat it as a systematic execution problem rather than noise.
+    SLIPPAGE_MIN_SAMPLE = 5
+    SLIPPAGE_ATR_THRESHOLD = 0.15
+    SLIPPAGE_SYSTEMATIC_RATIO = 0.50
+
+    # Scaling failures: fraction of scale-in/scale-out actions (per action
+    # type) that must have hurt P&L before we flag the scaling policy itself.
+    SCALING_MIN_SAMPLE = 5
+    SCALING_FAILURE_RATIO = 0.55
+
+    # Capital inefficiency: idle-capital fraction that is acceptable, above
+    # which sitting out high-confidence signals is an opportunity cost worth
+    # investigating rather than prudent risk management.
+    CAPITAL_IDLE_THRESHOLD = 0.35
+
     # Counterfactual alternative_action -> candidate parameter search space.
     # These describe SEARCH SPACES for the retraining/experiment pipeline —
     # never a direct write to a live trading parameter.
@@ -182,6 +281,18 @@ class LearningLoopActuator:
         },
         "SCALING": {"scale_in_confidence_threshold": [0.70, 0.90]},
         "TIMING": {"entry_timeout_minutes": [15, 120]},
+    }
+
+    # Execution-quality search space proposed when slippage is systematic.
+    _SLIPPAGE_PARAM_SPACE = {
+        "limit_order_offset_atr": [0.0, 0.30],
+        "max_acceptable_spread_atr": [0.05, 0.40],
+    }
+
+    # Capital-allocation search space proposed when idle capital is high.
+    _CAPITAL_PARAM_SPACE = {
+        "max_allocation_frac": [0.20, 0.40],
+        "max_total_gross": [1.20, 2.00],
     }
 
     def __init__(
@@ -687,6 +798,212 @@ class LearningLoopActuator:
 
         return actions
 
+    # -- 7. Execution fills → SlippageReport ----------------------------------
+
+    def act_on_slippage_report(self, report: SlippageReport) -> list[ActuatorAction]:
+        """Detect systematic adverse slippage between expected and actual
+        fill prices, distinct from ordinary per-trade noise.
+
+        A single bad fill is noise. Only when a large-enough share of a
+        recent batch of fills shows meaningful (ATR-normalised) adverse
+        slippage do we open an investigation and propose an execution-quality
+        parameter search — never a direct change to order routing.
+        """
+        actions: list[ActuatorAction] = []
+        source = "ExecutionFills[slippage]"
+
+        n = len(report.records)
+        if n < self.SLIPPAGE_MIN_SAMPLE:
+            return actions
+
+        adverse = [r.slippage_atr() for r in report.records]
+        offending = [s for s in adverse if s > self.SLIPPAGE_ATR_THRESHOLD]
+        ratio = len(offending) / n
+        if ratio < self.SLIPPAGE_SYSTEMATIC_RATIO:
+            return actions
+
+        avg_adverse = sum(offending) / len(offending)
+        severity = "HIGH" if avg_adverse > self.SLIPPAGE_ATR_THRESHOLD * 2 else "MEDIUM"
+        instruments = sorted({r.instrument for r in report.records})
+
+        resp = self._lab.record_failure(
+            qde_version=self.qde_version,
+            category="EXECUTION_FAILURE",
+            severity=severity,
+            description=(
+                f"Systematic adverse slippage: {ratio:.0%} of {n} fills exceeded "
+                f"{self.SLIPPAGE_ATR_THRESHOLD} ATR (avg={avg_adverse:.3f} ATR)"
+            ),
+            affected_instruments=instruments,
+            notes="Detected by learning-loop autonomous slippage monitor",
+        )
+        actions.append(
+            self._apply(
+                ActionType.INVESTIGATION,
+                source,
+                resp,
+                f"Investigation opened for systematic slippage ({ratio:.0%} of fills affected)",
+            )
+        )
+
+        search_resp = self._lab.create_search(
+            name=f"execution-quality-search-{self.qde_version}",
+            qde_version=self.qde_version,
+            parameter_space=self._SLIPPAGE_PARAM_SPACE,
+            strategy="BAYESIAN",
+            max_trials=25,
+            notes=(
+                f"{ratio:.0%} of {n} recent fills showed adverse slippage "
+                f"averaging {avg_adverse:.3f} ATR; searching execution-quality parameters."
+            ),
+        )
+        actions.append(
+            self._apply(
+                ActionType.PARAMETER_SEARCH,
+                source,
+                search_resp,
+                "Parameter search proposed for execution-quality controls",
+            )
+        )
+
+        return actions
+
+    # -- 8. TradeManager scale-in/out outcomes → ScalingReport ----------------
+
+    def act_on_scaling_report(self, report: ScalingReport) -> list[ActuatorAction]:
+        """Detect scale-in/scale-out actions that systematically hurt P&L.
+
+        Distinct from ``act_on_lifecycle_report``'s scaling *improvement*
+        proposals (which fire on a positive finding from LifecycleOptimizer):
+        this looks at realised outcomes of scaling actions already taken and
+        flags the case where the scaling policy itself is misfiring, then
+        proposes validating a corrected policy in shadow (never promoting it
+        directly).
+        """
+        actions: list[ActuatorAction] = []
+        source = "TradeManager[scaling]"
+
+        by_action: dict[str, list[ScalingOutcome]] = {}
+        for outcome in report.outcomes:
+            by_action.setdefault(outcome.action, []).append(outcome)
+
+        for action_name, outcomes in by_action.items():
+            n = len(outcomes)
+            if n < self.SCALING_MIN_SAMPLE:
+                continue
+
+            negative = [o for o in outcomes if o.pnl_impact < 0]
+            neg_ratio = len(negative) / n
+            avg_impact = sum(o.pnl_impact for o in outcomes) / n
+            if neg_ratio < self.SCALING_FAILURE_RATIO or avg_impact >= 0:
+                continue
+
+            severity = "HIGH" if neg_ratio > 0.70 else "MEDIUM"
+            resp = self._lab.record_failure(
+                qde_version=self.qde_version,
+                category="EXECUTION_FAILURE",
+                severity=severity,
+                description=(
+                    f"{action_name} actions hurt P&L in {neg_ratio:.0%} of {n} cases "
+                    f"(avg impact={avg_impact:.5f})"
+                ),
+                notes="Detected by learning-loop autonomous scaling monitor",
+            )
+            actions.append(
+                self._apply(
+                    ActionType.INVESTIGATION,
+                    source,
+                    resp,
+                    f"Investigation opened for underperforming {action_name} actions",
+                )
+            )
+
+            shadow_resp = self._lab.create_shadow_test(
+                name=f"scaling-fix-{_slug(action_name)}-{self.qde_version}",
+                challenger_version=f"{self.qde_version}-scaling-candidate",
+                champion_version=self.qde_version,
+                notes=(
+                    f"Proposing shadow validation of a corrected {action_name} gate — "
+                    f"current policy hurt P&L in {neg_ratio:.0%} of {n} recent actions."
+                ),
+            )
+            actions.append(
+                self._apply(
+                    ActionType.SHADOW_CANDIDATE,
+                    source,
+                    shadow_resp,
+                    f"Shadow test proposed for corrected {action_name} policy",
+                )
+            )
+
+        return actions
+
+    # -- 9. PortfolioAllocator utilization → CapitalUtilizationReport --------
+
+    def act_on_capital_utilization(
+        self, report: CapitalUtilizationReport
+    ) -> list[ActuatorAction]:
+        """Detect idle capital / poor capital utilization at the portfolio
+        level, distinct from single-trade position sizing.
+
+        Idle capital alone is not necessarily a problem (it can be prudent
+        risk management). It only becomes an actionable inefficiency when
+        capital sat idle *while* high-confidence signals were skipped —
+        i.e. an opportunity cost, not a deliberate risk-off stance.
+        """
+        actions: list[ActuatorAction] = []
+        source = f"PortfolioAllocator[{report.period}]"
+
+        if (
+            report.idle_capital_pct < self.CAPITAL_IDLE_THRESHOLD
+            or report.high_confidence_signals_skipped <= 0
+        ):
+            return actions
+
+        severity = "HIGH" if report.idle_capital_pct > 0.60 else "MEDIUM"
+        resp = self._lab.record_failure(
+            qde_version=self.qde_version,
+            category="MARKET_CONDITION_FAILURE",
+            severity=severity,
+            description=(
+                f"Capital inefficiency: {report.idle_capital_pct:.0%} of capital idle while "
+                f"{report.high_confidence_signals_skipped} high-confidence signals were "
+                f"skipped (avg confidence={report.avg_skipped_confidence:.2f})"
+            ),
+            notes=f"Detected by learning-loop autonomous capital-utilization monitor ({report.period})",
+        )
+        actions.append(
+            self._apply(
+                ActionType.INVESTIGATION,
+                source,
+                resp,
+                f"Investigation opened for capital inefficiency ({report.idle_capital_pct:.0%} idle)",
+            )
+        )
+
+        search_resp = self._lab.create_search(
+            name=f"capital-allocation-search-{self.qde_version}",
+            qde_version=self.qde_version,
+            parameter_space=self._CAPITAL_PARAM_SPACE,
+            strategy="BAYESIAN",
+            max_trials=20,
+            notes=(
+                f"{report.idle_capital_pct:.0%} idle capital with "
+                f"{report.high_confidence_signals_skipped} high-confidence signals skipped; "
+                "searching allocation-cap parameters."
+            ),
+        )
+        actions.append(
+            self._apply(
+                ActionType.PARAMETER_SEARCH,
+                source,
+                search_resp,
+                "Parameter search proposed for capital allocation caps",
+            )
+        )
+
+        return actions
+
     # -- Orchestration --------------------------------------------------------
 
     def run_cycle(
@@ -699,12 +1016,18 @@ class LearningLoopActuator:
         portfolio_result: OptimizationResult | None = None,
         portfolio_baseline_objective: float | None = None,
         outcome_summary: OutcomeSummary | None = None,
+        slippage_report: SlippageReport | None = None,
+        scaling_report: ScalingReport | None = None,
+        capital_utilization: CapitalUtilizationReport | None = None,
     ) -> ActuatorCycleResult:
         """Run whichever observation reports are provided through their
         corresponding actuator(s) and return the aggregated result.
 
         Any report left as None is simply skipped — callers are not required
-        to run all six observation modules on every cycle.
+        to run all nine observation kinds on every cycle. This is the method
+        the autonomous trigger loop (trainer/learning_loop/scheduler.py)
+        calls on every scheduled tick, with whichever reports its collector
+        was able to gather for that tick.
         """
         result = ActuatorCycleResult()
 
@@ -722,6 +1045,12 @@ class LearningLoopActuator:
             )
         if outcome_summary is not None:
             result.extend(self.act_on_outcome_summary(outcome_summary))
+        if slippage_report is not None:
+            result.extend(self.act_on_slippage_report(slippage_report))
+        if scaling_report is not None:
+            result.extend(self.act_on_scaling_report(scaling_report))
+        if capital_utilization is not None:
+            result.extend(self.act_on_capital_utilization(capital_utilization))
 
         logger.info(
             f"LearningLoopActuator.run_cycle: {len(result.actions)} actions "

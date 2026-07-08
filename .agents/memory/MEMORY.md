@@ -4,6 +4,7 @@
 - [Production refactor layout](production-refactor.md) — apps/, packages/, trainer/, config/, docker/ are canonical post-refactor locations; TypeScript 0 errors validated
 - [Research Lab persistence pattern](research-lab-persistence.md) — ResearchLabDatabase(db_path) accepts path via RESEARCH_LAB_DB_PATH env var; ResearchLabAPI(db=) for injection; mypy CI runs only on trainer/ not tests/
 - [QDE capability boundary](qde-capability-boundary.md) — capabilities never import QDEDecision; only qde_intelligence.py constructs it; grep must match import lines only (not comments)
+- [Learning loop trigger design](learning-loop-trigger-design.md) — new trigger kinds get a lightweight dataclass + act_on_* method in actuators.py; SHADOW_CANDIDATE is for corrected-policy validation, not exploration
 - [Champion vs terminal-state ordering](registry-champion-terminal-ordering.md) — re-promoting/re-activating a terminal-state entry must exit terminal state BEFORE granting champion status, not after
 - [ResearchLabAPI signature drift](research-lab-api-signature-drift.md) — public wrapper methods can pass kwargs that don't match the underlying rl_models dataclass .new() constructor; verify against the dataclass, not the wrapper docstring
 - [Hardcoded behavior audit location](hardcoded-behavior-audit-location.md) — the trading-rules audit deliverable lives at docs/qde/hardcoded_behavior_audit.md; extend it in place rather than creating a duplicate
