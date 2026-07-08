@@ -42,3 +42,9 @@ id = "Y-wNPDrtihHBeIQt9KGss"
 uri = "file://docs/qde/learning_dimensions_architecture.md"
 type = "text"
 title = "Legacy Engines → Learning Dimensions Architecture"
+
+[[outputs]]
+id = "SCos-Iz2woyyqYSWDhSf-"
+uri = "file://docs/qde/unified_qde_architecture.md"
+type = "text"
+title = "Unified QDE Architecture"
