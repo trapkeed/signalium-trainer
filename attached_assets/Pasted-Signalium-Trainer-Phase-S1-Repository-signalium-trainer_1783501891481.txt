@@ -1,0 +1,149 @@
+Signalium Trainer Phase S1
+Repository: signalium-trainer
+
+Objective:
+
+Preserve critical capital protection infrastructure while migrating to the One Brain architecture.
+
+The following systems must remain operational:
+
+1. Drawdown Protection
+2. Broker Validation
+3. Exposure Protection
+4. Shadow Observation
+5. Deployment Rollback
+
+These systems are NOT decision makers.
+
+They exist purely as safety infrastructure.
+
+--------------------------------------------------
+DRAWNDOWN MANAGER
+--------------------------------------------------
+
+Keep:
+
+trainer/icari/drawdown_manager.py
+
+Convert its role from:
+
+decision override engine
+
+to:
+
+capital circuit breaker.
+
+Allowed actions:
+
+- reduce global risk multiplier
+- pause new trade creation
+- emergency account lockdown
+- disable scaling
+- disable pyramiding
+
+Forbidden actions:
+
+- changing direction
+- modifying stop loss
+- modifying take profit
+- changing targets
+- changing confidence
+- changing hold duration
+
+The QDE remains sole decision maker.
+
+--------------------------------------------------
+BROKER SAFETY
+--------------------------------------------------
+
+Broker adapters may reject:
+
+- invalid lot sizes
+- insufficient margin
+- invalid stop distances
+- unsupported symbols
+- market closed states
+
+Broker adapters must never modify:
+
+- entries
+- exits
+- targets
+- confidence
+- risk signal
+
+--------------------------------------------------
+PORTFOLIO SAFETY
+--------------------------------------------------
+
+Keep exposure protection only as:
+
+- portfolio VaR monitor
+- correlated exposure monitor
+- concentration monitor
+
+Allowed actions:
+
+- pause new trades
+- reduce account risk multiplier
+
+Forbidden actions:
+
+- modifying model decisions
+- changing trade direction
+- changing targets
+
+--------------------------------------------------
+SHADOW MODE
+--------------------------------------------------
+
+Keep:
+
+Shadow inference.
+
+Remove:
+
+- expert voting
+- ensemble routing
+- canary deployment
+- expert weighting
+
+Shadow inference behavior:
+
+Live market snapshot
+    -> Champion predicts
+    -> Trade executes
+
+Same snapshot
+    -> Challenger predicts
+    -> Prediction stored
+
+Research Lab compares:
+
+- direction accuracy
+- confidence calibration
+- MFE
+- MAE
+- drawdown
+- management quality
+- latency
+
+No challenger may place trades.
+
+--------------------------------------------------
+ROLLBACK
+--------------------------------------------------
+
+Keep automatic rollback capability.
+
+Rollback restores:
+
+- active model
+- artifact
+- metadata
+- feature contract
+- output schema
+
+Generate migration report.
+Generate dependency report.
+Generate architecture report.
