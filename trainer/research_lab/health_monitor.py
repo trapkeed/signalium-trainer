@@ -1415,13 +1415,21 @@ def _class_distribution(decisions: list[dict]) -> dict[str, float]:
 
 
 def _regime_histogram(decisions: list[dict]) -> dict[str, float]:
-    """Compute regime frequency distribution from a list of decision dicts."""
+    """Compute regime frequency distribution from a list of decision dicts.
+
+    Regime labels are lowercased before counting — telemetry across the
+    codebase is inconsistent about casing (e.g. "RANGING" vs "ranging"),
+    and casing alone must never manufacture a false MARKET distribution
+    shift. Kept in sync with `regime_coverage._regime_histogram`'s
+    identical normalization so the MARKET dimension and the persisted
+    RegimeCoverageReport's distribution_shift never silently disagree on
+    the same underlying telemetry (see memory: regime-label-casing)."""
     n = len(decisions)
     if n == 0:
         return {}
     counts: dict[str, int] = {}
     for d in decisions:
-        regime = d.get("regime", "") or ""
+        regime = (d.get("regime", "") or "").lower()
         if regime:
             counts[regime] = counts.get(regime, 0) + 1
     if not counts:

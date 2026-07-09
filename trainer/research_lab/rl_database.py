@@ -1591,6 +1591,8 @@ class ResearchLabDatabase:
     def list_regime_coverage_reports(
         self,
         model_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         sql = "SELECT data_json FROM regime_coverage_reports WHERE 1=1"
@@ -1598,6 +1600,12 @@ class ResearchLabDatabase:
         if model_version:
             sql += " AND model_version = ?"
             params.append(model_version)
+        if since is not None:
+            sql += " AND created_at >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND created_at <= ?"
+            params.append(until)
         sql += " ORDER BY created_at DESC"
         if limit and limit > 0:
             sql += f" LIMIT {int(limit)}"

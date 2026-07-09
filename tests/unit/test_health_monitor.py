@@ -198,10 +198,13 @@ class TestHelpers:
         assert hist == {}
 
     def test_regime_histogram_counts(self) -> None:
+        # Regime labels are lowercased before counting (see
+        # memory: regime-label-casing) — casing alone must never
+        # manufacture a false MARKET distribution shift.
         decisions = [{"regime": "RANGING"}, {"regime": "RANGING"}, {"regime": "TRENDING_BULL"}]
         hist = _regime_histogram(decisions)
-        assert abs(hist["RANGING"] - 2 / 3) < 1e-9
-        assert abs(hist["TRENDING_BULL"] - 1 / 3) < 1e-9
+        assert abs(hist["ranging"] - 2 / 3) < 1e-9
+        assert abs(hist["trending_bull"] - 1 / 3) < 1e-9
 
 
 # ── Confidence drift ──────────────────────────────────────────────────────────

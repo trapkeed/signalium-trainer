@@ -370,9 +370,15 @@ class RegimeCoverageMonitor:
         return reports[0] if reports else None
 
     def list_reports(
-        self, model_version: str | None = None, limit: int = 50
+        self,
+        model_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 50,
     ) -> list[dict[str, Any]]:
-        return self._db.list_regime_coverage_reports(model_version=model_version, limit=limit)
+        return self._db.list_regime_coverage_reports(
+            model_version=model_version, since=since, until=until, limit=limit
+        )
 
 
 # ── Drift/alert checks (wired into health_monitor's alerting path) ──────────

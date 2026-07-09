@@ -1924,11 +1924,21 @@ def get_latest_regime_coverage_report(
 @app.get("/regime-coverage/reports")
 def list_regime_coverage_reports(
     model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
     limit: int = 50,
     _: None = Depends(_require_admin),
 ) -> dict:
-    """List persisted regime-coverage reports, newest first."""
-    reports = _regime_coverage_monitor.list_reports(model_version=model_version, limit=limit)
+    """List persisted regime-coverage reports, newest first.
+
+    Query params:
+        model_version: Restrict to a specific model version. ``None`` = all.
+        since / until: Unix timestamp bounds on each report's `created_at`,
+            i.e. filter findings to a specific time window.
+    """
+    reports = _regime_coverage_monitor.list_reports(
+        model_version=model_version, since=since, until=until, limit=limit
+    )
     return {"success": True, "total": len(reports), "reports": reports}
 
 

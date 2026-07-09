@@ -109,6 +109,26 @@ class TestTvDistanceParityWithHealthMonitor:
             assert rc_tv_distance(a, b) == pytest.approx(hm_tv_distance(a, b))
 
 
+class TestRegimeHistogramCasingParityWithHealthMonitor:
+    """regime_coverage's histogram (feeding persisted reports) and
+    health_monitor's MARKET-dimension histogram (feeding live DriftAlerts)
+    must normalize regime-label casing identically, or the same telemetry
+    can silently disagree between the two — a real found-and-fixed bug
+    (health_monitor's MARKET histogram wasn't lowercasing) rather than a
+    hypothetical."""
+
+    def test_mixed_case_regimes_do_not_manufacture_shift_in_either_path(self) -> None:
+        from trainer.research_lab.health_monitor import _regime_histogram as hm_hist
+        from trainer.research_lab.regime_coverage import _regime_histogram as rc_hist
+
+        baseline = [{"regime": "RANGING"} for _ in range(10)]
+        recent = [{"regime": "ranging"} for _ in range(10)]
+        # Same underlying regime, different casing — both paths must treat
+        # this as zero distribution shift.
+        assert hm_hist(baseline) == hm_hist(recent)
+        assert rc_hist(baseline) == rc_hist(recent)
+
+
 class TestDetectDistributionShift:
     def test_empty_returns_zero(self) -> None:
         result = detect_distribution_shift([], [])
@@ -259,6 +279,23 @@ class TestRegimeCoverageMonitor:
         for _ in range(3):
             monitor.compute_report(model_version="v1.0")
         assert len(monitor.list_reports(model_version="v1.0", limit=2)) == 2
+
+    def test_list_reports_filters_by_time_window(self, db, warehouse) -> None:
+        """Persisted findings must be queryable per time window, not just
+        model version — list_reports/list_regime_coverage_reports must
+        accept and apply since/until against each report's created_at."""
+        monitor = RegimeCoverageMonitor(db, warehouse)
+        db.upsert_regime_coverage_report(
+            {"report_id": "old", "model_version": "v1.0", "created_at": _NOW - 10_000}
+        )
+        db.upsert_regime_coverage_report(
+            {"report_id": "new", "model_version": "v1.0", "created_at": _NOW}
+        )
+        only_new = monitor.list_reports(model_version="v1.0", since=_NOW - 100)
+        assert [r["report_id"] for r in only_new] == ["new"]
+
+        only_old = monitor.list_reports(model_version="v1.0", until=_NOW - 100)
+        assert [r["report_id"] for r in only_old] == ["old"]
 
 
 # ── check_* pure functions ────────────────────────────────────────────────────
@@ -467,3 +504,26 @@ class TestRegimeCoverageServerEndpoints:
     def test_reports_requires_auth(self, client) -> None:
         resp = client.get("/regime-coverage/reports")
         assert resp.status_code == 401
+
+    def test_list_reports_time_window_filtering_via_endpoint(self, client) -> None:
+        """Validates the since/until query-param contract end-to-end through
+        the HTTP endpoint, not just at the monitor/DB level."""
+        import time as _time
+
+        client.post("/regime-coverage/compute?model_version=v1.0", headers=self._HDR)
+        cutoff = _time.time()
+        client.post("/regime-coverage/compute?model_version=v1.0", headers=self._HDR)
+
+        resp_since = client.get(
+            f"/regime-coverage/reports?model_version=v1.0&since={cutoff}",
+            headers=self._HDR,
+        )
+        assert resp_since.status_code == 200
+        assert resp_since.json()["total"] == 1
+
+        resp_until = client.get(
+            f"/regime-coverage/reports?model_version=v1.0&until={cutoff}",
+            headers=self._HDR,
+        )
+        assert resp_until.status_code == 200
+        assert resp_until.json()["total"] == 1
