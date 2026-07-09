@@ -516,15 +516,15 @@ class TestArtifactServerEndpoints:
 
     def test_register_artifact_requires_auth(self, client) -> None:
         resp = client.post("/artifacts/register", json=self._good_payload())
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_list_artifacts_requires_auth(self, client) -> None:
         resp = client.get("/artifacts")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_get_artifact_requires_auth(self, client) -> None:
         resp = client.get("/artifacts/art-anything")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_register_training_run_success(self, client) -> None:
         payload = {
@@ -607,15 +607,15 @@ class TestArtifactServerEndpoints:
 
     def test_list_training_runs_requires_auth(self, client) -> None:
         resp = client.get("/artifacts/runs")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_get_training_run_requires_auth(self, client) -> None:
         resp = client.get("/artifacts/runs/run-any")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_register_training_run_requires_auth(self, client) -> None:
         resp = client.post("/artifacts/runs", json={})
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
 
 class TestArtifactDBUniqueIndexEnforcement:

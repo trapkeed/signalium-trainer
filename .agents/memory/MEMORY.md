@@ -27,3 +27,4 @@
 - [SQLite ON CONFLICT scalar sync](sqlite-on-conflict-scalar-sync.md) — ON CONFLICT upserts must refresh ALL indexed/filter scalar columns alongside data_json; otherwise list queries on scalar columns return stale results after an update
 - [Approval gate method name](approval-gate-method-name.md) — ApprovalGate.create_request() not request_gate(); requires resource_type + action_summary; fully idempotent on (gate_type, resource_id) PENDING
 - [Champion-challenger scoring design](champion-challenger-scoring.md) — baseline scores must use neutral 0.5 (not 1.0) so challenger_wins↔score_delta>0 is always consistent; max_drawdown must handle all-negative pnl_diff series
+- [Research Lab admin auth contract](research-lab-admin-auth-contract.md) — missing token→401, wrong token→403; single shared token can't distinguish admins in audit records

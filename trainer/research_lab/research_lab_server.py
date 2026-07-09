@@ -57,6 +57,7 @@ from trainer.research_lab.champion_challenger import (
     ChampionChallengerTracker,
     PromotionCriterionConfig,
 )
+from trainer.research_lab.deployment_manager import DeploymentManager
 from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
@@ -108,29 +109,88 @@ _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
 _health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate)
+
+
+def _build_signalium_notifier():
+    """Return a Signalium notifier callable, or None if no API config is present.
+
+    Attempts to construct a ``SignaliumClient`` from environment variables.
+    If the required env vars are absent or the client raises, returns ``None``
+    so that the ``DeploymentManager`` gracefully logs a warning instead of
+    crashing the server at startup.
+    """
+    api_url = os.environ.get("SIGNALIUM_API_URL", "")
+    api_key = os.environ.get("SIGNALIUM_API_KEY", "")
+    if not api_url:
+        return None
+    try:
+        from trainer.api.client import SignaliumClient
+        from trainer.config.schema import APIConfig
+
+        _api_cfg = APIConfig(base_url=api_url, api_key=api_key)
+        _sapi = SignaliumClient(_api_cfg)
+        return _sapi.notify_deployment
+    except Exception as _exc:  # noqa: BLE001
+        logger.warning(f"ResearchLabServer: cannot build Signalium notifier — {_exc!r}")
+        return None
+
+
+_deployment_manager = DeploymentManager(
+    _db,
+    approval_gate=_approval_gate,
+    signalium_notifier=_build_signalium_notifier(),
+)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 _CONFIGURED_TOKEN = os.environ.get("RESEARCH_LAB_ADMIN_TOKEN", "")
 
+# Configurable admin identity label used in audit records.
+# Override via RESEARCH_LAB_ADMIN_ID when multiple named admins share one token.
+_ADMIN_ID = os.environ.get("RESEARCH_LAB_ADMIN_ID", "admin")
+
 
 def _require_admin(
     credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
-) -> None:
-    """Defence-in-depth admin auth. The Express proxy enforces auth first.
+) -> str:
+    """Defence-in-depth admin auth. Returns the authenticated admin identity string.
 
-    Even if a caller bypasses the Express proxy and contacts port 8002 directly,
-    they cannot access any endpoint without a valid admin token.
+    Even if a caller bypasses the upstream Express proxy and contacts the
+    Research Lab server directly, no endpoint is reachable without a valid
+    admin bearer token.
+
+    Status codes:
+      - 503 — server misconfigured (RESEARCH_LAB_ADMIN_TOKEN not set)
+      - 401 — no Authorization header / no token presented
+      - 403 — token presented but does not match the configured admin token
+
+    Returns:
+        The authenticated admin identity string (``RESEARCH_LAB_ADMIN_ID``,
+        defaulting to ``"admin"``).  Endpoints that write to audit records
+        (approvals, deployments, rollbacks) should capture this return value
+        to record exactly who authorised the action.
     """
     if not _CONFIGURED_TOKEN:
         raise HTTPException(
             503,
             detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)",
         )
-    token = credentials.credentials if credentials else None
+    if credentials is None:
+        raise HTTPException(
+            401,
+            detail="Unauthorized. Authorization header with a bearer token is required.",
+        )
+    token = credentials.credentials
     if not token or token != _CONFIGURED_TOKEN:
-        raise HTTPException(403, detail="Forbidden. Invalid or missing admin token.")
+        raise HTTPException(403, detail="Forbidden. Invalid admin token.")
+    return _ADMIN_ID
+
+
+# Belt-and-suspenders: apply auth at the router level as a fallback for any
+# route that accidentally omits the per-endpoint Depends(_require_admin).
+# FastAPI deduplicates the dependency so it runs at most once per request.
+app.router.dependencies.append(Depends(_require_admin))
 
 
 # Mount the telemetry router — _require_admin is now defined above.
@@ -1353,6 +1413,204 @@ def evaluate_shadow_promotion(
     return {"success": True, "evaluation": result}
 
 
+# ── Deployment Approval, Signalium Notification + Rollback (S20) ──────────────
+
+
+class _DeploymentPromoteRequest(BaseModel):
+    model_version: str
+    target_status: str
+    requested_by: str
+    weights_url: str = ""
+    manifest: dict = {}
+    metadata: dict = {}
+    context: dict = {}
+
+
+class _DeploymentActivateRequest(BaseModel):
+    request_id: str
+    approved_by: str
+    notes: str = ""
+
+
+class _DeploymentRollbackRequest(BaseModel):
+    model_version: str = "latest_retired"
+    reason: str
+    requested_by: str
+    context: dict = {}
+
+
+@app.post("/deployment/promote")
+def deployment_request_promotion(
+    req: _DeploymentPromoteRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Create an ``ApprovalRequest`` for a model version stage transition.
+
+    Valid transitions:
+      - ``NOT_DEPLOYED → SHADOW`` (PROMOTION gate)
+      - ``SHADOW → CANDIDATE`` (PROMOTION gate)
+      - ``CANDIDATE → ACTIVE`` (DEPLOYMENT gate)
+
+    The returned ``approval_request.request_id`` must be passed to
+    ``POST /deployment/activate`` once reviewed.
+
+    Body fields:
+      - ``model_version`` — QDE / model version string (e.g. ``"v2.1"``)
+      - ``target_status`` — destination stage (SHADOW / CANDIDATE / ACTIVE)
+      - ``requested_by`` — username or service making the request
+      - ``weights_url`` — URL where Signalium will download the weights (required for ACTIVE)
+      - ``manifest`` — deployment manifest dict
+      - ``metadata`` — arbitrary metadata
+      - ``context`` — extra context for the approver
+    """
+    try:
+        result = _deployment_manager.request_promotion(
+            model_version=req.model_version,
+            target_status=req.target_status,
+            requested_by=req.requested_by,
+            weights_url=req.weights_url,
+            manifest=req.manifest,
+            metadata=req.metadata,
+            context=req.context,
+        )
+        return {"success": True, "promotion_request": result}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.post("/deployment/activate")
+def deployment_apply_promotion(
+    req: _DeploymentActivateRequest,
+    admin_id: str = Depends(_require_admin),
+) -> dict:
+    """Approve an existing promotion ``ApprovalRequest`` and execute the transition.
+
+    Atomically approves, consumes, transitions the model version's stage, and
+    — when the target is ACTIVE — retires the previous ACTIVE version and
+    sends a deployment notification to Signalium.
+
+    The authenticated admin identity is recorded in the deployment audit log.
+
+    Body fields:
+      - ``request_id`` — the ``ApprovalRequest`` returned by ``POST /deployment/promote``
+      - ``approved_by`` — admin username (falls back to authenticated identity)
+      - ``notes`` — optional review notes
+    """
+    from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalRequiredError
+
+    actor = req.approved_by or admin_id
+    try:
+        result = _deployment_manager.apply_promotion(
+            request_id=req.request_id,
+            approved_by=actor,
+            notes=req.notes,
+        )
+        return {"success": True, "promotion_result": result, "authenticated_as": admin_id}
+    except (ValueError, KeyError, ApprovalRequiredError, ApprovalAlreadyResolved) as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.post("/deployment/rollback")
+def deployment_request_rollback(
+    req: _DeploymentRollbackRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Create a ``ROLLBACK`` ``ApprovalRequest``.
+
+    Resolves the most recent RETIRED model version if ``model_version`` is
+    ``"latest_retired"`` or empty.  The approval request must be passed to
+    ``POST /deployment/rollback/activate`` once reviewed.
+
+    Body fields:
+      - ``model_version`` — version to restore (or ``"latest_retired"``)
+      - ``reason`` — human-readable rollback reason
+      - ``requested_by`` — username or service making the request
+      - ``context`` — extra context for the approver
+    """
+    try:
+        result = _deployment_manager.request_rollback(
+            model_version=req.model_version,
+            reason=req.reason,
+            requested_by=req.requested_by,
+            context=req.context,
+        )
+        return {"success": True, "rollback_request": result}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.post("/deployment/rollback/activate")
+def deployment_apply_rollback(
+    req: _DeploymentActivateRequest,
+    admin_id: str = Depends(_require_admin),
+) -> dict:
+    """Approve a ``ROLLBACK`` request and restore the target version to ACTIVE.
+
+    Atomically retires the current ACTIVE model, restores the RETIRED version
+    to ACTIVE, and re-notifies Signalium with the restored version's artifact
+    references.
+
+    The authenticated admin identity is recorded in the rollback audit event.
+
+    Body fields:
+      - ``request_id`` — from ``POST /deployment/rollback``
+      - ``approved_by`` — admin username (falls back to authenticated identity)
+      - ``notes`` — optional review notes (ignored; kept for schema consistency)
+    """
+    from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalRequiredError
+
+    actor = req.approved_by or admin_id
+    try:
+        result = _deployment_manager.apply_rollback(
+            request_id=req.request_id,
+            approved_by=actor,
+        )
+        return {"success": True, "rollback_result": result, "authenticated_as": admin_id}
+    except (ValueError, KeyError, ApprovalRequiredError, ApprovalAlreadyResolved) as exc:
+        return {"success": False, "error": str(exc)}
+
+
+@app.get("/deployment/current")
+def deployment_get_current(
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the current ACTIVE model deployment with its provenance.
+
+    Returns the full deployment record including ``weights_url``, ``manifest``,
+    ``metadata``, timestamps, and the last approval/notification IDs.
+    Returns ``{"active": null}`` when no model is currently ACTIVE.
+    """
+    current = _deployment_manager.get_current()
+    return {"success": True, "active": current}
+
+
+@app.get("/deployment/history")
+def deployment_get_history(
+    model_version: str | None = None,
+    event_type: str | None = None,
+    limit: int = 100,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the full deployment event audit log.
+
+    All stage transitions (PROMOTED, RETIRED, ROLLED_BACK), Signalium
+    notifications (SIGNALIUM_NOTIFIED), and approval requests
+    (PROMOTION_REQUESTED, ROLLBACK_REQUESTED) are permanently logged.
+
+    Optional filters:
+      - ``model_version`` — restrict to one model version
+      - ``event_type`` — PROMOTED | RETIRED | ROLLED_BACK | SIGNALIUM_NOTIFIED |
+        PROMOTION_REQUESTED | ROLLBACK_REQUESTED
+      - ``limit`` — max records returned (default 100)
+    """
+    events = _deployment_manager.get_history(
+        model_version=model_version,
+        event_type=event_type,
+        limit=limit,
+    )
+    return {"success": True, "events": events, "total": len(events)}
+
+
 # ── Model Health Monitoring (S20) ─────────────────────────────────────────────
 
 
@@ -1553,17 +1811,26 @@ def get_approval_request(
 def approve_approval_request(
     request_id: str,
     req: ApproveApprovalRequest,
-    _: None = Depends(_require_admin),
+    admin_id: str = Depends(_require_admin),
 ) -> dict:
     """Admin approves a PENDING approval request (PENDING → APPROVED).
 
-    The approved request is available for atomic consumption by the gated action.
+    The authenticated admin identity is recorded in the approval audit log
+    regardless of what ``approved_by`` body field is provided, providing a
+    tamper-evident link between the bearer token and the approval decision.
     """
+    # Use authenticated identity; body field is kept for backward compat but
+    # the token holder is the authoritative actor recorded in the audit trail.
+    actor = req.approved_by or admin_id
     try:
         approved = _approval_gate.approve(
-            request_id, approved_by=req.approved_by, reason=req.reason
+            request_id, approved_by=actor, reason=req.reason
         )
-        return {"success": True, "approval_request": approved.to_dict()}
+        return {
+            "success": True,
+            "approval_request": approved.to_dict(),
+            "authenticated_as": admin_id,
+        }
     except (ValueError, ApprovalAlreadyResolved) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -1572,17 +1839,23 @@ def approve_approval_request(
 def reject_approval_request(
     request_id: str,
     req: RejectApprovalRequest,
-    _: None = Depends(_require_admin),
+    admin_id: str = Depends(_require_admin),
 ) -> dict:
     """Admin rejects a PENDING approval request (PENDING → REJECTED).
 
     The gated action will be blocked when it next calls require_approval().
+    The authenticated admin identity is recorded regardless of the body field.
     """
+    actor = req.rejected_by or admin_id
     try:
         rejected = _approval_gate.reject(
-            request_id, rejected_by=req.rejected_by, reason=req.reason
+            request_id, rejected_by=actor, reason=req.reason
         )
-        return {"success": True, "approval_request": rejected.to_dict()}
+        return {
+            "success": True,
+            "approval_request": rejected.to_dict(),
+            "authenticated_as": admin_id,
+        }
     except (ValueError, ApprovalAlreadyResolved) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

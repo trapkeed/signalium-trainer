@@ -689,13 +689,13 @@ class TestServerEndpoints:
         assert body["evaluation"]["criterion_met"] is False
 
     def test_shadow_status_requires_auth(self, client) -> None:
-        assert client.get("/shadow/status").status_code == 403
+        assert client.get("/shadow/status").status_code == 401  # no token → 401
 
     def test_shadow_comparison_requires_auth(self, client) -> None:
-        assert client.get("/shadow/comparison?test_id=x").status_code == 403
+        assert client.get("/shadow/comparison?test_id=x").status_code == 401  # no token → 401
 
     def test_shadow_evaluate_requires_auth(self, client) -> None:
-        assert client.post("/shadow/evaluate?test_id=x").status_code == 403
+        assert client.post("/shadow/evaluate?test_id=x").status_code == 401  # no token → 401
 
     def test_shadow_status_after_creating_shadow_test(self, client) -> None:
         """Create a shadow test via existing API, then check /shadow/status."""

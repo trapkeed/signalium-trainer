@@ -288,3 +288,25 @@ class SignaliumClient:
             f"/models/{manifest.model_id}/manifest",
             json=manifest.model_dump(mode="json"),
         )
+
+    def notify_deployment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Notify Signalium of a model deployment for hot-swap execution.
+
+        Signalium receives the weights download URL, deployment manifest,
+        metadata, and version information, then performs the hot-swap
+        internally without any further involvement from the trainer.
+
+        Args:
+            payload: Dict containing at minimum:
+                - ``model_version`` — QDE / model version string
+                - ``weights_url``   — URL where Signalium can download weights
+                - ``manifest``      — deployment manifest (architecture, etc.)
+                - ``metadata``      — arbitrary extra metadata
+                - ``deployed_at``   — Unix timestamp of promotion
+                - ``actor``         — who approved the deployment
+
+        Returns:
+            Signalium's response dict (typically ``{"status": "accepted", ...}``).
+        """
+        response = self._post("/deployments/notify", json=payload)
+        return response.json() if response.content else {}

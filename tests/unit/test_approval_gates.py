@@ -713,7 +713,7 @@ class TestApprovalRealServer:
         resp = client.post("/approvals", json={
             "gate_type": "TRAINING_START", "resource_id": "exp-noauth",
         })
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_list_approvals(self, client) -> None:
         # Create one first

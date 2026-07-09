@@ -672,7 +672,7 @@ class TestPipelineServerEndpoints:
 
     def test_run_pipeline_requires_auth(self, client) -> None:
         resp = client.post("/pipeline/run", json={"experiment_id": "exp-noauth"})
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_run_pipeline_training_blocked_without_approval(self, client) -> None:
         resp = client.post(
@@ -777,11 +777,11 @@ class TestPipelineServerEndpoints:
 
     def test_list_pipeline_jobs_requires_auth(self, client) -> None:
         resp = client.get("/pipeline/jobs")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_get_pipeline_job_requires_auth(self, client) -> None:
         resp = client.get("/pipeline/jobs/any-id")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_run_pipeline_empty_stages_runs_all_non_gated(self, client) -> None:
         """Empty stages_to_run runs all stages (all non-training stages succeed)."""

@@ -438,6 +438,33 @@ CREATE TABLE IF NOT EXISTS research_notes (
 CREATE INDEX IF NOT EXISTS idx_research_notes_author ON research_notes(author);
 CREATE INDEX IF NOT EXISTS idx_research_notes_linked_entity
     ON research_notes(linked_entity_type, linked_entity_id);
+
+-- Model deployment state — one row per model version, current deployment status (S20 Task #13)
+CREATE TABLE IF NOT EXISTS model_deployments (
+    model_version   TEXT PRIMARY KEY,
+    status          TEXT NOT NULL DEFAULT 'NOT_DEPLOYED',
+    previous_status TEXT NOT NULL DEFAULT '',
+    weights_url     TEXT NOT NULL DEFAULT '',
+    updated_at      REAL NOT NULL,
+    data_json       TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_mdep_status ON model_deployments(status);
+
+-- Deployment events — immutable audit log of all stage transitions and Signalium notifications (S20 Task #13)
+CREATE TABLE IF NOT EXISTS deployment_events (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    event_type    TEXT NOT NULL,
+    from_status   TEXT NOT NULL DEFAULT '',
+    to_status     TEXT NOT NULL DEFAULT '',
+    actor         TEXT NOT NULL DEFAULT '',
+    approval_id   TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_devt_mv      ON deployment_events(model_version);
+CREATE INDEX IF NOT EXISTS idx_devt_type    ON deployment_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_devt_created ON deployment_events(created_at DESC);
 """
 
 
@@ -1801,6 +1828,130 @@ class ResearchLabDatabase:
             result[table] = int(row["n"]) if row else 0
         return result
 
+    # ── Model Deployments (S20 Task #13) ──────────────────────────────────────
+
+    def upsert_model_deployment(self, record: dict[str, Any]) -> None:
+        """Upsert current deployment status for a model version.
+
+        Refreshes all scalar filter columns alongside data_json on conflict.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO model_deployments
+                (model_version, status, previous_status, weights_url, updated_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(model_version) DO UPDATE SET
+                status          = excluded.status,
+                previous_status = excluded.previous_status,
+                weights_url     = excluded.weights_url,
+                updated_at      = excluded.updated_at,
+                data_json       = excluded.data_json
+            """,
+            (
+                record["model_version"],
+                record.get("status", "NOT_DEPLOYED"),
+                record.get("previous_status", ""),
+                record.get("weights_url", ""),
+                record.get("updated_at", 0.0),
+                json.dumps(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_model_deployment(self, model_version: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM model_deployments WHERE model_version = ?",
+            (model_version,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_model_deployments(
+        self,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM model_deployments WHERE 1=1"
+        params: list[Any] = []
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " ORDER BY updated_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
+    def retire_active_deployments(self, except_model_version: str) -> int:
+        """Atomically retire all ACTIVE model versions except the specified one.
+
+        Returns the number of rows retired.
+        """
+        now = __import__("time").time()
+        rows = self._conn.execute(
+            "SELECT model_version, data_json FROM model_deployments WHERE status = 'ACTIVE' AND model_version != ?",
+            (except_model_version,),
+        ).fetchall()
+        count = 0
+        for row in rows:
+            rec = json.loads(row["data_json"])
+            rec["previous_status"] = rec.get("status", "ACTIVE")
+            rec["status"] = "RETIRED"
+            rec["updated_at"] = now
+            self._conn.execute(
+                """
+                UPDATE model_deployments
+                SET status = 'RETIRED', previous_status = ?, updated_at = ?, data_json = ?
+                WHERE model_version = ? AND status = 'ACTIVE'
+                """,
+                (rec["previous_status"], now, json.dumps(rec), row["model_version"]),
+            )
+            count += self._conn.execute("SELECT changes()").fetchone()[0]
+        self._conn.commit()
+        return count
+
+    # ── Deployment Events (S20 Task #13) ──────────────────────────────────────
+
+    def insert_deployment_event(self, record: dict[str, Any]) -> None:
+        """Append an immutable deployment event to the audit log."""
+        self._conn.execute(
+            """
+            INSERT OR IGNORE INTO deployment_events
+                (event_id, model_version, event_type, from_status, to_status,
+                 actor, approval_id, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record["event_id"],
+                record.get("model_version", ""),
+                record.get("event_type", ""),
+                record.get("from_status", ""),
+                record.get("to_status", ""),
+                record.get("actor", ""),
+                record.get("approval_id", ""),
+                record.get("created_at", 0.0),
+                json.dumps(record),
+            ),
+        )
+        self._conn.commit()
+
+    def list_deployment_events(
+        self,
+        model_version: str | None = None,
+        event_type: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM deployment_events WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if event_type:
+            sql += " AND event_type = ?"
+            params.append(event_type)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
@@ -1826,6 +1977,7 @@ class ResearchLabDatabase:
             "failure_reports", "label_datasets",
             "retraining_recommendations", "approval_requests", "pipeline_jobs",
             "training_runs", "artifacts", "health_alerts",
+            "model_deployments", "deployment_events",
         ]
         result: dict[str, int] = {}
         for table in tables:

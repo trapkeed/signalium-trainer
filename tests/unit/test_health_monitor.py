@@ -809,15 +809,15 @@ class TestHealthServerEndpoints:
 
     def test_health_check_requires_auth(self, client) -> None:
         resp = client.post("/health/check")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_health_status_requires_auth(self, client) -> None:
         resp = client.get("/health/status")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_health_alerts_requires_auth(self, client) -> None:
         resp = client.get("/health/alerts")
-        assert resp.status_code == 403
+        assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_list_alerts_filter_severity(self, client) -> None:
         resp = client.get("/health/alerts?severity=CRITICAL", headers=self._HDR)
