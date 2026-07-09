@@ -52,5 +52,6 @@
 - [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
 - [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
 - [Shadow duration gate default](s27-shadow-duration-gate-default.md) — new mandatory-duration/lifecycle gates must default to off (0), not a real value, or they silently break existing PROMOTE-path tests
+- [S28 decision traceability design](s28-decision-traceability-design.md) — lineage resolver marks per-hop resolved:bool against real records; replay uses injected inference_fn to stay torch-independent; new admin features need explicit per-role Visibility grants
 
 

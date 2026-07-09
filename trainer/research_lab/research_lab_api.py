@@ -43,6 +43,13 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.cert.institutional_certification import InstitutionalCertificationReport
+from trainer.research_lab.decision_traceability import (
+    DecisionTraceRecord,
+    LineageResolver,
+    ReplayResult,
+    reconstruct_historical_decision,
+    replay_decision,
+)
 from trainer.research_lab.deployment_approval import (
     DeploymentApprovalWorkflow,
     ReviewDecision,
@@ -1625,3 +1632,203 @@ class ResearchLabAPI:
         return _ok(
             "list_deployment_approval_workflows", {"workflows": items, "total": len(items)}
         )
+
+    # ── 16. Decision Traceability & Model Lineage (S28) ─────────────────────────
+    #
+    # Every method below is administrative-only. Visibility is enforced by the
+    # caller (typically apps/trainer-api's require_visibility(Visibility.
+    # DECISION_TRACEABILITY) dependency) — Admin, SuperAdmin, Founder,
+    # QuantResearcher, MLResearcher, DeploymentApprover, and Auditor may all
+    # see decision traces; no customer- or public-facing route may call these.
+
+    def record_decision_trace(
+        self,
+        qde_version: str,
+        output_decision: str,
+        confidence: float,
+        size_signal: float,
+        risk_signal: float,
+        exit_horizon: float,
+        reasoning_summary: str,
+        input_features: dict[str, Any] | None = None,
+        dataset_version: str = "",
+        feature_version: str = "",
+        symbol: str = "",
+        decision_id: str | None = None,
+    ) -> ApiResponse:
+        """Persist the full traceability record for one QDE decision.
+
+        This is the single write path institutional-grade traceability
+        requires: every live decision the QDE produces should call this
+        (or have its caller call this) so it can later be explained,
+        audited, and reproduced.
+        """
+        try:
+            trace = DecisionTraceRecord.new(
+                qde_version=qde_version,
+                output_decision=output_decision,
+                confidence=confidence,
+                size_signal=size_signal,
+                risk_signal=risk_signal,
+                exit_horizon=exit_horizon,
+                reasoning_summary=reasoning_summary,
+                input_features=input_features,
+                dataset_version=dataset_version,
+                feature_version=feature_version,
+                symbol=symbol,
+                decision_id=decision_id,
+            )
+            self._db.upsert_decision_trace(trace.to_dict())
+            logger.info(
+                f"ResearchLab.record_decision_trace: {trace.decision_id}"
+                f" version={qde_version} decision={output_decision} symbol={symbol!r}"
+            )
+            return _ok("record_decision_trace", trace.to_dict())
+        except Exception as exc:
+            return _err("record_decision_trace", str(exc))
+
+    def get_decision_trace(self, decision_id: str) -> ApiResponse:
+        record = self._db.get_decision_trace(decision_id)
+        if not record:
+            return _err("get_decision_trace", f"Decision {decision_id!r} not found")
+        return _ok("get_decision_trace", record)
+
+    def list_decision_traces(
+        self,
+        qde_version: str | None = None,
+        symbol: str | None = None,
+        input_feature_hash: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 100,
+    ) -> ApiResponse:
+        items = self._db.list_decision_traces(
+            qde_version=qde_version,
+            symbol=symbol,
+            input_feature_hash=input_feature_hash,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        return _ok("list_decision_traces", {"traces": items, "total": len(items)})
+
+    def get_decision_lineage(self, decision_id: str) -> ApiResponse:
+        """Resolve the full lineage chain for a decision:
+        Decision -> Model Version -> Dataset Version -> Feature Set ->
+        Training Run -> Experiment -> Git Commit — built against real
+        persisted records, not bare identifier strings.
+        """
+        record = self._db.get_decision_trace(decision_id)
+        if not record:
+            return _err("get_decision_lineage", f"Decision {decision_id!r} not found")
+        trace = DecisionTraceRecord.from_dict(record)
+        chain = LineageResolver(self._db).resolve(trace)
+        return _ok("get_decision_lineage", chain.to_dict())
+
+    def replay_decision(self, decision_id: str, inference_fn: Any) -> ApiResponse:
+        """Deterministic inference replay: re-run the QDE on a decision's
+        exact recorded input features and confirm the same output/confidence
+        is produced.
+
+        `inference_fn` is caller-supplied (typically the live QDE inference
+        entry point) so this module never has to import the model runtime
+        directly. It must accept the input feature dict and return
+        ``{"output_decision": str, "confidence": float}``.
+        """
+        record = self._db.get_decision_trace(decision_id)
+        if not record:
+            return _err("replay_decision", f"Decision {decision_id!r} not found")
+        try:
+            trace = DecisionTraceRecord.from_dict(record)
+            result: ReplayResult = replay_decision(trace, inference_fn)
+            logger.info(
+                f"ResearchLab.replay_decision: {decision_id}"
+                f" deterministic_match={result.deterministic_match}"
+            )
+            return _ok("replay_decision", result.to_dict())
+        except Exception as exc:
+            return _err("replay_decision", str(exc))
+
+    def reconstruct_historical_decision(self, decision_id: str) -> ApiResponse:
+        """Historical reconstruction: rebuild the full context (traceability
+        record + resolved lineage chain) that produced a past decision,
+        purely from persisted state.
+        """
+        context = reconstruct_historical_decision(decision_id, self._db)
+        if context is None:
+            return _err(
+                "reconstruct_historical_decision", f"Decision {decision_id!r} not found"
+            )
+        return _ok("reconstruct_historical_decision", context.to_dict())
+
+    # ── 17. Decision Audits (S28) ────────────────────────────────────────────────
+
+    def record_decision_audit(
+        self,
+        audit_kind: str,
+        summary: str,
+        severity_score: float = 0.0,
+        qde_version: str = "",
+        related_decision_ids: list[str] | None = None,
+        evidence: dict[str, Any] | None = None,
+        investigated_by: str = "",
+    ) -> ApiResponse:
+        """Record an investigation into an unexpected drawdown, abnormal
+        decision, failed deployment, model regression, or abnormal
+        confidence shift.
+
+        `audit_kind` is a free-form category label (e.g.
+        "UNEXPECTED_DRAWDOWN", "ABNORMAL_CONFIDENCE_SHIFT",
+        "FAILED_DEPLOYMENT", "MODEL_REGRESSION", or any of the six
+        InvestigationFailureKind values from the S20 engine) — decision
+        audits are intentionally broader than that engine's live-trading
+        taxonomy, since deployment failures and model regressions aren't
+        live-trading failure patterns.
+        """
+        import uuid as _uuid
+
+        try:
+            audit = {
+                "audit_id": f"aud-{_uuid.uuid4().hex[:16]}",
+                "audit_kind": audit_kind,
+                "qde_version": qde_version,
+                "severity_score": min(1.0, max(0.0, severity_score)),
+                "summary": summary,
+                "related_decision_ids": related_decision_ids or [],
+                "evidence": evidence or {},
+                "investigated_by": investigated_by,
+                "created_at": time.time(),
+            }
+            self._db.upsert_decision_audit(audit)
+            logger.info(
+                f"ResearchLab.record_decision_audit: {audit['audit_id']}"
+                f" kind={audit_kind} severity={audit['severity_score']}"
+            )
+            return _ok("record_decision_audit", audit)
+        except Exception as exc:
+            return _err("record_decision_audit", str(exc))
+
+    def get_decision_audit(self, audit_id: str) -> ApiResponse:
+        record = self._db.get_decision_audit(audit_id)
+        if not record:
+            return _err("get_decision_audit", f"Audit {audit_id!r} not found")
+        return _ok("get_decision_audit", record)
+
+    def list_decision_audits(
+        self,
+        audit_kind: str | None = None,
+        qde_version: str | None = None,
+        min_severity: float = 0.0,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 100,
+    ) -> ApiResponse:
+        items = self._db.list_decision_audits(
+            audit_kind=audit_kind,
+            qde_version=qde_version,
+            min_severity=min_severity,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        return _ok("list_decision_audits", {"audits": items, "total": len(items)})

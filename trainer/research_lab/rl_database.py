@@ -659,6 +659,48 @@ CREATE TABLE IF NOT EXISTS deployment_approval_workflows (
 CREATE INDEX IF NOT EXISTS idx_depwf_version ON deployment_approval_workflows(qde_version);
 CREATE INDEX IF NOT EXISTS idx_depwf_status  ON deployment_approval_workflows(status);
 CREATE INDEX IF NOT EXISTS idx_depwf_created ON deployment_approval_workflows(created_at DESC);
+
+-- S28 — QDE Audit and Decision Traceability. One immutable row per QDE
+-- decision, carrying the full traceability record (qde/dataset/feature
+-- version, inference timestamp, input feature hash, output decision,
+-- confidence, size/risk signal, exit horizon, reasoning summary) plus the
+-- resolved model-lineage chain down to the git commit. Administrative-only
+-- (Admin/SuperAdmin/Founder/QuantResearcher/MLResearcher/DeploymentApprover/
+-- Auditor) — never exposed to customers or the public.
+CREATE TABLE IF NOT EXISTS decision_traces (
+    decision_id       TEXT PRIMARY KEY,
+    qde_version       TEXT NOT NULL,
+    dataset_version    TEXT NOT NULL DEFAULT '',
+    feature_version    TEXT NOT NULL DEFAULT '',
+    inference_timestamp REAL NOT NULL,
+    input_feature_hash TEXT NOT NULL DEFAULT '',
+    output_decision    TEXT NOT NULL DEFAULT '',
+    confidence         REAL NOT NULL DEFAULT 0.0,
+    symbol             TEXT NOT NULL DEFAULT '',
+    created_at         REAL NOT NULL,
+    data_json          TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_dtrace_version   ON decision_traces(qde_version);
+CREATE INDEX IF NOT EXISTS idx_dtrace_symbol    ON decision_traces(symbol);
+CREATE INDEX IF NOT EXISTS idx_dtrace_created   ON decision_traces(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dtrace_hash       ON decision_traces(input_feature_hash);
+
+-- S28 — Decision audits: investigations into unexpected drawdowns, abnormal
+-- decisions, failed deployments, model regressions, and abnormal confidence
+-- shifts. Distinct from (and may reference) S20 FailureReport records, since
+-- some audit kinds — FAILED_DEPLOYMENT, MODEL_REGRESSION — are outside the
+-- six live-trading FailureInvestigationEngine categories.
+CREATE TABLE IF NOT EXISTS decision_audits (
+    audit_id       TEXT PRIMARY KEY,
+    audit_kind     TEXT NOT NULL,
+    qde_version    TEXT NOT NULL DEFAULT '',
+    severity_score REAL NOT NULL DEFAULT 0.0,
+    created_at     REAL NOT NULL,
+    data_json      TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_daudit_kind    ON decision_audits(audit_kind);
+CREATE INDEX IF NOT EXISTS idx_daudit_version ON decision_audits(qde_version);
+CREATE INDEX IF NOT EXISTS idx_daudit_created  ON decision_audits(created_at DESC);
 """
 
 
@@ -2890,6 +2932,137 @@ class ResearchLabDatabase:
             sql += f" LIMIT {int(limit)}"
         return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
 
+    # ── S28 Decision Traceability ───────────────────────────────────────────────
+
+    def upsert_decision_trace(self, record: dict[str, Any]) -> None:
+        """Persist a per-decision traceability record.
+
+        Write-once by convention: callers always pass a fresh ``decision_id``,
+        so this is expected to INSERT, not UPDATE — the ON CONFLICT clause is
+        only a defensive no-op-preserving guard against accidental replay.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO decision_traces
+                (decision_id, qde_version, dataset_version, feature_version,
+                 inference_timestamp, input_feature_hash, output_decision,
+                 confidence, symbol, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(decision_id) DO UPDATE SET
+                data_json = excluded.data_json
+            """,
+            (
+                record["decision_id"],
+                record.get("qde_version", ""),
+                record.get("dataset_version", ""),
+                record.get("feature_version", ""),
+                record.get("inference_timestamp", time.time()),
+                record.get("input_feature_hash", ""),
+                record.get("output_decision", ""),
+                record.get("confidence", 0.0),
+                record.get("symbol", ""),
+                record.get("created_at", time.time()),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_decision_trace(self, decision_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM decision_traces WHERE decision_id = ?",
+            (decision_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_decision_traces(
+        self,
+        qde_version: str | None = None,
+        symbol: str | None = None,
+        input_feature_hash: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM decision_traces WHERE 1=1"
+        params: list[Any] = []
+        if qde_version:
+            sql += " AND qde_version = ?"
+            params.append(qde_version)
+        if symbol:
+            sql += " AND symbol = ?"
+            params.append(symbol)
+        if input_feature_hash:
+            sql += " AND input_feature_hash = ?"
+            params.append(input_feature_hash)
+        if since is not None:
+            sql += " AND inference_timestamp >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND inference_timestamp <= ?"
+            params.append(until)
+        sql += " ORDER BY inference_timestamp DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
+    # ── S28 Decision Audits ──────────────────────────────────────────────────
+
+    def upsert_decision_audit(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO decision_audits
+                (audit_id, audit_kind, qde_version, severity_score, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(audit_id) DO UPDATE SET
+                severity_score = excluded.severity_score,
+                data_json      = excluded.data_json
+            """,
+            (
+                record["audit_id"],
+                record.get("audit_kind", ""),
+                record.get("qde_version", ""),
+                record.get("severity_score", 0.0),
+                record.get("created_at", time.time()),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_decision_audit(self, audit_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM decision_audits WHERE audit_id = ?",
+            (audit_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_decision_audits(
+        self,
+        audit_kind: str | None = None,
+        qde_version: str | None = None,
+        min_severity: float = 0.0,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM decision_audits WHERE severity_score >= ?"
+        params: list[Any] = [min_severity]
+        if audit_kind:
+            sql += " AND audit_kind = ?"
+            params.append(audit_kind)
+        if qde_version:
+            sql += " AND qde_version = ?"
+            params.append(qde_version)
+        if since is not None:
+            sql += " AND created_at >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND created_at <= ?"
+            params.append(until)
+        sql += " ORDER BY severity_score DESC, created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
@@ -2920,6 +3093,7 @@ class ResearchLabDatabase:
             "feature_health_reports", "regime_coverage_reports",
             "observability_reports",
             "institutional_certifications", "deployment_approval_workflows",
+            "decision_traces", "decision_audits",
         ]
         result: dict[str, int] = {}
         for table in tables:

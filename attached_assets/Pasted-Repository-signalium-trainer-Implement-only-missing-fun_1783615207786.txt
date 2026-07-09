@@ -1,0 +1,147 @@
+Repository: signalium-trainer
+
+Implement only missing functionality.
+
+Convert Signalium Trainer into a trusted internal compute service.
+
+Primary controller:
+
+https://signaliumai.com
+
+Trainer endpoint:
+
+https://trainer.signaliumai.com
+
+AUTHENTICATION
+
+Retain SSO integration.
+
+Signalium remains the Identity Provider.
+
+Trainer trusts Signalium authentication.
+
+Trainer validates:
+
+* Signalium JWT tokens
+* service-to-service tokens
+* signed internal requests
+* role claims
+* session validity
+
+Implement:
+
+* JWT verification
+* public key verification
+* token introspection support
+* nonce validation
+* timestamp validation
+* replay protection
+
+SERVICE TRUST
+
+Trusted origin:
+
+https://signaliumai.com
+
+Reject requests from all other origins except explicitly configured internal infrastructure.
+
+CONTROL API
+
+Expose internal endpoints for:
+
+Research:
+
+* experiments
+* backtests
+* datasets
+* failures
+* reports
+
+QDE:
+
+* train
+* validate
+* certify
+* deploy
+* rollback
+* pause
+* resume
+
+Memory:
+
+* decisions
+* outcomes
+* patterns
+* reflections
+
+Deployment:
+
+* active model
+* deployment history
+* shadow tests
+
+Monitoring:
+
+* health
+* latency
+* GPU utilization
+* queue depth
+* active workers
+
+TRAINER STATE SYNCHRONIZATION
+
+Implement synchronization for:
+
+* active model version
+* deployment state
+* experiment state
+* shadow state
+* training state
+* health state
+* RunPod state
+* queue state
+
+Signalium becomes source of truth for:
+
+* identities
+* sessions
+* permissions
+* billing
+* subscriptions
+* operational management
+
+Trainer becomes source of truth for:
+
+* research state
+* experiments
+* datasets
+* model artifacts
+* training history
+* deployment history
+
+Implement reconciliation workers every 60 seconds.
+
+Resolve conflicts automatically.
+
+RUNPOD
+
+Implement training worker abstraction:
+
+* local_worker
+* runpod_worker
+
+Trainer automatically chooses execution backend.
+
+Expose RunPod management APIs to Signalium Admin:
+
+* launch training jobs
+* stop training jobs
+* inspect logs
+* inspect GPU usage
+* inspect job status
+* inspect costs
+* inspect artifacts
+
+Trainer remains fully manageable from Signalium Admin Dashboard.
+
+Implement only missing functionality.

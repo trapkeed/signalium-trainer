@@ -135,6 +135,13 @@ class Visibility(str, Enum):
     # review of research *records* (experiments/approvals/audit log), not
     # live model-health telemetry.
     OBSERVABILITY_DASHBOARD = "observability_dashboard_visibility"
+    # S28 — QDE Audit and Decision Traceability. Gates decision-level
+    # traceability records, model lineage chains, reproducibility/replay
+    # tooling, and decision-audit investigations. Administrative-only:
+    # granted to all seven Signalium administrator roles (Admin, SuperAdmin,
+    # Founder, QuantResearcher, MLResearcher, DeploymentApprover, Auditor)
+    # and never exposed to customer- or public-facing callers.
+    DECISION_TRACEABILITY = "decision_traceability_visibility"
 
 
 ROLE_CAPABILITIES: dict[Role, frozenset[Capability]] = {
@@ -169,14 +176,22 @@ ROLE_VISIBILITY: dict[Role, frozenset[Visibility]] = {
     Role.ADMIN: frozenset(Visibility),
     Role.FOUNDER: frozenset({
         Visibility.QDE_LIFECYCLE, Visibility.DEPLOYMENT, Visibility.MODEL_GOVERNANCE,
-        Visibility.OBSERVABILITY_DASHBOARD,
+        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
     }),
-    Role.QUANT_RESEARCHER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
-    Role.ML_RESEARCHER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
-    Role.DEPLOYMENT_APPROVER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
-    # Role.AUDITOR intentionally has no entry → ROLE_VISIBILITY.get() returns
-    # frozenset() → has_visibility() is False for every Visibility, including
-    # OBSERVABILITY_DASHBOARD, per the S25 spec (Auditor excluded).
+    Role.QUANT_RESEARCHER: frozenset({
+        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
+    }),
+    Role.ML_RESEARCHER: frozenset({
+        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
+    }),
+    Role.DEPLOYMENT_APPROVER: frozenset({
+        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
+    }),
+    # Role.AUDITOR has no other entry (excluded from OBSERVABILITY_DASHBOARD
+    # per the S25 spec), but S28 explicitly requires Auditor to see decision
+    # traceability/audit records — that is the core of its compliance-review
+    # job — so it gets DECISION_TRACEABILITY alone.
+    Role.AUDITOR: frozenset({Visibility.DECISION_TRACEABILITY}),
 }
 
 
