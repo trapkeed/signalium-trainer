@@ -38,6 +38,7 @@ from trainer.research_lab.performance_monitor import (
     performance_stats,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
 # `trainer.validation.trading` has no internal trainer dependencies (only
@@ -514,12 +515,16 @@ class TestPerformanceHealthMonitorWiring:
 
 
 class TestPerformanceServerEndpoints:
-    _HDR = {"Authorization": "Bearer test-perf-token"}
+    _HDR = {
+        "Authorization": "Bearer test-perf-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-perf-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_perf.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:

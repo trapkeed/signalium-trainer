@@ -1,0 +1,119 @@
+Repository: signalium-trainer
+
+Phase S27 — Institutional Validation, Governance and Certification
+
+Implement only missing functionality.
+
+Build institutional-grade model governance for the Signalium Quant Decision Engine.
+
+The QDE is the sole decision maker.
+
+No runtime rules may override QDE decisions.
+
+Implement:
+
+VALIDATION GOVERNANCE
+
+* mandatory validation pipeline before deployment
+* mandatory certification pipeline before deployment
+* mandatory shadow observation period before deployment
+* mandatory deployment approval workflow
+* immutable deployment history
+* immutable rollback history
+
+CERTIFICATION DOMAINS
+
+Performance Certification:
+
+* Sharpe ratio
+* Sortino ratio
+* Calmar ratio
+* expectancy
+* drawdown
+* recovery factor
+* consistency score
+
+Risk Certification:
+
+* tail risk exposure
+* regime robustness
+* black swan resilience
+* leverage stress
+* concentration risk
+
+Operational Certification:
+
+* inference stability
+* latency stability
+* memory stability
+* restart resilience
+* artifact integrity
+
+Research Certification:
+
+* dataset lineage verification
+* feature lineage verification
+* experiment reproducibility
+* seed reproducibility
+* training reproducibility
+
+Market Certification:
+
+* trending market performance
+* ranging market performance
+* volatile market performance
+* crisis market performance
+* low liquidity performance
+
+DEPLOYMENT GOVERNANCE
+
+Deployment requires approval from:
+
+* SuperAdmin
+* DeploymentApprover
+
+Optional reviewers:
+
+* Founder
+* QuantResearcher
+* MLResearcher
+
+Every approval must contain:
+
+* reviewer
+* timestamp
+* QDE version
+* certification result
+* notes
+* deployment decision
+
+ROLLBACK GOVERNANCE
+
+Rollback events must capture:
+
+* rollback reason
+* triggering metrics
+* affected versions
+* affected datasets
+* affected experiments
+* affected symbols
+
+AUDIT TRAIL
+
+Maintain immutable audit records for:
+
+* training
+* validation
+* certification
+* shadow testing
+* promotion
+* deployment
+* rollback
+
+Generate institutional certification reports for every QDE version.
+
+Certification reports become permanent historical records.
+
+Expose certification results to Signalium through the Research Lab integration layer.
+
+Implement only missing functionality.

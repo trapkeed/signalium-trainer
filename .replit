@@ -21,3 +21,4 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+packages = ["abseil-cpp", "antlr", "arrow-cpp", "cargo", "glibcLocales", "gtest", "jre", "libiconv", "libxcrypt", "libyaml", "oneDNN", "openssl", "pkg-config", "re2", "rustc"]

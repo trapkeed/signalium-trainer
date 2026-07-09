@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.champion_challenger import (
     ComparisonDimension,
     ChampionChallengerTracker,
@@ -743,12 +744,16 @@ class TestGetComparison:
 
 
 class TestServerEndpoints:
-    _HDR = {"Authorization": "Bearer cc-test-token"}
+    _HDR = {
+        "Authorization": "Bearer cc-test-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "cc-test-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_cc.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:

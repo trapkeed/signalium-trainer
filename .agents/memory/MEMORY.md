@@ -44,5 +44,7 @@
 - [Composite QDE health score design](composite-qde-health-score.md) — 13 drift dims → 5 disjoint categories; shadow-rejection degradation must hook ChampionChallengerTracker.evaluate_promotion, not the dead-code qde_shadow.evaluate_and_maybe_promote
 - [Recommendation→experiment bridge dedup](recommendation-experiment-bridge-dedup.md) — dedup an auto-created linked record by tag across ALL lifecycle statuses, not just the open ones, or retries after the record advances create duplicates
 - [In-process scheduler concurrency pattern](scheduler-concurrency-pattern.md) — due-check + execute must share one lock (recheck-inside-lock), background-thread stop must not clear the handle on join timeout, and numeric env parsing must reject non-finite values too
+- [Python interpreter version mismatch](python-interpreter-version-mismatch.md) — this env's pyproject requires >=3.12 but runtime is 3.11, breaking uv add/pip install for new deps; implement with stdlib+installed libs instead
+- [SSO identity layering pattern](sso-identity-layering-pattern.md) — retrofit JWT/role auth via thin wrapper + capability dependency factory to avoid touching ~90 endpoints; audit middleware must branch on status code and guard call_next, not just check identity presence
 
 

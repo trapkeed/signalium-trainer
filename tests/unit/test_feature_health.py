@@ -30,6 +30,7 @@ from trainer.research_lab.feature_health import (
 from trainer.research_lab.health_monitor import DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 _NOW = time.time()
 
@@ -430,12 +431,16 @@ class TestFeatureHealthMonitorWiring:
 
 
 class TestFeatureHealthServerEndpoints:
-    _HDR = {"Authorization": "Bearer test-feat-token"}
+    _HDR = {
+        "Authorization": "Bearer test-feat-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-feat-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_feat.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:

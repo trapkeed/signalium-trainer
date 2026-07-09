@@ -30,14 +30,21 @@ from pathlib import Path
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 
 # ── Fixture: isolated server client ───────────────────────────────────────────
 
 _VALID_TOKEN = "rl-security-test-token-valid"
 _WRONG_TOKEN = "rl-security-test-token-WRONG"
 
-_AUTH = {"Authorization": f"Bearer {_VALID_TOKEN}"}
-_WRONG_AUTH = {"Authorization": f"Bearer {_WRONG_TOKEN}"}
+_AUTH = {
+    "Authorization": f"Bearer {_VALID_TOKEN}",
+    "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
+}
+_WRONG_AUTH = {
+    "Authorization": f"Bearer {_WRONG_TOKEN}",
+    "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
+}
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +54,7 @@ def client(tmp_path_factory: pytest.TempPathFactory):
     os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = _VALID_TOKEN
     os.environ["RESEARCH_LAB_ADMIN_ID"] = "security-test-admin"
     os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp / "security.db")
+    os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
 
     # Purge any cached server module so we get a fresh singleton
     for mod_name in list(sys.modules):

@@ -35,6 +35,7 @@ from trainer.research_lab.artifact_registry import (
 )
 from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -437,13 +438,17 @@ class TestMLOpsExporterArtifactHook:
 
 
 class TestArtifactServerEndpoints:
-    _HDR = {"Authorization": "Bearer test-artifact-token"}
+    _HDR = {
+        "Authorization": "Bearer test-artifact-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
         import sys
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-artifact-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_artifacts.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:

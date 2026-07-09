@@ -31,6 +31,7 @@ from trainer.research_lab.approval_models import (
     DEFAULT_TTL_SECONDS,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 
 # ── Module-scope Pydantic request models ──────────────────────────────────────
@@ -678,6 +679,7 @@ class TestApprovalRealServer:
         import os
         import sys
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-token-real"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "real_server.db")
         # Force a fresh module (and fresh _db singleton) for each test class.
         for mod_name in list(sys.modules):
@@ -687,7 +689,10 @@ class TestApprovalRealServer:
         from starlette.testclient import TestClient
         return TestClient(srv_mod.app)
 
-    _HDR = {"Authorization": "Bearer test-token-real"}
+    _HDR = {
+        "Authorization": "Bearer test-token-real",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     def test_create_approval_json_body_parsed(self, client) -> None:
         """POST /approvals must parse a JSON body, not treat fields as query params."""

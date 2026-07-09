@@ -170,7 +170,17 @@ class TestScheduleEndpoints:
         from trainer.research_lab import research_lab_server as server_mod
 
         app = server_mod.app
+        from trainer.research_lab.sso import Role, SignaliumIdentity
+
+        fake_identity = SignaliumIdentity(
+            admin_id="test-admin",
+            role=Role.SUPER_ADMIN,
+            originating_service="test",
+            issued_at=0.0,
+            expires_at=0.0,
+        )
         app.dependency_overrides[server_mod._require_admin] = lambda: None
+        app.dependency_overrides[server_mod._require_signalium_identity] = lambda: fake_identity
         try:
             client = TestClient(app)
 
@@ -195,6 +205,7 @@ class TestScheduleEndpoints:
             assert resp.json()["total"] >= 1
         finally:
             app.dependency_overrides.pop(server_mod._require_admin, None)
+            app.dependency_overrides.pop(server_mod._require_signalium_identity, None)
             server_mod._db._conn.execute(
                 "DELETE FROM research_cycle_runs WHERE cycle_name = 'performance_review'"
             )

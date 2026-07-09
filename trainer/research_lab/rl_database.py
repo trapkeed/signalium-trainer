@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -445,6 +446,40 @@ CREATE TABLE IF NOT EXISTS research_cycle_runs (
 CREATE INDEX IF NOT EXISTS idx_rcyc_name    ON research_cycle_runs(cycle_name);
 CREATE INDEX IF NOT EXISTS idx_rcyc_cadence ON research_cycle_runs(cadence);
 CREATE INDEX IF NOT EXISTS idx_rcyc_started ON research_cycle_runs(started_at DESC);
+
+-- Signalium SSO — internal research sessions (S24D §1-2). Established each
+-- time a Signalium-issued JWT is validated; admin_id/role/originating_service
+-- are denormalized for fast lookups, full identity claims live in data_json.
+CREATE TABLE IF NOT EXISTS research_sessions (
+    session_id          TEXT PRIMARY KEY,
+    admin_id             TEXT NOT NULL DEFAULT '',
+    role                 TEXT NOT NULL DEFAULT '',
+    originating_service  TEXT NOT NULL DEFAULT '',
+    created_at           REAL NOT NULL,
+    expires_at           REAL NOT NULL,
+    data_json            TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_rses_admin   ON research_sessions(admin_id);
+CREATE INDEX IF NOT EXISTS idx_rses_expires ON research_sessions(expires_at);
+
+-- Signalium SSO — audit log (S24D §3). Every research action taken through
+-- an authenticated Signalium session is recorded here, including rejected
+-- (unauthenticated/unauthorized) attempts.
+CREATE TABLE IF NOT EXISTS research_audit_log (
+    log_id               TEXT PRIMARY KEY,
+    admin_id              TEXT NOT NULL DEFAULT '',
+    role                  TEXT NOT NULL DEFAULT '',
+    timestamp             REAL NOT NULL,
+    originating_service   TEXT NOT NULL DEFAULT '',
+    action                TEXT NOT NULL DEFAULT '',
+    outcome               TEXT NOT NULL DEFAULT 'SUCCESS',
+    model_version         TEXT,
+    data_json             TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_raud_admin   ON research_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_raud_ts      ON research_audit_log(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_raud_mv      ON research_audit_log(model_version);
+CREATE INDEX IF NOT EXISTS idx_raud_outcome ON research_audit_log(outcome);
 
 -- Model health drift alerts (S20)
 CREATE TABLE IF NOT EXISTS health_alerts (
@@ -1561,6 +1596,123 @@ class ResearchLabDatabase:
             sql += " AND started_at <= ?"
             params.append(until)
         sql += " ORDER BY started_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Signalium SSO — sessions & audit log (S24D) ───────────────────────────
+
+    def upsert_research_session(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO research_sessions
+                (session_id, admin_id, role, originating_service, created_at,
+                 expires_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET
+                admin_id             = excluded.admin_id,
+                role                 = excluded.role,
+                originating_service  = excluded.originating_service,
+                created_at           = excluded.created_at,
+                expires_at           = excluded.expires_at,
+                data_json            = excluded.data_json
+            """,
+            (
+                record["session_id"],
+                record.get("admin_id", ""),
+                record.get("role", ""),
+                record.get("originating_service", ""),
+                record.get("created_at", 0.0),
+                record.get("expires_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_research_session(self, session_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM research_sessions WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_research_sessions(
+        self,
+        admin_id: str | None = None,
+        active_only: bool = False,
+        now: float | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM research_sessions WHERE 1=1"
+        params: list[Any] = []
+        if admin_id:
+            sql += " AND admin_id = ?"
+            params.append(admin_id)
+        if active_only:
+            sql += " AND expires_at > ?"
+            params.append(now if now is not None else time.time())
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    def insert_research_audit_log(self, record: dict[str, Any]) -> None:
+        """Audit log entries are append-only — insert-only, no upsert/update
+        path exists, since a mutable audit trail defeats its own purpose."""
+        self._conn.execute(
+            """
+            INSERT INTO research_audit_log
+                (log_id, admin_id, role, timestamp, originating_service,
+                 action, outcome, model_version, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record["log_id"],
+                record.get("admin_id", ""),
+                record.get("role", ""),
+                record.get("timestamp", 0.0),
+                record.get("originating_service", ""),
+                record.get("action", ""),
+                record.get("outcome", "SUCCESS"),
+                record.get("model_version"),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def list_research_audit_log(
+        self,
+        admin_id: str | None = None,
+        action: str | None = None,
+        outcome: str | None = None,
+        model_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM research_audit_log WHERE 1=1"
+        params: list[Any] = []
+        if admin_id:
+            sql += " AND admin_id = ?"
+            params.append(admin_id)
+        if action:
+            sql += " AND action = ?"
+            params.append(action)
+        if outcome:
+            sql += " AND outcome = ?"
+            params.append(outcome)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if since is not None:
+            sql += " AND timestamp >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND timestamp <= ?"
+            params.append(until)
+        sql += " ORDER BY timestamp DESC"
         if limit and limit > 0:
             sql += f" LIMIT {int(limit)}"
         rows = self._conn.execute(sql, params).fetchall()

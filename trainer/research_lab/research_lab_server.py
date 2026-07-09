@@ -19,6 +19,26 @@ Environment variables:
     RESEARCH_LAB_SCHEDULER_POLL_S  Background scheduler poll interval in
                               seconds (default: 3600).
 
+SINGLE SIGN-ON (S24D)
+----------------------
+Signalium Trainer is a pure OAuth/JWT Service Provider: it trusts Signalium
+as the sole identity authority, never stores administrator passwords, never
+offers public registration, and never operates as an identity provider.
+Every request must carry BOTH the legacy static bearer token (defence-in-
+depth network-boundary check, unchanged) AND a Signalium-issued JWT in the
+``X-Signalium-Token`` header asserting the caller's verified identity and
+administrator role. See trainer/research_lab/sso.py for the full role and
+capability model.
+
+    SIGNALIUM_JWT_ALGORITHM     "HS256" (default) or "RS256".
+    SIGNALIUM_JWT_SECRET        Shared secret, required for HS256.
+    SIGNALIUM_JWT_PUBLIC_KEY    PEM-encoded RSA public key, required for RS256.
+    SIGNALIUM_JWT_MAX_SKEW_S    Max clock skew (seconds) allowed between the
+                                 token's issued-at time and the verifier's
+                                 current time (default: 300).
+    SIGNALIUM_ISSUER             Expected `iss` claim, if issuer pinning is
+                                 desired (default: unset — not checked).
+
 ACCESS MODEL
 ------------
 - This server runs on a private port (8002) inside the trainer container.
@@ -56,7 +76,7 @@ except ImportError:
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 try:
-    from fastapi import Depends, FastAPI, HTTPException, Security
+    from fastapi import Depends, FastAPI, Header, HTTPException, Request, Security
     from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
     from pydantic import BaseModel
 except ImportError as exc:
@@ -94,6 +114,21 @@ from trainer.research_lab.retraining_recommendation_engine import (
     RetrainingRecommendationEngine,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.audit_log import AuditLogger
+from trainer.research_lab.session_manager import SessionManager
+from trainer.research_lab.sso import (
+    Capability,
+    MalformedToken,
+    MissingClaim,
+    MissingToken,
+    ServerMisconfigured,
+    SignaliumIdentity,
+    SSOError,
+    StaleRequestTimestamp,
+    TokenExpired,
+    UnknownRole,
+    validate_signalium_jwt,
+)
 from trainer.research_lab.telemetry_server import make_telemetry_router
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
@@ -135,6 +170,8 @@ _performance_monitor = PerformanceMonitor(_db, _warehouse)
 _feature_health_monitor = FeatureHealthMonitor(_db, _warehouse)
 _regime_coverage_monitor = RegimeCoverageMonitor(_db, _warehouse)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
+_session_mgr = SessionManager(_db)
+_audit = AuditLogger(_db)
 
 
 def _parse_scheduler_poll_interval(raw: str | None, default: float = 3600.0) -> float:
@@ -234,46 +271,236 @@ _CONFIGURED_TOKEN = os.environ.get("RESEARCH_LAB_ADMIN_TOKEN", "")
 _ADMIN_ID = os.environ.get("RESEARCH_LAB_ADMIN_ID", "admin")
 
 
-def _require_admin(
-    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
-) -> str:
-    """Defence-in-depth admin auth. Returns the authenticated admin identity string.
+_SSO_ERROR_STATUS: dict[type[SSOError], int] = {
+    ServerMisconfigured: 503,
+    MissingToken: 401,
+    MalformedToken: 401,
+    UnknownRole: 401,
+    MissingClaim: 401,
+    TokenExpired: 401,
+    StaleRequestTimestamp: 401,
+    # InvalidSignature and any other SSOError subclass not listed above are
+    # treated as 403 (a token was presented but is not trustworthy).
+}
 
-    Even if a caller bypasses the upstream Express proxy and contacts the
-    Research Lab server directly, no endpoint is reachable without a valid
-    admin bearer token.
+
+def _require_signalium_identity(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+    x_signalium_token: str | None = Header(default=None, alias="X-Signalium-Token"),
+) -> SignaliumIdentity:
+    """S24D — Single Sign-On Service Provider entry point.
+
+    Signalium Trainer is a pure Service Provider: it never authenticates a
+    user directly, never stores administrator passwords, and never issues
+    its own tokens. Every admin-facing request must carry a Signalium-issued
+    JWT (``X-Signalium-Token`` header) asserting the caller's verified
+    identity and administrator role. This function:
+
+      1. Enforces the pre-existing static bearer-token defence-in-depth
+         check (belt-and-suspenders network boundary — this does NOT
+         identify *who* the caller is, only that the request reached this
+         server through a channel that knows the shared secret).
+      2. Validates the Signalium JWT's signature, expiration, and request
+         timestamp, and resolves its administrator role
+         (``sso.validate_signalium_jwt``).
+      3. Establishes (or reuses) an internal research session for that
+         identity.
+      4. Stashes the identity on ``request.state`` so the audit-logging
+         middleware can record exactly who performed which action.
+
+    Any failure — missing/invalid static token, missing/invalid/expired
+    Signalium JWT, stale request timestamp, or an unrecognized role — is
+    logged as a REJECTED audit entry before the corresponding HTTPException
+    is raised, so the audit trail captures unauthorized attempts as well as
+    successful ones.
 
     Status codes:
-      - 503 — server misconfigured (RESEARCH_LAB_ADMIN_TOKEN not set)
-      - 401 — no Authorization header / no token presented
-      - 403 — token presented but does not match the configured admin token
-
-    Returns:
-        The authenticated admin identity string (``RESEARCH_LAB_ADMIN_ID``,
-        defaulting to ``"admin"``).  Endpoints that write to audit records
-        (approvals, deployments, rollbacks) should capture this return value
-        to record exactly who authorised the action.
+      - 503 — server misconfigured (missing static token or SSO signing config)
+      - 401 — no/invalid static token, or no/invalid/expired/stale Signalium JWT
+      - 403 — static token and JWT structure are both valid, but the JWT
+              signature does not verify (untrusted issuer)
     """
     if not _CONFIGURED_TOKEN:
         raise HTTPException(
             503,
             detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)",
         )
-    if credentials is None:
+    if credentials is None or not credentials.credentials:
+        _safe_log_rejected(
+            reason="Missing/empty Authorization bearer token",
+            action=f"{request.method} {request.url.path}",
+        )
         raise HTTPException(
             401,
             detail="Unauthorized. Authorization header with a bearer token is required.",
         )
-    token = credentials.credentials
-    if not token or token != _CONFIGURED_TOKEN:
+    if credentials.credentials != _CONFIGURED_TOKEN:
+        _safe_log_rejected(
+            reason="Invalid static admin token",
+            action=f"{request.method} {request.url.path}",
+        )
         raise HTTPException(403, detail="Forbidden. Invalid admin token.")
-    return _ADMIN_ID
+
+    signalium_token = x_signalium_token or request.headers.get("X-Signalium-Token")
+    try:
+        identity = validate_signalium_jwt(signalium_token or "")
+    except SSOError as exc:
+        status_code = _SSO_ERROR_STATUS.get(type(exc), 403)
+        _safe_log_rejected(
+            reason=f"{type(exc).__name__}: {exc.reason}",
+            action=f"{request.method} {request.url.path}",
+        )
+        raise HTTPException(status_code, detail=f"Unauthorized: {exc.reason}") from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Any unexpected failure inside JWT verification (malformed public
+        # key, config parsing error, etc.) must still resolve to a
+        # deterministic auth rejection rather than an opaque 500 — this is
+        # still an untrusted/unverifiable caller, never a server crash.
+        _safe_log_rejected(
+            reason=f"Unexpected error validating Signalium token: {exc}",
+            action=f"{request.method} {request.url.path}",
+        )
+        raise HTTPException(401, detail="Unauthorized: token validation failed") from exc
+
+    try:
+        _session_mgr.establish(identity)
+    except Exception:
+        # Session bookkeeping is best-effort; a persistence hiccup here
+        # must not turn a successfully verified identity into a 500.
+        logger.exception("Failed to establish Signalium session for %s", identity.admin_id)
+    request.state.identity = identity
+    return identity
+
+
+def _safe_log_rejected(**kwargs: Any) -> None:
+    """Audit-log a rejection without ever letting persistence failures mask
+    the auth error that's about to be raised alongside it."""
+    try:
+        _audit.log_rejected(**kwargs)
+    except Exception:
+        logger.exception("Failed to write rejected-auth audit log entry")
+
+
+def _require_admin(
+    identity: SignaliumIdentity = Depends(_require_signalium_identity),
+) -> str:
+    """Backward-compatible admin-identity dependency.
+
+    Every pre-existing endpoint depends on this (directly, or transitively
+    via the router-level fallback below) and expects a plain admin-id
+    string, exactly as before S24D. The real identity/role resolution now
+    happens in ``_require_signalium_identity``; this just narrows it to the
+    string every existing call site already expects.
+    """
+    return identity.admin_id
+
+
+def require_capability(capability: Capability):
+    """Dependency factory enforcing a specific S24D capability.
+
+    Depends on ``_require_signalium_identity`` (which FastAPI caches per
+    request, so authentication runs at most once even though both this and
+    ``_require_admin`` depend on it), then checks whether the resolved
+    role's capability set includes ``capability`` — SuperAdmin/Admin always
+    pass via the UNRESTRICTED sentinel; every other role is checked exactly
+    against the S24D permission table. Raises 403 if the role lacks it.
+    """
+
+    def _dependency(
+        identity: SignaliumIdentity = Depends(_require_signalium_identity),
+    ) -> SignaliumIdentity:
+        if not identity.has_capability(capability):
+            raise HTTPException(
+                403,
+                detail=(
+                    f"Forbidden. Role {identity.role.value!r} does not have "
+                    f"the {capability.value!r} capability."
+                ),
+            )
+        return identity
+
+    return _dependency
 
 
 # Belt-and-suspenders: apply auth at the router level as a fallback for any
 # route that accidentally omits the per-endpoint Depends(_require_admin).
 # FastAPI deduplicates the dependency so it runs at most once per request.
 app.router.dependencies.append(Depends(_require_admin))
+
+
+@app.middleware("http")
+async def _audit_log_middleware(request: Request, call_next: Any) -> Any:
+    """S24D §3 — logs every successfully authenticated research action.
+
+    Rejections (failed authentication/authorization) are logged directly by
+    ``_require_signalium_identity`` at the point of failure, since by the
+    time this middleware's ``call_next`` returns, that context has already
+    been consumed. This middleware instead covers the success path: after
+    the route handler runs, ``request.state.identity`` will have been set
+    by ``_require_signalium_identity`` if authentication succeeded, and
+    ``request.state.audit_extra`` may have been populated by the handler
+    itself with the specific model_version/datasets/experiments affected.
+    """
+    request.state.identity = None
+    request.state.audit_extra = {}
+    action = f"{request.method} {request.url.path}"
+    try:
+        response = await call_next(request)
+    except Exception:
+        # The route handler raised before producing a response (e.g. an
+        # unhandled exception -> Starlette's default 500). Authentication
+        # already succeeded if identity is set, so still record that this
+        # action did not complete successfully, then let the exception
+        # propagate unchanged so FastAPI/Starlette's normal 500 handling
+        # still applies.
+        identity = getattr(request.state, "identity", None)
+        if identity is not None:
+            try:
+                _audit.log_rejected(
+                    reason="Unhandled exception in route handler",
+                    action=action,
+                    admin_id=identity.admin_id,
+                    role=identity.role.value,
+                    originating_service=identity.originating_service,
+                )
+            except Exception:
+                logger.exception("Failed to write audit log entry for %s", action)
+        raise
+
+    identity = getattr(request.state, "identity", None)
+    if identity is not None:
+        # `identity` being set only means authentication succeeded — a
+        # capability check downstream (e.g. require_capability, or the
+        # dynamic gate-type check on /approvals) may still have rejected
+        # the request with 401/403. Log those as REJECTED, not SUCCESS, or
+        # audit forensics would misreport a denied action as completed.
+        extra = getattr(request.state, "audit_extra", None) or {}
+        try:
+            if response.status_code < 400:
+                _audit.log_success(
+                    identity,
+                    action=action,
+                    model_version=extra.get("model_version"),
+                    datasets=extra.get("datasets"),
+                    experiments=extra.get("experiments"),
+                    extra={"status_code": response.status_code},
+                )
+            else:
+                _audit.log_rejected(
+                    reason=f"HTTP {response.status_code}",
+                    action=action,
+                    admin_id=identity.admin_id,
+                    role=identity.role.value,
+                    originating_service=identity.originating_service,
+                )
+        except Exception:
+            # Audit persistence must never mask an already-computed
+            # response; log and move on.
+            logger.exception("Failed to write audit log entry for %s", action)
+    return response
 
 
 # Mount the telemetry router — _require_admin is now defined above.
@@ -599,7 +826,7 @@ def system_summary(_: None = Depends(_require_admin)) -> dict:
 # ── 1. Dataset Generation ─────────────────────────────────────────────────────
 
 
-@app.post("/research/datasets")
+@app.post("/research/datasets", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def create_dataset(req: CreateDatasetRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_dataset(**req.model_dump()))
 
@@ -614,7 +841,7 @@ def get_dataset(dataset_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_dataset(dataset_id))
 
 
-@app.post("/research/datasets/{dataset_id}/generate")
+@app.post("/research/datasets/{dataset_id}/generate", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def create_generation_job(
     dataset_id: str, req: CreateGenerationJobRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -641,12 +868,12 @@ def get_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_generation_job(job_id))
 
 
-@app.post("/research/generation-jobs/{job_id}/start")
+@app.post("/research/generation-jobs/{job_id}/start", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def start_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.start_generation_job(job_id))
 
 
-@app.post("/research/generation-jobs/{job_id}/validating")
+@app.post("/research/generation-jobs/{job_id}/validating", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def validating_generation_job(
     job_id: str,
     req: ValidatingGenerationJobRequest,
@@ -661,7 +888,7 @@ def validating_generation_job(
     )
 
 
-@app.post("/research/generation-jobs/{job_id}/complete")
+@app.post("/research/generation-jobs/{job_id}/complete", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def complete_generation_job(
     job_id: str,
     req: CompleteGenerationJobRequest,
@@ -675,7 +902,7 @@ def complete_generation_job(
     )
 
 
-@app.post("/research/generation-jobs/{job_id}/fail")
+@app.post("/research/generation-jobs/{job_id}/fail", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
 def fail_generation_job(
     job_id: str, req: FailGenerationJobRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -685,19 +912,19 @@ def fail_generation_job(
 # ── 2. Feature Discovery ───────────────────────────────────────────────────────
 
 
-@app.post("/research/features")
+@app.post("/research/features", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
 def record_feature(req: RecordFeatureRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.record_feature(**req.model_dump()))
 
 
-@app.post("/research/features/{feature_id}/accept")
+@app.post("/research/features/{feature_id}/accept", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
 def accept_feature(
     feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.accept_feature(feature_id, notes=req.notes))
 
 
-@app.post("/research/features/{feature_id}/reject")
+@app.post("/research/features/{feature_id}/reject", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
 def reject_feature(
     feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -712,24 +939,24 @@ def list_features(status: str | None = None, _: None = Depends(_require_admin)) 
 # ── 3. Experiment Tracking ─────────────────────────────────────────────────────
 
 
-@app.post("/research/experiments")
+@app.post("/research/experiments", dependencies=[Depends(require_capability(Capability.EXPERIMENT_CREATION))])
 def create_experiment(req: CreateExperimentRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_experiment(**req.model_dump()))
 
 
-@app.post("/research/experiments/{experiment_id}/start")
+@app.post("/research/experiments/{experiment_id}/start", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def start_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.start_experiment(experiment_id))
 
 
-@app.post("/research/experiments/{experiment_id}/complete")
+@app.post("/research/experiments/{experiment_id}/complete", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def complete_experiment(
     experiment_id: str, req: CompleteExperimentRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.complete_experiment(experiment_id, metrics=req.metrics, notes=req.notes))
 
 
-@app.post("/research/experiments/{experiment_id}/fail")
+@app.post("/research/experiments/{experiment_id}/fail", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def fail_experiment(
     experiment_id: str, req: FailExperimentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -761,7 +988,7 @@ def list_experiments(
 # ── 4. Backtesting ────────────────────────────────────────────────────────────
 
 
-@app.post("/research/benchmarks")
+@app.post("/research/benchmarks", dependencies=[Depends(require_capability(Capability.VALIDATION))])
 def run_benchmark(req: RunBenchmarkRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.run_benchmark(**req.model_dump()))
 
@@ -776,7 +1003,7 @@ def list_benchmarks(_: None = Depends(_require_admin)) -> dict:
     return _respond(_api.list_benchmarks())
 
 
-@app.post("/research/backtests")
+@app.post("/research/backtests", dependencies=[Depends(require_capability(Capability.VALIDATION))])
 def register_backtest(req: RegisterBacktestRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.register_backtest(**req.model_dump()))
 
@@ -789,7 +1016,7 @@ def list_backtests(experiment_id: str | None = None, _: None = Depends(_require_
 # ── 5. Validation (Deployment Gates) ──────────────────────────────────────────
 
 
-@app.post("/research/experiments/{experiment_id}/gates")
+@app.post("/research/experiments/{experiment_id}/gates", dependencies=[Depends(require_capability(Capability.VALIDATION))])
 def evaluate_gates(
     experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -805,7 +1032,7 @@ def evaluate_gates(
     )
 
 
-@app.post("/research/experiments/{experiment_id}/validate-retraining")
+@app.post("/research/experiments/{experiment_id}/validate-retraining", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def validate_retraining(
     experiment_id: str, req: ValidateRetrainingRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -820,7 +1047,7 @@ def validate_retraining(
 # ── 6. Promotion Approval ─────────────────────────────────────────────────────
 
 
-@app.post("/research/experiments/{experiment_id}/approve")
+@app.post("/research/experiments/{experiment_id}/approve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def approve_deployment(
     experiment_id: str, req: ApproveDeploymentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -833,7 +1060,7 @@ def approve_deployment(
     )
 
 
-@app.post("/research/experiments/{experiment_id}/reject")
+@app.post("/research/experiments/{experiment_id}/reject", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def reject_deployment(
     experiment_id: str, req: RejectDeploymentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -854,7 +1081,7 @@ def deployment_history(_: None = Depends(_require_admin)) -> dict:
 # ── 7. Rollback Approval ──────────────────────────────────────────────────────
 
 
-@app.post("/research/rollbacks")
+@app.post("/research/rollbacks", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def create_rollback_request(
     req: CreateRollbackRequestModel, _: None = Depends(_require_admin)
 ) -> dict:
@@ -871,21 +1098,21 @@ def get_rollback_request(request_id: str, _: None = Depends(_require_admin)) -> 
     return _respond(_api.get_rollback_request(request_id))
 
 
-@app.post("/research/rollbacks/{request_id}/approve")
+@app.post("/research/rollbacks/{request_id}/approve", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
 def approve_rollback(
     request_id: str, req: ApproveRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.approve_rollback(request_id, approver=req.approver, notes=req.notes))
 
 
-@app.post("/research/rollbacks/{request_id}/reject")
+@app.post("/research/rollbacks/{request_id}/reject", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
 def reject_rollback(
     request_id: str, req: RejectRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.reject_rollback(request_id, rejector=req.rejector, notes=req.notes))
 
 
-@app.post("/research/rollbacks/{request_id}/withdraw")
+@app.post("/research/rollbacks/{request_id}/withdraw", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def withdraw_rollback(
     request_id: str, req: WithdrawRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -902,7 +1129,7 @@ def withdraw_rollback(
 # the corresponding registry mutation via /research/lifecycle/consume.
 
 
-@app.post("/research/lifecycle/authorize")
+@app.post("/research/lifecycle/authorize", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def authorize_lifecycle_action(
     req: AuthorizeLifecycleActionRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -916,7 +1143,7 @@ def authorize_lifecycle_action(
     )
 
 
-@app.post("/research/lifecycle/consume")
+@app.post("/research/lifecycle/consume", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def consume_lifecycle_authorization(
     req: ConsumeLifecycleAuthorizationRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -945,12 +1172,12 @@ def get_lifecycle_authorization(authorization_id: str, _: None = Depends(_requir
 # ── 8. Failure Analysis ───────────────────────────────────────────────────────
 
 
-@app.post("/research/failures")
+@app.post("/research/failures", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def record_failure(req: RecordFailureRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.record_failure(**req.model_dump()))
 
 
-@app.post("/research/failures/{failure_id}/investigate")
+@app.post("/research/failures/{failure_id}/investigate", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def investigate_failure(
     failure_id: str, req: InvestigateFailureRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -959,7 +1186,7 @@ def investigate_failure(
     )
 
 
-@app.post("/research/failures/{failure_id}/resolve")
+@app.post("/research/failures/{failure_id}/resolve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def resolve_failure(
     failure_id: str, req: ResolveFailureRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -991,7 +1218,7 @@ def list_failures(
 # ── Market Regime Analysis ────────────────────────────────────────────────────
 
 
-@app.post("/research/regime")
+@app.post("/research/regime", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def analyze_regime(req: AnalyzeRegimeRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.analyze_regime(**req.model_dump()))
 
@@ -1009,7 +1236,7 @@ def list_regime_reports(qde_version: str | None = None, _: None = Depends(_requi
 # ── Version Comparisons ───────────────────────────────────────────────────────
 
 
-@app.post("/research/comparisons")
+@app.post("/research/comparisons", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compare_models(req: CompareModelsRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.compare_models(**req.model_dump()))
 
@@ -1027,19 +1254,19 @@ def list_comparisons(_: None = Depends(_require_admin)) -> dict:
 # ── Parameter Search ──────────────────────────────────────────────────────────
 
 
-@app.post("/research/searches")
+@app.post("/research/searches", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
 def create_search(req: CreateSearchRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_search(**req.model_dump()))
 
 
-@app.post("/research/searches/{search_id}/trials")
+@app.post("/research/searches/{search_id}/trials", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
 def record_trial(
     search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.record_trial(search_id, parameters=req.parameters, metrics=req.metrics))
 
 
-@app.post("/research/searches/{search_id}/complete")
+@app.post("/research/searches/{search_id}/complete", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
 def complete_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.complete_search(search_id))
 
@@ -1057,19 +1284,19 @@ def list_searches(qde_version: str | None = None, _: None = Depends(_require_adm
 # ── Shadow Testing ────────────────────────────────────────────────────────────
 
 
-@app.post("/research/shadow-tests")
+@app.post("/research/shadow-tests", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
 def create_shadow_test(req: CreateShadowTestRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_shadow_test(**req.model_dump()))
 
 
-@app.post("/research/shadow-tests/{test_id}/decisions")
+@app.post("/research/shadow-tests/{test_id}/decisions", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
 def record_shadow_decision(
     test_id: str, req: RecordShadowDecisionRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.record_shadow_decision(test_id, **req.model_dump()))
 
 
-@app.post("/research/shadow-tests/{test_id}/conclude")
+@app.post("/research/shadow-tests/{test_id}/conclude", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
 def conclude_shadow_test(
     test_id: str, req: ConcludeShadowTestRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1129,7 +1356,7 @@ def list_shadow_decisions_by_version_pair(
 # ── Research Notes ────────────────────────────────────────────────────────────
 
 
-@app.post("/research/notes")
+@app.post("/research/notes", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def create_note(req: CreateNoteRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_note(**req.model_dump()))
 
@@ -1167,7 +1394,7 @@ class InvestigateRequest(BaseModel):
     limit_per_stream: int = 2000
 
 
-@app.post("/research/investigate")
+@app.post("/research/investigate", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def run_investigation(req: InvestigateRequest, _: None = Depends(_require_admin)) -> dict:
     """Run the Failure Investigation Engine against the telemetry warehouse.
 
@@ -1244,7 +1471,7 @@ class DiscoverRequest(BaseModel):
     limit_per_stream: int = 5000
 
 
-@app.post("/research/discover")
+@app.post("/research/discover", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def run_discovery(req: DiscoverRequest, _: None = Depends(_require_admin)) -> dict:
     """Trigger all three S20 discovery pipelines in sequence:
       1. ExperimentCreator — proposes experiments from failure reports
@@ -1298,7 +1525,7 @@ def research_schedule_history(
     return {"success": True, "total": len(rows), "runs": rows}
 
 
-@app.post("/research/schedule/run/{cycle_name}")
+@app.post("/research/schedule/run/{cycle_name}", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def run_research_cycle(cycle_name: str, _: None = Depends(_require_admin)) -> dict:
     """Force-run one named research cycle immediately, regardless of whether
     it is currently due. Read-only with respect to trading/execution — this
@@ -1317,7 +1544,7 @@ def list_proposed_experiments(_: None = Depends(_require_admin)) -> dict:
     return {"success": True, "total": len(rows), "experiments": rows}
 
 
-@app.post("/research/proposed-experiments/{experiment_id}/approve")
+@app.post("/research/proposed-experiments/{experiment_id}/approve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def approve_proposed_experiment(
     experiment_id: str, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1329,7 +1556,7 @@ def approve_proposed_experiment(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/research/proposed-experiments/{experiment_id}/reject")
+@app.post("/research/proposed-experiments/{experiment_id}/reject", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def reject_proposed_experiment(
     experiment_id: str, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1358,7 +1585,7 @@ def list_label_datasets(
 # ── Artifact Registry (S20) ───────────────────────────────────────────────────
 
 
-@app.post("/artifacts/register")
+@app.post("/artifacts/register", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def register_artifact(
     req: RegisterArtifactRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1438,7 +1665,7 @@ def list_artifact_types(_: None = Depends(_require_admin)) -> dict:
     return {"success": True, "artifact_types": ARTIFACT_TYPES}
 
 
-@app.post("/artifacts/runs")
+@app.post("/artifacts/runs", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def register_training_run(
     req: RegisterTrainingRunRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1549,7 +1776,7 @@ def get_shadow_comparison(
     return {"success": True, "comparison": comparison}
 
 
-@app.post("/shadow/evaluate")
+@app.post("/shadow/evaluate", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
 def evaluate_shadow_promotion(
     test_id: str,
     _: None = Depends(_require_admin),
@@ -1601,7 +1828,7 @@ class _DeploymentAdvanceStageRequest(BaseModel):
     notes: str = ""
 
 
-@app.post("/deployment/advance-stage")
+@app.post("/deployment/advance-stage", dependencies=[Depends(require_capability(Capability.VALIDATION))])
 def deployment_advance_stage(
     req: _DeploymentAdvanceStageRequest,
     admin_id: str = Depends(_require_admin),
@@ -1632,7 +1859,7 @@ def deployment_advance_stage(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/promote")
+@app.post("/deployment/promote", dependencies=[Depends(require_capability(Capability.APPROVE_PROMOTIONS))])
 def deployment_request_promotion(
     req: _DeploymentPromoteRequest,
     _: None = Depends(_require_admin),
@@ -1673,7 +1900,7 @@ def deployment_request_promotion(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/activate")
+@app.post("/deployment/activate", dependencies=[Depends(require_capability(Capability.APPROVE_DEPLOYMENTS))])
 def deployment_apply_promotion(
     req: _DeploymentActivateRequest,
     admin_id: str = Depends(_require_admin),
@@ -1705,7 +1932,7 @@ def deployment_apply_promotion(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/rollback")
+@app.post("/deployment/rollback", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
 def deployment_request_rollback(
     req: _DeploymentRollbackRequest,
     _: None = Depends(_require_admin),
@@ -1734,7 +1961,7 @@ def deployment_request_rollback(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/rollback/activate")
+@app.post("/deployment/rollback/activate", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
 def deployment_apply_rollback(
     req: _DeploymentActivateRequest,
     admin_id: str = Depends(_require_admin),
@@ -1809,7 +2036,7 @@ def deployment_get_history(
 # ── Model Health Monitoring (S20) ─────────────────────────────────────────────
 
 
-@app.post("/health/check")
+@app.post("/health/check", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def run_health_check(
     model_version: str | None = None,
     since: float | None = None,
@@ -1881,7 +2108,7 @@ def list_health_alerts(
 # ── Composite QDE Health Score (S22B) ─────────────────────────────────────────
 
 
-@app.post("/health/composite/compute")
+@app.post("/health/composite/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compute_composite_health_score(
     model_version: str | None = None,
     _: None = Depends(_require_admin),
@@ -1932,7 +2159,7 @@ def list_composite_health_scores(
 # ── Decision Quality Monitoring (S22B) ────────────────────────────────────────
 
 
-@app.post("/decision-quality/compute")
+@app.post("/decision-quality/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compute_decision_quality_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -1977,7 +2204,7 @@ def list_decision_quality_reports(
 # ── Autonomous Performance Monitoring (S22B) ──────────────────────────────────
 
 
-@app.post("/performance/compute")
+@app.post("/performance/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compute_performance_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2023,7 +2250,7 @@ def list_performance_reports(
 # ── Feature Health Monitoring (S22B) ──────────────────────────────────────────
 
 
-@app.post("/feature-health/compute")
+@app.post("/feature-health/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compute_feature_health_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2069,7 +2296,7 @@ def list_feature_health_reports(
 # ── Market Regime Coverage Detection (S22B) ───────────────────────────────────
 
 
-@app.post("/regime-coverage/compute")
+@app.post("/regime-coverage/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
 def compute_regime_coverage_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2125,7 +2352,7 @@ def list_regime_coverage_reports(
 # ── Training Pipeline (S20) ───────────────────────────────────────────────────
 
 
-@app.post("/pipeline/run")
+@app.post("/pipeline/run", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
 def run_pipeline(
     req: RunPipelineRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -2198,15 +2425,47 @@ def get_pipeline_job(
 
 # ── Human Approval Gates (S20) ────────────────────────────────────────────────
 
+# The generic /approvals* endpoints serve every gate type through one route,
+# so — unlike the rest of the server — their S24D capability requirement
+# cannot be fixed at decorator time; it depends on the gate_type in the
+# request body/resource. Map each gate type to the capability that governs
+# it and check dynamically inside the handler.
+_APPROVAL_GATE_CAPABILITY: dict[ApprovalGateType, Capability] = {
+    ApprovalGateType.EXPERIMENT_LAUNCH: Capability.EXPERIMENT_CREATION,
+    ApprovalGateType.TRAINING_START: Capability.TRAINING_RUNS,
+    ApprovalGateType.PROMOTION: Capability.APPROVE_PROMOTIONS,
+    ApprovalGateType.DEPLOYMENT: Capability.APPROVE_DEPLOYMENTS,
+    ApprovalGateType.ROLLBACK: Capability.APPROVE_ROLLBACKS,
+}
+
+
+def _require_gate_capability(identity: SignaliumIdentity, gate_type: ApprovalGateType) -> None:
+    capability = _APPROVAL_GATE_CAPABILITY.get(gate_type)
+    if capability is not None and not identity.has_capability(capability):
+        raise HTTPException(
+            403,
+            detail=(
+                f"Forbidden. Role {identity.role.value!r} does not have the "
+                f"{capability.value!r} capability required for gate type {gate_type.value!r}."
+            ),
+        )
+
 
 @app.post("/approvals")
 def create_approval_request(
-    req: CreateApprovalRequest, _: None = Depends(_require_admin)
+    req: CreateApprovalRequest,
+    identity: SignaliumIdentity = Depends(_require_signalium_identity),
 ) -> dict:
     """Create an approval request for a gated Research Lab action.
 
     Idempotent: a second call for the same gate_type + resource_id while a
     PENDING request is still open returns the existing request.
+
+    Note: unlike approve/reject, *creating* a request is intentionally not
+    gated by the gate type's approval capability — the proposer (e.g. a
+    QuantResearcher requesting promotion) is rarely the same role as the
+    approver (DeploymentApprover). Any authenticated Signalium identity may
+    open a request; only the matching capability can resolve it.
     """
     try:
         gate_type = ApprovalGateType(req.gate_type)
@@ -2258,14 +2517,20 @@ def get_approval_request(
 def approve_approval_request(
     request_id: str,
     req: ApproveApprovalRequest,
-    admin_id: str = Depends(_require_admin),
+    identity: SignaliumIdentity = Depends(_require_signalium_identity),
 ) -> dict:
     """Admin approves a PENDING approval request (PENDING → APPROVED).
 
     The authenticated admin identity is recorded in the approval audit log
     regardless of what ``approved_by`` body field is provided, providing a
     tamper-evident link between the bearer token and the approval decision.
+    Requires the S24D capability matching the request's gate_type (e.g.
+    ROLLBACK requests require APPROVE_ROLLBACKS/DeploymentApprover).
     """
+    existing = _approval_gate.get_request(request_id)
+    if existing is not None:
+        _require_gate_capability(identity, ApprovalGateType(existing.gate_type))
+    admin_id = identity.admin_id
     # Use authenticated identity; body field is kept for backward compat but
     # the token holder is the authoritative actor recorded in the audit trail.
     actor = req.approved_by or admin_id
@@ -2286,13 +2551,18 @@ def approve_approval_request(
 def reject_approval_request(
     request_id: str,
     req: RejectApprovalRequest,
-    admin_id: str = Depends(_require_admin),
+    identity: SignaliumIdentity = Depends(_require_signalium_identity),
 ) -> dict:
     """Admin rejects a PENDING approval request (PENDING → REJECTED).
 
     The gated action will be blocked when it next calls require_approval().
     The authenticated admin identity is recorded regardless of the body field.
+    Requires the same S24D capability as approving that gate type.
     """
+    existing = _approval_gate.get_request(request_id)
+    if existing is not None:
+        _require_gate_capability(identity, ApprovalGateType(existing.gate_type))
+    admin_id = identity.admin_id
     actor = req.rejected_by or admin_id
     try:
         rejected = _approval_gate.reject(
@@ -2321,7 +2591,7 @@ class ResolveRequest(BaseModel):
     notes: str = ""
 
 
-@app.post("/research/evaluate")
+@app.post("/research/evaluate", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def run_evaluation(req: EvaluateRequest, _: None = Depends(_require_admin)) -> dict:
     """Run all five evaluation dimensions against the current telemetry.
 
@@ -2373,7 +2643,7 @@ def get_recommendation(
     return {"success": True, "recommendation": rec}
 
 
-@app.post("/research/recommendations/{recommendation_id}/approve")
+@app.post("/research/recommendations/{recommendation_id}/approve", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def approve_recommendation(
     recommendation_id: str,
     req: ResolveRequest,
@@ -2394,7 +2664,7 @@ def approve_recommendation(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/research/recommendations/{recommendation_id}/dismiss")
+@app.post("/research/recommendations/{recommendation_id}/dismiss", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
 def dismiss_recommendation(
     recommendation_id: str,
     req: ResolveRequest,

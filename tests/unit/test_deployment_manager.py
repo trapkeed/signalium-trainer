@@ -38,6 +38,7 @@ from trainer.research_lab.approval_models import ApprovalGateType
 from trainer.research_lab.artifact_registry import ArtifactRegistry
 from trainer.research_lab.artifact_store import ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.signing import ArtifactSigner
 
 
@@ -651,12 +652,16 @@ class TestGetCurrentAndHistory:
 
 
 class TestServerEndpoints:
-    _HDR = {"Authorization": "Bearer dm-test-token"}
+    _HDR = {
+        "Authorization": "Bearer dm-test-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     @pytest.fixture()
     def client(self, tmp_path: Path, monkeypatch):
         import os
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "dm-test-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_dm.db")
         os.environ["ARTIFACT_STORE_ROOT"] = str(tmp_path / "artifact_store")
         priv, pub = ArtifactSigner.generate_keypair()

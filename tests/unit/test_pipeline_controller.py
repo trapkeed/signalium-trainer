@@ -30,6 +30,7 @@ from trainer.research_lab.pipeline_controller import (
     ResearchLabPipelineController,
     StageExecutor,
 )
+from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.pipeline_models import (
     PIPELINE_STAGE_ORDER,
     PipelineEventType,
@@ -642,6 +643,7 @@ class TestPipelineServerEndpoints:
         import os
         import sys
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-pipeline-token"
+        os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_pipeline.db")
         # Force a fresh module (and fresh _db / _pipeline_ctrl singletons) per test.
         for mod_name in list(sys.modules):
@@ -651,7 +653,10 @@ class TestPipelineServerEndpoints:
         from starlette.testclient import TestClient
         return TestClient(srv_mod.app)
 
-    _HDR = {"Authorization": "Bearer test-pipeline-token"}
+    _HDR = {
+        "Authorization": "Bearer test-pipeline-token",
+        "X-Signalium-Token": make_signalium_jwt(),
+    }
 
     def test_run_pipeline_basic(self, client) -> None:
         resp = client.post(
