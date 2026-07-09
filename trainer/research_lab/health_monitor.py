@@ -1,12 +1,15 @@
-"""S20 — Research Lab Model Health Monitor.
+"""S20/S22B — Research Lab Model Health Monitor.
 
-Continuously monitors model health across five drift dimensions:
+Continuously monitors model health across eight drift/health dimensions:
 
   1. **Feature drift**     — input distribution shift (buy/sell/no_trade probs)
   2. **Confidence drift**  — output calibration shift (mean confidence delta)
   3. **Market drift**      — regime/volatility distribution shift
   4. **Data quality**      — telemetry completeness and freshness
   5. **Regime drift**      — per-regime win-rate performance delta
+  6. **Entropy drift**     — prediction entropy trend (model decisiveness)
+  7. **Uncertainty drift** — dispersion (std) of confidence vs baseline
+  8. **Calibration drift** — rolling ECE-style confidence-vs-outcome gap
 
 Each dimension emits a ``DriftAlert`` with severity WARNING or CRITICAL.
 CRITICAL alerts automatically create a ``RetrainingRecommendation`` (pending
@@ -19,6 +22,7 @@ Alerts are persisted in the Research Lab DB and returned by
 
 from __future__ import annotations
 
+import math
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -54,6 +58,9 @@ class DriftDimension(str, Enum):
     MARKET = "MARKET"
     DATA_QUALITY = "DATA_QUALITY"
     REGIME = "REGIME"
+    ENTROPY = "ENTROPY"
+    UNCERTAINTY = "UNCERTAINTY"
+    CALIBRATION = "CALIBRATION"
 
 
 class AlertSeverity(str, Enum):
@@ -68,6 +75,12 @@ _DIM_TO_EVAL: dict[DriftDimension, EvaluationDimension] = {
     DriftDimension.MARKET: EvaluationDimension.REGIME_UNDERPERFORMANCE,
     DriftDimension.DATA_QUALITY: EvaluationDimension.SHARPE_DEGRADATION,
     DriftDimension.REGIME: EvaluationDimension.REGIME_UNDERPERFORMANCE,
+    # New S22B dimensions are all confidence/calibration-adjacent signals —
+    # route them through the same evaluation category pending a dedicated
+    # EvaluationDimension if the Research Lab needs finer-grained triage.
+    DriftDimension.ENTROPY: EvaluationDimension.CONFIDENCE_DRIFT,
+    DriftDimension.UNCERTAINTY: EvaluationDimension.CONFIDENCE_DRIFT,
+    DriftDimension.CALIBRATION: EvaluationDimension.CONFIDENCE_DRIFT,
 }
 
 
@@ -138,7 +151,7 @@ class DriftAlert:
 
 @dataclass
 class HealthMonitorConfig:
-    """Configurable thresholds for all five drift dimensions.
+    """Configurable thresholds for all eight drift/health dimensions.
 
     All thresholds can be overridden without redeploying by passing a
     custom config instance to ``ResearchLabHealthMonitor``.
@@ -170,6 +183,19 @@ class HealthMonitorConfig:
     # ── 5. Regime performance drift (win-rate drop per regime) ─────────────────
     regime_win_rate_warning: float = 0.08   # absolute drop in win rate
     regime_win_rate_critical: float = 0.15
+
+    # ── 6. Prediction entropy drift (|mean_recent - mean_baseline| entropy) ────
+    entropy_warning: float = 0.15   # bits (3-class max entropy ≈ 1.585 bits)
+    entropy_critical: float = 0.30
+
+    # ── 7. Uncertainty drift (|std_recent - std_baseline| of confidence) ───────
+    uncertainty_warning: float = 0.05
+    uncertainty_critical: float = 0.10
+
+    # ── 8. Calibration drift (rolling ECE increase, recent vs baseline) ────────
+    calibration_warning: float = 0.08
+    calibration_critical: float = 0.15
+    calibration_bins: int = 5
 
 
 # ── Health Check Result ───────────────────────────────────────────────────────
@@ -204,7 +230,7 @@ class HealthCheckResult:
 
 
 class ResearchLabHealthMonitor:
-    """Orchestrates five-dimension model health monitoring for the Research Lab.
+    """Orchestrates eight-dimension model health monitoring for the Research Lab.
 
     Args:
         db: ResearchLabDatabase for alert persistence and recommendation
@@ -234,7 +260,7 @@ class ResearchLabHealthMonitor:
         model_version: str | None = None,
         since: float | None = None,
     ) -> HealthCheckResult:
-        """Run all five drift-dimension checks and persist any alerts.
+        """Run all eight drift/health-dimension checks and persist any alerts.
 
         Args:
             model_version: Restrict to a specific model version string.
@@ -261,6 +287,9 @@ class ResearchLabHealthMonitor:
             (DriftDimension.MARKET.value, self._check_market, (decisions, mv)),
             (DriftDimension.DATA_QUALITY.value, self._check_data_quality, (decisions, mv, now)),
             (DriftDimension.REGIME.value, self._check_regime, (trades, mv)),
+            (DriftDimension.ENTROPY.value, self._check_entropy, (decisions, mv)),
+            (DriftDimension.UNCERTAINTY.value, self._check_uncertainty, (decisions, mv)),
+            (DriftDimension.CALIBRATION.value, self._check_calibration, (trades, mv)),
         ]:
             checked.append(name)
             try:
@@ -725,6 +754,203 @@ class ResearchLabHealthMonitor:
             created_at=time.time(),
         )
 
+    # ── Dimension: Prediction entropy drift ───────────────────────────────────
+
+    def _check_entropy(
+        self, decisions: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect drift in mean prediction entropy (baseline vs recent).
+
+        Entropy is computed per-decision from the 3-class (buy/sell/no_trade)
+        probability distribution — either explicit probability fields or a
+        proxy derived from ``confidence`` + ``direction``. Rising entropy
+        indicates the model is becoming less decisive/more confused.
+        """
+        if len(decisions) < self._cfg.min_samples * 2:
+            return None
+
+        baseline_d, recent_d = _split_windows(
+            decisions,
+            self._cfg.baseline_window,
+            self._cfg.rolling_window,
+            self._cfg.min_samples,
+        )
+        if baseline_d is None or recent_d is None:
+            return None
+
+        b_entropies = [_decision_entropy(d) for d in baseline_d]
+        r_entropies = [_decision_entropy(d) for d in recent_d]
+        b_mean = sum(b_entropies) / len(b_entropies)
+        r_mean = sum(r_entropies) / len(r_entropies)
+        drift = abs(r_mean - b_mean)
+
+        if drift < self._cfg.entropy_warning:
+            return None
+
+        severity = (
+            AlertSeverity.CRITICAL.value
+            if drift >= self._cfg.entropy_critical
+            else AlertSeverity.WARNING.value
+        )
+        direction = "increased" if r_mean > b_mean else "decreased"
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.ENTROPY.value,
+            severity=severity,
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=["prediction_entropy"],
+            evidence={
+                "baseline_mean_entropy_bits": round(b_mean, 4),
+                "recent_mean_entropy_bits": round(r_mean, 4),
+                "drift": round(drift, 4),
+                "warning_threshold": self._cfg.entropy_warning,
+                "critical_threshold": self._cfg.entropy_critical,
+                "n_baseline": len(baseline_d),
+                "n_recent": len(recent_d),
+            },
+            recommended_action=(
+                f"Prediction entropy has {direction} by {drift:.3f} bits from baseline "
+                f"({b_mean:.3f} → {r_mean:.3f}). "
+                + (
+                    (
+                        "Model is significantly less decisive than baseline — "
+                        "investigate input quality and consider retraining."
+                        if r_mean > b_mean
+                        else "Model has become significantly more decisive/overconfident "
+                        "than baseline — verify this isn't overfitting to recent conditions."
+                    )
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Monitor decisiveness trend."
+                )
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Uncertainty drift ──────────────────────────────────────────
+
+    def _check_uncertainty(
+        self, decisions: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect drift in confidence dispersion (std) — a proxy for the
+        model's own uncertainty when no explicit uncertainty estimate is
+        exposed. Distinct from ``_check_confidence``, which tracks the mean;
+        this tracks the spread, so a model that becomes erratic (wider
+        confidence spread) without a mean shift is still caught.
+        """
+        confs = [d.get("confidence", 0.5) for d in decisions]
+        baseline, recent = _split_windows(
+            confs, self._cfg.baseline_window, self._cfg.rolling_window, self._cfg.min_samples
+        )
+        if baseline is None or recent is None:
+            return None
+
+        b_std = _stdev(baseline)
+        r_std = _stdev(recent)
+        drift = abs(r_std - b_std)
+
+        if drift < self._cfg.uncertainty_warning:
+            return None
+
+        severity = (
+            AlertSeverity.CRITICAL.value
+            if drift >= self._cfg.uncertainty_critical
+            else AlertSeverity.WARNING.value
+        )
+        direction = "widened" if r_std > b_std else "narrowed"
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.UNCERTAINTY.value,
+            severity=severity,
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=["confidence_std"],
+            evidence={
+                "baseline_confidence_std": round(b_std, 4),
+                "recent_confidence_std": round(r_std, 4),
+                "drift": round(drift, 4),
+                "warning_threshold": self._cfg.uncertainty_warning,
+                "critical_threshold": self._cfg.uncertainty_critical,
+                "n_baseline": len(baseline),
+                "n_recent": len(recent),
+            },
+            recommended_action=(
+                f"Confidence dispersion has {direction} by {drift:.3f} from baseline "
+                f"({b_std:.3f} → {r_std:.3f}). "
+                + ("Model uncertainty behavior has changed sharply — "
+                   "investigate before continuing autonomous operation."
+                   if severity == AlertSeverity.CRITICAL.value
+                   else "Monitor uncertainty trend.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Calibration drift ──────────────────────────────────────────
+
+    def _check_calibration(
+        self, trades: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect worsening calibration (confidence vs realized outcome) using
+        a rolling Expected-Calibration-Error-style metric.
+
+        Uses ``confidence_at_entry`` and realized ``pnl`` (correct = pnl > 0)
+        from closed trades, binned into ``calibration_bins`` buckets. Only
+        fires when calibration error has *worsened* (recent ECE higher than
+        baseline) by at least the warning threshold.
+        """
+        if len(trades) < self._cfg.min_samples * 2:
+            return None
+
+        baseline_t, recent_t = _split_windows(
+            trades,
+            self._cfg.baseline_window,
+            self._cfg.rolling_window,
+            self._cfg.min_samples,
+        )
+        if baseline_t is None or recent_t is None:
+            return None
+
+        b_ece = _expected_calibration_error(baseline_t, self._cfg.calibration_bins)
+        r_ece = _expected_calibration_error(recent_t, self._cfg.calibration_bins)
+        if b_ece is None or r_ece is None:
+            return None
+
+        drift = r_ece - b_ece  # only worsening (positive) triggers an alert
+        if drift < self._cfg.calibration_warning:
+            return None
+
+        severity = (
+            AlertSeverity.CRITICAL.value
+            if drift >= self._cfg.calibration_critical
+            else AlertSeverity.WARNING.value
+        )
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.CALIBRATION.value,
+            severity=severity,
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=["confidence_at_entry", "pnl"],
+            evidence={
+                "baseline_ece": round(b_ece, 4),
+                "recent_ece": round(r_ece, 4),
+                "drift": round(drift, 4),
+                "warning_threshold": self._cfg.calibration_warning,
+                "critical_threshold": self._cfg.calibration_critical,
+                "n_baseline": len(baseline_t),
+                "n_recent": len(recent_t),
+            },
+            recommended_action=(
+                f"Calibration error worsened by {drift:.3f} from baseline "
+                f"({b_ece:.3f} → {r_ece:.3f}) — confidence no longer tracks "
+                f"realized outcomes as well. "
+                + ("Recalibration (temperature scaling) or full retrain recommended."
+                   if severity == AlertSeverity.CRITICAL.value
+                   else "Monitor confidence-vs-outcome alignment.")
+            ),
+            created_at=time.time(),
+        )
+
     # ── CRITICAL → RetrainingRecommendation ───────────────────────────────────
 
     def _maybe_create_recommendation(self, alert: DriftAlert) -> str:
@@ -740,25 +966,36 @@ class ResearchLabHealthMonitor:
         if eval_dim is None:
             return ""
 
-        # Deduplication: check open recommendations for same (mv, dimension)
+        # Deduplication key: several health DriftDimensions (e.g. ENTROPY,
+        # UNCERTAINTY, CALIBRATION) all map to the same coarse EvaluationDimension
+        # for recommendation categorization, so dedup must also check the
+        # originating health dimension (stashed in evidence) — otherwise a CRITICAL
+        # alert on one of them would silently suppress a later, distinct CRITICAL
+        # alert on another (e.g. a calibration recommendation never being created
+        # because an earlier entropy recommendation is still open).
         open_recs = self._rec_engine._db.list_retraining_recommendations(
             status=RecommendationStatus.PROPOSED.value,
             model_version=alert.model_version,
             limit=200,
         )
         for existing in open_recs:
-            if existing.get("trigger_dimension") == eval_dim.value:
+            same_eval_dim = existing.get("trigger_dimension") == eval_dim.value
+            same_health_dim = (
+                existing.get("evidence", {}).get("_health_dimension") == alert.dimension
+            )
+            if same_eval_dim and same_health_dim:
                 logger.debug(
                     f"HealthMonitor: skipping duplicate recommendation for "
-                    f"{eval_dim.value} model={alert.model_version!r}"
+                    f"{alert.dimension} model={alert.model_version!r}"
                 )
                 return existing.get("recommendation_id", "")
 
-        scope = (
-            RecommendedScope.FULL_RETRAIN
-            if alert.dimension in (DriftDimension.DATA_QUALITY.value, DriftDimension.MARKET.value)
-            else RecommendedScope.FINE_TUNE
-        )
+        if alert.dimension in (DriftDimension.DATA_QUALITY.value, DriftDimension.MARKET.value):
+            scope = RecommendedScope.FULL_RETRAIN
+        elif alert.dimension == DriftDimension.CALIBRATION.value:
+            scope = RecommendedScope.CALIBRATION_ONLY
+        else:
+            scope = RecommendedScope.FINE_TUNE
         rec = RetrainingRecommendation.new(
             model_version=alert.model_version,
             trigger_dimension=eval_dim,
@@ -766,7 +1003,7 @@ class ResearchLabHealthMonitor:
                 f"CRITICAL {alert.dimension} drift alert detected by health monitor. "
                 f"{alert.recommended_action}"
             ),
-            evidence=alert.evidence,
+            evidence={**alert.evidence, "_health_dimension": alert.dimension},
             recommended_scope=scope,
             urgency=RecommendationUrgency.CRITICAL,
         )
@@ -832,3 +1069,82 @@ def _tv_distance(a: dict[str, float], b: dict[str, float]) -> float:
     if not keys:
         return 0.0
     return 0.5 * sum(abs(a.get(k, 0.0) - b.get(k, 0.0)) for k in keys)
+
+
+def _decision_distribution(d: dict[str, Any]) -> dict[str, float]:
+    """Per-decision buy/sell/no_trade probability distribution.
+
+    Prefers explicit probability fields; falls back to a proxy built from
+    ``confidence`` + ``direction`` (confidence on the predicted class, the
+    remainder split evenly across the other two classes) which is what the
+    live telemetry warehouse schema provides.
+    """
+    if "buy_prob" in d:
+        return {
+            "buy": d.get("buy_prob", 0.33),
+            "sell": d.get("sell_prob", 0.33),
+            "no_trade": d.get("no_trade_prob", 0.34),
+        }
+    conf = max(0.0, min(1.0, d.get("confidence", 0.5)))
+    direction = (d.get("direction", "") or "").lower()
+    remainder = (1.0 - conf) / 2.0
+    dist = {"buy": remainder, "sell": remainder, "no_trade": remainder}
+    key = direction if direction in dist else "no_trade"
+    dist[key] = conf
+    return dist
+
+
+def _decision_entropy(d: dict[str, Any]) -> float:
+    """Shannon entropy (bits) of a single decision's class distribution."""
+    dist = _decision_distribution(d)
+    eps = 1e-12
+    return -sum(p * math.log2(p + eps) for p in dist.values() if p > 0)
+
+
+def _stdev(values: list[float]) -> float:
+    """Population standard deviation; 0.0 for fewer than two samples."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    mean = sum(values) / n
+    variance = sum((v - mean) ** 2 for v in values) / n
+    return math.sqrt(variance)
+
+
+def _expected_calibration_error(
+    trades: list[dict[str, Any]], n_bins: int, min_usable: int = 5
+) -> float | None:
+    """Rolling ECE from ``confidence_at_entry`` vs realized outcome (pnl > 0).
+
+    Returns ``None`` when there are too few trades with confidence data
+    (fewer than ``min_usable``) rather than a misleading 0.0/noisy estimate,
+    so callers can skip the check instead of computing ECE from a handful
+    of points. Confidence values are clipped to ``[0, 1]`` once up front and
+    that clipped value is used consistently for both bin assignment and the
+    bin's mean-confidence statistic, so out-of-range inputs can't distort
+    the reported calibration gap.
+    """
+    usable = [
+        {**t, "confidence_at_entry": max(0.0, min(1.0, t.get("confidence_at_entry", 0.0)))}
+        for t in trades
+        if "confidence_at_entry" in t
+    ]
+    if len(usable) < min_usable:
+        return None
+
+    n = len(usable)
+    bin_edges = [i / n_bins for i in range(n_bins + 1)]
+    ece = 0.0
+    for i in range(n_bins):
+        lo, hi = bin_edges[i], bin_edges[i + 1]
+        bucket = [
+            t for t in usable
+            if lo <= t["confidence_at_entry"] < hi
+            or (i == n_bins - 1 and t["confidence_at_entry"] >= hi)
+        ]
+        if not bucket:
+            continue
+        bin_conf = sum(t["confidence_at_entry"] for t in bucket) / len(bucket)
+        bin_acc = sum(1.0 for t in bucket if t.get("pnl", 0.0) > 0) / len(bucket)
+        ece += (len(bucket) / n) * abs(bin_acc - bin_conf)
+    return ece

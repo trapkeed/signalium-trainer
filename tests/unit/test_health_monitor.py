@@ -1,4 +1,4 @@
-"""S20 — Tests for Model Health Monitoring (five-dimension drift detection).
+"""S20/S22B — Tests for Model Health Monitoring (eight-dimension drift detection).
 
 Covers:
   - Each drift dimension: threshold crossing (below / above WARNING / CRITICAL)
@@ -27,7 +27,10 @@ from trainer.research_lab.health_monitor import (
     HealthMonitorConfig,
     ResearchLabHealthMonitor,
     _class_distribution,
+    _decision_entropy,
+    _expected_calibration_error,
     _regime_histogram,
+    _stdev,
     _tv_distance,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
@@ -471,6 +474,173 @@ class TestRegimeDrift:
             assert "worst_regime" in alert.evidence
 
 
+# ── Entropy drift ─────────────────────────────────────────────────────────────
+
+
+class TestEntropyDrift:
+    def _cfg(self, warning=0.15, critical=0.30) -> HealthMonitorConfig:
+        return HealthMonitorConfig(
+            baseline_window=20, rolling_window=10, min_samples=5,
+            entropy_warning=warning, entropy_critical=critical,
+        )
+
+    def test_no_alert_stable_entropy(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        decisions = (
+            _decisions(20, buy_prob=0.7, sell_prob=0.2, no_trade_prob=0.1)
+            + _decisions(10, buy_prob=0.72, sell_prob=0.19, no_trade_prob=0.09, ts_start=_NOW)
+        )
+        alert = monitor._check_entropy(decisions, "v1.0")
+        assert alert is None
+
+    def test_warning_rising_entropy(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        # baseline: decisive (low entropy); recent: near-uniform (high entropy)
+        baseline = _decisions(20, buy_prob=0.9, sell_prob=0.05, no_trade_prob=0.05)
+        recent = _decisions(10, buy_prob=0.34, sell_prob=0.33, no_trade_prob=0.33, ts_start=_NOW)
+        alert = monitor._check_entropy(baseline + recent, "v1.0")
+        assert alert is not None
+        assert alert.dimension == DriftDimension.ENTROPY.value
+
+    def test_critical_extreme_entropy_rise(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg(critical=0.20))
+        baseline = _decisions(20, buy_prob=0.95, sell_prob=0.025, no_trade_prob=0.025)
+        recent = _decisions(10, buy_prob=0.34, sell_prob=0.33, no_trade_prob=0.33, ts_start=_NOW)
+        alert = monitor._check_entropy(baseline + recent, "v1.0")
+        assert alert is not None
+        assert alert.severity == AlertSeverity.CRITICAL.value
+
+    def test_insufficient_data_no_alert(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        alert = monitor._check_entropy(_decisions(3), "v1.0")
+        assert alert is None
+
+    def test_decision_entropy_helper_uniform_is_max(self) -> None:
+        uniform = _decision_entropy({"buy_prob": 1 / 3, "sell_prob": 1 / 3, "no_trade_prob": 1 / 3})
+        certain = _decision_entropy({"buy_prob": 1.0, "sell_prob": 0.0, "no_trade_prob": 0.0})
+        assert uniform > certain
+        assert certain == 0.0 or certain < 1e-6
+
+    def test_decision_entropy_fallback_from_confidence(self) -> None:
+        e = _decision_entropy({"confidence": 0.9, "direction": "buy"})
+        assert e >= 0.0
+
+
+# ── Uncertainty drift ─────────────────────────────────────────────────────────
+
+
+class TestUncertaintyDrift:
+    def _cfg(self, warning=0.05, critical=0.10) -> HealthMonitorConfig:
+        return HealthMonitorConfig(
+            baseline_window=20, rolling_window=10, min_samples=5,
+            uncertainty_warning=warning, uncertainty_critical=critical,
+        )
+
+    def test_no_alert_stable_spread(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        decisions = (
+            [{"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (30 - i) * 60} for i in range(20)]
+            + [{"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (10 - i) * 60} for i in range(10)]
+        )
+        alert = monitor._check_uncertainty(decisions, "v1.0")
+        assert alert is None
+
+    def test_warning_widening_spread(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        baseline = [{"confidence": 0.7, "timestamp": _NOW - (30 - i) * 60} for i in range(20)]
+        # Alternate high/low confidence → much higher std
+        recent = [
+            {"confidence": 0.95 if i % 2 == 0 else 0.35, "timestamp": _NOW - (10 - i) * 60}
+            for i in range(10)
+        ]
+        alert = monitor._check_uncertainty(baseline + recent, "v1.0")
+        assert alert is not None
+        assert alert.dimension == DriftDimension.UNCERTAINTY.value
+
+    def test_insufficient_data_no_alert(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        alert = monitor._check_uncertainty(_decisions(3), "v1.0")
+        assert alert is None
+
+    def test_stdev_helper(self) -> None:
+        assert _stdev([1.0]) == 0.0
+        assert _stdev([1.0, 1.0, 1.0]) == 0.0
+        assert _stdev([0.0, 1.0]) > 0.0
+
+
+# ── Calibration drift ─────────────────────────────────────────────────────────
+
+
+class TestCalibrationDrift:
+    def _cfg(self, warning=0.08, critical=0.15) -> HealthMonitorConfig:
+        return HealthMonitorConfig(
+            baseline_window=20, rolling_window=10, min_samples=5,
+            calibration_warning=warning, calibration_critical=critical,
+        )
+
+    def _well_calibrated_trades(self, n: int, ts_start: float) -> list[dict]:
+        # confidence ≈ win rate: alternate so that ~conf fraction win
+        out = []
+        for i in range(n):
+            conf = 0.7
+            win = (i % 10) < 7  # 70% win rate matches 0.7 confidence
+            out.append({
+                "confidence_at_entry": conf,
+                "pnl": 10.0 if win else -10.0,
+                "timestamp": ts_start + i * 60,
+                "regime": "RANGING",
+                "model_version": "v1.0",
+            })
+        return out
+
+    def _poorly_calibrated_trades(self, n: int, ts_start: float) -> list[dict]:
+        # confidence stays high but win rate collapses → large calibration gap
+        out = []
+        for i in range(n):
+            out.append({
+                "confidence_at_entry": 0.9,
+                "pnl": -10.0 if i % 10 < 8 else 10.0,  # only 20% win rate
+                "timestamp": ts_start + i * 60,
+                "regime": "RANGING",
+                "model_version": "v1.0",
+            })
+        return out
+
+    def test_no_alert_stable_calibration(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        trades = (
+            self._well_calibrated_trades(20, _NOW - 30 * 60)
+            + self._well_calibrated_trades(10, _NOW - 10 * 60)
+        )
+        alert = monitor._check_calibration(trades, "v1.0")
+        assert alert is None
+
+    def test_alert_worsening_calibration(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        trades = (
+            self._well_calibrated_trades(20, _NOW - 30 * 60)
+            + self._poorly_calibrated_trades(10, _NOW - 10 * 60)
+        )
+        alert = monitor._check_calibration(trades, "v1.0")
+        assert alert is not None
+        assert alert.dimension == DriftDimension.CALIBRATION.value
+        assert alert.evidence["recent_ece"] > alert.evidence["baseline_ece"]
+
+    def test_insufficient_data_no_alert(self, db, warehouse) -> None:
+        monitor = _make_monitor(db, warehouse, config=self._cfg())
+        alert = monitor._check_calibration([], "v1.0")
+        assert alert is None
+
+    def test_ece_helper_none_without_confidence_field(self) -> None:
+        assert _expected_calibration_error([{"pnl": 1.0}], 5) is None
+
+    def test_ece_helper_perfect_calibration_near_zero(self) -> None:
+        trades = self._well_calibrated_trades(50, _NOW)
+        ece = _expected_calibration_error(trades, 5)
+        assert ece is not None
+        assert ece < 0.3  # loose bound; binning coarsens exact match
+
+
 # ── Full run_check integration ────────────────────────────────────────────────
 
 
@@ -600,6 +770,33 @@ class TestCriticalAlertCreatesRecommendation:
         assert rec_id_1 == rec_id_2
         recs = db.list_retraining_recommendations(model_version="v-dedup")
         assert len(recs) == 1
+
+    def test_distinct_health_dimensions_both_create_recommendations(self, db, warehouse) -> None:
+        """ENTROPY and CALIBRATION both map to the same coarse EvaluationDimension
+        (CONFIDENCE_DRIFT) for categorization, but dedup must not collapse them —
+        an open entropy recommendation must not suppress a distinct calibration one.
+        """
+        rec_engine = self._mock_rec_engine(db)
+        monitor = _make_monitor(db, warehouse, rec_engine=rec_engine, config=self._cfg())
+
+        entropy_alert = DriftAlert(
+            alert_id="hal-ent", dimension=DriftDimension.ENTROPY.value, severity="CRITICAL",
+            model_version="v-multi", affected_symbols=[], affected_features=[],
+            evidence={}, recommended_action="test entropy", created_at=time.time(),
+        )
+        calibration_alert = DriftAlert(
+            alert_id="hal-cal", dimension=DriftDimension.CALIBRATION.value, severity="CRITICAL",
+            model_version="v-multi", affected_symbols=[], affected_features=[],
+            evidence={}, recommended_action="test calibration", created_at=time.time(),
+        )
+        rec_id_1 = monitor._maybe_create_recommendation(entropy_alert)
+        rec_id_2 = monitor._maybe_create_recommendation(calibration_alert)
+
+        assert rec_id_1 and rec_id_2
+        assert rec_id_1 != rec_id_2
+        recs = db.list_retraining_recommendations(model_version="v-multi")
+        assert len(recs) == 2
+        assert {r["recommended_scope"] for r in recs} == {"FINE_TUNE", "CALIBRATION_ONLY"}
 
     def test_no_rec_engine_returns_empty(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, rec_engine=None, config=self._cfg())
@@ -778,7 +975,7 @@ class TestHealthServerEndpoints:
         hc = body["health_check"]
         assert "is_healthy" in hc
         assert "dimensions_checked" in hc
-        assert len(hc["dimensions_checked"]) == 5
+        assert len(hc["dimensions_checked"]) == 8
 
     def test_run_check_model_version_param(self, client) -> None:
         resp = client.post("/health/check?model_version=v2.0", headers=self._HDR)

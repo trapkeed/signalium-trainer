@@ -1,0 +1,336 @@
+Repository: signalium-trainer
+
+Phase S24 — Research Lab Completion
+
+Implement only missing functionality.
+Detect existing implementations first and extend them rather than duplicating logic.
+
+This phase finalizes the Research Lab and transforms it into the administrative and scientific control center for the Signalium Quant Decision Engine.
+
+The Research Lab is never public facing.
+It has no retail users.
+It has no frontend outside the internal admin research interface.
+
+The Research Lab exists exclusively to improve the QDE model over time.
+
+==================================================
+
+1. Research Persistence Layer
+   ==================================================
+
+Implement missing persistence functionality for:
+
+* experiments
+* datasets
+* feature discoveries
+* training runs
+* validation runs
+* shadow tests
+* deployment approvals
+* rollback approvals
+* failure investigations
+* parameter searches
+* retraining requests
+* model comparisons
+
+Requirements:
+
+* persistent database storage
+* survive server restarts
+* versioned records
+* immutable audit trail
+* timestamp every event
+* full lineage tracking
+
+Replace any remaining in-memory stores.
+
+Research state must never be lost.
+
+==================================================
+2. Automated Research Scheduling
+================================
+
+Implement scheduled research cycles:
+
+Daily:
+
+* performance review
+* regime review
+* failure review
+* drift analysis
+
+Weekly:
+
+* self evaluation
+* feature discovery
+* counterfactual analysis
+* regime performance review
+
+Monthly:
+
+* architecture review
+* training dataset quality review
+* model degradation analysis
+* deployment review
+
+Store all findings in Research Lab persistence.
+
+==================================================
+3. Retraining Trigger Pipeline
+==============================
+
+Implement the missing bridge:
+
+memory
+→ research
+→ retraining recommendation
+→ experiment creation
+→ training pipeline
+
+Triggers include:
+
+* performance degradation
+* confidence degradation
+* regime drift
+* volatility shift
+* feature drift
+* calibration degradation
+* increased drawdown
+* excessive prediction error
+
+The trainer may recommend retraining automatically.
+
+Actual retraining execution always requires admin approval.
+
+No fully autonomous retraining.
+
+==================================================
+4. Failure Investigation Engine
+===============================
+
+Create automated failure investigations.
+
+Examples:
+
+* unexpected drawdown
+* poor regime performance
+* execution deterioration
+* poor sizing performance
+* poor timing performance
+* poor holding duration predictions
+* poor risk estimation
+* excessive false positives
+* excessive missed opportunities
+
+For every failure:
+
+Generate:
+
+* root cause analysis
+* affected symbols
+* affected sessions
+* affected regimes
+* affected market conditions
+* confidence distributions
+* candidate improvements
+
+Persist findings.
+
+==================================================
+5. Feature Discovery Pipeline
+=============================
+
+Implement automatic feature discovery workflows.
+
+Sources:
+
+* self evaluation findings
+* failure investigations
+* counterfactual analysis
+* memory patterns
+* regime studies
+* lifecycle analytics
+
+The Research Lab should continuously ask:
+
+"What information would have improved this decision?"
+
+Candidate features should be:
+
+* scored
+* ranked
+* tested
+* validated
+
+before becoming production features.
+
+==================================================
+6. Shadow Deployment Automation
+===============================
+
+Implement missing shadow deployment wiring.
+
+Requirements:
+
+* champion model receives production traffic
+* challenger receives identical market snapshots
+* challenger decisions are recorded
+* challenger never trades live
+* compare decisions side-by-side
+* compare confidence
+* compare expected return
+* compare latency
+* compare risk estimation
+
+Produce:
+
+* agreement rate
+* disagreement analysis
+* regime analysis
+* deployment recommendation
+
+==================================================
+7. Model Promotion Pipeline
+===========================
+
+Implement complete promotion workflow:
+
+DRAFT
+→ TRAINING
+→ VALIDATION
+→ BACKTESTING
+→ SHADOW
+→ CANDIDATE
+→ APPROVED
+→ ACTIVE
+→ RETIRED
+
+Promotion requires:
+
+* validation success
+* certification success
+* shadow success
+* admin approval
+
+Approval should activate deployment automatically.
+
+Rollback should deactivate deployment automatically.
+
+==================================================
+8. Dataset Lineage Completion
+=============================
+
+Ensure every model version records:
+
+* dataset version
+* feature version
+* label version
+* experiment ID
+* training run ID
+* git commit hash
+* artifact hash
+* parent model version
+
+Every prediction made by the model must be traceable back to:
+
+Prediction
+→ Model
+→ Dataset
+→ Features
+→ Training Run
+→ Experiment
+→ Code Version
+
+==================================================
+9. Research Intelligence Dashboard
+==================================
+
+Build an institutional research dashboard.
+
+Include:
+
+* active experiments
+* training history
+* validation history
+* shadow tests
+* deployment history
+* drift metrics
+* confidence trends
+* failure investigations
+* discovered features
+* model genealogy
+
+Dashboard requirements:
+
+* realtime updates
+* responsive
+* dark theme
+* internal use only
+* not publicly accessible
+
+==================================================
+10. One Model Philosophy Enforcement
+====================================
+
+Validate architecture consistency.
+
+The trainer must enforce:
+
+* one QDE model
+* one active version
+* one live decision maker
+
+The following are forbidden in production:
+
+* multiple experts
+* voting systems
+* ensemble routing
+* expert weighting
+* expert arbitration
+* canary deployment routing
+
+Shadow evaluation is allowed.
+
+Live multiple-model decision making is prohibited.
+
+==================================================
+11. Knowledge Preservation
+==========================
+
+Preserve historical knowledge from legacy systems.
+
+Archive:
+
+* old heuristics
+* sizing formulas
+* stop formulas
+* take profit formulas
+* regime multipliers
+* ensemble behavior
+
+These may be used:
+
+* as research references
+* as benchmark baselines
+* as label generators
+
+They must never override QDE decisions.
+
+==================================================
+12. Completion Requirements
+===========================
+
+The completed Research Lab must become:
+
+* the scientific brain of Signalium
+* the institutional memory of Signalium
+* the validation authority of Signalium
+* the deployment authority of Signalium
+
+The QDE remains the sole trader.
+
+The Research Lab improves the trader.
+
+The Research Lab never becomes the trader.
+
+Implement only missing functionality and preserve all existing implementations.

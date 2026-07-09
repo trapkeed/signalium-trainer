@@ -1665,7 +1665,7 @@ def run_health_check(
     since: float | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    """Trigger an on-demand health check across all five drift dimensions.
+    """Trigger an on-demand health check across all eight drift/health dimensions.
 
     Evaluates:
     - **Confidence drift** — mean output confidence shift baseline vs recent
@@ -1673,6 +1673,9 @@ def run_health_check(
     - **Market drift** — regime distribution shift (TV distance)
     - **Data quality** — telemetry staleness and event-rate drop
     - **Regime drift** — per-regime win-rate degradation
+    - **Entropy drift** — prediction entropy trend (model decisiveness)
+    - **Uncertainty drift** — confidence dispersion (std) vs baseline
+    - **Calibration drift** — rolling ECE-style confidence-vs-outcome gap
 
     CRITICAL alerts automatically create a ``RetrainingRecommendation``
     (deduplicated against open recommendations for the same dimension).
