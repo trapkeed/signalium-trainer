@@ -1,0 +1,256 @@
+SIGNALIUM-TRAINER REPOSITORY PROMPT
+
+Implement only missing functionality.
+
+Signalium Trainer becomes a trusted compute and intelligence service.
+
+PRIMARY RESPONSIBILITIES
+
+Trainer owns:
+
+* research
+* datasets
+* experiments
+* memory
+* QDE
+* training
+* inference
+* deployment history
+* artifacts
+* model lifecycle
+
+Trainer does not own:
+
+* users
+* billing
+* subscriptions
+* infrastructure credentials
+* RunPod credentials
+
+---
+
+## SSO TRUST
+
+Signalium remains Identity Provider.
+
+Trainer trusts Signalium-issued identities.
+
+Supported roles:
+
+* User
+* Support
+* Admin
+* SuperAdmin
+
+Implement:
+
+* JWT validation
+* token introspection
+* role propagation
+* session synchronization
+* replay protection
+* nonce validation
+
+---
+
+## RUNPOD EXECUTION MODEL
+
+Trainer never stores RunPod API keys.
+
+Trainer receives:
+
+* pod_id
+* endpoint
+* worker_token
+* expiration_timestamp
+* storage_credentials
+* artifact_destination
+
+Reject expired credentials.
+
+Reject invalid signatures.
+
+Support:
+
+* local_worker
+* runpod_worker
+
+Training engine must remain execution-backend agnostic.
+
+---
+
+## MARKET DATA PROVIDERS
+
+Create pluggable provider architecture.
+
+Primary live provider:
+
+OANDA API
+
+Primary historical provider:
+
+Tiingo API
+
+Provider interface:
+
+connect()
+disconnect()
+health_check()
+get_price()
+get_candles()
+get_ticks()
+get_spread()
+get_orderbook()
+get_calendar()
+get_news()
+
+Support hot switching.
+
+Support failover.
+
+Support future providers without code changes.
+
+---
+
+## PROVIDER PRIORITY
+
+LIVE INFERENCE
+
+1 OANDA
+2 Tiingo
+3 Future providers
+
+TRAINING
+
+1 Tiingo
+2 OANDA
+3 Future providers
+
+Automatic failover triggers:
+
+* timeout
+* stale data
+* missing symbol
+* missing timeframe
+* excessive latency
+
+---
+
+## SYMBOL NORMALIZATION
+
+Create universal symbol normalization engine.
+
+Examples:
+
+EURUSD
+EUR/USD
+EURUSD.r
+EURUSDm
+EURUSD.pro
+EURUSD_raw
+
+normalize to:
+
+EURUSD
+
+Examples:
+
+XAUUSD
+GOLD
+XAU/USD
+XAUUSD.r
+XAUUSDm
+
+normalize to:
+
+XAUUSD
+
+Examples:
+
+US30
+DJI30
+US30.cash
+US30m
+
+normalize to:
+
+US30
+
+Support:
+
+* broker aliases
+* admin aliases
+* runtime learning
+* broker suffixes
+* broker prefixes
+
+---
+
+## SUPPORTED ASSETS
+
+Forex:
+
+EURUSD
+GBPUSD
+USDJPY
+AUDUSD
+USDCHF
+USDCAD
+NZDUSD
+
+Metals:
+
+XAUUSD
+XAGUSD
+
+Indices:
+
+US30
+NAS100
+SPX500
+GER40
+UK100
+
+Admins may:
+
+* add symbols
+* disable symbols
+* enable symbols
+* create aliases
+
+Crypto support remains disabled but architecturally supported.
+
+---
+
+## SYNCHRONIZATION
+
+Synchronization interval:
+
+60 seconds.
+
+Signalium authoritative for:
+
+* identities
+* permissions
+* subscriptions
+* API keys
+* infrastructure
+
+Trainer authoritative for:
+
+* experiments
+* datasets
+* artifacts
+* memory
+* models
+* deployments
+
+Implement:
+
+* reconciliation
+* retries
+* dead letter queue
+* idempotency
+* audit logging
+
+Implement only missing functionality.
