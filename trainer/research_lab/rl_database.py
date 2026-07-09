@@ -324,6 +324,22 @@ CREATE INDEX IF NOT EXISTS idx_label_datasets_label_type ON label_datasets(label
 CREATE INDEX IF NOT EXISTS idx_label_datasets_mv        ON label_datasets(model_version);
 CREATE INDEX IF NOT EXISTS idx_label_datasets_created   ON label_datasets(created_at);
 
+-- Retraining recommendations produced by the RetrainingRecommendationEngine (S20)
+CREATE TABLE IF NOT EXISTS retraining_recommendations (
+    recommendation_id TEXT PRIMARY KEY,
+    model_version     TEXT NOT NULL DEFAULT '',
+    trigger_dimension TEXT NOT NULL,
+    urgency           TEXT NOT NULL DEFAULT 'LOW',
+    status            TEXT NOT NULL DEFAULT 'PROPOSED',
+    created_at        REAL NOT NULL,
+    updated_at        REAL NOT NULL,
+    data_json         TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_rr_mv        ON retraining_recommendations(model_version);
+CREATE INDEX IF NOT EXISTS idx_rr_status    ON retraining_recommendations(status);
+CREATE INDEX IF NOT EXISTS idx_rr_dimension ON retraining_recommendations(trigger_dimension);
+CREATE INDEX IF NOT EXISTS idx_rr_created   ON retraining_recommendations(created_at DESC);
+
 -- Research notes (standalone, addressable notes; not embedded in other records)
 CREATE TABLE IF NOT EXISTS research_notes (
     note_id            TEXT PRIMARY KEY,
@@ -1179,6 +1195,65 @@ class ResearchLabDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Retraining Recommendations (S20) ──────────────────────────────────────
+
+    def upsert_retraining_recommendation(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO retraining_recommendations
+                (recommendation_id, model_version, trigger_dimension, urgency,
+                 status, created_at, updated_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(recommendation_id) DO UPDATE SET
+                status     = excluded.status,
+                urgency    = excluded.urgency,
+                updated_at = excluded.updated_at,
+                data_json  = excluded.data_json
+            """,
+            (
+                record["recommendation_id"],
+                record.get("model_version", ""),
+                record.get("trigger_dimension", ""),
+                record.get("urgency", "LOW"),
+                record.get("status", "PROPOSED"),
+                record.get("created_at", 0.0),
+                record.get("updated_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_retraining_recommendation(self, recommendation_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM retraining_recommendations WHERE recommendation_id = ?",
+            (recommendation_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_retraining_recommendations(
+        self,
+        status: str | None = None,
+        model_version: str | None = None,
+        trigger_dimension: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM retraining_recommendations WHERE 1=1"
+        params: list[Any] = []
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if trigger_dimension:
+            sql += " AND trigger_dimension = ?"
+            params.append(trigger_dimension)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Telemetry Warehouse (S20) ──────────────────────────────────────────────
 
     _TELEMETRY_TABLES = (
@@ -1278,7 +1353,9 @@ class ResearchLabDatabase:
             "features",
             "benchmarks",
             "research_notes",
-        ] + list(self._TELEMETRY_TABLES) + ["failure_reports", "label_datasets"]
+        ] + list(self._TELEMETRY_TABLES) + [
+            "failure_reports", "label_datasets", "retraining_recommendations"
+        ]
         result: dict[str, int] = {}
         for table in tables:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()

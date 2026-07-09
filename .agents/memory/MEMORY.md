@@ -20,3 +20,4 @@
 - [QDE always-on observer state machine](qde-observer-state-machine.md) — per-symbol OBSERVING..COOLDOWN lifecycle is advisory context/telemetry, never a trade-placing/blocking authority
 - [Account HWM cold-start bug](account-hwm-cold-start.md) — history-derived high-water-mark trivially equals current value with thin/no history; always reconcile against the source's own authoritative running metric
 - [Pydantic v2 deferred-annotation bug](pydantic-deferred-annotation.md) — with `from __future__ import annotations`, Pydantic models defined inside methods silently fail FastAPI validation (422); define them at module scope instead
+- [Evaluator window overlap bug](evaluator-window-overlap.md) — naive [:baseline_window] / [-rolling_window:] slicing overlaps when data < baseline+rolling; use _split_windows() helper for guaranteed-disjoint 67/33 split

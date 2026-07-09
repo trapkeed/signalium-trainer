@@ -55,7 +55,11 @@ from trainer.research_lab.failure_investigation_engine import FailureInvestigati
 from trainer.research_lab.feature_discovery_pipeline import FeatureDiscoveryPipeline
 from trainer.research_lab.investigation_models import InvestigationConfig, InvestigationQuery
 from trainer.research_lab.label_discovery_engine import LabelDiscoveryEngine
+from trainer.research_lab.recommendation_models import RecommendationConfig
 from trainer.research_lab.research_lab_api import ResearchLabAPI
+from trainer.research_lab.retraining_recommendation_engine import (
+    RetrainingRecommendationEngine,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_server import make_telemetry_router
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
@@ -87,6 +91,7 @@ _engine = FailureInvestigationEngine(_warehouse, _db)
 _creator = ExperimentCreator(_db)
 _feature_pipeline = FeatureDiscoveryPipeline(_warehouse, _db)
 _label_engine = LabelDiscoveryEngine(_warehouse, _db)
+_rec_engine = RetrainingRecommendationEngine(_warehouse, _db, RecommendationConfig())
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1047,3 +1052,106 @@ def list_label_datasets(
         label_type=label_type, model_version=model_version, limit=limit
     )
     return {"success": True, "total": len(rows), "datasets": rows}
+
+
+# ── Retraining Recommendation Engine (S20) ────────────────────────────────────
+
+
+class EvaluateRequest(BaseModel):
+    model_version: str | None = None
+    since: float | None = None
+    until: float | None = None
+
+
+class ResolveRequest(BaseModel):
+    resolved_by: str = "admin"
+    notes: str = ""
+
+
+@app.post("/research/evaluate")
+def run_evaluation(req: EvaluateRequest, _: None = Depends(_require_admin)) -> dict:
+    """Run all five evaluation dimensions against the current telemetry.
+
+    For any dimension that crosses its threshold, a RetrainingRecommendation is
+    persisted in PROPOSED status and returned in the response.
+    Idempotent: subsequent calls deduplicate open recommendations.
+    """
+    try:
+        results = _rec_engine.evaluate(
+            model_version=req.model_version,
+            since=req.since,
+            until=req.until,
+        )
+        return {
+            "success": True,
+            "n_evaluated": len(results),
+            "n_triggered": sum(1 for r in results if r.triggered),
+            "results": [r.to_dict() for r in results],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/research/recommendations")
+def list_recommendations(
+    status: str | None = None,
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List retraining recommendations. Optionally filter by status
+    (PROPOSED | APPROVED | DISMISSED) and model_version."""
+    rows = _rec_engine.list_recommendations(
+        status=status, model_version=model_version, limit=limit
+    )
+    return {"success": True, "total": len(rows), "recommendations": rows}
+
+
+@app.get("/research/recommendations/{recommendation_id}")
+def get_recommendation(
+    recommendation_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    """Fetch a single RetrainingRecommendation by ID."""
+    rec = _rec_engine.get_recommendation(recommendation_id)
+    if rec is None:
+        raise HTTPException(
+            status_code=404, detail=f"Recommendation {recommendation_id!r} not found"
+        )
+    return {"success": True, "recommendation": rec}
+
+
+@app.post("/research/recommendations/{recommendation_id}/approve")
+def approve_recommendation(
+    recommendation_id: str,
+    req: ResolveRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Approve a PROPOSED recommendation (admin action).
+
+    Advances status to APPROVED. This does not start retraining automatically —
+    that is handled by the Training Pipeline Integration.
+    """
+    try:
+        rec = _rec_engine.approve(recommendation_id, resolved_by=req.resolved_by)
+        return {"success": True, "recommendation": rec}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/research/recommendations/{recommendation_id}/dismiss")
+def dismiss_recommendation(
+    recommendation_id: str,
+    req: ResolveRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Dismiss a PROPOSED recommendation (admin decision).
+
+    Advances status to DISMISSED. Records the resolver and optional notes.
+    """
+    try:
+        rec = _rec_engine.dismiss(
+            recommendation_id, resolved_by=req.resolved_by, notes=req.notes
+        )
+        return {"success": True, "recommendation": rec}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
