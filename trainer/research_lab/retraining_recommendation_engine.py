@@ -42,12 +42,23 @@ from trainer.research_lab.recommendation_models import (
     _elevate_urgency,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.rl_models import ExperimentRecord, ExperimentStatus
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
 
 class RetrainingRecommendationEngine:
     """Evaluates champion model health across five dimensions and generates
     RetrainingRecommendation objects for admin review."""
+
+    # S24 §3: RecommendedScope -> Experiment hyperparameter hints. Purely
+    # advisory metadata attached to the auto-created experiment; it does not
+    # change how the (still admin-gated) training pipeline executes.
+    _SCOPE_HYPERPARAMS: dict[str, dict[str, Any]] = {
+        "FULL_RETRAIN": {"retrain_mode": "full"},
+        "FINE_TUNE": {"retrain_mode": "fine_tune"},
+        "CALIBRATION_ONLY": {"retrain_mode": "calibration_only"},
+        "HEAD_RETRAIN": {"retrain_mode": "head_retrain"},
+    }
 
     def __init__(
         self,
@@ -121,7 +132,17 @@ class RetrainingRecommendationEngine:
     # ── Public: lifecycle actions ─────────────────────────────────────────────
 
     def approve(self, recommendation_id: str, resolved_by: str = "admin") -> dict[str, Any]:
-        """Approve a PROPOSED recommendation → APPROVED."""
+        """Approve a PROPOSED recommendation → APPROVED.
+
+        S24 §3 (retraining trigger pipeline): approval also auto-creates a
+        linked ``ExperimentRecord`` in PENDING status, bridging
+        "recommendation approved" → "experiment exists" — this is a
+        bookkeeping/proposal step only. It does **not** start training: an
+        admin must still separately call ``start_experiment`` and clear the
+        ``TRAINING_START`` approval gate before ``run_pipeline`` will
+        execute the TRAINING stage (see ``pipeline_controller.py``). No
+        code path here launches a pipeline job.
+        """
         rec_dict = self._db.get_retraining_recommendation(recommendation_id)
         if rec_dict is None:
             raise ValueError(f"Recommendation {recommendation_id!r} not found")
@@ -131,7 +152,48 @@ class RetrainingRecommendationEngine:
         logger.info(
             f"RecommendationEngine: approved {recommendation_id} by {resolved_by}"
         )
-        return rec.to_dict()
+
+        experiment_id = self._maybe_create_linked_experiment(rec)
+        result = rec.to_dict()
+        result["experiment_id"] = experiment_id
+        return result
+
+    def _maybe_create_linked_experiment(self, rec: RetrainingRecommendation) -> str:
+        """Create (or find) the ExperimentRecord bridging this approved
+        recommendation to the training pipeline. Dedup'd on recommendation_id
+        via experiment tags so re-approval attempts / repeated calls never
+        create duplicates."""
+        dedup_tag = f"from_recommendation:{rec.recommendation_id}"
+        for status in ExperimentStatus:
+            for existing in self._db.list_experiments(status=status.value):
+                if dedup_tag in existing.get("tags", []):
+                    return existing.get("experiment_id", "")
+
+        hyperparameters = dict(
+            self._SCOPE_HYPERPARAMS.get(rec.recommended_scope, {})
+        )
+        exp = ExperimentRecord.new(
+            name=(
+                f"Auto-proposed retraining ({rec.trigger_dimension}) for "
+                f"{rec.model_version or 'unknown'}"
+            ),
+            qde_version=rec.model_version or "unknown",
+            training_dataset="pending_selection",
+            researcher=rec.resolved_by or "system",
+            tags=["auto-proposed", "retraining_recommendation", dedup_tag],
+            hyperparameters=hyperparameters,
+            notes=(
+                f"Auto-created from approved RetrainingRecommendation "
+                f"{rec.recommendation_id}. Trigger: {rec.trigger_dimension} — "
+                f"{rec.trigger_reason}"
+            ),
+        )
+        self._db.upsert_experiment(exp.to_dict())
+        logger.info(
+            f"RecommendationEngine: created linked experiment {exp.experiment_id} "
+            f"from recommendation {rec.recommendation_id}"
+        )
+        return exp.experiment_id
 
     def dismiss(
         self,

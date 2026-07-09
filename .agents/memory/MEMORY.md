@@ -42,3 +42,7 @@
 - [Feature health monitoring blind spots](feature-health-blind-spots.md) — intermittent-presence and whole-stream-stale-vs-wall-clock are missed by naive expected-vs-observed / window-relative staleness checks
 - [Scaffolding placeholder must stay unguarded](scaffolding-placeholder-fail-closed-tradeoff.md) — don't make execution/dispatch guards fail-closed on "no real model registered yet" states that are the documented pre-training baseline, or you break the legitimate default path
 - [Composite QDE health score design](composite-qde-health-score.md) — 13 drift dims → 5 disjoint categories; shadow-rejection degradation must hook ChampionChallengerTracker.evaluate_promotion, not the dead-code qde_shadow.evaluate_and_maybe_promote
+- [Recommendation→experiment bridge dedup](recommendation-experiment-bridge-dedup.md) — dedup an auto-created linked record by tag across ALL lifecycle statuses, not just the open ones, or retries after the record advances create duplicates
+- [In-process scheduler concurrency pattern](scheduler-concurrency-pattern.md) — due-check + execute must share one lock (recheck-inside-lock), background-thread stop must not clear the handle on join timeout, and numeric env parsing must reject non-finite values too
+
+

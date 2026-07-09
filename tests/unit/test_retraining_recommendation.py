@@ -612,6 +612,94 @@ class TestRetrainingRecommendationEngine:
         assert updated["status"] == "DISMISSED"
         assert updated["notes"] == "false positive"
 
+    def test_approve_creates_linked_experiment(
+        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase
+    ) -> None:
+        """S24 §3: approving a recommendation must bridge to an actual
+        ExperimentRecord (PENDING), not just flip a status flag."""
+        for i in range(20):
+            _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
+        for i in range(10):
+            _trade(warehouse, pnl_pct=-2.0, ts=NOW + 100 + i)
+        engine.evaluate(model_version=MV)
+        recs = db.list_retraining_recommendations(status="PROPOSED")
+        assert recs
+        rec_id = recs[0]["recommendation_id"]
+
+        result = engine.approve(rec_id, resolved_by="head_quant")
+        assert result["experiment_id"]
+
+        exp = db.get_experiment(result["experiment_id"])
+        assert exp is not None
+        assert exp["status"] in ("PENDING", "PROPOSED")
+        assert exp["qde_version"] == MV
+        assert f"from_recommendation:{rec_id}" in exp["tags"]
+        # Bridging must not itself execute anything — no training timestamps.
+        assert exp.get("training_started_at") is None
+
+    def test_approve_experiment_link_is_idempotent(
+        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase
+    ) -> None:
+        """Repeated internal experiment-creation calls (e.g. retried approve
+        logic) must not create duplicate experiments for the same
+        recommendation."""
+        for i in range(20):
+            _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
+        for i in range(10):
+            _trade(warehouse, pnl_pct=-2.0, ts=NOW + 100 + i)
+        engine.evaluate(model_version=MV)
+        rec_id = db.list_retraining_recommendations(status="PROPOSED")[0]["recommendation_id"]
+        result = engine.approve(rec_id, resolved_by="head_quant")
+
+        from trainer.research_lab.retraining_recommendation_engine import _from_dict
+        rec_obj = _from_dict(db.get_retraining_recommendation(rec_id))
+        # Directly re-invoke the internal bridge to simulate a retry/duplicate
+        # call — it must resolve to the same experiment, not create a new one.
+        second_experiment_id = engine._maybe_create_linked_experiment(rec_obj)
+        assert second_experiment_id == result["experiment_id"]
+        matching = [
+            e for e in db.list_experiments(status="PENDING")
+            if f"from_recommendation:{rec_id}" in e.get("tags", [])
+        ]
+        assert len(matching) == 1
+
+    def test_approve_experiment_link_dedups_across_all_statuses(
+        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase
+    ) -> None:
+        """Once the linked experiment advances past PENDING/PROPOSED (e.g. to
+        RUNNING or COMPLETED), a retried approval must still resolve to the
+        same experiment rather than creating a second one."""
+        for i in range(20):
+            _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
+        for i in range(10):
+            _trade(warehouse, pnl_pct=-2.0, ts=NOW + 100 + i)
+        engine.evaluate(model_version=MV)
+        rec_id = db.list_retraining_recommendations(status="PROPOSED")[0]["recommendation_id"]
+        result = engine.approve(rec_id, resolved_by="head_quant")
+        experiment_id = result["experiment_id"]
+
+        # Simulate the experiment progressing to RUNNING then COMPLETED.
+        exp = db.get_experiment(experiment_id)
+        exp["status"] = "RUNNING"
+        db.upsert_experiment(exp)
+        exp["status"] = "COMPLETED"
+        db.upsert_experiment(exp)
+
+        from trainer.research_lab.retraining_recommendation_engine import _from_dict
+        rec_obj = _from_dict(db.get_retraining_recommendation(rec_id))
+        retried_id = engine._maybe_create_linked_experiment(rec_obj)
+        assert retried_id == experiment_id
+
+        all_tagged = [
+            e for status in ("PROPOSED", "PENDING", "RUNNING", "COMPLETED", "FAILED", "ARCHIVED")
+            for e in db.list_experiments(status=status)
+            if f"from_recommendation:{rec_id}" in e.get("tags", [])
+        ]
+        assert len(all_tagged) == 1
+
     def test_approve_nonexistent_raises(
         self, engine: RetrainingRecommendationEngine
     ) -> None:

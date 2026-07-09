@@ -430,6 +430,22 @@ CREATE INDEX IF NOT EXISTS idx_chs_mv      ON composite_health_scores(model_vers
 CREATE INDEX IF NOT EXISTS idx_chs_grade   ON composite_health_scores(grade);
 CREATE INDEX IF NOT EXISTS idx_chs_created ON composite_health_scores(created_at DESC);
 
+-- Automated Research Scheduling (S24 §2) — daily/weekly/monthly research
+-- cycle run history. cycle_name identifies the named review (e.g.
+-- 'performance_review'); cadence is 'daily'/'weekly'/'monthly'.
+CREATE TABLE IF NOT EXISTS research_cycle_runs (
+    run_id        TEXT PRIMARY KEY,
+    cycle_name    TEXT NOT NULL,
+    cadence       TEXT NOT NULL DEFAULT '',
+    status        TEXT NOT NULL DEFAULT '',
+    started_at    REAL NOT NULL,
+    completed_at  REAL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_rcyc_name    ON research_cycle_runs(cycle_name);
+CREATE INDEX IF NOT EXISTS idx_rcyc_cadence ON research_cycle_runs(cadence);
+CREATE INDEX IF NOT EXISTS idx_rcyc_started ON research_cycle_runs(started_at DESC);
+
 -- Model health drift alerts (S20)
 CREATE TABLE IF NOT EXISTS health_alerts (
     alert_id      TEXT PRIMARY KEY,
@@ -1480,6 +1496,75 @@ class ResearchLabDatabase:
         return [json.loads(r["data_json"]) for r in rows]
 
     # ── Composite QDE Health Score (S22B) ─────────────────────────────────────
+
+    def upsert_research_cycle_run(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO research_cycle_runs
+                (run_id, cycle_name, cadence, status, started_at, completed_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                cycle_name   = excluded.cycle_name,
+                cadence      = excluded.cadence,
+                status       = excluded.status,
+                started_at   = excluded.started_at,
+                completed_at = excluded.completed_at,
+                data_json    = excluded.data_json
+            """,
+            (
+                record["run_id"],
+                record.get("cycle_name", ""),
+                record.get("cadence", ""),
+                record.get("status", ""),
+                record.get("started_at", 0.0),
+                record.get("completed_at"),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_research_cycle_run(self, run_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM research_cycle_runs WHERE run_id = ?",
+            (run_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def get_last_research_cycle_run(self, cycle_name: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM research_cycle_runs WHERE cycle_name = ? "
+            "ORDER BY started_at DESC LIMIT 1",
+            (cycle_name,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_research_cycle_runs(
+        self,
+        cycle_name: str | None = None,
+        cadence: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM research_cycle_runs WHERE 1=1"
+        params: list[Any] = []
+        if cycle_name:
+            sql += " AND cycle_name = ?"
+            params.append(cycle_name)
+        if cadence:
+            sql += " AND cadence = ?"
+            params.append(cadence)
+        if since is not None:
+            sql += " AND started_at >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND started_at <= ?"
+            params.append(until)
+        sql += " ORDER BY started_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
 
     def upsert_composite_health_score(self, record: dict[str, Any]) -> None:
         self._conn.execute(

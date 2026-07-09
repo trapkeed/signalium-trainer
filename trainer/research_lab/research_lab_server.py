@@ -11,6 +11,13 @@ Environment variables:
     RESEARCH_LAB_ADMIN_TOKEN  Required. Shared secret for all admin requests.
     RESEARCH_LAB_DB_PATH      Path to the SQLite database file (default: data/research_lab.db).
     RESEARCH_LAB_PORT         Port (default 8002).
+    RESEARCH_LAB_SCHEDULER_ENABLED  Set to "true" to start the background
+                              daily/weekly/monthly research-cycle scheduler
+                              (S24 §2). Default: disabled — cycles can still
+                              be triggered manually via
+                              POST /research/schedule/run/{cycle_name}.
+    RESEARCH_LAB_SCHEDULER_POLL_S  Background scheduler poll interval in
+                              seconds (default: 3600).
 
 ACCESS MODEL
 ------------
@@ -37,8 +44,16 @@ RESPONSIBILITIES (8 core, confirmed by administrator specification)
 
 from __future__ import annotations
 
+import math
 import os
 from typing import Any
+
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+
+    logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 try:
     from fastapi import Depends, FastAPI, HTTPException, Security
@@ -74,6 +89,7 @@ from trainer.research_lab.investigation_models import InvestigationConfig, Inves
 from trainer.research_lab.label_discovery_engine import LabelDiscoveryEngine
 from trainer.research_lab.recommendation_models import RecommendationConfig
 from trainer.research_lab.research_lab_api import ResearchLabAPI
+from trainer.research_lab.research_scheduler import ResearchScheduler
 from trainer.research_lab.retraining_recommendation_engine import (
     RetrainingRecommendationEngine,
 )
@@ -119,6 +135,58 @@ _performance_monitor = PerformanceMonitor(_db, _warehouse)
 _feature_health_monitor = FeatureHealthMonitor(_db, _warehouse)
 _regime_coverage_monitor = RegimeCoverageMonitor(_db, _warehouse)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
+
+
+def _parse_scheduler_poll_interval(raw: str | None, default: float = 3600.0) -> float:
+    """Parse RESEARCH_LAB_SCHEDULER_POLL_S defensively — an invalid value
+    must never crash server startup/import; fall back to the default and
+    log instead."""
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            f"research_lab_server: invalid RESEARCH_LAB_SCHEDULER_POLL_S={raw!r}, "
+            f"falling back to {default}s"
+        )
+        return default
+    if not math.isfinite(value) or value <= 0:
+        logger.warning(
+            f"research_lab_server: RESEARCH_LAB_SCHEDULER_POLL_S must be a finite "
+            f"number > 0, got {value}; falling back to {default}s"
+        )
+        return default
+    return value
+
+
+_scheduler = ResearchScheduler(
+    _db,
+    health_monitor=_health_monitor,
+    failure_engine=_engine,
+    experiment_creator=_creator,
+    feature_pipeline=_feature_pipeline,
+    label_engine=_label_engine,
+    rec_engine=_rec_engine,
+    performance_monitor=_performance_monitor,
+    regime_coverage_monitor=_regime_coverage_monitor,
+    feature_health_monitor=_feature_health_monitor,
+    decision_quality_tracker=_decision_quality_tracker,
+    composite_health_scorer=_composite_health_scorer,
+    cc_tracker=_cc_tracker,
+    poll_interval_s=_parse_scheduler_poll_interval(
+        os.environ.get("RESEARCH_LAB_SCHEDULER_POLL_S")
+    ),
+)
+
+# S24 §2: start the background research-cycle scheduler only when explicitly
+# enabled. Default-off because this module is imported directly by unit
+# tests (via `from research_lab_server import app`) against the shared
+# data/research_lab.db fixture — a stray daemon thread must never mutate
+# that file as a side effect of import. Real deployments set
+# RESEARCH_LAB_SCHEDULER_ENABLED=true (e.g. in the process launch command).
+if os.environ.get("RESEARCH_LAB_SCHEDULER_ENABLED", "false").lower() in ("1", "true", "yes"):
+    _scheduler.start_background()
 
 
 def _build_signalium_notifier():
@@ -1206,6 +1274,42 @@ def run_discovery(req: DiscoverRequest, _: None = Depends(_require_admin)) -> di
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@app.get("/research/schedule")
+def list_research_cycles(_: None = Depends(_require_admin)) -> dict:
+    """List all registered daily/weekly/monthly research cycles."""
+    return {"success": True, "cycles": _scheduler.list_cycles()}
+
+
+@app.get("/research/schedule/status")
+def research_schedule_status(_: None = Depends(_require_admin)) -> dict:
+    """Per-cycle last-run summary and whether each cycle is currently due."""
+    return {"success": True, "status": _scheduler.status()}
+
+
+@app.get("/research/schedule/history")
+def research_schedule_history(
+    cycle_name: str | None = None,
+    cadence: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted research-cycle run records, most recent first."""
+    rows = _db.list_research_cycle_runs(cycle_name=cycle_name, cadence=cadence, limit=limit)
+    return {"success": True, "total": len(rows), "runs": rows}
+
+
+@app.post("/research/schedule/run/{cycle_name}")
+def run_research_cycle(cycle_name: str, _: None = Depends(_require_admin)) -> dict:
+    """Force-run one named research cycle immediately, regardless of whether
+    it is currently due. Read-only with respect to trading/execution — this
+    only runs the existing analysis engines and persists their findings."""
+    try:
+        record = _scheduler.run_cycle(cycle_name)
+        return {"success": True, "run": record}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
 @app.get("/research/proposed-experiments")
 def list_proposed_experiments(_: None = Depends(_require_admin)) -> dict:
     """Return all auto-proposed experiments awaiting admin approval."""
@@ -2277,8 +2381,11 @@ def approve_recommendation(
 ) -> dict:
     """Approve a PROPOSED recommendation (admin action).
 
-    Advances status to APPROVED. This does not start retraining automatically —
-    that is handled by the Training Pipeline Integration.
+    Advances status to APPROVED, and auto-creates a linked ExperimentRecord
+    (PENDING, returned as `experiment_id`) so the recommendation → experiment
+    bridge does not require a separate manual step. This still does not start
+    retraining: an admin must separately start the experiment and clear the
+    TRAINING_START approval gate before any pipeline job executes.
     """
     try:
         rec = _rec_engine.approve(recommendation_id, resolved_by=req.resolved_by)
