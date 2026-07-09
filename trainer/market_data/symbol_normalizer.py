@@ -53,12 +53,28 @@ BUILTIN_ALIASES: dict[str, str] = {
     "GOLD": "XAUUSD", "XAU/USD": "XAUUSD",
     "SILVER": "XAGUSD", "XAG/USD": "XAGUSD",
     "DJI30": "US30", "DOW": "US30", "DOW30": "US30",
+    "DJ30": "US30", "US30CASH": "US30", "US30USD": "US30", "WALLST30": "US30",
     "NASDAQ100": "NAS100", "NDX": "NAS100",
     "SP500": "SPX500", "SPX": "SPX500",
-    "DAX": "GER40", "DAX40": "GER40",
+    "DAX": "GER40", "DAX40": "GER40", "DE40": "GER40", "GER40CASH": "GER40", "GERMANY40": "GER40",
     "FTSE": "UK100", "FTSE100": "UK100",
     "EUR/USD": "EURUSD", "GBP/USD": "GBPUSD", "USD/JPY": "USDJPY",
     "AUD/USD": "AUDUSD", "USD/CHF": "USDCHF", "USD/CAD": "USDCAD", "NZD/USD": "NZDUSD",
+}
+
+#: Broker-specific profiles — a broker's own house spellings for canonical
+#: symbols, layered on top of BUILTIN_ALIASES/admin/learned aliases. Keyed
+#: by broker name (case-insensitive), value maps raw spelling -> canonical.
+#: Distinct from admin aliases because the same raw string can legitimately
+#: mean different things at different brokers (rare, but the S30/S31 spec
+#: calls for per-broker scoping rather than one global flat namespace).
+BROKER_PROFILES: dict[str, dict[str, str]] = {
+    "oanda": {
+        "US30_USD": "US30", "DE30_EUR": "GER40", "SPX500_USD": "SPX500", "NAS100_USD": "NAS100",
+    },
+    "ig": {
+        "WALL STREET": "US30", "GERMANY 40": "GER40", "US 500": "SPX500", "US TECH 100": "NAS100",
+    },
 }
 
 #: Broker decoration patterns stripped structurally before alias lookup.
@@ -146,10 +162,16 @@ class SymbolNormalizer:
         s = _SUFFIX_RE.sub("", s)
         return s
 
-    def normalize(self, raw: str) -> NormalizationResult:
+    def normalize(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> NormalizationResult:
         if not raw:
             return NormalizationResult(raw, None, "unresolved", enabled=False)
         upper = raw.upper()
+
+        if broker is not None:
+            profile = BROKER_PROFILES.get(broker.lower(), {})
+            if upper in profile:
+                canonical = profile[upper]
+                return NormalizationResult(raw, canonical, "broker_profile", self.is_enabled(canonical))
 
         if upper in self._symbols:
             return NormalizationResult(raw, upper, "exact", self.is_enabled(upper))
@@ -177,11 +199,53 @@ class SymbolNormalizer:
         if trimmed != stripped and trimmed in self._symbols:
             return NormalizationResult(raw, trimmed, "structural", self.is_enabled(trimmed))
 
+        if fuzzy:
+            match = self._fuzzy_match(stripped)
+            if match is not None:
+                return NormalizationResult(raw, match, "fuzzy", self.is_enabled(match))
+
         return NormalizationResult(raw, None, "unresolved", enabled=False)
 
-    def resolve(self, raw: str) -> str:
+    def _fuzzy_match(self, stripped: str, cutoff: float = 0.8) -> str | None:
+        """Last-resort approximate match against canonical symbols and all
+        known alias spellings, for minor typos/vendor drift the structural
+        stripper doesn't cover (e.g. "EURSUD" for "EURUSD"). Deliberately
+        applied only when the caller opts in (``fuzzy=True``) since it can
+        produce false positives for genuinely unknown instruments."""
+        import difflib
+
+        candidates = set(self._symbols) | set(BUILTIN_ALIASES) | set(self._admin_aliases) | set(self._learned_aliases)
+        best = difflib.get_close_matches(stripped, candidates, n=1, cutoff=cutoff)
+        if not best:
+            return None
+        matched = best[0]
+        if matched in self._symbols:
+            return matched
+        if matched in BUILTIN_ALIASES:
+            return BUILTIN_ALIASES[matched]
+        if matched in self._admin_aliases:
+            return self._admin_aliases[matched]
+        if matched in self._learned_aliases:
+            return self._learned_aliases[matched][0]
+        return None
+
+    def inverse_lookup(self, canonical: str) -> list[str]:
+        """All known raw spellings (builtin/broker/admin/learned aliases,
+        plus the canonical symbol itself) that resolve to ``canonical``."""
+        canonical = canonical.upper()
+        spellings: set[str] = set()
+        if canonical in self._symbols:
+            spellings.add(canonical)
+        spellings.update(k for k, v in BUILTIN_ALIASES.items() if v == canonical)
+        spellings.update(k for k, v in self._admin_aliases.items() if v == canonical)
+        spellings.update(k for k, (v, _) in self._learned_aliases.items() if v == canonical)
+        for profile in BROKER_PROFILES.values():
+            spellings.update(k for k, v in profile.items() if v == canonical)
+        return sorted(spellings)
+
+    def resolve(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> str:
         """Convenience wrapper — returns the canonical symbol or raises."""
-        result = self.normalize(raw)
+        result = self.normalize(raw, broker=broker, fuzzy=fuzzy)
         if result.canonical is None:
             raise UnknownSymbolError(f"Could not normalize symbol {raw!r}")
         if not result.enabled:

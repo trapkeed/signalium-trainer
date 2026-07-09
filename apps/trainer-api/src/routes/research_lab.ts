@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { adminAuth } from "../middlewares/admin_auth";
+import { requirePlatformOrigin } from "../middlewares/platform_trust";
 
 /**
  * Research Lab routes — administrator access only.
@@ -32,7 +33,7 @@ const RL_BASE = process.env["RESEARCH_LAB_API_URL"] || "http://localhost:8002";
 
 // ── Apply admin auth to ALL research routes ───────────────────────────────────
 
-router.use("/admin/research", adminAuth);
+router.use("/admin/research", requirePlatformOrigin, adminAuth);
 
 // ── Proxy helpers ─────────────────────────────────────────────────────────────
 

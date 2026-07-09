@@ -40,6 +40,9 @@ class ReconciliationDomain(str, Enum):
     SUBSCRIPTIONS = "subscriptions"
     API_KEYS = "api_keys"
     INFRA = "infra"
+    SYMBOLS = "symbols"
+    USER_STATUS = "user_status"
+    AUTONOMOUS_TRADING_PERMISSIONS = "autonomous_trading_permissions"
     # Trainer-owned
     EXPERIMENTS = "experiments"
     DATASETS = "datasets"
@@ -52,6 +55,8 @@ class ReconciliationDomain(str, Enum):
 SIGNALIUM_OWNED = {
     ReconciliationDomain.IDENTITIES, ReconciliationDomain.PERMISSIONS,
     ReconciliationDomain.SUBSCRIPTIONS, ReconciliationDomain.API_KEYS, ReconciliationDomain.INFRA,
+    ReconciliationDomain.SYMBOLS, ReconciliationDomain.USER_STATUS,
+    ReconciliationDomain.AUTONOMOUS_TRADING_PERMISSIONS,
 }
 TRAINER_OWNED = {
     ReconciliationDomain.EXPERIMENTS, ReconciliationDomain.DATASETS, ReconciliationDomain.ARTIFACTS,

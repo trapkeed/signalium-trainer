@@ -111,3 +111,80 @@ class TestSymbolManagement:
     def test_empty_string(self, norm):
         result = norm.normalize("")
         assert result.canonical is None
+
+
+class TestS32MissingAliases:
+    def test_dj30_and_variants_resolve_to_us30(self, norm):
+        for alias in ["DJ30", "US30Cash", "US30USD"]:
+            result = norm.normalize(alias)
+            assert result.canonical == "US30", alias
+            assert result.matched_via == "builtin_alias"
+
+    def test_de40_and_variants_resolve_to_ger40(self, norm):
+        for alias in ["DE40", "GER40Cash", "Germany40"]:
+            result = norm.normalize(alias)
+            assert result.canonical == "GER40", alias
+
+
+class TestBrokerProfiles:
+    def test_oanda_profile_resolves(self, norm):
+        result = norm.normalize("US30_USD", broker="oanda")
+        assert result.canonical == "US30"
+        assert result.matched_via == "broker_profile"
+
+    def test_ig_profile_resolves(self, norm):
+        result = norm.normalize("WALL STREET", broker="ig")
+        assert result.canonical == "US30"
+
+    def test_unknown_broker_falls_through_to_other_matchers(self, norm):
+        result = norm.normalize("GOLD", broker="unknown_broker")
+        assert result.canonical == "XAUUSD"
+        assert result.matched_via == "builtin_alias"
+
+    def test_broker_profile_scoped_key_not_used_for_other_brokers(self, norm):
+        result = norm.normalize("US30_USD", broker="ig")
+        assert result.canonical is None
+
+
+class TestFuzzyMatching:
+    def test_fuzzy_disabled_by_default(self, norm):
+        result = norm.normalize("EURSUD")
+        assert result.canonical is None
+
+    def test_fuzzy_enabled_matches_close_typo(self, norm):
+        result = norm.normalize("EURSUD", fuzzy=True)
+        assert result.canonical == "EURUSD"
+        assert result.matched_via == "fuzzy"
+
+    def test_fuzzy_does_not_match_unrelated_string(self, norm):
+        result = norm.normalize("ZZZZZZ", fuzzy=True)
+        assert result.canonical is None
+
+
+class TestInverseLookup:
+    def test_inverse_lookup_returns_all_spellings(self, norm):
+        spellings = norm.inverse_lookup("US30")
+        assert "US30" in spellings
+        assert "DJI30" in spellings
+        assert "DJ30" in spellings
+        assert "US30_USD" in spellings  # from oanda broker profile
+
+    def test_inverse_lookup_includes_admin_alias(self, norm):
+        norm.add_alias("MY_US30_SPELLING", "US30")
+        spellings = norm.inverse_lookup("US30")
+        assert "MY_US30_SPELLING" in spellings
+
+    def test_inverse_lookup_unknown_symbol_returns_empty(self, norm):
+        assert norm.inverse_lookup("NOTASYMBOL") == []
+
+
+class TestResolveWithNewParams:
+    def test_resolve_with_broker(self, norm):
+        assert norm.resolve("US30_USD", broker="oanda") == "US30"
+
+    def test_resolve_with_fuzzy(self, norm):
+        assert norm.resolve("EURSUD", fuzzy=True) == "EURUSD"
+
+    def test_resolve_raises_without_fuzzy(self, norm):
+        with pytest.raises(UnknownSymbolError):
+            norm.resolve("EURSUD")

@@ -161,3 +161,33 @@ class TestBackgroundLoop:
         time.sleep(0.15)
         rec.stop(timeout=1.0)
         assert len(rec.audit_log()) >= 1
+
+
+class TestS32NewDomains:
+    def test_new_signalium_owned_domains_registered(self):
+        from trainer.sync.reconciler import SIGNALIUM_OWNED
+
+        assert ReconciliationDomain.SYMBOLS in SIGNALIUM_OWNED
+        assert ReconciliationDomain.USER_STATUS in SIGNALIUM_OWNED
+        assert ReconciliationDomain.AUTONOMOUS_TRADING_PERMISSIONS in SIGNALIUM_OWNED
+
+    def test_new_domain_reconciles_like_existing_ones(self):
+        applied = []
+        rec = SyncReconciler()
+        rec.register(_handler(
+            ReconciliationDomain.AUTONOMOUS_TRADING_PERMISSIONS,
+            [RemoteRecord("user-1", "v1", {"autonomous_trading_enabled": True})],
+            applied.append,
+        ))
+        summary = rec.run_once()
+        assert len(applied) == 1
+        assert "autonomous_trading_permissions" in summary["domains_run"]
+
+    def test_symbols_domain_idempotent(self):
+        applied = []
+        rec = SyncReconciler()
+        record = RemoteRecord("EURUSD", "v1", {"enabled": True})
+        rec.register(_handler(ReconciliationDomain.SYMBOLS, [record], applied.append))
+        rec.run_once()
+        rec.run_once()
+        assert len(applied) == 1

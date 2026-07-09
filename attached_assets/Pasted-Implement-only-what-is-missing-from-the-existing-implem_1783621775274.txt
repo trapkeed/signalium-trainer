@@ -1,0 +1,146 @@
+Implement only what is missing from the existing implementation.
+
+Signalium Trainer is the intelligence layer of the Signalium ecosystem.
+
+Platform URL:
+https://signaliumai.com
+
+Trainer URL:
+https://trainer.signaliumai.com
+
+Responsibilities of Trainer:
+
+* QDE lifecycle
+* training
+* inference
+* market intelligence
+* memory
+* research lab
+* autonomous trading
+* shadow testing
+* deployment
+* retraining
+* model monitoring
+
+Implement the following if missing:
+
+1. Platform Registration
+   Trust requests originating from:
+   https://signaliumai.com
+
+Reject unauthorized management requests.
+
+2. Capability Endpoints
+   Expose endpoints for:
+
+* supported symbols
+* active model version
+* active datasets
+* current market providers
+* health status
+* training status
+* shadow deployment status
+* experiment status
+* RunPod status
+
+3. Symbol Registry Service
+   Create centralized symbol registry supporting:
+
+Examples:
+
+EURUSD
+EUR_USD
+EURUSD.a
+EURUSDm
+EURUSD.pro
+EURUSDmicro
+
+XAUUSD
+XAU_USD
+GOLD
+XAUUSD.a
+XAUUSD.pro
+
+US30
+DJ30
+US30Cash
+US30USD
+
+GER40
+DE40
+GER40Cash
+
+Requirements:
+
+* canonical symbol mapping
+* broker-specific aliases
+* inverse lookups
+* fuzzy matching
+* broker profile support
+
+4. Market Data Provider Layer
+   Primary providers:
+
+* OANDA API
+* Tiingo API
+
+Requirements:
+
+* provider abstraction layer
+* failover support
+* provider priority ordering
+* health monitoring
+* latency monitoring
+* future provider plugins
+
+5. RunPod Integration
+   Support:
+
+* remote training execution
+* GPU selection
+* job creation
+* job monitoring
+* artifact retrieval
+* checkpoint synchronization
+* automatic cleanup
+
+6. Remote Administration API
+   Allow authenticated requests from Signalium Platform for:
+
+* experiments
+* retraining
+* promotion approvals
+* rollbacks
+* dataset generation
+* RunPod operations
+* shadow deployments
+
+7. Health Endpoints
+   Expose:
+
+* model health
+* memory health
+* research lab health
+* queue health
+* database health
+* provider health
+* inference latency
+* GPU health
+
+8. Synchronization Layer
+   Ensure Platform and Trainer remain synchronized for:
+
+* symbols
+* subscriptions
+* entitlements
+* API keys
+* user status
+* autonomous trading permissions
+
+Trainer remains authoritative for intelligence.
+
+Platform remains authoritative for users and subscriptions.
+
+Do not redesign architecture.
+
+Implement only missing functionality and preserve existing behavior.

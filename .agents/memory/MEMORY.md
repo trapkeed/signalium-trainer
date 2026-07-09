@@ -51,6 +51,7 @@
 - [Recommendation status is PROPOSED not PENDING](recommendation-status-not-pending.md) — RetrainingRecommendation lifecycle is PROPOSED/APPROVED/DISMISSED; any new aggregator filtering for "pending" recommendations must use PROPOSED or it silently always returns zero
 - [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
 - [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
+- [S32 platform trust/capabilities/RunPod jobs](s32-platform-trust-capabilities-runpod.md) — origin-trust middleware, consolidated capability API, RunPod job lifecycle manager, symbol/reconciler gap-fills
 - [S31 multi-domain scaffold](s31-multidomain-scaffold.md) — SSO nonce, RunPod backend, market-data providers, sync reconciler; all external seams stubbed until real credentials arrive
 - [S30 readiness aggregators are pure rollups](s30-readiness-aggregators.md) — production-verification/startup-check/autonomous-readiness never re-derive checks; missing deps degrade to SKIPPED, not crash
 - [Kill switch vs pause vs freeze](operational-safety-switch-semantics.md) — kill switch severs inference for all models; pause targets one model version; freeze blocks stage transitions/rollback regardless of approval

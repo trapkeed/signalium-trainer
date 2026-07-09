@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { adminAuth } from "../middlewares/admin_auth";
 import { requireResearchLabAuthorization } from "../middlewares/require_rl_authorization";
+import { requirePlatformOrigin } from "../middlewares/platform_trust";
 
 /**
  * QDE lifecycle routes.
@@ -144,6 +145,7 @@ router.post(
 
 router.post(
   "/qde/versions/:versionId/promotion/approve",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("PROMOTE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
@@ -157,6 +159,7 @@ router.post(
 
 router.post(
   "/qde/versions/:versionId/promotion/auto",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("PROMOTE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
@@ -197,6 +200,7 @@ async function currentActiveVersionId(): Promise<string | undefined> {
 
 router.post(
   "/qde/rollback/:targetVersionId",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("ROLLBACK", () => currentActiveVersionId()),
   async (req: Request, res: Response) => {
@@ -210,6 +214,7 @@ router.post(
 
 router.post(
   "/qde/rollback",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("ROLLBACK", () => currentActiveVersionId()),
   async (req: Request, res: Response) => {
@@ -232,6 +237,7 @@ router.get("/qde/rollback/targets", async (_req: Request, res: Response) => {
 
 router.post(
   "/qde/versions/:versionId/archive",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("ARCHIVE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
@@ -241,6 +247,7 @@ router.post(
 
 router.post(
   "/qde/versions/:versionId/retire",
+  requirePlatformOrigin,
   adminAuth,
   requireResearchLabAuthorization("RETIRE", (req) => String(req.params["versionId"])),
   async (req: Request, res: Response) => {
