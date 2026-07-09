@@ -428,4 +428,199 @@ router.get("/admin/research/comparisons/:comparisonId", async (req, res) => {
   await proxyGet(`/research/comparisons/${req.params["comparisonId"]}`, req, res);
 });
 
+// ── Health Monitoring (five drift dimensions) ─────────────────────────────────
+
+router.post("/admin/research/health/check", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  if (req.query["model_version"]) p.set("model_version", String(req.query["model_version"]));
+  if (req.query["since"]) p.set("since", String(req.query["since"]));
+  await proxyPost(`/health/check${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/health/status", async (req: Request, res: Response) => {
+  const qs = req.query["model_version"] ? `?model_version=${req.query["model_version"]}` : "";
+  await proxyGet(`/health/status${qs}`, req, res);
+});
+
+router.get("/admin/research/health/alerts", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["model_version", "severity", "dimension", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/health/alerts${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+// ── Approval Gates (generic, shared by all gate types) ────────────────────────
+
+router.post("/admin/research/approvals", async (req, res) => {
+  await proxyPost("/approvals", req, res);
+});
+
+router.get("/admin/research/approvals", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["gate_type", "resource_id", "status", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/approvals${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/approvals/:requestId", async (req, res) => {
+  await proxyGet(`/approvals/${req.params["requestId"]}`, req, res);
+});
+
+router.post("/admin/research/approvals/:requestId/approve", async (req, res) => {
+  await proxyPost(`/approvals/${req.params["requestId"]}/approve`, req, res);
+});
+
+router.post("/admin/research/approvals/:requestId/reject", async (req, res) => {
+  await proxyPost(`/approvals/${req.params["requestId"]}/reject`, req, res);
+});
+
+// ── Deployment / Promotion Lifecycle ───────────────────────────────────────────
+
+router.get("/admin/research/deployment/current", async (req, res) => {
+  await proxyGet("/deployment/current", req, res);
+});
+
+router.get("/admin/research/deployment/history", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["model_version", "event_type", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/deployment/history${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.post("/admin/research/deployment/promote", async (req, res) => {
+  await proxyPost("/deployment/promote", req, res);
+});
+
+router.post("/admin/research/deployment/activate", async (req, res) => {
+  await proxyPost("/deployment/activate", req, res);
+});
+
+router.post("/admin/research/deployment/rollback", async (req, res) => {
+  await proxyPost("/deployment/rollback", req, res);
+});
+
+router.post("/admin/research/deployment/rollback/activate", async (req, res) => {
+  await proxyPost("/deployment/rollback/activate", req, res);
+});
+
+// ── Artifact Registry / Training Run Lineage ──────────────────────────────────
+
+router.post("/admin/research/artifacts", async (req, res) => {
+  await proxyPost("/artifacts/register", req, res);
+});
+
+router.get("/admin/research/artifacts", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of [
+    "artifact_type",
+    "model_version",
+    "training_run_id",
+    "experiment_id",
+    "limit",
+  ] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/artifacts${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/artifacts/types", async (req, res) => {
+  await proxyGet("/artifacts/types", req, res);
+});
+
+router.post("/admin/research/artifacts/runs", async (req, res) => {
+  await proxyPost("/artifacts/runs", req, res);
+});
+
+router.get("/admin/research/artifacts/runs", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["experiment_id", "pipeline_job_id", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/artifacts/runs${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/artifacts/runs/:runId", async (req, res) => {
+  await proxyGet(`/artifacts/runs/${req.params["runId"]}`, req, res);
+});
+
+router.get("/admin/research/artifacts/:artifactId", async (req, res) => {
+  await proxyGet(`/artifacts/${req.params["artifactId"]}`, req, res);
+});
+
+// ── Champion vs Challenger (Shadow Testing) ────────────────────────────────────
+
+router.get("/admin/research/shadow/status", async (req: Request, res: Response) => {
+  const qs = req.query["test_id"] ? `?test_id=${req.query["test_id"]}` : "";
+  await proxyGet(`/shadow/status${qs}`, req, res);
+});
+
+router.get("/admin/research/shadow/comparison", async (req: Request, res: Response) => {
+  const qs = req.query["test_id"] ? `?test_id=${req.query["test_id"]}` : "";
+  await proxyGet(`/shadow/comparison${qs}`, req, res);
+});
+
+router.post("/admin/research/shadow/evaluate", async (req: Request, res: Response) => {
+  const qs = req.query["test_id"] ? `?test_id=${req.query["test_id"]}` : "";
+  await proxyPost(`/shadow/evaluate${qs}`, req, res);
+});
+
+// ── Retraining Recommendations ────────────────────────────────────────────────
+
+router.post("/admin/research/evaluate", async (req, res) => {
+  await proxyPost("/research/evaluate", req, res);
+});
+
+router.get("/admin/research/recommendations", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["status", "model_version", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/research/recommendations${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/recommendations/:recommendationId", async (req, res) => {
+  await proxyGet(`/research/recommendations/${req.params["recommendationId"]}`, req, res);
+});
+
+router.post("/admin/research/recommendations/:recommendationId/approve", async (req, res) => {
+  await proxyPost(`/research/recommendations/${req.params["recommendationId"]}/approve`, req, res);
+});
+
+router.post("/admin/research/recommendations/:recommendationId/dismiss", async (req, res) => {
+  await proxyPost(`/research/recommendations/${req.params["recommendationId"]}/dismiss`, req, res);
+});
+
+// ── Admin Dashboard Aggregations ──────────────────────────────────────────────
+
+router.get("/admin/research/symbol-performance", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["model_version", "since", "until", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/research/symbol-performance${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/calibration", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["model_version", "since", "until", "bucket_width", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(`/research/calibration${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.get("/admin/research/reasoning-distribution", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  for (const key of ["model_version", "symbol", "since", "until", "bucket_seconds", "limit"] as const) {
+    if (req.query[key]) p.set(key, String(req.query[key]));
+  }
+  await proxyGet(
+    `/research/reasoning-distribution${p.toString() ? "?" + p.toString() : ""}`,
+    req,
+    res,
+  );
+});
+
 export default router;

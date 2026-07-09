@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/research/dashboard/"
+title = "Research Lab Admin Dashboard"
+version = "1.0.0"
+id = "artifacts/research-dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/research/dashboard/" ]
+localPort = 22810
+
+[services.development]
+run = "pnpm --filter @workspace/research-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/research-dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/research-dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22810"
+BASE_PATH = "/research/dashboard/"

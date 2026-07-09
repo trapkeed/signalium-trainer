@@ -1961,3 +1961,208 @@ def dismiss_recommendation(
         return {"success": True, "recommendation": rec}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+# ── Admin Dashboard Aggregations (S20 — Research Lab Admin Dashboards) ────────
+
+
+@app.get("/research/symbol-performance")
+def symbol_performance(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    limit: int = 5000,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Aggregate realized trade outcomes per symbol for the admin dashboard.
+
+    For each symbol with at least one completed trade, computes:
+      - ``trade_count`` — number of completed trades in the window
+      - ``win_rate`` — fraction of trades with pnl > 0
+      - ``sharpe`` — mean(pnl_pct) / stdev(pnl_pct), 0 if fewer than 2 trades
+        or stdev is 0 (population, not annualized — comparative ranking only)
+      - ``avg_confidence_at_entry`` — mean confidence the model held at entry
+      - ``confidence_reliability`` — win_rate restricted to trades entered at
+        confidence >= 0.65, as a proxy for "was high confidence earned"
+
+    Symbols are returned sorted by ``sharpe`` descending so the caller can
+    read best-N from the head and worst-N from the tail.
+    """
+    from trainer.research_lab.telemetry_models import TelemetryQuery
+    import statistics
+
+    trades = _warehouse.query_trades(
+        TelemetryQuery(model_version=model_version, since=since, until=until, limit=limit)
+    )
+    by_symbol: dict[str, list[dict]] = {}
+    for t in trades:
+        by_symbol.setdefault(t["symbol"], []).append(t)
+
+    rows = []
+    for symbol, symbol_trades in by_symbol.items():
+        pnls = [t["pnl"] for t in symbol_trades]
+        pnl_pcts = [t["pnl_pct"] for t in symbol_trades]
+        confidences = [t.get("confidence_at_entry", 0.0) for t in symbol_trades]
+        wins = sum(1 for p in pnls if p > 0)
+        win_rate = wins / len(pnls) if pnls else 0.0
+        sharpe = 0.0
+        if len(pnl_pcts) >= 2:
+            stdev = statistics.pstdev(pnl_pcts)
+            if stdev > 0:
+                sharpe = statistics.mean(pnl_pcts) / stdev
+        high_conf = [t for t in symbol_trades if t.get("confidence_at_entry", 0.0) >= 0.65]
+        conf_reliability = (
+            sum(1 for t in high_conf if t["pnl"] > 0) / len(high_conf) if high_conf else None
+        )
+        rows.append(
+            {
+                "symbol": symbol,
+                "trade_count": len(symbol_trades),
+                "win_rate": round(win_rate, 4),
+                "sharpe": round(sharpe, 4),
+                "avg_confidence_at_entry": round(statistics.mean(confidences), 4)
+                if confidences
+                else 0.0,
+                "confidence_reliability": round(conf_reliability, 4)
+                if conf_reliability is not None
+                else None,
+                "total_pnl": round(sum(pnls), 4),
+            }
+        )
+    rows.sort(key=lambda r: r["sharpe"], reverse=True)
+    return {"success": True, "total": len(rows), "symbols": rows}
+
+
+@app.get("/research/calibration")
+def confidence_calibration(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    bucket_width: float = 0.1,
+    limit: int = 5000,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return a confidence-calibration reliability diagram from realized trades.
+
+    Buckets completed trades by ``confidence_at_entry`` (width ``bucket_width``,
+    default deciles) and reports the observed win rate per bucket. A
+    well-calibrated model has ``observed_win_rate`` roughly tracking the
+    bucket's confidence midpoint. Also returns the overall Expected
+    Calibration Error (ECE) — the trade-count-weighted mean absolute gap
+    between confidence and observed win rate across buckets.
+    """
+    from trainer.research_lab.telemetry_models import TelemetryQuery
+
+    trades = _warehouse.query_trades(
+        TelemetryQuery(model_version=model_version, since=since, until=until, limit=limit)
+    )
+    if bucket_width <= 0 or bucket_width > 1:
+        raise HTTPException(status_code=400, detail="bucket_width must be in (0, 1]")
+
+    n_buckets = max(1, round(1.0 / bucket_width))
+    # Use the actual per-bucket width implied by n_buckets (1.0 / n_buckets) for
+    # BOTH the assignment index and the reported bucket_lo/bucket_hi labels, so
+    # a bucket_width that isn't a clean divisor of 1.0 (e.g. 0.15) can't produce
+    # labels that misrepresent which trades actually landed in each bucket.
+    actual_width = 1.0 / n_buckets
+    buckets: dict[int, list[dict]] = {i: [] for i in range(n_buckets)}
+    for t in trades:
+        conf = max(0.0, min(1.0, t.get("confidence_at_entry", 0.0)))
+        idx = min(int(conf / actual_width), n_buckets - 1)
+        buckets[idx].append(t)
+
+    curve = []
+    total_trades = 0
+    weighted_gap = 0.0
+    for i in range(n_buckets):
+        bucket_trades = buckets[i]
+        lo, hi = round(i * actual_width, 4), round((i + 1) * actual_width, 4)
+        if not bucket_trades:
+            curve.append(
+                {
+                    "bucket_lo": lo,
+                    "bucket_hi": hi,
+                    "trade_count": 0,
+                    "mean_confidence": None,
+                    "observed_win_rate": None,
+                }
+            )
+            continue
+        mean_conf = sum(t.get("confidence_at_entry", 0.0) for t in bucket_trades) / len(
+            bucket_trades
+        )
+        win_rate = sum(1 for t in bucket_trades if t["pnl"] > 0) / len(bucket_trades)
+        curve.append(
+            {
+                "bucket_lo": lo,
+                "bucket_hi": hi,
+                "trade_count": len(bucket_trades),
+                "mean_confidence": round(mean_conf, 4),
+                "observed_win_rate": round(win_rate, 4),
+            }
+        )
+        total_trades += len(bucket_trades)
+        weighted_gap += len(bucket_trades) * abs(mean_conf - win_rate)
+
+    ece = round(weighted_gap / total_trades, 4) if total_trades else None
+    return {
+        "success": True,
+        "n_trades": total_trades,
+        "expected_calibration_error": ece,
+        "curve": curve,
+    }
+
+
+@app.get("/research/reasoning-distribution")
+def reasoning_distribution(
+    model_version: str | None = None,
+    symbol: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    bucket_seconds: float = 86400.0,
+    limit: int = 5000,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the output-head distribution over time for drift inspection.
+
+    Groups reasoning events into fixed-width time buckets (default: daily) and
+    reports the mean of each numeric output-head value per bucket, so the
+    admin dashboard can chart drift in the model's raw signal heads
+    independent of the translated trading decision.
+    """
+    from trainer.research_lab.telemetry_models import TelemetryQuery
+
+    events = _warehouse.query_reasoning(
+        TelemetryQuery(model_version=model_version, symbol=symbol, since=since, until=until, limit=limit)
+    )
+    if bucket_seconds <= 0:
+        raise HTTPException(status_code=400, detail="bucket_seconds must be > 0")
+
+    buckets: dict[int, dict[str, list[float]]] = {}
+    bucket_ts: dict[int, float] = {}
+    bucket_event_counts: dict[int, int] = {}
+    for ev in events:
+        ts = ev.get("timestamp", 0.0)
+        bucket_key = int(ts // bucket_seconds)
+        bucket_ts.setdefault(bucket_key, bucket_key * bucket_seconds)
+        # Count every event assigned to this bucket, independent of whether it
+        # contributed a numeric value to any head — a bucket full of events
+        # with sparse/missing heads must not be reported as having 0 events.
+        bucket_event_counts[bucket_key] = bucket_event_counts.get(bucket_key, 0) + 1
+        head_map = buckets.setdefault(bucket_key, {})
+        for head_name, value in (ev.get("output_heads") or {}).items():
+            if isinstance(value, (int, float)):
+                head_map.setdefault(head_name, []).append(float(value))
+
+    series = []
+    for bucket_key in sorted(buckets):
+        head_map = buckets[bucket_key]
+        means = {name: round(sum(vals) / len(vals), 4) for name, vals in head_map.items()}
+        series.append(
+            {
+                "bucket_start": bucket_ts[bucket_key],
+                "n_events": bucket_event_counts[bucket_key],
+                "head_means": means,
+            }
+        )
+    return {"success": True, "n_events": len(events), "series": series}
