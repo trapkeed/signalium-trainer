@@ -51,6 +51,8 @@ except ImportError as exc:
 
 from trainer.research_lab.approval_gate import ApprovalGate
 from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalGateType, DEFAULT_TTL_SECONDS
+from trainer.research_lab.artifact_models import ARTIFACT_TYPES, ArtifactRecord, ArtifactType, TrainingRunRecord
+from trainer.research_lab.artifact_registry import ArtifactRegistry, ArtifactHashMismatchError, DuplicateArtifactError
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
@@ -98,6 +100,7 @@ _label_engine = LabelDiscoveryEngine(_warehouse, _db)
 _rec_engine = RetrainingRecommendationEngine(_warehouse, _db, RecommendationConfig())
 _approval_gate = ApprovalGate(_db)
 _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
+_artifact_registry = ArtifactRegistry(_db)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -346,6 +349,45 @@ class CreateNoteRequest(BaseModel):
     linked_entity_type: str = ""
     linked_entity_id: str = ""
     tags: list[str] = []
+
+
+# Artifact registry request models (S20) — must be defined before route declarations
+class RegisterArtifactRequest(BaseModel):
+    artifact_type: str
+    name: str
+    path: str
+    artifact_hash: str
+    training_run_id: str = ""
+    experiment_id: str = ""
+    model_version: str = ""
+    dataset_version: str = ""
+    feature_version: str = ""
+    code_commit: str = ""
+    config_hash: str = ""
+    pipeline_job_id: str = ""
+    mlflow_run_id: str = ""
+    size_bytes: int = 0
+    registered_by: str = "admin"
+    tags: list[str] = []
+    notes: str = ""
+    extra: dict[str, Any] = {}
+    verify_file: bool = False
+
+
+class RegisterTrainingRunRequest(BaseModel):
+    experiment_id: str
+    dataset_version: str
+    feature_version: str
+    code_commit: str
+    config_hash: str
+    artifact_hash: str
+    requested_by: str = "admin"
+    pipeline_job_id: str = ""
+    mlflow_run_id: str = ""
+    model_version: str = ""
+    label_version: str = ""
+    notes: str = ""
+    metadata: dict[str, Any] = {}
 
 
 # Pipeline request model (S20) — must be defined before route declarations
@@ -1089,6 +1131,158 @@ def list_label_datasets(
         label_type=label_type, model_version=model_version, limit=limit
     )
     return {"success": True, "total": len(rows), "datasets": rows}
+
+
+# ── Artifact Registry (S20) ───────────────────────────────────────────────────
+
+
+@app.post("/artifacts/register")
+def register_artifact(
+    req: RegisterArtifactRequest, _: None = Depends(_require_admin)
+) -> dict:
+    """Manually register an artifact produced by a training pipeline run.
+
+    The registry is **metadata-only**: artifacts are stored by the training
+    infrastructure; this endpoint records provenance so every artifact can be
+    traced back to the dataset, feature pipeline, code commit, and config that
+    produced it.
+
+    Raises 400 if:
+    - ``artifact_type`` is not one of the six canonical types
+    - ``artifact_hash`` is not a 64-character SHA-256 hex string
+    - A duplicate ``(artifact_type, artifact_hash)`` is already registered
+    - ``verify_file=true`` and the file's computed hash does not match
+    """
+    try:
+        record = ArtifactRecord.new(
+            artifact_type=req.artifact_type,
+            name=req.name,
+            path=req.path,
+            artifact_hash=req.artifact_hash,
+            training_run_id=req.training_run_id,
+            experiment_id=req.experiment_id,
+            model_version=req.model_version,
+            dataset_version=req.dataset_version,
+            feature_version=req.feature_version,
+            code_commit=req.code_commit,
+            config_hash=req.config_hash,
+            pipeline_job_id=req.pipeline_job_id,
+            mlflow_run_id=req.mlflow_run_id,
+            size_bytes=req.size_bytes,
+            registered_by=req.registered_by,
+            tags=req.tags,
+            notes=req.notes,
+            extra=req.extra,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    try:
+        _artifact_registry.register_artifact(record, verify_file=req.verify_file)
+    except (DuplicateArtifactError, ArtifactHashMismatchError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {"success": True, "artifact": record.to_dict()}
+
+
+@app.get("/artifacts")
+def list_artifacts(
+    artifact_type: str | None = None,
+    model_version: str | None = None,
+    training_run_id: str | None = None,
+    experiment_id: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List registered artifacts with optional filtering.
+
+    Filter by ``artifact_type`` (WEIGHTS | CONFIG | CALIBRATION | ONNX |
+    TORCHSCRIPT | DEPLOYMENT_MANIFEST), ``model_version``, ``training_run_id``,
+    or ``experiment_id``.  Results are ordered newest first.
+    """
+    rows = _artifact_registry.list_artifacts(
+        artifact_type=artifact_type,
+        model_version=model_version,
+        training_run_id=training_run_id,
+        experiment_id=experiment_id,
+        limit=limit,
+    )
+    return {"success": True, "total": len(rows), "artifacts": rows}
+
+
+@app.get("/artifacts/types")
+def list_artifact_types(_: None = Depends(_require_admin)) -> dict:
+    """Return the list of valid artifact types."""
+    return {"success": True, "artifact_types": ARTIFACT_TYPES}
+
+
+@app.post("/artifacts/runs")
+def register_training_run(
+    req: RegisterTrainingRunRequest, _: None = Depends(_require_admin)
+) -> dict:
+    """Register a training run provenance record.
+
+    A training run record ties together every ingredient of a training job —
+    dataset version, feature version, git commit, config hash, and primary
+    weights hash — making it fully reproducible.
+    """
+    try:
+        record = TrainingRunRecord.new(
+            experiment_id=req.experiment_id,
+            dataset_version=req.dataset_version,
+            feature_version=req.feature_version,
+            code_commit=req.code_commit,
+            config_hash=req.config_hash,
+            artifact_hash=req.artifact_hash,
+            requested_by=req.requested_by,
+            pipeline_job_id=req.pipeline_job_id,
+            mlflow_run_id=req.mlflow_run_id,
+            model_version=req.model_version,
+            label_version=req.label_version,
+            notes=req.notes,
+            metadata=req.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    _artifact_registry.register_training_run(record)
+    return {"success": True, "training_run": record.to_dict()}
+
+
+@app.get("/artifacts/runs")
+def list_training_runs(
+    experiment_id: str | None = None,
+    pipeline_job_id: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List training run provenance records, newest first."""
+    rows = _artifact_registry.list_training_runs(
+        experiment_id=experiment_id,
+        pipeline_job_id=pipeline_job_id,
+        limit=limit,
+    )
+    return {"success": True, "total": len(rows), "training_runs": rows}
+
+
+@app.get("/artifacts/runs/{run_id}")
+def get_training_run(run_id: str, _: None = Depends(_require_admin)) -> dict:
+    """Return a specific training run by ID."""
+    run = _artifact_registry.get_training_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail=f"Training run {run_id!r} not found")
+    # Include all artifacts produced by this run
+    arts = _artifact_registry.artifacts_for_run(run_id)
+    return {"success": True, "training_run": run.to_dict(), "artifacts": arts}
+
+
+@app.get("/artifacts/{artifact_id}")
+def get_artifact(artifact_id: str, _: None = Depends(_require_admin)) -> dict:
+    """Return full provenance for a specific artifact, including its training run."""
+    prov = _artifact_registry.provenance(artifact_id)
+    if prov is None:
+        raise HTTPException(status_code=404, detail=f"Artifact {artifact_id!r} not found")
+    return {"success": True, **prov}
 
 
 # ── Training Pipeline (S20) ───────────────────────────────────────────────────

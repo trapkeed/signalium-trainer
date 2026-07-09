@@ -340,6 +340,39 @@ CREATE INDEX IF NOT EXISTS idx_rr_status    ON retraining_recommendations(status
 CREATE INDEX IF NOT EXISTS idx_rr_dimension ON retraining_recommendations(trigger_dimension);
 CREATE INDEX IF NOT EXISTS idx_rr_created   ON retraining_recommendations(created_at DESC);
 
+-- Training runs — provenance records (S20 Dataset Versioning)
+CREATE TABLE IF NOT EXISTS training_runs (
+    run_id            TEXT PRIMARY KEY,
+    experiment_id     TEXT NOT NULL DEFAULT '',
+    pipeline_job_id   TEXT NOT NULL DEFAULT '',
+    model_version     TEXT NOT NULL DEFAULT '',
+    created_at        REAL NOT NULL,
+    data_json         TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_training_runs_experiment   ON training_runs(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_training_runs_pipeline_job ON training_runs(pipeline_job_id);
+CREATE INDEX IF NOT EXISTS idx_training_runs_created      ON training_runs(created_at DESC);
+
+-- Registered artifacts — metadata-only (S20 Artifact Management)
+CREATE TABLE IF NOT EXISTS artifacts (
+    artifact_id      TEXT PRIMARY KEY,
+    artifact_type    TEXT NOT NULL,
+    artifact_hash    TEXT NOT NULL,
+    training_run_id  TEXT NOT NULL DEFAULT '',
+    model_version    TEXT NOT NULL DEFAULT '',
+    experiment_id    TEXT NOT NULL DEFAULT '',
+    registered_at    REAL NOT NULL,
+    data_json        TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_artifacts_type         ON artifacts(artifact_type);
+CREATE INDEX IF NOT EXISTS idx_artifacts_run          ON artifacts(training_run_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_model        ON artifacts(model_version);
+CREATE INDEX IF NOT EXISTS idx_artifacts_experiment   ON artifacts(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_registered   ON artifacts(registered_at DESC);
+-- Duplicate guard: (type, hash) must be unique across all registered artifacts.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_type_hash
+    ON artifacts(artifact_type, artifact_hash);
+
 -- Training Pipeline jobs (S20)
 CREATE TABLE IF NOT EXISTS pipeline_jobs (
     job_id            TEXT PRIMARY KEY,
@@ -1234,6 +1267,121 @@ class ResearchLabDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Training Runs + Artifact Registry (S20) ───────────────────────────────
+
+    def upsert_training_run(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO training_runs
+                (run_id, experiment_id, pipeline_job_id, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+                data_json = excluded.data_json
+            """,
+            (
+                record["run_id"],
+                record.get("experiment_id", ""),
+                record.get("pipeline_job_id", ""),
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_training_run(self, run_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM training_runs WHERE run_id = ?", (run_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_training_runs(
+        self,
+        experiment_id: str | None = None,
+        pipeline_job_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM training_runs WHERE 1=1"
+        params: list[Any] = []
+        if experiment_id:
+            sql += " AND experiment_id = ?"
+            params.append(experiment_id)
+        if pipeline_job_id:
+            sql += " AND pipeline_job_id = ?"
+            params.append(pipeline_job_id)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    def upsert_artifact(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO artifacts
+                (artifact_id, artifact_type, artifact_hash, training_run_id,
+                 model_version, experiment_id, registered_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(artifact_id) DO UPDATE SET
+                data_json = excluded.data_json
+            """,
+            (
+                record["artifact_id"],
+                record.get("artifact_type", ""),
+                record.get("artifact_hash", ""),
+                record.get("training_run_id", ""),
+                record.get("model_version", ""),
+                record.get("experiment_id", ""),
+                record.get("registered_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_artifact(self, artifact_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM artifacts WHERE artifact_id = ?", (artifact_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def find_artifact_by_type_hash(
+        self, artifact_type: str, artifact_hash: str
+    ) -> dict[str, Any] | None:
+        """Return an existing artifact with the same (type, hash), or None."""
+        row = self._conn.execute(
+            "SELECT data_json FROM artifacts WHERE artifact_type = ? AND artifact_hash = ?",
+            (artifact_type, artifact_hash),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_artifacts(
+        self,
+        artifact_type: str | None = None,
+        model_version: str | None = None,
+        training_run_id: str | None = None,
+        experiment_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM artifacts WHERE 1=1"
+        params: list[Any] = []
+        if artifact_type:
+            sql += " AND artifact_type = ?"
+            params.append(artifact_type)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if training_run_id:
+            sql += " AND training_run_id = ?"
+            params.append(training_run_id)
+        if experiment_id:
+            sql += " AND experiment_id = ?"
+            params.append(experiment_id)
+        sql += " ORDER BY registered_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Training Pipeline Jobs (S20) ──────────────────────────────────────────
 
     def upsert_pipeline_job(self, record: dict[str, Any]) -> None:
@@ -1607,6 +1755,7 @@ class ResearchLabDatabase:
         ] + list(self._TELEMETRY_TABLES) + [
             "failure_reports", "label_datasets",
             "retraining_recommendations", "approval_requests", "pipeline_jobs",
+            "training_runs", "artifacts",
         ]
         result: dict[str, int] = {}
         for table in tables:

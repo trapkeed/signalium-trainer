@@ -40,7 +40,12 @@ from trainer.mlops.retraining import RetrainingPolicyManager
 
 
 class MLOpsExporter:
-    """Exports all MLOps platform data for compliance and archival."""
+    """Exports all MLOps platform data for compliance and archival.
+
+    When an optional ``artifact_registry`` is provided, any export written to
+    disk via :meth:`save` is automatically registered as a
+    ``DEPLOYMENT_MANIFEST`` artifact so its provenance is fully tracked.
+    """
 
     def __init__(
         self,
@@ -52,6 +57,7 @@ class MLOpsExporter:
         health: ModelHealthMonitor | None = None,
         monitor: ProductionMonitor | None = None,
         retraining: RetrainingPolicyManager | None = None,
+        artifact_registry: Any | None = None,
     ) -> None:
         self.db = db
         self.registry = registry
@@ -61,6 +67,7 @@ class MLOpsExporter:
         self.health = health
         self.monitor = monitor
         self.retraining = retraining
+        self._artifact_registry = artifact_registry
 
     def export_registry(self) -> dict[str, Any]:
         """Export full model registry snapshot."""
@@ -274,13 +281,56 @@ class MLOpsExporter:
             },
         }
 
+    def _register_export_artifact(
+        self,
+        path: Path,
+        export_type: str,
+        model_version: str = "",
+        registered_by: str = "mlops_exporter",
+    ) -> None:
+        """Register a saved export file as a ``DEPLOYMENT_MANIFEST`` artifact.
+
+        Called automatically by :meth:`save` when an ``artifact_registry`` was
+        supplied to the constructor.  Errors are logged but never re-raised so
+        that a registry outage cannot block the export.
+        """
+        if self._artifact_registry is None:
+            return
+        try:
+            import hashlib
+            from trainer.research_lab.artifact_models import ArtifactRecord
+            h = hashlib.sha256()
+            with open(path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(65_536), b""):
+                    h.update(chunk)
+            artifact_hash = h.hexdigest()
+            record = ArtifactRecord.new(
+                artifact_type="DEPLOYMENT_MANIFEST",
+                name=path.name,
+                path=str(path),
+                artifact_hash=artifact_hash,
+                model_version=model_version,
+                size_bytes=path.stat().st_size,
+                registered_by=registered_by,
+                notes=f"MLOps export: {export_type}",
+            )
+            self._artifact_registry.register_artifact(record)
+            logger.info(f"MLOpsExporter: registered export artifact {record.artifact_id!r}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"MLOpsExporter: failed to register export artifact: {exc}")
+
     def save(self, data: dict[str, Any], path: str) -> str:
-        """Save an export dict to a JSON file. Returns absolute path."""
+        """Save an export dict to a JSON file. Returns absolute path.
+
+        If an ``artifact_registry`` was supplied to the constructor, the saved
+        file is automatically registered as a ``DEPLOYMENT_MANIFEST`` artifact.
+        """
         out = Path(path)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
         logger.info(f"MLOps export saved to {out}")
+        self._register_export_artifact(out, export_type=data.get("export_type", "unknown"))
         return str(out.absolute())
 
     @staticmethod
