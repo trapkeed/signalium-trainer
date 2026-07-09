@@ -245,7 +245,8 @@ class TestCheckFeatureHealth:
         result = check_feature_health(events, cfg)
         assert result is not None
         assert result["severity"] == "CRITICAL"
-        assert "missing_features" in result["triggers"]
+        assert "missing:macd" in result["triggers"]
+        assert "macd" in result["evidence"]["missing_features"]
 
     def test_warning_on_moderate_corruption(self) -> None:
         events = [_event(_NOW - i * 60, {"atr": float("nan") if i < 1 else 5.0}) for i in range(10)]
@@ -263,6 +264,73 @@ class TestCheckFeatureHealth:
 
     def test_no_data_returns_none(self) -> None:
         assert check_feature_health([], FeatureHealthConfig()) is None
+
+    def test_intermittent_missingness_flagged_even_when_feature_not_expected(self) -> None:
+        """A feature present in the observed set (so the expected-vs-observed
+        set difference can't catch it) but missing from most events must
+        still be flagged — this is the "missing values" case distinct from
+        "never observed at all"."""
+        events = [
+            _event(_NOW - i * 60, {"atr": 5.0, **({"rsi": 50.0} if i % 5 == 0 else {})})
+            for i in range(10)
+        ]
+        cfg = FeatureHealthConfig(missing_rate_warning=0.95, missing_rate_critical=0.80)
+        result = check_feature_health(events, cfg)
+        assert result is not None
+        assert "intermittent_missing:rsi" in result["triggers"]
+        assert "rsi" in result["evidence"]["missing_features"]
+        # rsi present in only 2/10 events (20% presence) — well under the
+        # critical threshold.
+        assert result["severity"] == "CRITICAL"
+
+    def test_intermittent_missingness_warning_not_critical(self) -> None:
+        events = [
+            _event(_NOW - i * 60, {"atr": 5.0, **({} if i == 0 else {"rsi": 50.0})})
+            for i in range(10)
+        ]
+        cfg = FeatureHealthConfig(missing_rate_warning=0.95, missing_rate_critical=0.80)
+        result = check_feature_health(events, cfg)
+        assert result is not None
+        assert "intermittent_missing:rsi" in result["triggers"]
+        # rsi present in 9/10 events (90%) — below warning (95%) but above
+        # critical (80%).
+        assert result["severity"] == "WARNING"
+
+    def test_stream_stale_flagged_against_wall_clock_not_window(self) -> None:
+        """The whole reasoning stream can go dark while every feature inside
+        the (old) window still looks perfectly fresh relative to itself —
+        this requires an explicit wall-clock `now` to detect."""
+        old_window_end = _NOW - 20_000  # window itself is old
+        events = _healthy_events(5, old_window_end - 5 * 60)
+        cfg = FeatureHealthConfig(
+            stream_staleness_warning_s=3600.0, stream_staleness_critical_s=14400.0
+        )
+        # Per-feature staleness relative to the window itself is zero for
+        # the most recent event — only the wall-clock check can catch this.
+        result_no_now = check_feature_health(events, cfg, now=old_window_end + 1.0)
+        assert result_no_now is None
+
+        result_stale = check_feature_health(events, cfg, now=_NOW)
+        assert result_stale is not None
+        assert "stream_stale" in result_stale["triggers"]
+        assert result_stale["severity"] == "CRITICAL"
+        assert result_stale["evidence"]["stream_staleness_s"] >= 14400.0
+
+    def test_stream_staleness_wired_into_health_monitor(self, db, warehouse) -> None:
+        from trainer.research_lab.health_monitor import (
+            HealthMonitorConfig,
+            ResearchLabHealthMonitor,
+        )
+
+        cfg = HealthMonitorConfig(
+            feature_health_stream_staleness_warning_s=3600.0,
+            feature_health_stream_staleness_critical_s=14400.0,
+        )
+        monitor = ResearchLabHealthMonitor(db, warehouse, config=cfg)
+        old_events = _healthy_events(5, _NOW - 20_000)
+        alert = monitor._check_feature_health(old_events, "v1.0", now=_NOW)
+        assert alert is not None
+        assert "stream_stale" in alert.affected_features
 
 
 # ── Wired into ResearchLabHealthMonitor ──────────────────────────────────────

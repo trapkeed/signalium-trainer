@@ -284,6 +284,10 @@ class HealthMonitorConfig:
     feature_health_delay_critical_s: float = 120.0
     feature_health_corruption_rate_warning: float = 0.05
     feature_health_corruption_rate_critical: float = 0.20
+    feature_health_missing_rate_warning: float = 0.95
+    feature_health_missing_rate_critical: float = 0.80
+    feature_health_stream_staleness_warning_s: float = 3600.0
+    feature_health_stream_staleness_critical_s: float = 14400.0
 
     # ── 12. Regime coverage: unseen conditions + black swans ──────────────────
     # (Distribution shift itself is already covered by dimension #3 MARKET;
@@ -393,7 +397,7 @@ class ResearchLabHealthMonitor:
             (DriftDimension.CALIBRATION.value, self._check_calibration, (trades, mv)),
             (DriftDimension.DECISION_QUALITY.value, self._check_decision_quality, (trades, mv)),
             (DriftDimension.PERFORMANCE.value, self._check_performance, (trades, mv)),
-            (DriftDimension.FEATURE_HEALTH.value, self._check_feature_health, (reasoning_events, mv)),
+            (DriftDimension.FEATURE_HEALTH.value, self._check_feature_health, (reasoning_events, mv, now)),
             (DriftDimension.UNSEEN_CONDITION.value, self._check_unseen_condition, (decisions, mv)),
             (DriftDimension.BLACK_SWAN.value, self._check_black_swan, (trades, mv)),
         ]:
@@ -1172,7 +1176,7 @@ class ResearchLabHealthMonitor:
     # ── Dimension: Feature health (missing/stale/corrupted/delayed inputs) ────
 
     def _check_feature_health(
-        self, reasoning_events: list[dict], model_version: str
+        self, reasoning_events: list[dict], model_version: str, now: float | None = None
     ) -> DriftAlert | None:
         """Detect missing, stale, corrupted, or delayed pipeline features.
 
@@ -1190,8 +1194,12 @@ class ResearchLabHealthMonitor:
             delay_critical_s=self._cfg.feature_health_delay_critical_s,
             corruption_rate_warning=self._cfg.feature_health_corruption_rate_warning,
             corruption_rate_critical=self._cfg.feature_health_corruption_rate_critical,
+            missing_rate_warning=self._cfg.feature_health_missing_rate_warning,
+            missing_rate_critical=self._cfg.feature_health_missing_rate_critical,
+            stream_staleness_warning_s=self._cfg.feature_health_stream_staleness_warning_s,
+            stream_staleness_critical_s=self._cfg.feature_health_stream_staleness_critical_s,
         )
-        result = check_feature_health(reasoning_events, cfg)
+        result = check_feature_health(reasoning_events, cfg, now=now)
         if result is None:
             return None
 
@@ -1209,7 +1217,10 @@ class ResearchLabHealthMonitor:
                 f"missing: {evidence['missing_features'] or 'none'}, "
                 f"stale: {evidence['stale_features'] or 'none'}, "
                 f"corrupted: {evidence['corrupted_features'] or 'none'}, "
-                f"delayed: {evidence['delayed_features'] or 'none'}. "
+                f"delayed: {evidence['delayed_features'] or 'none'}"
+                + (f", reasoning stream stale for {evidence['stream_staleness_s']:.0f}s"
+                   if "stream_stale" in result["triggers"] else "")
+                + ". "
                 + ("Investigate upstream feature pipeline immediately — inference "
                    "quality is compromised."
                    if result["severity"] == AlertSeverity.CRITICAL.value

@@ -64,6 +64,27 @@ class FeatureHealthConfig:
     corruption_rate_warning: float = 0.05
     corruption_rate_critical: float = 0.20
 
+    # Intermittent missingness: fraction of *events in the window* that a
+    # given feature is present in. Distinct from ``missing_features``
+    # (a feature from ``expected_features`` never observed at all, which is
+    # always CRITICAL) — this catches a feature that mostly-but-not-always
+    # shows up (e.g. an upstream source flaking intermittently), which the
+    # expected-vs-observed set difference cannot see since the feature IS
+    # in the observed set. presence_rate below `*_warning` flags WARNING,
+    # below `*_critical` flags CRITICAL.
+    missing_rate_warning: float = 0.95   # must be present in >= 95% of events
+    missing_rate_critical: float = 0.80  # present in < 80% of events is CRITICAL
+
+    # Reasoning-event stream freshness, measured against wall-clock time
+    # (unlike per-feature `staleness_*_s`, which is window-relative and so
+    # cannot detect the whole reasoning stream going dark — see
+    # `check_feature_health`'s `now` parameter). Complements, rather than
+    # duplicates, the DATA_QUALITY dimension's staleness check, which only
+    # looks at *decision* telemetry — reasoning-event ingestion can stall
+    # independently of decisions still flowing.
+    stream_staleness_warning_s: float = 3600.0
+    stream_staleness_critical_s: float = 14400.0
+
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
 
@@ -209,12 +230,19 @@ def build_feature_health_report(
     of reasoning-event dicts. No I/O — callers persist separately."""
     now = time.time()
     stats, window_start, window_end = compute_feature_stats(events, cfg)
+    n_events = len(events)
 
-    per_feature = {name: fs.to_dict(window_end, cfg) for name, fs in stats.items()}
+    per_feature = {}
+    for name, fs in stats.items():
+        d = fs.to_dict(window_end, cfg)
+        d["presence_rate"] = round(fs.n_present / n_events, 4) if n_events else 0.0
+        per_feature[name] = d
 
     observed = set(stats.keys())
     expected = set(cfg.expected_features) if cfg.expected_features else set()
-    missing = sorted(expected - observed)
+    # Entirely absent (never observed at all) — always the most severe case,
+    # handled distinctly from intermittent missingness below.
+    missing = set(expected - observed)
 
     stale, corrupted, delayed = [], [], []
     for name, fs in stats.items():
@@ -227,6 +255,12 @@ def build_feature_health_report(
         avg_delay = fs.delay_sum / fs.n_present if fs.n_present else 0.0
         if avg_delay >= cfg.delay_warning_s:
             delayed.append(name)
+        # Intermittent missingness: present in the observed set (so the
+        # expected/observed set-difference above can't catch it) but absent
+        # from a meaningful fraction of events in the window.
+        presence_rate = fs.n_present / n_events if n_events else 1.0
+        if presence_rate < cfg.missing_rate_warning:
+            missing.add(name)
 
     return FeatureHealthReport(
         report_id=report_id or f"feat-{uuid.uuid4().hex[:12]}",
@@ -234,9 +268,9 @@ def build_feature_health_report(
         created_at=now,
         window_start=window_start,
         window_end=window_end,
-        n_events=len(events),
+        n_events=n_events,
         per_feature=per_feature,
-        missing_features=missing,
+        missing_features=sorted(missing),
         stale_features=sorted(stale),
         corrupted_features=sorted(corrupted),
         delayed_features=sorted(delayed),
@@ -305,28 +339,51 @@ class FeatureHealthMonitor:
 def check_feature_health(
     events: list[dict[str, Any]],
     cfg: FeatureHealthConfig,
+    now: float | None = None,
 ) -> dict[str, Any] | None:
     """Evaluate absolute severity thresholds (not baseline-vs-recent drift —
     missing/stale/corrupted/delayed are each judged against a fixed
     threshold, per the task's "clear severity threshold per condition")
     and return evidence when any condition is at WARNING or above.
 
+    ``now``: wall-clock time for the reasoning-*stream*-level freshness
+    check (distinct from per-feature ``staleness_*_s``, which is measured
+    relative to the window's own latest event and so cannot detect the
+    whole reasoning stream going dark while decisions keep flowing — that
+    gap is what this parameter closes). Defaults to ``time.time()``.
+
     Returns ``None`` when there's no data or nothing crosses a threshold.
+    An empty ``events`` list with an explicit ``now`` still cannot be
+    evaluated for stream staleness here (there's no last-seen timestamp to
+    compare against) — that case is the reasoning-side analogue of
+    DATA_QUALITY's "zero events" check and is left to the caller/health
+    monitor's overall telemetry-completeness handling.
     """
     if not events:
         return None
 
+    now = time.time() if now is None else now
     report = build_feature_health_report(events, cfg)
     stats, _, window_end = compute_feature_stats(events, cfg)
+    expected = set(cfg.expected_features) if cfg.expected_features else set()
+    observed = set(stats.keys())
+    entirely_missing = expected - observed
 
     triggers: list[str] = []
     is_critical = False
 
-    if report.missing_features:
-        triggers.append("missing_features")
-        # Missing entirely is always at least as severe as a critical
-        # staleness/corruption breach — there is no data to fall back on.
-        is_critical = True
+    for name in report.missing_features:
+        if name in entirely_missing:
+            triggers.append(f"missing:{name}")
+            # Missing entirely is always at least as severe as a critical
+            # staleness/corruption breach — there is no data to fall back on.
+            is_critical = True
+        else:
+            fs = stats[name]
+            presence_rate = fs.n_present / report.n_events if report.n_events else 1.0
+            triggers.append(f"intermittent_missing:{name}")
+            if presence_rate < cfg.missing_rate_critical:
+                is_critical = True
 
     for name in report.stale_features:
         fs = stats[name]
@@ -349,6 +406,15 @@ def check_feature_health(
         if avg_delay >= cfg.delay_critical_s:
             is_critical = True
 
+    # Stream-level freshness: the whole reasoning-event feed may have gone
+    # dark (window_end far in the past relative to wall-clock now), which
+    # per-feature window-relative staleness cannot see by construction.
+    stream_staleness_s = now - window_end
+    if stream_staleness_s >= cfg.stream_staleness_warning_s:
+        triggers.append("stream_stale")
+        if stream_staleness_s >= cfg.stream_staleness_critical_s:
+            is_critical = True
+
     if not triggers:
         return None
 
@@ -362,5 +428,6 @@ def check_feature_health(
             "corrupted_features": report.corrupted_features,
             "delayed_features": report.delayed_features,
             "per_feature": report.per_feature,
+            "stream_staleness_s": round(stream_staleness_s, 1),
         },
     }
