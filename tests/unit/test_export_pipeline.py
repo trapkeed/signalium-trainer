@@ -19,13 +19,18 @@ from trainer.exporters.pipeline import (
     QDEExportPipelineError,
 )
 from trainer.research_lab.artifact_registry import ArtifactRegistry
+from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
 
 
 @pytest.fixture()
 def registry(tmp_path: Path) -> ArtifactRegistry:
     db = ResearchLabDatabase(str(tmp_path / "research_lab.db"))
-    return ArtifactRegistry(db)
+    # Scope the store to this test's tmp_path — the pipeline prefers
+    # `registry.store` over an `output_dir`-rooted store, so without this the
+    # default store root ("data/artifact_store") would leak real files into
+    # the repo during tests.
+    return ArtifactRegistry(db, store=ArtifactStore(root=tmp_path / "artifact_store"))
 
 
 @pytest.fixture()
@@ -118,8 +123,10 @@ class TestExportVersionManifest:
         )
         files_by_name = {f["name"]: f for f in result["files"]}
         # weights, config, calibration, metadata, manifest (torchscript/onnx skipped: no model)
+        # Weights are always materialized under the store's version
+        # directory (weights.pt), never left at the caller-supplied path.
         assert set(files_by_name) == {
-            "pretrained_weights.pt",
+            "weights.pt",
             "config.json",
             "calibration.json",
             "metadata.json",
@@ -239,9 +246,12 @@ class TestExportVersionRegistry:
         assert manifest_record is not None
         assert manifest_record.artifact_type == "DEPLOYMENT_MANIFEST"
 
-    def test_reexport_with_identical_content_does_not_raise(
+    def test_reexport_of_same_version_is_rejected(
         self, tmp_path: Path, pre_existing_weights: Path, registry: ArtifactRegistry
     ) -> None:
+        """Artifact versions are write-once (S21A immutable store): exporting
+        the same model_version twice into the same store root must raise
+        rather than silently overwrite."""
         pipeline = QDEExportPipeline(artifact_registry=registry)
         kwargs = dict(
             model_version="v1",
@@ -249,12 +259,49 @@ class TestExportVersionRegistry:
             weights_path=pre_existing_weights,
             export_formats=(),
         )
-        first = pipeline.export_version(**kwargs)
-        # Second export of identical weights bytes hits DuplicateArtifactError
-        # internally for the (type, hash) pair — must not raise, just skip
-        # registering (returns no artifact_id for that entry).
-        second = pipeline.export_version(**kwargs)
+        pipeline.export_version(**kwargs)
+        with pytest.raises(ArtifactImmutabilityError):
+            pipeline.export_version(**kwargs)
+
+    def test_reexport_with_new_version_succeeds(
+        self, tmp_path: Path, pre_existing_weights: Path, registry: ArtifactRegistry
+    ) -> None:
+        pipeline = QDEExportPipeline(artifact_registry=registry)
+        first = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        second = pipeline.export_version(
+            model_version="v2",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
         assert first["manifest"]["artifact_hash"] == second["manifest"]["artifact_hash"]
+        assert first["output_dir"] != second["output_dir"]
+
+    def test_registration_failure_is_surfaced_not_swallowed(
+        self, tmp_path: Path, pre_existing_weights: Path, registry: ArtifactRegistry, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A genuine registry failure (not a benign duplicate-hash skip) must
+        propagate rather than be silently swallowed — the export's files are
+        already written to a now-immutable version directory, so hiding the
+        failure would leave an unregistered, unrecoverable artifact."""
+
+        def _boom(self, record):
+            raise RuntimeError("registry backend unavailable")
+
+        monkeypatch.setattr(ArtifactRegistry, "register_artifact", _boom)
+        pipeline = QDEExportPipeline(artifact_registry=registry)
+        with pytest.raises(RuntimeError, match="registry backend unavailable"):
+            pipeline.export_version(
+                model_version="v1",
+                output_dir=tmp_path,
+                weights_path=pre_existing_weights,
+                export_formats=(),
+            )
 
     def test_without_registry_returns_empty_artifacts_map(
         self, tmp_path: Path, pre_existing_weights: Path

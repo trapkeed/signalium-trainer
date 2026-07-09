@@ -33,6 +33,7 @@ from trainer.research_lab.artifact_registry import (
     ArtifactRegistry,
     DuplicateArtifactError,
 )
+from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -52,6 +53,11 @@ def db(tmp_path: Path) -> ResearchLabDatabase:
 @pytest.fixture()
 def registry(db: ResearchLabDatabase) -> ArtifactRegistry:
     return ArtifactRegistry(db)
+
+
+@pytest.fixture()
+def registry_with_store(db: ResearchLabDatabase, tmp_path: Path) -> ArtifactRegistry:
+    return ArtifactRegistry(db, store=ArtifactStore(root=tmp_path / "artifact_store"))
 
 
 @pytest.fixture()
@@ -638,3 +644,56 @@ class TestArtifactDBUniqueIndexEnforcement:
         db.upsert_artifact(rec2.to_dict())  # must not raise
         assert db.find_artifact_by_type_hash("WEIGHTS", h) is not None
         assert db.find_artifact_by_type_hash("ONNX", h) is not None
+
+class TestArtifactRegistryStoreIntegration:
+    """S21A — write_and_register / resolve_path against the immutable store."""
+
+    def test_write_and_register_writes_and_returns_record(
+        self, registry_with_store: ArtifactRegistry
+    ) -> None:
+        record = registry_with_store.write_and_register(
+            artifact_type=ArtifactType.WEIGHTS.value,
+            version="v1",
+            filename="weights.pt",
+            data=b"weights-bytes",
+        )
+        assert record.artifact_type == "WEIGHTS"
+        assert record.model_version == "v1"
+        assert Path(record.path).read_bytes() == b"weights-bytes"
+        assert record.artifact_hash == hashlib.sha256(b"weights-bytes").hexdigest()
+
+    def test_write_and_register_path_resolves_under_store_root(
+        self, registry_with_store: ArtifactRegistry
+    ) -> None:
+        record = registry_with_store.write_and_register(
+            artifact_type=ArtifactType.CONFIG.value,
+            version="v1",
+            filename="config.json",
+            data=b"{}",
+        )
+        assert Path(record.path) == registry_with_store.store.path_for("v1", "config.json")
+
+    def test_write_and_register_rejects_overwrite(
+        self, registry_with_store: ArtifactRegistry
+    ) -> None:
+        registry_with_store.write_and_register(
+            artifact_type=ArtifactType.WEIGHTS.value,
+            version="v1",
+            filename="weights.pt",
+            data=b"first",
+        )
+        with pytest.raises(ArtifactImmutabilityError):
+            registry_with_store.write_and_register(
+                artifact_type=ArtifactType.WEIGHTS.value,
+                version="v1",
+                filename="weights.pt",
+                data=b"second",
+            )
+
+    def test_resolve_path_matches_store(self, registry_with_store: ArtifactRegistry) -> None:
+        expected = registry_with_store.store.path_for("v3", "model.onnx")
+        assert registry_with_store.resolve_path("v3", "model.onnx") == expected
+
+    def test_default_store_used_when_none_supplied(self, registry: ArtifactRegistry) -> None:
+        assert registry.store is not None
+        assert registry.store.root is not None

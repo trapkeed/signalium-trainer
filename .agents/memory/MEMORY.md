@@ -29,3 +29,4 @@
 - [Champion-challenger scoring design](champion-challenger-scoring.md) — baseline scores must use neutral 0.5 (not 1.0) so challenger_wins↔score_delta>0 is always consistent; max_drawdown must handle all-negative pnl_diff series
 - [Research Lab admin auth contract](research-lab-admin-auth-contract.md) — missing token→401, wrong token→403; single shared token can't distinguish admins in audit records
 - [pnpm-workspace artifacts glob](pnpm-workspace-artifacts-glob.md) — createArtifact can place a package under artifacts/ without pnpm-workspace.yaml listing that glob; check it or `pnpm --filter` silently reports "no projects matched"
+- [Immutable artifact store design](immutable-artifact-store-design.md) — write-once via os.O_CREAT|O_EXCL, not check-then-write; writers must route through the registry's own store, not a locally-constructed one

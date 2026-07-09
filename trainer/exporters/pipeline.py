@@ -53,6 +53,8 @@ except ImportError:  # pragma: no cover
     logger = logging.getLogger(__name__)
 
 from trainer.research_lab.artifact_models import ArtifactRecord, ArtifactType
+from trainer.research_lab.artifact_registry import DuplicateArtifactError
+from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 
 #: Canonical file names written by the pipeline (relative to the per-version
 #: export directory).
@@ -174,6 +176,13 @@ class QDEExportPipeline:
             Dict with ``model_version``, ``output_dir``, ``manifest``,
             ``manifest_path``, ``files`` (checksum list), and ``artifacts``
             (artifact_type -> registry artifact_id, when registered).
+
+        Raises:
+            QDEExportPipelineError: neither `model` nor `weights_path` was
+                given, or `weights_path` does not exist.
+            ArtifactImmutabilityError: `model_version` was already exported
+                under `output_dir` — artifact versions are write-once; call
+                with a new `model_version` instead of re-exporting this one.
         """
         if model is None and weights_path is None:
             raise QDEExportPipelineError(
@@ -181,26 +190,43 @@ class QDEExportPipeline:
                 "or a pre-existing `weights_path`."
             )
 
-        version_dir = Path(output_dir) / model_version
-        version_dir.mkdir(parents=True, exist_ok=True)
+        # Prefer the registry's own store so path resolution/immutability
+        # policy stays centralized and consistent with `registry.store` /
+        # `registry.resolve_path()` — only fall back to a store rooted at
+        # `output_dir` when no registry (hence no canonical store) exists.
+        store = getattr(self._registry, "store", None) or ArtifactStore(root=output_dir)
+        # Write-once gate: reject outright if this version was already
+        # exported (raises ArtifactImmutabilityError). Every artifact for a
+        # version is produced in this one call, so the check happens before
+        # anything is written rather than per-file; individual writes below
+        # are additionally guarded at the filesystem level (atomic
+        # create-exclusive in `ArtifactStore.write_bytes`).
+        version_dir = store.reserve_version(model_version)
 
         exported: list[tuple[Path, str, str]] = []  # (path, artifact_type, tag)
 
         # ── Weights ──────────────────────────────────────────────────────
-        w_path = Path(weights_path) if weights_path is not None else version_dir / WEIGHTS_FILENAME
+        # Every file below is written via `store.write_bytes` /
+        # `store.import_file` — the store's atomic O_CREAT|O_EXCL create —
+        # rather than a plain `Path.write_text`/`torch.save` call, so the
+        # write-once guarantee applies uniformly to every artifact kind, not
+        # just the version directory as a whole.
         if model is not None:
-            self._export_weights(model, w_path)
-        elif not w_path.exists():
-            raise QDEExportPipelineError(f"weights_path does not exist: {w_path!r}")
+            w_path = self._export_weights(model, store, model_version)
+        else:
+            src = Path(weights_path)
+            if not src.exists():
+                raise QDEExportPipelineError(f"weights_path does not exist: {src!r}")
+            w_path = store.import_file(model_version, WEIGHTS_FILENAME, src)
         exported.append((w_path, ArtifactType.WEIGHTS.value, "weights"))
 
         # ── TorchScript / ONNX ───────────────────────────────────────────
         if model is not None and config is not None and example_input_shape is not None:
             if "torchscript" in export_formats:
-                ts_path = self._export_torchscript(model, config, example_input_shape, version_dir)
+                ts_path = self._export_torchscript(model, config, example_input_shape, store, model_version)
                 exported.append((ts_path, ArtifactType.TORCHSCRIPT.value, "torchscript"))
             if "onnx" in export_formats:
-                onnx_path = self._export_onnx(model, config, example_input_shape, version_dir)
+                onnx_path = self._export_onnx(model, config, example_input_shape, store, model_version)
                 exported.append((onnx_path, ArtifactType.ONNX.value, "onnx"))
         elif export_formats:
             logger.warning(
@@ -210,18 +236,19 @@ class QDEExportPipeline:
             )
 
         # ── config.json ──────────────────────────────────────────────────
-        config_path = version_dir / CONFIG_FILENAME
-        config_path.write_text(json.dumps(_jsonable(config), indent=2, default=str))
+        config_path = store.write_text(
+            model_version, CONFIG_FILENAME, json.dumps(_jsonable(config), indent=2, default=str)
+        )
         exported.append((config_path, ArtifactType.CONFIG.value, "config"))
 
         # ── calibration.json ─────────────────────────────────────────────
-        calibration_path = version_dir / CALIBRATION_FILENAME
         calibration_data = _jsonable(calibration_report)
-        calibration_path.write_text(json.dumps(calibration_data, indent=2, default=str))
+        calibration_path = store.write_text(
+            model_version, CALIBRATION_FILENAME, json.dumps(calibration_data, indent=2, default=str)
+        )
         exported.append((calibration_path, ArtifactType.CALIBRATION.value, "calibration"))
 
         # ── metadata.json ────────────────────────────────────────────────
-        metadata_path = version_dir / METADATA_FILENAME
         metadata_payload: dict[str, Any] = dict(metadata or {})
         if model is not None and hasattr(model, "get_architecture_summary"):
             try:
@@ -230,7 +257,9 @@ class QDEExportPipeline:
                 logger.warning("QDEExportPipeline: get_architecture_summary() failed: {}", exc)
         metadata_payload.setdefault("architecture", architecture)
         metadata_payload.setdefault("model_version", model_version)
-        metadata_path.write_text(json.dumps(metadata_payload, indent=2, default=str))
+        metadata_path = store.write_text(
+            model_version, METADATA_FILENAME, json.dumps(metadata_payload, indent=2, default=str)
+        )
         # metadata.json is checksummed and listed like every other exported
         # file, but it is intentionally NOT registered with the
         # ArtifactRegistry: the registry's ArtifactType enum defines exactly
@@ -290,8 +319,7 @@ class QDEExportPipeline:
         # write below, and is reported/registered externally (in the
         # returned `files` list and the ArtifactRegistry record) where it is
         # guaranteed to match the real on-disk bytes exactly.
-        manifest_path = version_dir / MANIFEST_FILENAME
-        manifest_path.write_text(json.dumps(manifest, indent=2, default=str))
+        manifest_path = store.write_text(model_version, MANIFEST_FILENAME, json.dumps(manifest, indent=2, default=str))
         manifest_sha256 = _sha256_file(manifest_path)
         files.append(
             {
@@ -343,31 +371,56 @@ class QDEExportPipeline:
     # ── Export steps (torch is imported lazily) ─────────────────────────────
 
     @staticmethod
-    def _export_weights(model: Any, weights_path: Path) -> Path:
+    def _export_weights(model: Any, store: ArtifactStore, model_version: str) -> Path:
+        import io
+
         import torch
 
-        weights_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(model.state_dict(), str(weights_path))
+        buffer = io.BytesIO()
+        torch.save(model.state_dict(), buffer)
+        # Written via `store.write_bytes` (atomic O_CREAT|O_EXCL) rather than
+        # `torch.save(..., path)` directly to disk, so weights get the same
+        # write-once guarantee as every other artifact kind.
+        weights_path = store.write_bytes(model_version, WEIGHTS_FILENAME, buffer.getvalue())
         logger.info("QDEExportPipeline: weights exported: {}", weights_path)
         return weights_path
 
     @staticmethod
     def _export_torchscript(
-        model: Any, config: Any, example_input_shape: tuple[int, ...], out_dir: Path
+        model: Any,
+        config: Any,
+        example_input_shape: tuple[int, ...],
+        store: ArtifactStore,
+        model_version: str,
     ) -> Path:
+        import tempfile
+
         from trainer.exporters.torchscript import TorchScriptExporter
 
         exporter = TorchScriptExporter(model=model, config=config, example_input_shape=example_input_shape)
-        return exporter.export(out_dir)[0]
+        with tempfile.TemporaryDirectory() as scratch:
+            scratch_path = exporter.export(Path(scratch))[0]
+            # Exporters write to an arbitrary scratch path; import the result
+            # into the store so it goes through the same atomic, write-once
+            # `write_bytes` path as every other artifact kind.
+            return store.import_file(model_version, scratch_path.name, scratch_path)
 
     @staticmethod
     def _export_onnx(
-        model: Any, config: Any, example_input_shape: tuple[int, ...], out_dir: Path
+        model: Any,
+        config: Any,
+        example_input_shape: tuple[int, ...],
+        store: ArtifactStore,
+        model_version: str,
     ) -> Path:
+        import tempfile
+
         from trainer.exporters.onnx import ONNXExporter
 
         exporter = ONNXExporter(model=model, config=config, example_input_shape=example_input_shape)
-        return exporter.export(out_dir)[0]
+        with tempfile.TemporaryDirectory() as scratch:
+            scratch_path = exporter.export(Path(scratch))[0]
+            return store.import_file(model_version, scratch_path.name, scratch_path)
 
     # ── Registry glue ────────────────────────────────────────────────────────
 
@@ -401,12 +454,33 @@ class QDEExportPipeline:
             )
             self._registry.register_artifact(record)
             return record.artifact_id
-        except Exception as exc:  # noqa: BLE001
-            # DuplicateArtifactError (re-exporting identical content) and any
-            # registry outage must never abort an otherwise-successful export.
+        except DuplicateArtifactError as exc:
+            # Re-exporting byte-identical content under a different version
+            # legitimately collides on (type, hash) — tolerate it, the
+            # artifact's provenance is already registered under its first
+            # version.
             logger.warning(
-                "QDEExportPipeline: failed to register artifact {!r}: {}",
+                "QDEExportPipeline: artifact {!r} already registered ({}); "
+                "skipping duplicate registration.",
                 entry.get("name"),
                 exc,
             )
             return ""
+        except Exception:
+            # Any other registration failure (bad record, registry outage,
+            # ...) is surfaced rather than swallowed: the version directory
+            # has already been reserved/written and is now write-once, so a
+            # silently-unregistered artifact would be both unrecoverable
+            # (can't re-export this version) and undiscoverable (no
+            # registry record points at it). Failing loudly lets the caller
+            # decide whether to retry registration against the already
+            # exported files or export a fresh version.
+            logger.error(
+                "QDEExportPipeline: registration failed for artifact {!r} "
+                "(model_version={!r}); files are already written to {!r} but "
+                "NOT registered.",
+                entry.get("name"),
+                model_version,
+                entry.get("path"),
+            )
+            raise

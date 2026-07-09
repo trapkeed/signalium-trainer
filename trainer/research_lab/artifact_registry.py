@@ -57,6 +57,11 @@ from trainer.research_lab.artifact_models import (
     validate_artifact_hash,
     validate_artifact_type,
 )
+from trainer.research_lab.artifact_store import (
+    ArtifactImmutabilityError,
+    ArtifactKind,
+    ArtifactStore,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 
 
@@ -81,8 +86,9 @@ class ArtifactRegistry:
         db: ``ResearchLabDatabase`` instance used for persistence.
     """
 
-    def __init__(self, db: ResearchLabDatabase) -> None:
+    def __init__(self, db: ResearchLabDatabase, store: ArtifactStore | None = None) -> None:
         self._db = db
+        self.store = store or ArtifactStore()
 
     # ── Training run registration ──────────────────────────────────────────────
 
@@ -169,6 +175,48 @@ class ArtifactRegistry:
             f"{record.artifact_id!r} ({record.name!r})"
         )
         return record
+
+    def write_and_register(
+        self,
+        *,
+        artifact_type: str,
+        version: str,
+        filename: str,
+        data: bytes,
+        kind: str | ArtifactKind | None = None,
+        **record_kwargs: Any,
+    ) -> ArtifactRecord:
+        """Write *data* into the immutable, versioned on-disk store and
+        register the resulting file in one call.
+
+        This is the preferred way for new callers to produce an artifact:
+        it guarantees ``ArtifactRecord.path`` always resolves to a real
+        store-managed path (never an arbitrary caller-supplied path) and
+        that the write is rejected outright if *version*'s directory is
+        already populated (see ``ArtifactStore.reserve_version`` /
+        ``ArtifactStore.write_bytes``).
+
+        Raises:
+            ArtifactImmutabilityError: the target file (or, on first write
+                for a version, the version directory itself) already exists.
+        """
+        path = self.store.write_bytes(version, filename, data, kind=kind)
+        record = ArtifactRecord.new(
+            artifact_type=artifact_type,
+            name=filename,
+            path=str(path),
+            artifact_hash=self.hash_bytes(data),
+            model_version=version,
+            size_bytes=len(data),
+            **record_kwargs,
+        )
+        return self.register_artifact(record)
+
+    def resolve_path(self, version: str, filename: str, kind: str | ArtifactKind | None = None) -> Path:
+        """Return the store path for *filename* under *version* without
+        requiring the file to already exist — the canonical way for readers
+        to locate an artifact instead of trusting an arbitrary caller path."""
+        return self.store.path_for(version, filename, kind=kind)
 
     def get_artifact(self, artifact_id: str) -> ArtifactRecord | None:
         """Return the ``ArtifactRecord`` with *artifact_id*, or ``None``."""
