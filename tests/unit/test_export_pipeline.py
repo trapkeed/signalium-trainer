@@ -58,9 +58,7 @@ class TestExportVersionRequiresWeightsSource:
 
 
 class TestExportVersionManifest:
-    def test_produces_all_required_files(
-        self, tmp_path: Path, pre_existing_weights: Path
-    ) -> None:
+    def test_produces_all_required_files(self, tmp_path: Path, pre_existing_weights: Path) -> None:
         pipeline = QDEExportPipeline()
         result = pipeline.export_version(
             model_version="v3.1",
@@ -284,7 +282,11 @@ class TestExportVersionRegistry:
         assert first["output_dir"] != second["output_dir"]
 
     def test_registration_failure_is_surfaced_not_swallowed(
-        self, tmp_path: Path, pre_existing_weights: Path, registry: ArtifactRegistry, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        pre_existing_weights: Path,
+        registry: ArtifactRegistry,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A genuine registry failure (not a benign duplicate-hash skip) must
         propagate rather than be silently swallowed — the export's files are

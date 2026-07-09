@@ -83,7 +83,9 @@ class RunPodCredentials:
         """
         if not self.signature:
             return False
-        expected = hmac.new(shared_secret.encode("utf-8"), self._signing_payload(), hashlib.sha256).hexdigest()
+        expected = hmac.new(
+            shared_secret.encode("utf-8"), self._signing_payload(), hashlib.sha256
+        ).hexdigest()
         return hmac.compare_digest(expected, self.signature)
 
     def assert_usable(self, shared_secret: str, now: float | None = None) -> None:
@@ -107,4 +109,6 @@ class RunPodCredentials:
         """Helper for the issuing side (tests / Signalium simulators) to
         produce a valid signature for a not-yet-signed credential payload."""
         creds = RunPodCredentials.from_dict({**data, "signature": ""})
-        return hmac.new(shared_secret.encode("utf-8"), creds._signing_payload(), hashlib.sha256).hexdigest()
+        return hmac.new(
+            shared_secret.encode("utf-8"), creds._signing_payload(), hashlib.sha256
+        ).hexdigest()

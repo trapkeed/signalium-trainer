@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -59,7 +59,6 @@ from trainer.research_lab.recommendation_models import (
     RecommendedScope,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-
 
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
@@ -146,12 +145,8 @@ class RollingMetrics:
             "challenger_sortino": round(self.challenger_sortino, 4),
             "challenger_profit_factor": round(self.challenger_profit_factor, 4),
             "challenger_max_drawdown": round(self.challenger_max_drawdown, 4),
-            "challenger_confidence_calibration": round(
-                self.challenger_confidence_calibration, 4
-            ),
-            "challenger_confidence_reliability": round(
-                self.challenger_confidence_reliability, 4
-            ),
+            "challenger_confidence_calibration": round(self.challenger_confidence_calibration, 4),
+            "challenger_confidence_reliability": round(self.challenger_confidence_reliability, 4),
             "mean_pnl_diff": round(self.mean_pnl_diff, 6),
             "mean_confidence_diff": round(self.mean_confidence_diff, 4),
             "mean_latency_diff_ms": round(self.mean_latency_diff_ms, 3),
@@ -237,7 +232,7 @@ class PromotionCriterionConfig:
     """
 
     min_decisions: int = 50
-    majority_threshold: float = 0.6   # must win ≥ 60 % of scored dimensions
+    majority_threshold: float = 0.6  # must win ≥ 60 % of scored dimensions
     min_promotion_score: float = 0.65
     min_agreement_rate: float = 0.55
 
@@ -276,9 +271,7 @@ def score_direction_accuracy(decisions: list[dict]) -> DimensionResult:
     for d in decisions:
         regime = d.get("regime", "UNKNOWN") or "UNKNOWN"
         by_regime.setdefault(regime, []).append(bool(d.get("decisions_agree", False)))
-    per_regime = {
-        r: round(sum(v) / len(v), 4) for r, v in by_regime.items() if len(v) >= 2
-    }
+    per_regime = {r: round(sum(v) / len(v), 4) for r, v in by_regime.items() if len(v) >= 2}
 
     champion_score = 0.5
     challenger_score = agreement_rate
@@ -503,9 +496,7 @@ def score_hold_quality(decisions: list[dict]) -> DimensionResult:
             "champion_confidence_cov": round(champ_cov, 4),
             "n_regimes_scored": len(regime_agree_rates),
             "per_regime_agreement_rates": {
-                r: round(sum(v) / len(v), 4)
-                for r, v in by_regime.items()
-                if len(v) >= 2
+                r: round(sum(v) / len(v), 4) for r, v in by_regime.items() if len(v) >= 2
             },
         },
         n_decisions=n,
@@ -548,8 +539,8 @@ def compute_rolling_metrics(decisions: list[dict]) -> RollingMetrics:
     # Profit factor: gross profit / gross loss (on pnl_diff series)
     gross_profit = sum(p for p in pnl_diffs if p > 0)
     gross_loss = abs(sum(p for p in pnl_diffs if p < 0))
-    profit_factor = (gross_profit / gross_loss) if gross_loss > 1e-9 else (
-        99.0 if gross_profit > 0 else 1.0
+    profit_factor = (
+        (gross_profit / gross_loss) if gross_loss > 1e-9 else (99.0 if gross_profit > 0 else 1.0)
     )
 
     # Max drawdown on cumulative pnl_diff curve.
@@ -575,16 +566,13 @@ def compute_rolling_metrics(decisions: list[dict]) -> RollingMetrics:
     # Confidence calibration: mean(conf | agree) - mean(conf | disagree)
     agree_confs = [conf_chall[i] for i in range(n) if agrees[i]]
     disagree_confs = [conf_chall[i] for i in range(n) if not agrees[i]]
-    cal = (
-        (sum(agree_confs) / len(agree_confs) if agree_confs else 0.5)
-        - (sum(disagree_confs) / len(disagree_confs) if disagree_confs else 0.5)
+    cal = (sum(agree_confs) / len(agree_confs) if agree_confs else 0.5) - (
+        sum(disagree_confs) / len(disagree_confs) if disagree_confs else 0.5
     )
 
     # Confidence reliability: fraction of decisions where challenger is more
     # confident AND agrees with champion
-    conf_reliable = sum(
-        1 for i in range(n) if conf_chall[i] > conf_champ[i] and agrees[i]
-    ) / n
+    conf_reliable = sum(1 for i in range(n) if conf_chall[i] > conf_champ[i] and agrees[i]) / n
 
     return RollingMetrics(
         n_decisions=n,
@@ -713,9 +701,7 @@ class ChampionChallengerTracker:
             cfg = self._cfg
             reasons = []
             if h2h.n_decisions < cfg.min_decisions:
-                reasons.append(
-                    f"insufficient decisions ({h2h.n_decisions} < {cfg.min_decisions})"
-                )
+                reasons.append(f"insufficient decisions ({h2h.n_decisions} < {cfg.min_decisions})")
             if h2h.challenger_win_rate < cfg.majority_threshold:
                 reasons.append(
                     f"dimension wins {h2h.n_dimensions_challenger_wins}/{h2h.n_dimensions_total} "
@@ -825,7 +811,8 @@ class ChampionChallengerTracker:
         )
         for existing in open_recs:
             if (
-                existing.get("trigger_dimension") == EvaluationDimension.REGIME_UNDERPERFORMANCE.value
+                existing.get("trigger_dimension")
+                == EvaluationDimension.REGIME_UNDERPERFORMANCE.value
                 and existing.get("evidence", {}).get("_health_dimension") == health_dim
             ):
                 return existing.get("recommendation_id", "")
@@ -888,17 +875,19 @@ class ChampionChallengerTracker:
         for st in running_tests:
             tid = st.get("test_id", "")
             n = self._db.count_shadow_decisions(tid)
-            summaries.append({
-                "test_id": tid,
-                "champion_version": st.get("champion_version", ""),
-                "challenger_version": st.get("challenger_version", ""),
-                "n_decisions": n,
-                "min_decisions": st.get("min_decisions", self._cfg.min_decisions),
-                "progress_pct": round(
-                    100.0 * n / max(st.get("min_decisions", self._cfg.min_decisions), 1), 1
-                ),
-                "started_at": st.get("started_at"),
-            })
+            summaries.append(
+                {
+                    "test_id": tid,
+                    "champion_version": st.get("champion_version", ""),
+                    "challenger_version": st.get("challenger_version", ""),
+                    "n_decisions": n,
+                    "min_decisions": st.get("min_decisions", self._cfg.min_decisions),
+                    "progress_pct": round(
+                        100.0 * n / max(st.get("min_decisions", self._cfg.min_decisions), 1), 1
+                    ),
+                    "started_at": st.get("started_at"),
+                }
+            )
 
         return {
             "n_running": len(summaries),

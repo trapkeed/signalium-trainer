@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.decision_quality import (
     DecisionQualityConfig,
     DecisionQualityReport,
@@ -29,10 +30,13 @@ from trainer.research_lab.decision_quality import (
     confidence_outcome_correlation,
 )
 from trainer.research_lab.dimension_evaluators import _split_windows
-from trainer.research_lab.health_monitor import DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
+from trainer.research_lab.health_monitor import (
+    DriftDimension,
+    HealthMonitorConfig,
+    ResearchLabHealthMonitor,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 _NOW = time.time()
 
@@ -92,7 +96,13 @@ def _degraded_trades(n: int, ts_start: float, **extra) -> list[dict]:
 class TestExpectancyStats:
     def test_empty(self) -> None:
         stats = _expectancy_stats([])
-        assert stats == {"n_trades": 0, "win_rate": 0.0, "expectancy": 0.0, "avg_win": 0.0, "avg_loss": 0.0}
+        assert stats == {
+            "n_trades": 0,
+            "win_rate": 0.0,
+            "expectancy": 0.0,
+            "avg_win": 0.0,
+            "avg_loss": 0.0,
+        }
 
     def test_mixed_trades(self) -> None:
         trades = [{"pnl": 10.0}, {"pnl": 10.0}, {"pnl": -5.0}]
@@ -168,7 +178,9 @@ class TestConfidenceOutcomeCorrelation:
 
     def test_low_correlation_when_confidence_uninformative(self) -> None:
         # Confidence identical across all trades → zero variance → undefined.
-        trades = [{"confidence_at_entry": 0.5, "pnl": 10.0 if i % 2 == 0 else -10.0} for i in range(10)]
+        trades = [
+            {"confidence_at_entry": 0.5, "pnl": 10.0 if i % 2 == 0 else -10.0} for i in range(10)
+        ]
         assert confidence_outcome_correlation(trades) is None
 
 
@@ -199,9 +211,16 @@ class TestDecisionQualityReport:
 
     def test_none_correlation_serializes_as_none(self) -> None:
         report = DecisionQualityReport(
-            report_id="dqr-2", model_version="", created_at=_NOW, window_start=_NOW,
-            window_end=_NOW, n_trades=0, n_decisions=0, overall_expectancy=0.0,
-            overall_win_rate=0.0, confidence_outcome_correlation=None,
+            report_id="dqr-2",
+            model_version="",
+            created_at=_NOW,
+            window_start=_NOW,
+            window_end=_NOW,
+            n_trades=0,
+            n_decisions=0,
+            overall_expectancy=0.0,
+            overall_win_rate=0.0,
+            confidence_outcome_correlation=None,
         )
         assert report.to_dict()["confidence_outcome_correlation"] is None
 
@@ -221,25 +240,39 @@ class TestDecisionQualityReportDB:
         assert db.get_decision_quality_report("missing") is None
 
     def test_list_filter_model_version(self, db: ResearchLabDatabase) -> None:
-        db.upsert_decision_quality_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW})
-        db.upsert_decision_quality_report({"report_id": "r2", "model_version": "v2.0", "created_at": _NOW})
+        db.upsert_decision_quality_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW}
+        )
+        db.upsert_decision_quality_report(
+            {"report_id": "r2", "model_version": "v2.0", "created_at": _NOW}
+        )
         results = db.list_decision_quality_reports(model_version="v1.0")
         assert len(results) == 1
         assert results[0]["report_id"] == "r1"
 
     def test_list_orders_newest_first(self, db: ResearchLabDatabase) -> None:
-        db.upsert_decision_quality_report({"report_id": "old", "model_version": "v1.0", "created_at": _NOW - 100})
-        db.upsert_decision_quality_report({"report_id": "new", "model_version": "v1.0", "created_at": _NOW})
+        db.upsert_decision_quality_report(
+            {"report_id": "old", "model_version": "v1.0", "created_at": _NOW - 100}
+        )
+        db.upsert_decision_quality_report(
+            {"report_id": "new", "model_version": "v1.0", "created_at": _NOW}
+        )
         results = db.list_decision_quality_reports(model_version="v1.0")
         assert [r["report_id"] for r in results] == ["new", "old"]
 
     def test_upsert_overwrites(self, db: ResearchLabDatabase) -> None:
-        db.upsert_decision_quality_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 1})
-        db.upsert_decision_quality_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 99})
+        db.upsert_decision_quality_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 1}
+        )
+        db.upsert_decision_quality_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 99}
+        )
         assert db.get_decision_quality_report("r1")["n_trades"] == 99
 
     def test_stats_includes_decision_quality_reports(self, db: ResearchLabDatabase) -> None:
-        db.upsert_decision_quality_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW})
+        db.upsert_decision_quality_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW}
+        )
         stats = db.telemetry_stream_counts() if hasattr(db, "telemetry_stream_counts") else None
         # table existence + basic count sanity via list
         assert len(db.list_decision_quality_reports()) == 1
@@ -252,8 +285,12 @@ class TestDecisionQualityTracker:
     def _seed(self, warehouse: TelemetryWarehouse, trades: list[dict]) -> None:
         for t in trades:
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
                 **t,
             )
 
@@ -296,18 +333,14 @@ class TestCheckDecisionQualityDrift:
         return DecisionQualityConfig(**base)
 
     def test_no_alert_when_stable(self) -> None:
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _well_calibrated_trades(10, _NOW - 10 * 60)
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _well_calibrated_trades(
+            10, _NOW - 10 * 60
         )
         result = check_decision_quality_drift(trades, self._cfg(), _split_windows)
         assert result is None
 
     def test_alert_when_degraded(self) -> None:
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         result = check_decision_quality_drift(trades, self._cfg(), _split_windows)
         assert result is not None
         assert result["severity"] in ("WARNING", "CRITICAL")
@@ -315,10 +348,7 @@ class TestCheckDecisionQualityDrift:
         assert result["evidence"]["recent_expectancy"] < result["evidence"]["baseline_expectancy"]
 
     def test_critical_when_severely_degraded(self) -> None:
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         result = check_decision_quality_drift(
             trades,
             self._cfg(expectancy_drift_warning=0.05, expectancy_drift_critical=0.10),
@@ -369,9 +399,12 @@ class TestCheckDecisionQualityDrift:
 
     def test_insufficient_data_returns_none(self) -> None:
         assert check_decision_quality_drift([], self._cfg(), _split_windows) is None
-        assert check_decision_quality_drift(
-            _well_calibrated_trades(3, _NOW), self._cfg(), _split_windows
-        ) is None
+        assert (
+            check_decision_quality_drift(
+                _well_calibrated_trades(3, _NOW), self._cfg(), _split_windows
+            )
+            is None
+        )
 
 
 # ── Wired into ResearchLabHealthMonitor ──────────────────────────────────────
@@ -380,7 +413,9 @@ class TestCheckDecisionQualityDrift:
 class TestDecisionQualityHealthMonitorWiring:
     def _cfg(self, **overrides) -> HealthMonitorConfig:
         base = dict(
-            baseline_window=20, rolling_window=10, min_samples=5,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
             decision_quality_expectancy_warning=0.15,
             decision_quality_expectancy_critical=0.35,
         )
@@ -389,19 +424,15 @@ class TestDecisionQualityHealthMonitorWiring:
 
     def test_no_alert_when_stable(self, db, warehouse) -> None:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _well_calibrated_trades(10, _NOW - 10 * 60)
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _well_calibrated_trades(
+            10, _NOW - 10 * 60
         )
         alert = monitor._check_decision_quality(trades, "v1.0")
         assert alert is None
 
     def test_alert_on_degradation(self, db, warehouse) -> None:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         alert = monitor._check_decision_quality(trades, "v1.0")
         assert alert is not None
         assert alert.dimension == DriftDimension.DECISION_QUALITY.value
@@ -412,8 +443,12 @@ class TestDecisionQualityHealthMonitorWiring:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
         for t in _degraded_trades(10, _NOW - 5 * 60):
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
                 **t,
             )
         result = monitor.run_check(model_version="v1.0")
@@ -421,17 +456,18 @@ class TestDecisionQualityHealthMonitorWiring:
 
     def test_critical_decision_quality_alert_creates_recommendation(self, db, warehouse) -> None:
         from unittest.mock import MagicMock
+
         rec_engine = MagicMock()
         rec_engine._db = db
         monitor = ResearchLabHealthMonitor(
-            db, warehouse, rec_engine=rec_engine,
-            config=self._cfg(decision_quality_expectancy_warning=0.05,
-                              decision_quality_expectancy_critical=0.10),
+            db,
+            warehouse,
+            rec_engine=rec_engine,
+            config=self._cfg(
+                decision_quality_expectancy_warning=0.05, decision_quality_expectancy_critical=0.10
+            ),
         )
-        trades = (
-            _well_calibrated_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _well_calibrated_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         alert = monitor._check_decision_quality(trades, "v1.0")
         assert alert is not None
         assert alert.severity == "CRITICAL"
@@ -452,14 +488,17 @@ class TestDecisionQualityServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-dq-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_dq.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_compute_report_empty_warehouse(self, client) -> None:

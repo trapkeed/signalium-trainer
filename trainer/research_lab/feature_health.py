@@ -27,6 +27,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.rl_database import ResearchLabDatabase
@@ -72,7 +73,7 @@ class FeatureHealthConfig:
     # expected-vs-observed set difference cannot see since the feature IS
     # in the observed set. presence_rate below `*_warning` flags WARNING,
     # below `*_critical` flags CRITICAL.
-    missing_rate_warning: float = 0.95   # must be present in >= 95% of events
+    missing_rate_warning: float = 0.95  # must be present in >= 95% of events
     missing_rate_critical: float = 0.80  # present in < 80% of events is CRITICAL
 
     # Reasoning-event stream freshness, measured against wall-clock time
@@ -310,9 +311,7 @@ class FeatureHealthMonitor:
         q = TelemetryQuery(model_version=model_version, since=since, until=until, limit=5000)
         events = sorted(self._wh.query_reasoning(q), key=lambda e: e.get("timestamp", 0))
 
-        report = build_feature_health_report(
-            events, self._cfg, model_version=model_version or ""
-        )
+        report = build_feature_health_report(events, self._cfg, model_version=model_version or "")
         if persist:
             self._db.upsert_feature_health_report(report.to_dict())
             logger.info(

@@ -14,14 +14,29 @@ Covers:
 
 from __future__ import annotations
 
+# `trainer.validation.trading` has no internal trainer dependencies (only
+# numpy), but importing it normally (`from trainer.validation.trading import
+# ...`) executes `trainer/validation/__init__.py`, which pulls in a
+# torch-dependent chain that's broken in this environment (see memory:
+# torch-broken-lazy-registry-import). Load the module file directly,
+# bypassing the package `__init__.py`, the same isolation pattern used for
+# `trainer.mie` (see memory: mie-test-isolation).
+import importlib.util as _importlib_util
 import sys
+import sys as _sys
 import time
 from pathlib import Path
+from pathlib import Path as _Path
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.dimension_evaluators import _split_windows
-from trainer.research_lab.health_monitor import DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
+from trainer.research_lab.health_monitor import (
+    DriftDimension,
+    HealthMonitorConfig,
+    ResearchLabHealthMonitor,
+)
 from trainer.research_lab.performance_monitor import (
     PerformanceMonitor,
     PerformanceMonitorConfig,
@@ -38,24 +53,10 @@ from trainer.research_lab.performance_monitor import (
     performance_stats,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
-# `trainer.validation.trading` has no internal trainer dependencies (only
-# numpy), but importing it normally (`from trainer.validation.trading import
-# ...`) executes `trainer/validation/__init__.py`, which pulls in a
-# torch-dependent chain that's broken in this environment (see memory:
-# torch-broken-lazy-registry-import). Load the module file directly,
-# bypassing the package `__init__.py`, the same isolation pattern used for
-# `trainer.mie` (see memory: mie-test-isolation).
-import importlib.util as _importlib_util
-import sys as _sys
-from pathlib import Path as _Path
-
 _trading_path = _Path(__file__).resolve().parents[2] / "trainer" / "validation" / "trading.py"
-_trading_spec = _importlib_util.spec_from_file_location(
-    "trainer.validation.trading", _trading_path
-)
+_trading_spec = _importlib_util.spec_from_file_location("trainer.validation.trading", _trading_path)
 _trading_mod = _importlib_util.module_from_spec(_trading_spec)
 _sys.modules["trainer.validation.trading"] = _trading_mod
 _trading_spec.loader.exec_module(_trading_mod)
@@ -322,8 +323,12 @@ class TestGroupPerformance:
 class TestPerformanceReport:
     def test_to_dict_from_dict_roundtrip(self) -> None:
         report = PerformanceReport(
-            report_id="perf-1", model_version="v1.0", created_at=_NOW,
-            window_start=_NOW - 100, window_end=_NOW, n_trades=5,
+            report_id="perf-1",
+            model_version="v1.0",
+            created_at=_NOW,
+            window_start=_NOW - 100,
+            window_end=_NOW,
+            n_trades=5,
             overall={"profit_factor": 1.5},
             performance_by_symbol={"XAUUSD": {"n_trades": 5}},
         )
@@ -339,7 +344,9 @@ class TestPerformanceReport:
 
 class TestPerformanceReportDB:
     def test_upsert_and_get(self, db: ResearchLabDatabase) -> None:
-        db.upsert_performance_report({"report_id": "p1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 3})
+        db.upsert_performance_report(
+            {"report_id": "p1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 3}
+        )
         fetched = db.get_performance_report("p1")
         assert fetched is not None
         assert fetched["n_trades"] == 3
@@ -348,15 +355,23 @@ class TestPerformanceReportDB:
         assert db.get_performance_report("missing") is None
 
     def test_list_filter_model_version(self, db: ResearchLabDatabase) -> None:
-        db.upsert_performance_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW})
-        db.upsert_performance_report({"report_id": "r2", "model_version": "v2.0", "created_at": _NOW})
+        db.upsert_performance_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW}
+        )
+        db.upsert_performance_report(
+            {"report_id": "r2", "model_version": "v2.0", "created_at": _NOW}
+        )
         results = db.list_performance_reports(model_version="v1.0")
         assert len(results) == 1
         assert results[0]["report_id"] == "r1"
 
     def test_upsert_overwrites(self, db: ResearchLabDatabase) -> None:
-        db.upsert_performance_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 1})
-        db.upsert_performance_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 99})
+        db.upsert_performance_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 1}
+        )
+        db.upsert_performance_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_trades": 99}
+        )
         assert db.get_performance_report("r1")["n_trades"] == 99
 
 
@@ -367,8 +382,12 @@ class TestPerformanceMonitor:
     def _seed(self, warehouse: TelemetryWarehouse, trades: list[dict]) -> None:
         for t in trades:
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
                 **t,
             )
 
@@ -408,18 +427,12 @@ class TestCheckPerformanceDrift:
         return PerformanceMonitorConfig(**base)
 
     def test_no_alert_when_stable(self) -> None:
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _profitable_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _profitable_trades(10, _NOW - 10 * 60)
         result = check_performance_drift(trades, self._cfg(), _split_windows)
         assert result is None
 
     def test_alert_when_degraded(self) -> None:
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         result = check_performance_drift(trades, self._cfg(), _split_windows)
         assert result is not None
         assert result["severity"] in ("WARNING", "CRITICAL")
@@ -427,10 +440,7 @@ class TestCheckPerformanceDrift:
         assert result["evidence"]["recent_hit_rate"] < result["evidence"]["baseline_hit_rate"]
 
     def test_critical_when_severely_degraded(self) -> None:
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         result = check_performance_drift(
             trades,
             self._cfg(hit_rate_drop_warning=0.05, hit_rate_drop_critical=0.10),
@@ -441,9 +451,10 @@ class TestCheckPerformanceDrift:
 
     def test_insufficient_data_returns_none(self) -> None:
         assert check_performance_drift([], self._cfg(), _split_windows) is None
-        assert check_performance_drift(
-            _profitable_trades(3, _NOW), self._cfg(), _split_windows
-        ) is None
+        assert (
+            check_performance_drift(_profitable_trades(3, _NOW), self._cfg(), _split_windows)
+            is None
+        )
 
 
 # ── Wired into ResearchLabHealthMonitor ──────────────────────────────────────
@@ -452,7 +463,9 @@ class TestCheckPerformanceDrift:
 class TestPerformanceHealthMonitorWiring:
     def _cfg(self, **overrides) -> HealthMonitorConfig:
         base = dict(
-            baseline_window=20, rolling_window=10, min_samples=5,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
             performance_hit_rate_drop_warning=0.10,
             performance_hit_rate_drop_critical=0.20,
         )
@@ -461,19 +474,13 @@ class TestPerformanceHealthMonitorWiring:
 
     def test_no_alert_when_stable(self, db, warehouse) -> None:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _profitable_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _profitable_trades(10, _NOW - 10 * 60)
         alert = monitor._check_performance(trades, "v1.0")
         assert alert is None
 
     def test_alert_on_degradation(self, db, warehouse) -> None:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         alert = monitor._check_performance(trades, "v1.0")
         assert alert is not None
         assert alert.dimension == DriftDimension.PERFORMANCE.value
@@ -483,8 +490,12 @@ class TestPerformanceHealthMonitorWiring:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
         for t in _degraded_trades(10, _NOW - 5 * 60):
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
                 **t,
             )
         result = monitor.run_check(model_version="v1.0")
@@ -492,17 +503,18 @@ class TestPerformanceHealthMonitorWiring:
 
     def test_critical_performance_alert_creates_recommendation(self, db, warehouse) -> None:
         from unittest.mock import MagicMock
+
         rec_engine = MagicMock()
         rec_engine._db = db
         monitor = ResearchLabHealthMonitor(
-            db, warehouse, rec_engine=rec_engine,
-            config=self._cfg(performance_hit_rate_drop_warning=0.05,
-                              performance_hit_rate_drop_critical=0.10),
+            db,
+            warehouse,
+            rec_engine=rec_engine,
+            config=self._cfg(
+                performance_hit_rate_drop_warning=0.05, performance_hit_rate_drop_critical=0.10
+            ),
         )
-        trades = (
-            _profitable_trades(20, _NOW - 30 * 60)
-            + _degraded_trades(10, _NOW - 10 * 60)
-        )
+        trades = _profitable_trades(20, _NOW - 30 * 60) + _degraded_trades(10, _NOW - 10 * 60)
         alert = monitor._check_performance(trades, "v1.0")
         assert alert is not None
         assert alert.severity == "CRITICAL"
@@ -523,14 +535,17 @@ class TestPerformanceServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-perf-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_perf.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_compute_report_empty_warehouse(self, client) -> None:

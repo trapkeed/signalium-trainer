@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.feature_health import (
     FeatureHealthConfig,
     FeatureHealthMonitor,
@@ -27,10 +28,13 @@ from trainer.research_lab.feature_health import (
     check_feature_health,
     compute_feature_stats,
 )
-from trainer.research_lab.health_monitor import DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
+from trainer.research_lab.health_monitor import (
+    DriftDimension,
+    HealthMonitorConfig,
+    ResearchLabHealthMonitor,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 _NOW = time.time()
 
@@ -56,10 +60,7 @@ def _event(ts: float, feature_values: dict, ingested_at: float | None = None) ->
 
 
 def _healthy_events(n: int, ts_start: float) -> list[dict]:
-    return [
-        _event(ts_start + i * 60, {"atr": 5.0 + i * 0.1, "rsi": 50.0 + i})
-        for i in range(n)
-    ]
+    return [_event(ts_start + i * 60, {"atr": 5.0 + i * 0.1, "rsi": 50.0 + i}) for i in range(n)]
 
 
 # ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -150,15 +151,21 @@ class TestBuildFeatureHealthReport:
         assert "atr" in report.corrupted_features
 
     def test_detects_delayed_feature(self) -> None:
-        events = [_event(_NOW - i * 60, {"atr": 5.0}, ingested_at=_NOW - i * 60 + 60.0) for i in range(5)]
+        events = [
+            _event(_NOW - i * 60, {"atr": 5.0}, ingested_at=_NOW - i * 60 + 60.0) for i in range(5)
+        ]
         cfg = FeatureHealthConfig(delay_warning_s=30.0)
         report = build_feature_health_report(events, cfg)
         assert "atr" in report.delayed_features
 
     def test_to_dict_from_dict_roundtrip(self) -> None:
         report = FeatureHealthReport(
-            report_id="feat-1", model_version="v1.0", created_at=_NOW,
-            window_start=_NOW - 100, window_end=_NOW, n_events=5,
+            report_id="feat-1",
+            model_version="v1.0",
+            created_at=_NOW,
+            window_start=_NOW - 100,
+            window_end=_NOW,
+            n_events=5,
             per_feature={"atr": {"n_present": 5}},
             missing_features=["macd"],
         )
@@ -174,7 +181,9 @@ class TestBuildFeatureHealthReport:
 
 class TestFeatureHealthReportDB:
     def test_upsert_and_get(self, db: ResearchLabDatabase) -> None:
-        db.upsert_feature_health_report({"report_id": "f1", "model_version": "v1.0", "created_at": _NOW, "n_events": 3})
+        db.upsert_feature_health_report(
+            {"report_id": "f1", "model_version": "v1.0", "created_at": _NOW, "n_events": 3}
+        )
         fetched = db.get_feature_health_report("f1")
         assert fetched is not None
         assert fetched["n_events"] == 3
@@ -183,15 +192,23 @@ class TestFeatureHealthReportDB:
         assert db.get_feature_health_report("missing") is None
 
     def test_list_filter_model_version(self, db: ResearchLabDatabase) -> None:
-        db.upsert_feature_health_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW})
-        db.upsert_feature_health_report({"report_id": "r2", "model_version": "v2.0", "created_at": _NOW})
+        db.upsert_feature_health_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW}
+        )
+        db.upsert_feature_health_report(
+            {"report_id": "r2", "model_version": "v2.0", "created_at": _NOW}
+        )
         results = db.list_feature_health_reports(model_version="v1.0")
         assert len(results) == 1
         assert results[0]["report_id"] == "r1"
 
     def test_upsert_overwrites(self, db: ResearchLabDatabase) -> None:
-        db.upsert_feature_health_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_events": 1})
-        db.upsert_feature_health_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_events": 99})
+        db.upsert_feature_health_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_events": 1}
+        )
+        db.upsert_feature_health_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_events": 99}
+        )
         assert db.get_feature_health_report("r1")["n_events"] == 99
 
 
@@ -202,8 +219,10 @@ class TestFeatureHealthMonitor:
     def _seed(self, warehouse: TelemetryWarehouse, events: list[dict]) -> None:
         for e in events:
             warehouse.ingest_reasoning(
-                model_version=e["model_version"], symbol=e["symbol"],
-                timestamp=e["timestamp"], decision_id=f"dec-{e['timestamp']}",
+                model_version=e["model_version"],
+                symbol=e["symbol"],
+                timestamp=e["timestamp"],
+                decision_id=f"dec-{e['timestamp']}",
                 feature_values=e["feature_values"],
             )
 
@@ -357,8 +376,10 @@ class TestFeatureHealthMonitorWiring:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=HealthMonitorConfig())
         for e in _healthy_events(10, _NOW - 10 * 60):
             warehouse.ingest_reasoning(
-                model_version="v1.0", symbol="XAUUSD",
-                timestamp=e["timestamp"], decision_id=f"dec-{e['timestamp']}",
+                model_version="v1.0",
+                symbol="XAUUSD",
+                timestamp=e["timestamp"],
+                decision_id=f"dec-{e['timestamp']}",
                 feature_values=e["feature_values"],
             )
         result = monitor.run_check(model_version="v1.0")
@@ -368,6 +389,7 @@ class TestFeatureHealthMonitorWiring:
         self, db, warehouse
     ) -> None:
         from unittest.mock import MagicMock
+
         rec_engine = MagicMock()
         rec_engine._db = db
         cfg = HealthMonitorConfig(feature_health_expected_features=["atr", "rsi", "macd"])
@@ -439,14 +461,17 @@ class TestFeatureHealthServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-feat-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_feat.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_compute_report_empty_warehouse(self, client) -> None:

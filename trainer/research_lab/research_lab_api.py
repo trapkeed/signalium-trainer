@@ -55,7 +55,6 @@ from trainer.research_lab.deployment_approval import (
     ReviewDecision,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.research_lab.sso import Role
 from trainer.research_lab.rl_models import (
     DatasetGenerationJob,
     DatasetGenerationStatus,
@@ -81,6 +80,7 @@ from trainer.research_lab.rl_models import (
     ShadowTestRun,
     ShadowTestStatus,
 )
+from trainer.research_lab.sso import Role
 
 # ── API Response ──────────────────────────────────────────────────────────────
 
@@ -764,7 +764,9 @@ class ResearchLabAPI:
             until=until,
             limit=limit,
         )
-        return _ok("list_shadow_decisions_by_version_pair", {"decisions": items, "total": len(items)})
+        return _ok(
+            "list_shadow_decisions_by_version_pair", {"decisions": items, "total": len(items)}
+        )
 
     # ── 6. Parameter Search ───────────────────────────────────────────────────
 
@@ -1510,9 +1512,7 @@ class ResearchLabAPI:
     def get_institutional_certification(self, report_id: str) -> ApiResponse:
         record = self._db.get_institutional_certification(report_id)
         if not record:
-            return _err(
-                "get_institutional_certification", f"Report {report_id!r} not found"
-            )
+            return _err("get_institutional_certification", f"Report {report_id!r} not found")
         return _ok("get_institutional_certification", record)
 
     def list_institutional_certifications(
@@ -1524,9 +1524,7 @@ class ResearchLabAPI:
         items = self._db.list_institutional_certifications(
             qde_version=qde_version, decision=decision, limit=limit
         )
-        return _ok(
-            "list_institutional_certifications", {"reports": items, "total": len(items)}
-        )
+        return _ok("list_institutional_certifications", {"reports": items, "total": len(items)})
 
     def get_latest_institutional_certification(self, qde_version: str) -> ApiResponse:
         record = self._db.latest_institutional_certification(qde_version)
@@ -1582,9 +1580,7 @@ class ResearchLabAPI:
         try:
             record = self._db.get_deployment_approval_workflow(workflow_id)
             if not record:
-                return _err(
-                    "submit_deployment_review", f"Workflow {workflow_id!r} not found"
-                )
+                return _err("submit_deployment_review", f"Workflow {workflow_id!r} not found")
             workflow = DeploymentApprovalWorkflow.from_dict(record)
             try:
                 role_enum = Role(role)
@@ -1615,9 +1611,7 @@ class ResearchLabAPI:
     def get_deployment_approval_workflow(self, workflow_id: str) -> ApiResponse:
         record = self._db.get_deployment_approval_workflow(workflow_id)
         if not record:
-            return _err(
-                "get_deployment_approval_workflow", f"Workflow {workflow_id!r} not found"
-            )
+            return _err("get_deployment_approval_workflow", f"Workflow {workflow_id!r} not found")
         return _ok("get_deployment_approval_workflow", record)
 
     def list_deployment_approval_workflows(
@@ -1629,9 +1623,7 @@ class ResearchLabAPI:
         items = self._db.list_deployment_approval_workflows(
             qde_version=qde_version, status=status, limit=limit
         )
-        return _ok(
-            "list_deployment_approval_workflows", {"workflows": items, "total": len(items)}
-        )
+        return _ok("list_deployment_approval_workflows", {"workflows": items, "total": len(items)})
 
     # ── 16. Decision Traceability & Model Lineage (S28) ─────────────────────────
     #
@@ -1756,9 +1748,7 @@ class ResearchLabAPI:
         """
         context = reconstruct_historical_decision(decision_id, self._db)
         if context is None:
-            return _err(
-                "reconstruct_historical_decision", f"Decision {decision_id!r} not found"
-            )
+            return _err("reconstruct_historical_decision", f"Decision {decision_id!r} not found")
         return _ok("reconstruct_historical_decision", context.to_dict())
 
     # ── 17. Decision Audits (S28) ────────────────────────────────────────────────

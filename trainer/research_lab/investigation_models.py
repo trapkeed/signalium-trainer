@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-
 # ── Failure taxonomy ──────────────────────────────────────────────────────────
 
 
@@ -56,8 +55,8 @@ class EvidenceItem:
     event_id: str
     symbol: str
     timestamp: float
-    metric_value: float          # The key scalar being flagged (e.g. pnl, pnl_delta)
-    metric_label: str            # Human-readable label for metric_value
+    metric_value: float  # The key scalar being flagged (e.g. pnl, pnl_delta)
+    metric_label: str  # Human-readable label for metric_value
     raw: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -88,8 +87,8 @@ class FailureReport:
     time_range_start: float
     time_range_end: float
     evidence: list[EvidenceItem]
-    severity_score: float         # 0.0 – 1.0; higher = more urgent
-    summary: str                  # Natural-language explanation
+    severity_score: float  # 0.0 – 1.0; higher = more urgent
+    summary: str  # Natural-language explanation
     created_at: float
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -190,8 +189,8 @@ class InvestigationQuery:
 
     model_version: str | None = None
     symbol: str | None = None
-    since: float | None = None       # Unix timestamp
-    until: float | None = None       # Unix timestamp; defaults to now
+    since: float | None = None  # Unix timestamp
+    until: float | None = None  # Unix timestamp; defaults to now
     failure_kinds: list[InvestigationFailureKind] | None = None
     """If set, run only the listed detectors."""
     limit_per_stream: int = 2000

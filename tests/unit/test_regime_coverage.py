@@ -21,9 +21,13 @@ from pathlib import Path
 
 import pytest
 
-from trainer.research_lab.health_monitor import DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
+from trainer.research_lab.health_monitor import (
+    DriftDimension,
+    HealthMonitorConfig,
+    ResearchLabHealthMonitor,
+)
 from trainer.research_lab.regime_coverage import (
-    DEFAULT_KNOWN_REGIMES,
     RegimeCoverageConfig,
     RegimeCoverageMonitor,
     RegimeCoverageReport,
@@ -37,7 +41,6 @@ from trainer.research_lab.regime_coverage import (
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 _NOW = time.time()
 
@@ -53,7 +56,13 @@ def warehouse(db: ResearchLabDatabase) -> TelemetryWarehouse:
 
 
 def _trade(ts: float, regime: str, pnl: float, symbol: str = "XAUUSD") -> dict:
-    return {"timestamp": ts, "regime": regime, "pnl": pnl, "symbol": symbol, "model_version": "v1.0"}
+    return {
+        "timestamp": ts,
+        "regime": regime,
+        "pnl": pnl,
+        "symbol": symbol,
+        "model_version": "v1.0",
+    }
 
 
 def _stable_trades(n: int, ts_start: float, regime: str = "ranging") -> list[dict]:
@@ -210,8 +219,12 @@ class TestBuildRegimeCoverageReport:
 
     def test_to_dict_from_dict_roundtrip(self) -> None:
         report = RegimeCoverageReport(
-            report_id="regc-1", model_version="v1.0", created_at=_NOW,
-            window_start=_NOW - 100, window_end=_NOW, n_records=5,
+            report_id="regc-1",
+            model_version="v1.0",
+            created_at=_NOW,
+            window_start=_NOW - 100,
+            window_end=_NOW,
+            n_records=5,
             unseen_conditions={"unseen_rate": 0.1},
             distribution_shift={"tv_distance": 0.3},
             black_swans={"black_swan_rate": 0.05},
@@ -227,7 +240,9 @@ class TestBuildRegimeCoverageReport:
 
 class TestRegimeCoverageReportDB:
     def test_upsert_and_get(self, db: ResearchLabDatabase) -> None:
-        db.upsert_regime_coverage_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 3})
+        db.upsert_regime_coverage_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 3}
+        )
         fetched = db.get_regime_coverage_report("r1")
         assert fetched is not None
         assert fetched["n_records"] == 3
@@ -236,15 +251,23 @@ class TestRegimeCoverageReportDB:
         assert db.get_regime_coverage_report("missing") is None
 
     def test_list_filter_model_version(self, db: ResearchLabDatabase) -> None:
-        db.upsert_regime_coverage_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW})
-        db.upsert_regime_coverage_report({"report_id": "r2", "model_version": "v2.0", "created_at": _NOW})
+        db.upsert_regime_coverage_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW}
+        )
+        db.upsert_regime_coverage_report(
+            {"report_id": "r2", "model_version": "v2.0", "created_at": _NOW}
+        )
         results = db.list_regime_coverage_reports(model_version="v1.0")
         assert len(results) == 1
         assert results[0]["report_id"] == "r1"
 
     def test_upsert_overwrites(self, db: ResearchLabDatabase) -> None:
-        db.upsert_regime_coverage_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 1})
-        db.upsert_regime_coverage_report({"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 99})
+        db.upsert_regime_coverage_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 1}
+        )
+        db.upsert_regime_coverage_report(
+            {"report_id": "r1", "model_version": "v1.0", "created_at": _NOW, "n_records": 99}
+        )
         assert db.get_regime_coverage_report("r1")["n_records"] == 99
 
 
@@ -255,8 +278,12 @@ class TestRegimeCoverageMonitor:
     def _seed(self, warehouse: TelemetryWarehouse, trades: list[dict]) -> None:
         for t in trades:
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
                 **t,
             )
 
@@ -304,7 +331,9 @@ class TestRegimeCoverageMonitor:
 
 class TestCheckUnseenConditions:
     def _cfg(self, **overrides) -> RegimeCoverageConfig:
-        base = dict(min_samples=5, unseen_condition_rate_warning=0.1, unseen_condition_rate_critical=0.3)
+        base = dict(
+            min_samples=5, unseen_condition_rate_warning=0.1, unseen_condition_rate_critical=0.3
+        )
         base.update(overrides)
         return RegimeCoverageConfig(**base)
 
@@ -313,7 +342,9 @@ class TestCheckUnseenConditions:
         assert check_unseen_conditions(records, self._cfg()) is None
 
     def test_warning_when_moderate_unseen(self) -> None:
-        records = _stable_trades(8, _NOW, regime="ranging") + [_trade(_NOW + 500, "novel_regime", 1.0)]
+        records = _stable_trades(8, _NOW, regime="ranging") + [
+            _trade(_NOW + 500, "novel_regime", 1.0)
+        ]
         result = check_unseen_conditions(records, self._cfg())
         assert result is not None
         assert result["severity"] == "WARNING"
@@ -333,8 +364,13 @@ class TestCheckUnseenConditions:
 
 class TestCheckDistributionShift:
     def _cfg(self, **overrides) -> RegimeCoverageConfig:
-        base = dict(baseline_window=20, rolling_window=10, min_samples=5,
-                     distribution_shift_warning=0.3, distribution_shift_critical=0.6)
+        base = dict(
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            distribution_shift_warning=0.3,
+            distribution_shift_critical=0.6,
+        )
         base.update(overrides)
         return RegimeCoverageConfig(**base)
 
@@ -355,9 +391,14 @@ class TestCheckDistributionShift:
 
 class TestCheckBlackSwans:
     def _cfg(self, **overrides) -> RegimeCoverageConfig:
-        base = dict(baseline_window=20, rolling_window=10, min_samples=5,
-                     black_swan_zscore_threshold=4.0,
-                     black_swan_rate_warning=0.05, black_swan_rate_critical=0.5)
+        base = dict(
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            black_swan_zscore_threshold=4.0,
+            black_swan_rate_warning=0.05,
+            black_swan_rate_critical=0.5,
+        )
         base.update(overrides)
         return RegimeCoverageConfig(**base)
 
@@ -384,9 +425,13 @@ class TestCheckBlackSwans:
 class TestRegimeCoverageHealthMonitorWiring:
     def _cfg(self, **overrides) -> HealthMonitorConfig:
         base = dict(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            unseen_condition_rate_warning=0.1, unseen_condition_rate_critical=0.3,
-            black_swan_rate_warning=0.05, black_swan_rate_critical=0.5,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            unseen_condition_rate_warning=0.1,
+            unseen_condition_rate_critical=0.3,
+            black_swan_rate_warning=0.05,
+            black_swan_rate_critical=0.5,
         )
         base.update(overrides)
         return HealthMonitorConfig(**base)
@@ -426,8 +471,13 @@ class TestRegimeCoverageHealthMonitorWiring:
         monitor = ResearchLabHealthMonitor(db, warehouse, config=self._cfg())
         for t in _stable_trades(10, _NOW - 10 * 60):
             warehouse.ingest_trade(
-                direction="LONG", entry_price=1.0, exit_price=1.0,
-                size=1.0, pnl_pct=0.0, hold_duration_s=60.0, **t,
+                direction="LONG",
+                entry_price=1.0,
+                exit_price=1.0,
+                size=1.0,
+                pnl_pct=0.0,
+                hold_duration_s=60.0,
+                **t,
             )
         result = monitor.run_check(model_version="v1.0")
         checked = result.to_dict()["dimensions_checked"]
@@ -436,6 +486,7 @@ class TestRegimeCoverageHealthMonitorWiring:
 
     def test_critical_unseen_condition_creates_recommendation(self, db, warehouse) -> None:
         from unittest.mock import MagicMock
+
         rec_engine = MagicMock()
         rec_engine._db = db
         monitor = ResearchLabHealthMonitor(db, warehouse, rec_engine=rec_engine, config=self._cfg())
@@ -463,14 +514,17 @@ class TestRegimeCoverageServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-regime-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_regime.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_compute_report_empty_warehouse(self, client) -> None:

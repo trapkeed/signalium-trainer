@@ -16,8 +16,6 @@ Covers:
 from __future__ import annotations
 
 import ast
-import os
-import tempfile
 import time
 from pathlib import Path
 
@@ -236,18 +234,28 @@ def test_warning_alert_creates_recommendation_not_just_critical(monitor, db, war
     decisions = []
     half = n // 2
     for i in range(half):
-        decisions.append({
-            "decision_id": f"d-base-{i}", "model_version": "v1",
-            "symbol": "EURUSD", "direction": "buy",
-            "confidence": 0.80, "timestamp": now - 1000 + i,
-        })
+        decisions.append(
+            {
+                "decision_id": f"d-base-{i}",
+                "model_version": "v1",
+                "symbol": "EURUSD",
+                "direction": "buy",
+                "confidence": 0.80,
+                "timestamp": now - 1000 + i,
+            }
+        )
     warn_drift = (cfg.confidence_warning + cfg.confidence_critical) / 2
     for i in range(half):
-        decisions.append({
-            "decision_id": f"d-recent-{i}", "model_version": "v1",
-            "symbol": "EURUSD", "direction": "buy",
-            "confidence": max(0.0, 0.80 - warn_drift), "timestamp": now - 10 + i,
-        })
+        decisions.append(
+            {
+                "decision_id": f"d-recent-{i}",
+                "model_version": "v1",
+                "symbol": "EURUSD",
+                "direction": "buy",
+                "confidence": max(0.0, 0.80 - warn_drift),
+                "timestamp": now - 10 + i,
+            }
+        )
     for d in decisions:
         warehouse.ingest_decision(**d)
 
@@ -297,9 +305,9 @@ def test_no_qde_module_imports_deployment_manager_or_approval_gate():
         text = py_file.read_text()
         if "DeploymentManager" in text or "ApprovalGate" in text:
             offenders.append(str(py_file))
-    assert not offenders, (
-        f"trainer/qde must never import DeploymentManager/ApprovalGate directly: {offenders}"
-    )
+    assert (
+        not offenders
+    ), f"trainer/qde must never import DeploymentManager/ApprovalGate directly: {offenders}"
 
 
 def test_apply_promotion_and_rollback_called_only_from_gated_server_endpoints():

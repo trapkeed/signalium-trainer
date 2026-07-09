@@ -43,7 +43,9 @@ class TestVersionLayout:
 
 
 class TestReserveVersion:
-    def test_reserve_creates_directory_with_no_real_artifact_files(self, store: ArtifactStore) -> None:
+    def test_reserve_creates_directory_with_no_real_artifact_files(
+        self, store: ArtifactStore
+    ) -> None:
         directory = store.reserve_version("v1")
         assert directory.exists()
         assert directory.is_dir()
@@ -82,7 +84,9 @@ class TestWrites:
         # original content must be untouched
         assert store.read_bytes("v1", "weights.pt") == b"first"
 
-    def test_write_bytes_allows_different_filenames_in_same_version(self, store: ArtifactStore) -> None:
+    def test_write_bytes_allows_different_filenames_in_same_version(
+        self, store: ArtifactStore
+    ) -> None:
         store.write_bytes("v1", "weights.pt", b"w")
         store.write_bytes("v1", "config.json", b"{}")
         assert store.read_bytes("v1", "weights.pt") == b"w"
@@ -137,7 +141,9 @@ class TestConcurrency:
 
         assert sorted(results) == ["ok", "rejected"]
 
-    def test_concurrent_write_bytes_same_file_only_one_writer_wins(self, store: ArtifactStore) -> None:
+    def test_concurrent_write_bytes_same_file_only_one_writer_wins(
+        self, store: ArtifactStore
+    ) -> None:
         """Two threads racing to write the same (version, filename): exactly
         one succeeds, the other raises, and the surviving content is never a
         mix of both writers' bytes."""

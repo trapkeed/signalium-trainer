@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
 
 try:
     from loguru import logger
@@ -26,7 +25,6 @@ from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.rl_models import DiscoveredFeature
 from trainer.research_lab.telemetry_models import TelemetryQuery
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
-
 
 # ── Signal computation helpers ─────────────────────────────────────────────────
 
@@ -321,8 +319,7 @@ class FeatureDiscoveryPipeline:
         quick_losses = sum(
             1
             for t in trades
-            if t.get("pnl", 0.0) < 0
-            and t.get("hold_duration_s", 99999) < quick_loss_threshold_s
+            if t.get("pnl", 0.0) < 0 and t.get("hold_duration_s", 99999) < quick_loss_threshold_s
         )
         rate = quick_losses / len(trades)
         ev = _evidence_strength(len(trades), rate, min_samples=5)
@@ -351,9 +348,7 @@ class FeatureDiscoveryPipeline:
         query: DiscoveryQuery,
     ) -> _FeatureCandidate | None:
         """Fraction of SCALE_IN events where cumulative_pnl > 0."""
-        scale_ins = [
-            p for p in positions if str(p.get("action", "")).upper() == "SCALE_IN"
-        ]
+        scale_ins = [p for p in positions if str(p.get("action", "")).upper() == "SCALE_IN"]
         if not scale_ins:
             return None
         successful = sum(1 for p in scale_ins if p.get("cumulative_pnl", 0.0) > 0)

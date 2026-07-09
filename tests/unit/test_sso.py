@@ -24,10 +24,11 @@ from pathlib import Path
 import pytest
 
 from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
+from trainer.research_lab.audit_log import AuditLogger
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.session_manager import SessionManager
-from trainer.research_lab.audit_log import AuditLogger
 from trainer.research_lab.sso import (
+    ROLE_CAPABILITIES,
     Capability,
     MalformedToken,
     MissingClaim,
@@ -38,11 +39,9 @@ from trainer.research_lab.sso import (
     StaleRequestTimestamp,
     TokenExpired,
     UnknownRole,
-    ROLE_CAPABILITIES,
     has_capability,
     validate_signalium_jwt,
 )
-
 
 # ── JWT validation ──────────────────────────────────────────────────────────
 
@@ -102,12 +101,18 @@ class TestJWTValidation:
 
     def test_missing_claim_rejected(self):
         # Hand-build a token missing the 'role' claim.
-        header = base64.urlsafe_b64encode(
-            json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-        ).rstrip(b"=").decode()
-        payload = base64.urlsafe_b64encode(
-            json.dumps({"sub": "x", "iat": time.time(), "exp": time.time() + 60}).encode()
-        ).rstrip(b"=").decode()
+        header = (
+            base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+            .rstrip(b"=")
+            .decode()
+        )
+        payload = (
+            base64.urlsafe_b64encode(
+                json.dumps({"sub": "x", "iat": time.time(), "exp": time.time() + 60}).encode()
+            )
+            .rstrip(b"=")
+            .decode()
+        )
         import hashlib
         import hmac
 
@@ -204,7 +209,9 @@ class TestSessionManager:
     def db(self, tmp_path: Path) -> ResearchLabDatabase:
         return ResearchLabDatabase(str(tmp_path / "sso_sessions.db"))
 
-    def _identity(self, jti: str | None = "jti-1", expires_at: float | None = None) -> SignaliumIdentity:
+    def _identity(
+        self, jti: str | None = "jti-1", expires_at: float | None = None
+    ) -> SignaliumIdentity:
         now = time.time()
         return SignaliumIdentity(
             admin_id="alice",
@@ -498,7 +505,9 @@ class TestServerCapabilityEnforcement:
         )
         assert resp.status_code == 200
 
-    def test_non_sso_error_during_validation_yields_401_not_500(self, sso_server_client, monkeypatch):
+    def test_non_sso_error_during_validation_yields_401_not_500(
+        self, sso_server_client, monkeypatch
+    ):
         import trainer.research_lab.research_lab_server as srv_mod
 
         def _boom(*args, **kwargs):
@@ -512,7 +521,9 @@ class TestServerCapabilityEnforcement:
         )
         assert resp.status_code == 401
 
-    def test_session_establish_failure_does_not_prevent_success(self, sso_server_client, monkeypatch):
+    def test_session_establish_failure_does_not_prevent_success(
+        self, sso_server_client, monkeypatch
+    ):
         import trainer.research_lab.research_lab_server as srv_mod
 
         def _boom(*args, **kwargs):
@@ -526,9 +537,12 @@ class TestServerCapabilityEnforcement:
         )
         assert resp.status_code == 200
 
-    def test_unhandled_route_exception_still_returns_500_and_is_audited(self, sso_server_client, monkeypatch):
-        import trainer.research_lab.research_lab_server as srv_mod
+    def test_unhandled_route_exception_still_returns_500_and_is_audited(
+        self, sso_server_client, monkeypatch
+    ):
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
 
         def _boom(*args, **kwargs):
             raise RuntimeError("simulated handler crash")

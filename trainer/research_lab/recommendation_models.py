@@ -16,7 +16,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 
@@ -87,12 +86,12 @@ class RetrainingRecommendation:
 
     recommendation_id: str
     model_version: str
-    trigger_dimension: str           # EvaluationDimension.value
+    trigger_dimension: str  # EvaluationDimension.value
     trigger_reason: str
     evidence: dict[str, Any]
-    recommended_scope: str           # RecommendedScope.value
-    urgency: str                     # RecommendationUrgency.value
-    status: str                      # RecommendationStatus.value
+    recommended_scope: str  # RecommendedScope.value
+    urgency: str  # RecommendationUrgency.value
+    status: str  # RecommendationStatus.value
     created_at: float
     updated_at: float
     resolved_by: str = ""
@@ -222,9 +221,7 @@ def _urgency_from_score(score: float) -> RecommendationUrgency:
     return RecommendationUrgency.CRITICAL
 
 
-def _elevate_urgency(
-    base: RecommendationUrgency, n_triggered: int
-) -> RecommendationUrgency:
+def _elevate_urgency(base: RecommendationUrgency, n_triggered: int) -> RecommendationUrgency:
     """Bump urgency when multiple dimensions fire simultaneously."""
     if n_triggered >= 4:
         return RecommendationUrgency.CRITICAL

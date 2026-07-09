@@ -28,7 +28,6 @@ import os
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 try:
     from loguru import logger
@@ -222,7 +221,9 @@ class ArtifactStore:
 
     # ── Reads ────────────────────────────────────────────────────────────────
 
-    def read_bytes(self, version: str, filename: str, kind: str | ArtifactKind | None = None) -> bytes:
+    def read_bytes(
+        self, version: str, filename: str, kind: str | ArtifactKind | None = None
+    ) -> bytes:
         return self.path_for(version, filename, kind=kind).read_bytes()
 
     def list_version(self, version: str) -> list[Path]:
@@ -231,9 +232,7 @@ class ArtifactStore:
         if not directory.exists():
             return []
         return sorted(
-            p
-            for p in directory.rglob("*")
-            if p.is_file() and p.name != self._RESERVATION_SENTINEL
+            p for p in directory.rglob("*") if p.is_file() and p.name != self._RESERVATION_SENTINEL
         )
 
     def list_versions(self) -> list[str]:

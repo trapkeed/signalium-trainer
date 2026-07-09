@@ -107,13 +107,17 @@ class TelemetryWarehouse:
     def ingest_lifecycle(self, **kwargs: Any) -> LifecycleEvent:
         event = LifecycleEvent.new(**kwargs)
         self._db.insert_telemetry_event("tel_lifecycle", event.event_id, event.to_dict())
-        logger.debug("Telemetry: ingested lifecycle {} ({}) for {}", event.event_id, event.kind, event.symbol)
+        logger.debug(
+            "Telemetry: ingested lifecycle {} ({}) for {}", event.event_id, event.kind, event.symbol
+        )
         return event
 
     def ingest_inference(self, **kwargs: Any) -> InferenceEvent:
         event = InferenceEvent.new(**kwargs)
         self._db.insert_telemetry_event("tel_inference", event.event_id, event.to_dict())
-        logger.debug("Telemetry: ingested inference sample {} for {}", event.event_id, event.model_version)
+        logger.debug(
+            "Telemetry: ingested inference sample {} for {}", event.event_id, event.model_version
+        )
         return event
 
     # ── Read ──────────────────────────────────────────────────────────────────
@@ -169,7 +173,9 @@ class TelemetryWarehouse:
             TelemetryQuery(model_version=model_version, symbol=symbol, since=since)
         )
 
-    def failures_since(self, since: float, model_version: str | None = None) -> list[dict[str, Any]]:
+    def failures_since(
+        self, since: float, model_version: str | None = None
+    ) -> list[dict[str, Any]]:
         """All telemetry failures after a given timestamp."""
         return self.query_failures(TelemetryQuery(model_version=model_version, since=since))
 

@@ -49,8 +49,12 @@ class ProviderPriority:
     S33 spec exactly; callers may override for testing or future providers."""
 
     training_providers: list[ProviderName] = field(default_factory=_default_training_providers)
-    inference_priority_manual: list[ProviderName] = field(default_factory=_default_inference_priority_manual)
-    inference_priority_autonomous: list[ProviderName] = field(default_factory=_default_inference_priority_autonomous)
+    inference_priority_manual: list[ProviderName] = field(
+        default_factory=_default_inference_priority_manual
+    )
+    inference_priority_autonomous: list[ProviderName] = field(
+        default_factory=_default_inference_priority_autonomous
+    )
 
     def for_mode(self, mode: TradingMode) -> list[ProviderName]:
         """Inference priority list for the given trading mode."""

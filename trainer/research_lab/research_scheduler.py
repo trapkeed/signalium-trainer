@@ -121,63 +121,72 @@ class ResearchScheduler:
         self._cycles = {
             # Daily: cheap, high-signal telemetry-driven checks.
             "performance_review": ResearchCycle(
-                "performance_review", "daily",
+                "performance_review",
+                "daily",
                 "Recompute the rolling performance report (Sharpe, drawdown, "
                 "profit factor) from live telemetry.",
                 self._run_performance_review,
             ),
             "drift_analysis": ResearchCycle(
-                "drift_analysis", "daily",
+                "drift_analysis",
+                "daily",
                 "Run the composite health-monitor drift check across all "
                 "13 dimensions and raise alerts / recommendations.",
                 self._run_drift_analysis,
             ),
             "failure_review": ResearchCycle(
-                "failure_review", "daily",
+                "failure_review",
+                "daily",
                 "Run the failure investigation engine over the last day of "
                 "trades to catch new root-caused failure patterns.",
                 self._run_failure_review,
             ),
             "regime_review": ResearchCycle(
-                "regime_review", "daily",
+                "regime_review",
+                "daily",
                 "Recompute regime coverage (unseen conditions, distribution "
                 "shift, black swans).",
                 self._run_regime_review,
             ),
             # Weekly: broader, more expensive analyses.
             "self_evaluation": ResearchCycle(
-                "self_evaluation", "weekly",
+                "self_evaluation",
+                "weekly",
                 "Compute the composite QDE health score (grade + all "
                 "sub-scores) for the active champion.",
                 self._run_self_evaluation,
             ),
             "feature_discovery": ResearchCycle(
-                "feature_discovery", "weekly",
+                "feature_discovery",
+                "weekly",
                 "Run the feature/label discovery pipelines and propose "
                 "experiments from the week's failure reports.",
                 self._run_feature_discovery,
             ),
             "counterfactual_review": ResearchCycle(
-                "counterfactual_review", "weekly",
+                "counterfactual_review",
+                "weekly",
                 "Recompute decision-quality / counterfactual metrics "
                 "(captured MFE fraction, hindsight regret).",
                 self._run_counterfactual_review,
             ),
             "shadow_promotion_review": ResearchCycle(
-                "shadow_promotion_review", "weekly",
-                "Refresh champion/challenger head-to-head status for any "
-                "active shadow tests.",
+                "shadow_promotion_review",
+                "weekly",
+                "Refresh champion/challenger head-to-head status for any " "active shadow tests.",
                 self._run_shadow_promotion_review,
             ),
             # Monthly: retrospective / governance-level reviews.
             "architecture_review": ResearchCycle(
-                "architecture_review", "monthly",
+                "architecture_review",
+                "monthly",
                 "Recompute feature-health (staleness, distribution) as a "
                 "proxy for pipeline/architecture integrity.",
                 self._run_architecture_review,
             ),
             "deployment_review": ResearchCycle(
-                "deployment_review", "monthly",
+                "deployment_review",
+                "monthly",
                 "Re-evaluate outstanding retraining recommendations across "
                 "the full monthly window.",
                 self._run_deployment_review,
@@ -257,9 +266,7 @@ class ResearchScheduler:
     def _run_deployment_review(self) -> dict[str, Any]:
         if self._rec_engine is None:
             return {"skipped": "rec_engine not configured"}
-        results = self._rec_engine.evaluate(
-            since=time.time() - CADENCE_SECONDS["monthly"]
-        )
+        results = self._rec_engine.evaluate(since=time.time() - CADENCE_SECONDS["monthly"])
         return {"triggered_dimensions": [r.dimension.value for r in results if r.triggered]}
 
     # ── Public: manual + scheduled execution ────────────────────────────────
@@ -356,13 +363,15 @@ class ResearchScheduler:
         now = time.time()
         for name, cycle in self._cycles.items():
             last = self._db.get_last_research_cycle_run(name)
-            out.append({
-                "name": name,
-                "cadence": cycle.cadence,
-                "description": cycle.description,
-                "last_run": last,
-                "due": self.is_due(name, now=now),
-            })
+            out.append(
+                {
+                    "name": name,
+                    "cadence": cycle.cadence,
+                    "description": cycle.description,
+                    "last_run": last,
+                    "due": self.is_due(name, now=now),
+                }
+            )
         return out
 
     # ── Background thread ────────────────────────────────────────────────────

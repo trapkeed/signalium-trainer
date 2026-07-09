@@ -146,7 +146,9 @@ class TestSelectBackend:
 
     def test_select_runpod_worker_with_credentials(self):
         creds = _signed_credentials()
-        backend = select_backend("runpod_worker", runpod_credentials=creds, runpod_shared_secret=SECRET)
+        backend = select_backend(
+            "runpod_worker", runpod_credentials=creds, runpod_shared_secret=SECRET
+        )
         assert backend.name() == "runpod_worker"
 
     def test_select_unknown_backend_raises(self):

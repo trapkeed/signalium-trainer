@@ -38,9 +38,13 @@ class JobResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "job_id": self.job_id, "backend": self.backend, "status": self.status,
-            "started_at": self.started_at, "finished_at": self.finished_at,
-            "output": self.output, "error": self.error,
+            "job_id": self.job_id,
+            "backend": self.backend,
+            "status": self.status,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "output": self.output,
+            "error": self.error,
         }
 
 
@@ -64,7 +68,11 @@ class LocalWorkerBackend:
         return "local_worker"
 
     def health_check(self) -> dict[str, Any]:
-        return {"backend": self.name(), "healthy": True, "detail": "in-process execution always available"}
+        return {
+            "backend": self.name(),
+            "healthy": True,
+            "detail": "in-process execution always available",
+        }
 
     def submit(self, job_fn: Callable[[], dict[str, Any]], *, job_name: str = "") -> JobResult:
         job_id = f"local-{uuid.uuid4().hex[:12]}"
@@ -72,14 +80,22 @@ class LocalWorkerBackend:
         try:
             output = job_fn()
             return JobResult(
-                job_id=job_id, backend=self.name(), status="SUCCEEDED",
-                started_at=started_at, finished_at=time.time(), output=output or {},
+                job_id=job_id,
+                backend=self.name(),
+                status="SUCCEEDED",
+                started_at=started_at,
+                finished_at=time.time(),
+                output=output or {},
             )
         except Exception as exc:  # noqa: BLE001 — job failures are data, not process crashes
             logger.error(f"LocalWorkerBackend: job {job_name!r} failed: {exc!r}")
             return JobResult(
-                job_id=job_id, backend=self.name(), status="FAILED",
-                started_at=started_at, finished_at=time.time(), error=str(exc),
+                job_id=job_id,
+                backend=self.name(),
+                status="FAILED",
+                started_at=started_at,
+                finished_at=time.time(),
+                error=str(exc),
             )
 
 
@@ -124,26 +140,41 @@ class RunPodWorkerBackend:
         except Exception as exc:  # noqa: BLE001
             logger.error(f"RunPodWorkerBackend: credential rejected for job {job_name!r}: {exc!r}")
             return JobResult(
-                job_id=job_id, backend=self.name(), status="FAILED",
-                started_at=started_at, finished_at=time.time(), error=str(exc),
+                job_id=job_id,
+                backend=self.name(),
+                status="FAILED",
+                started_at=started_at,
+                finished_at=time.time(),
+                error=str(exc),
             )
         if self._dispatch_fn is None:
             return JobResult(
-                job_id=job_id, backend=self.name(), status="FAILED",
-                started_at=started_at, finished_at=time.time(),
+                job_id=job_id,
+                backend=self.name(),
+                status="FAILED",
+                started_at=started_at,
+                finished_at=time.time(),
                 error="no dispatch_fn configured — RunPodWorkerBackend cannot reach the pod without one",
             )
         try:
             output = self._dispatch_fn(self._credentials, job_name)
             return JobResult(
-                job_id=job_id, backend=self.name(), status="SUCCEEDED",
-                started_at=started_at, finished_at=time.time(), output=output or {},
+                job_id=job_id,
+                backend=self.name(),
+                status="SUCCEEDED",
+                started_at=started_at,
+                finished_at=time.time(),
+                output=output or {},
             )
         except Exception as exc:  # noqa: BLE001
             logger.error(f"RunPodWorkerBackend: job {job_name!r} failed: {exc!r}")
             return JobResult(
-                job_id=job_id, backend=self.name(), status="FAILED",
-                started_at=started_at, finished_at=time.time(), error=str(exc),
+                job_id=job_id,
+                backend=self.name(),
+                status="FAILED",
+                started_at=started_at,
+                finished_at=time.time(),
+                error=str(exc),
             )
 
 
@@ -163,4 +194,6 @@ def select_backend(
         if runpod_credentials is None:
             raise ValueError("runpod_worker backend requires runpod_credentials")
         return RunPodWorkerBackend(runpod_credentials, runpod_shared_secret, runpod_dispatch_fn)
-    raise ValueError(f"Unknown execution backend {backend_name!r} — expected 'local_worker' or 'runpod_worker'")
+    raise ValueError(
+        f"Unknown execution backend {backend_name!r} — expected 'local_worker' or 'runpod_worker'"
+    )

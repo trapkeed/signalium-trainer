@@ -176,8 +176,12 @@ class LineageAPI:
                     from trainer.research.knowledge_graph import EdgeType
 
                     self._kg.add_edge(parent_id, node_id, EdgeType.PARENT_OF)
-                except Exception as exc:  # noqa: BLE001 — graph edge is supplementary, must not block registration
-                    logger.debug(f"LineageAPI: PARENT_OF edge {parent_id}->{node_id} failed: {exc!r}")
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 — graph edge is supplementary, must not block registration
+                    logger.debug(
+                        f"LineageAPI: PARENT_OF edge {parent_id}->{node_id} failed: {exc!r}"
+                    )
             return {"node_id": node_id, "name": name}
 
         return _wrap("lineage.register_experiment", _do)
@@ -279,8 +283,12 @@ class LineageAPI:
 
                 try:
                     self._kg.add_edge(node_id, ds_node_id, EdgeType.USES_DATASET)
-                except Exception as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
-                    logger.debug(f"LineageAPI: USES_DATASET edge {node_id}->{ds_node_id} failed: {exc!r}")
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
+                    logger.debug(
+                        f"LineageAPI: USES_DATASET edge {node_id}->{ds_node_id} failed: {exc!r}"
+                    )
             return {"node_id": node_id, "snapshot_id": ds.snapshot_id}
 
         return _wrap("lineage.attach_dataset_snapshot", _do)
@@ -298,8 +306,12 @@ class LineageAPI:
 
                     try:
                         self._kg.add_edge(node_id, feat_nid, EdgeType.USES_FEATURE)
-                    except Exception as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
-                        logger.debug(f"LineageAPI: USES_FEATURE edge {node_id}->{feat_nid} failed: {exc!r}")
+                    except (
+                        Exception
+                    ) as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
+                        logger.debug(
+                            f"LineageAPI: USES_FEATURE edge {node_id}->{feat_nid} failed: {exc!r}"
+                        )
             return {"node_id": node_id, "snapshot_id": fs.snapshot_id}
 
         return _wrap("lineage.attach_feature_snapshot", _do)
@@ -318,7 +330,9 @@ class LineageAPI:
 
                 try:
                     self._kg.add_edge(node_id, mdl_nid, EdgeType.HAS_MODEL)
-                except Exception as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
+                except (
+                    Exception
+                ) as exc:  # noqa: BLE001 — graph edge is supplementary, must not block the attach
                     logger.debug(f"LineageAPI: HAS_MODEL edge {node_id}->{mdl_nid} failed: {exc!r}")
             return {"node_id": node_id, "snapshot_id": ms.snapshot_id}
 

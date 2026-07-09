@@ -23,6 +23,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.dimension_evaluators import (
@@ -33,7 +34,6 @@ from trainer.research_lab.dimension_evaluators import (
     SharpeDegradationEvaluator,
 )
 from trainer.research_lab.recommendation_models import (
-    EvaluationDimension,
     EvaluationResult,
     RecommendationConfig,
     RecommendationStatus,
@@ -94,9 +94,7 @@ class RetrainingRecommendationEngine:
         results: list[EvaluationResult] = []
         for ev in self._evaluators:
             try:
-                r = ev.evaluate(
-                    model_version=model_version, since=since, until=until
-                )
+                r = ev.evaluate(model_version=model_version, since=since, until=until)
                 results.append(r)
             except Exception as exc:
                 logger.warning(
@@ -149,9 +147,7 @@ class RetrainingRecommendationEngine:
         rec = _from_dict(rec_dict)
         rec.approve(resolved_by=resolved_by)
         self._db.upsert_retraining_recommendation(rec.to_dict())
-        logger.info(
-            f"RecommendationEngine: approved {recommendation_id} by {resolved_by}"
-        )
+        logger.info(f"RecommendationEngine: approved {recommendation_id} by {resolved_by}")
 
         experiment_id = self._maybe_create_linked_experiment(rec)
         result = rec.to_dict()
@@ -169,9 +165,7 @@ class RetrainingRecommendationEngine:
                 if dedup_tag in existing.get("tags", []):
                     return existing.get("experiment_id", "")
 
-        hyperparameters = dict(
-            self._SCOPE_HYPERPARAMS.get(rec.recommended_scope, {})
-        )
+        hyperparameters = dict(self._SCOPE_HYPERPARAMS.get(rec.recommended_scope, {}))
         exp = ExperimentRecord.new(
             name=(
                 f"Auto-proposed retraining ({rec.trigger_dimension}) for "
@@ -208,9 +202,7 @@ class RetrainingRecommendationEngine:
         rec = _from_dict(rec_dict)
         rec.dismiss(resolved_by=resolved_by, notes=notes)
         self._db.upsert_retraining_recommendation(rec.to_dict())
-        logger.info(
-            f"RecommendationEngine: dismissed {recommendation_id} by {resolved_by}"
-        )
+        logger.info(f"RecommendationEngine: dismissed {recommendation_id} by {resolved_by}")
         return rec.to_dict()
 
     # ── Public: queries ───────────────────────────────────────────────────────

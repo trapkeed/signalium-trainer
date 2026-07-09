@@ -14,10 +14,8 @@ Covers:
 
 from __future__ import annotations
 
-import math
 import time
 from pathlib import Path
-from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -45,8 +43,8 @@ from trainer.research_lab.retraining_recommendation_engine import (
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
-
 # ── Module-scope Pydantic models (Pydantic v2 + `from __future__ import annotations`) ──
+
 
 class _EvaluateReq(BaseModel):
     model_version: str | None = None
@@ -97,39 +95,68 @@ def engine(warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: Recommen
 # ── Telemetry helpers ──────────────────────────────────────────────────────────
 
 
-def _trade(wh: TelemetryWarehouse, pnl_pct: float, mv: str = MV,
-           conf: float = 0.7, symbol: str = "XAUUSD",
-           regime: str = "TRENDING_BULL", ts: float | None = None):
+def _trade(
+    wh: TelemetryWarehouse,
+    pnl_pct: float,
+    mv: str = MV,
+    conf: float = 0.7,
+    symbol: str = "XAUUSD",
+    regime: str = "TRENDING_BULL",
+    ts: float | None = None,
+):
     return wh.ingest_trade(
-        model_version=mv, symbol=symbol, timestamp=ts or NOW,
-        direction="LONG", entry_price=1950.0,
+        model_version=mv,
+        symbol=symbol,
+        timestamp=ts or NOW,
+        direction="LONG",
+        entry_price=1950.0,
         exit_price=1950.0 + pnl_pct * 19.5,
-        size=0.1, pnl=pnl_pct * 195, pnl_pct=pnl_pct,
-        hold_duration_s=3600.0, confidence_at_entry=conf, regime=regime,
+        size=0.1,
+        pnl=pnl_pct * 195,
+        pnl_pct=pnl_pct,
+        hold_duration_s=3600.0,
+        confidence_at_entry=conf,
+        regime=regime,
     )
 
 
-def _decision(wh: TelemetryWarehouse, conf: float, mv: str = MV,
-              symbol: str = "XAUUSD", ts: float | None = None):
+def _decision(
+    wh: TelemetryWarehouse,
+    conf: float,
+    mv: str = MV,
+    symbol: str = "XAUUSD",
+    ts: float | None = None,
+):
     return wh.ingest_decision(
-        model_version=mv, symbol=symbol, timestamp=ts or NOW,
-        direction="LONG", confidence=conf,
+        model_version=mv,
+        symbol=symbol,
+        timestamp=ts or NOW,
+        direction="LONG",
+        confidence=conf,
     )
 
 
-def _reasoning(wh: TelemetryWarehouse, output_heads: dict[str, float],
-               mv: str = MV, ts: float | None = None):
+def _reasoning(
+    wh: TelemetryWarehouse, output_heads: dict[str, float], mv: str = MV, ts: float | None = None
+):
     return wh.ingest_reasoning(
-        model_version=mv, symbol="XAUUSD", timestamp=ts or NOW,
-        decision_id="dec-test", output_heads=output_heads,
+        model_version=mv,
+        symbol="XAUUSD",
+        timestamp=ts or NOW,
+        decision_id="dec-test",
+        output_heads=output_heads,
     )
 
 
-def _position(wh: TelemetryWarehouse, cum_pnl: float, action: str = "SCALE_IN",
-              mv: str = MV):
+def _position(wh: TelemetryWarehouse, cum_pnl: float, action: str = "SCALE_IN", mv: str = MV):
     return wh.ingest_position(
-        model_version=mv, symbol="XAUUSD", timestamp=NOW,
-        action=action, size=0.1, price=1950.0, cumulative_pnl=cum_pnl,
+        model_version=mv,
+        symbol="XAUUSD",
+        timestamp=NOW,
+        action=action,
+        size=0.1,
+        price=1950.0,
+        cumulative_pnl=cum_pnl,
     )
 
 
@@ -183,7 +210,8 @@ class TestRetrainingRecommendation:
             model_version=MV,
             trigger_dimension=EvaluationDimension.CONFIDENCE_DRIFT,
             trigger_reason="drift",
-            evidence={}, recommended_scope=RecommendedScope.CALIBRATION_ONLY,
+            evidence={},
+            recommended_scope=RecommendedScope.CALIBRATION_ONLY,
             urgency=RecommendationUrgency.LOW,
         )
         r.approve(resolved_by="head_quant")
@@ -196,7 +224,8 @@ class TestRetrainingRecommendation:
             model_version=MV,
             trigger_dimension=EvaluationDimension.REGIME_UNDERPERFORMANCE,
             trigger_reason="regime",
-            evidence={}, recommended_scope=RecommendedScope.FINE_TUNE,
+            evidence={},
+            recommended_scope=RecommendedScope.FINE_TUNE,
             urgency=RecommendationUrgency.LOW,
         )
         r.dismiss(resolved_by="admin", notes="false alarm")
@@ -207,7 +236,8 @@ class TestRetrainingRecommendation:
         r = RetrainingRecommendation.new(
             model_version=MV,
             trigger_dimension=EvaluationDimension.SHARPE_DEGRADATION,
-            trigger_reason="x", evidence={},
+            trigger_reason="x",
+            evidence={},
             recommended_scope=RecommendedScope.FINE_TUNE,
             urgency=RecommendationUrgency.LOW,
         )
@@ -226,9 +256,16 @@ class TestRetrainingRecommendation:
         )
         d = r.to_dict()
         required = {
-            "recommendation_id", "model_version", "trigger_dimension",
-            "trigger_reason", "evidence", "recommended_scope", "urgency",
-            "status", "created_at", "updated_at",
+            "recommendation_id",
+            "model_version",
+            "trigger_dimension",
+            "trigger_reason",
+            "evidence",
+            "recommended_scope",
+            "urgency",
+            "status",
+            "created_at",
+            "updated_at",
         }
         assert required.issubset(d.keys())
 
@@ -291,8 +328,13 @@ class TestSharpeDegradationEvaluator:
             _trade(warehouse, pnl_pct=pnl, ts=NOW + i)
         ev = SharpeDegradationEvaluator(warehouse, cfg)
         result = ev.evaluate()
-        for key in ("baseline_sharpe", "recent_sharpe", "degradation_fraction",
-                    "n_baseline_trades", "n_recent_trades"):
+        for key in (
+            "baseline_sharpe",
+            "recent_sharpe",
+            "degradation_fraction",
+            "n_baseline_trades",
+            "n_recent_trades",
+        ):
             assert key in result.evidence
 
 
@@ -519,8 +561,13 @@ class TestPortfolioInefficiencyEvaluator:
             _trade(warehouse, pnl_pct=0.5, symbol="XAUUSD", ts=NOW + i)
         ev = PortfolioInefficiencyEvaluator(warehouse, cfg)
         result = ev.evaluate()
-        for key in ("herfindahl_index", "dominant_symbol", "dominant_symbol_pct",
-                    "scale_in_success_rate", "n_symbols"):
+        for key in (
+            "herfindahl_index",
+            "dominant_symbol",
+            "dominant_symbol_pct",
+            "scale_in_success_rate",
+            "n_symbols",
+        ):
             assert key in result.evidence
 
     def test_empty_data_not_triggered(
@@ -546,8 +593,10 @@ class TestRetrainingRecommendationEngine:
         assert len(dimensions) == 5  # all unique
 
     def test_triggered_dimensions_create_recommendations(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         # Induce Sharpe degradation
         for i in range(20):
@@ -561,8 +610,10 @@ class TestRetrainingRecommendationEngine:
         assert "sharpe_degradation" in dims
 
     def test_deduplication_prevents_duplicate_open_recommendations(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         # Populate with degraded Sharpe
         for i in range(20):
@@ -578,8 +629,10 @@ class TestRetrainingRecommendationEngine:
         assert count_after_second == count_after_first
 
     def test_approve_changes_status_to_approved(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
@@ -596,8 +649,10 @@ class TestRetrainingRecommendationEngine:
         assert updated["resolved_at"] is not None
 
     def test_dismiss_changes_status_to_dismissed(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
@@ -613,8 +668,10 @@ class TestRetrainingRecommendationEngine:
         assert updated["notes"] == "false positive"
 
     def test_approve_creates_linked_experiment(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         """S24 §3: approving a recommendation must bridge to an actual
         ExperimentRecord (PENDING), not just flip a status flag."""
@@ -639,8 +696,10 @@ class TestRetrainingRecommendationEngine:
         assert exp.get("training_started_at") is None
 
     def test_approve_experiment_link_is_idempotent(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         """Repeated internal experiment-creation calls (e.g. retried approve
         logic) must not create duplicate experiments for the same
@@ -654,20 +713,24 @@ class TestRetrainingRecommendationEngine:
         result = engine.approve(rec_id, resolved_by="head_quant")
 
         from trainer.research_lab.retraining_recommendation_engine import _from_dict
+
         rec_obj = _from_dict(db.get_retraining_recommendation(rec_id))
         # Directly re-invoke the internal bridge to simulate a retry/duplicate
         # call — it must resolve to the same experiment, not create a new one.
         second_experiment_id = engine._maybe_create_linked_experiment(rec_obj)
         assert second_experiment_id == result["experiment_id"]
         matching = [
-            e for e in db.list_experiments(status="PENDING")
+            e
+            for e in db.list_experiments(status="PENDING")
             if f"from_recommendation:{rec_id}" in e.get("tags", [])
         ]
         assert len(matching) == 1
 
     def test_approve_experiment_link_dedups_across_all_statuses(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         """Once the linked experiment advances past PENDING/PROPOSED (e.g. to
         RUNNING or COMPLETED), a retried approval must still resolve to the
@@ -689,32 +752,32 @@ class TestRetrainingRecommendationEngine:
         db.upsert_experiment(exp)
 
         from trainer.research_lab.retraining_recommendation_engine import _from_dict
+
         rec_obj = _from_dict(db.get_retraining_recommendation(rec_id))
         retried_id = engine._maybe_create_linked_experiment(rec_obj)
         assert retried_id == experiment_id
 
         all_tagged = [
-            e for status in ("PROPOSED", "PENDING", "RUNNING", "COMPLETED", "FAILED", "ARCHIVED")
+            e
+            for status in ("PROPOSED", "PENDING", "RUNNING", "COMPLETED", "FAILED", "ARCHIVED")
             for e in db.list_experiments(status=status)
             if f"from_recommendation:{rec_id}" in e.get("tags", [])
         ]
         assert len(all_tagged) == 1
 
-    def test_approve_nonexistent_raises(
-        self, engine: RetrainingRecommendationEngine
-    ) -> None:
+    def test_approve_nonexistent_raises(self, engine: RetrainingRecommendationEngine) -> None:
         with pytest.raises(ValueError, match="not found"):
             engine.approve("nonexistent-id")
 
-    def test_dismiss_nonexistent_raises(
-        self, engine: RetrainingRecommendationEngine
-    ) -> None:
+    def test_dismiss_nonexistent_raises(self, engine: RetrainingRecommendationEngine) -> None:
         with pytest.raises(ValueError, match="not found"):
             engine.dismiss("nonexistent-id")
 
     def test_dedup_cleared_after_approval(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         """After approving a recommendation, a second evaluation run should
         create a fresh PROPOSED recommendation for the same dimension."""
@@ -723,22 +786,20 @@ class TestRetrainingRecommendationEngine:
         for i in range(10):
             _trade(warehouse, pnl_pct=-2.0, ts=NOW + 100 + i)
         engine.evaluate(model_version=MV)
-        recs = db.list_retraining_recommendations(
-            status="PROPOSED", model_version=MV
-        )
+        recs = db.list_retraining_recommendations(status="PROPOSED", model_version=MV)
         # Approve all open recommendations
         for r in recs:
             engine.approve(r["recommendation_id"])
         # Second evaluate should create new PROPOSED ones
         engine.evaluate(model_version=MV)
-        new_proposed = db.list_retraining_recommendations(
-            status="PROPOSED", model_version=MV
-        )
+        new_proposed = db.list_retraining_recommendations(status="PROPOSED", model_version=MV)
         assert len(new_proposed) >= 1
 
     def test_evaluate_filters_by_model_version(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         # Add degrading trades for v1.0.0
         for i in range(20):
@@ -784,8 +845,10 @@ class TestRetrainingRecommendationEngine:
         assert len(results) == 4
 
     def test_multi_trigger_urgency_elevation_persisted(
-        self, engine: RetrainingRecommendationEngine, warehouse: TelemetryWarehouse,
-        db: ResearchLabDatabase
+        self,
+        engine: RetrainingRecommendationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         """When multiple dimensions trigger in one run, urgency should be elevated
         (≥ base urgency) and that elevated value must be persisted."""
@@ -820,6 +883,7 @@ class TestSplitWindows:
 
     def test_full_windows_disjoint(self) -> None:
         from trainer.research_lab.dimension_evaluators import _split_windows
+
         data = list(range(30))  # baseline=20, rolling=10 → no overlap
         baseline, recent = _split_windows(data, 20, 10, 3)
         assert baseline == list(range(20))
@@ -829,6 +893,7 @@ class TestSplitWindows:
 
     def test_short_data_splits_67_33(self) -> None:
         from trainer.research_lab.dimension_evaluators import _split_windows
+
         data = list(range(12))  # less than 30, but ≥ 2*3
         baseline, recent = _split_windows(data, 20, 10, 3)
         assert baseline is not None and recent is not None
@@ -839,6 +904,7 @@ class TestSplitWindows:
 
     def test_insufficient_data_returns_none(self) -> None:
         from trainer.research_lab.dimension_evaluators import _split_windows
+
         data = list(range(3))  # less than 2 * min_samples=3
         baseline, recent = _split_windows(data, 20, 10, 3)
         assert baseline is None
@@ -846,6 +912,7 @@ class TestSplitWindows:
 
     def test_exactly_2x_min_samples(self) -> None:
         from trainer.research_lab.dimension_evaluators import _split_windows
+
         data = list(range(6))  # exactly 2 * min_samples=3
         baseline, recent = _split_windows(data, 20, 10, 3)
         assert baseline is not None and recent is not None
@@ -857,8 +924,9 @@ class TestSplitWindows:
 
 
 class TestRetrainingRecommendationsDB:
-    def _make_rec(self, mv: str = MV, dim: str = "sharpe_degradation",
-                  status: str = "PROPOSED") -> dict:
+    def _make_rec(
+        self, mv: str = MV, dim: str = "sharpe_degradation", status: str = "PROPOSED"
+    ) -> dict:
         r = RetrainingRecommendation.new(
             model_version=mv,
             trigger_dimension=EvaluationDimension.SHARPE_DEGRADATION,
@@ -909,6 +977,7 @@ class TestRetrainingRecommendationsDB:
 
     def test_list_sorted_newest_first(self, db: ResearchLabDatabase) -> None:
         import time as _t
+
         for i in range(3):
             r = self._make_rec()
             r["recommendation_id"] = f"rr-{i:04d}"
@@ -934,8 +1003,9 @@ class TestRetrainingRecommendationsDB:
 
 
 class TestRecommendationEndpoints:
-    def _make_app(self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-                  cfg: RecommendationConfig):
+    def _make_app(
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
+    ):
         from fastapi import FastAPI, HTTPException
 
         app = FastAPI()
@@ -959,11 +1029,10 @@ class TestRecommendationEndpoints:
                 raise HTTPException(status_code=400, detail=str(exc))
 
         @app.get("/research/recommendations")
-        def list_recs(status: str | None = None,
-                      model_version: str | None = None,
-                      limit: int = 50) -> dict:
-            rows = eng.list_recommendations(status=status,
-                                            model_version=model_version, limit=limit)
+        def list_recs(
+            status: str | None = None, model_version: str | None = None, limit: int = 50
+        ) -> dict:
+            rows = eng.list_recommendations(status=status, model_version=model_version, limit=limit)
             return {"success": True, "total": len(rows), "recommendations": rows}
 
         @app.post("/research/recommendations/{rec_id}/approve")
@@ -992,10 +1061,10 @@ class TestRecommendationEndpoints:
         return app
 
     def test_evaluate_returns_five_dimensions(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         app = self._make_app(warehouse, db, cfg)
         client = TestClient(app)
         resp = client.post("/research/evaluate", json={})
@@ -1005,10 +1074,10 @@ class TestRecommendationEndpoints:
         assert body["n_evaluated"] == 5
 
     def test_evaluate_triggered_dimensions_in_results(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
         for i in range(10):
@@ -1021,10 +1090,10 @@ class TestRecommendationEndpoints:
         assert body["n_triggered"] >= 1
 
     def test_list_recommendations_empty(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         app = self._make_app(warehouse, db, cfg)
         client = TestClient(app)
         resp = client.get("/research/recommendations")
@@ -1032,10 +1101,10 @@ class TestRecommendationEndpoints:
         assert resp.json()["total"] == 0
 
     def test_list_recommendations_after_evaluate(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
         for i in range(10):
@@ -1050,10 +1119,10 @@ class TestRecommendationEndpoints:
         assert all(r["status"] == "PROPOSED" for r in body["recommendations"])
 
     def test_approve_endpoint(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
         for i in range(10):
@@ -1064,16 +1133,17 @@ class TestRecommendationEndpoints:
         recs = client.get("/research/recommendations?status=PROPOSED").json()["recommendations"]
         assert recs
         rec_id = recs[0]["recommendation_id"]
-        resp = client.post(f"/research/recommendations/{rec_id}/approve",
-                           json={"resolved_by": "head_quant"})
+        resp = client.post(
+            f"/research/recommendations/{rec_id}/approve", json={"resolved_by": "head_quant"}
+        )
         assert resp.status_code == 200
         assert resp.json()["recommendation"]["status"] == "APPROVED"
 
     def test_dismiss_endpoint(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
         for i in range(10):
@@ -1084,40 +1154,40 @@ class TestRecommendationEndpoints:
         recs = client.get("/research/recommendations?status=PROPOSED").json()["recommendations"]
         assert recs
         rec_id = recs[0]["recommendation_id"]
-        resp = client.post(f"/research/recommendations/{rec_id}/dismiss",
-                           json={"resolved_by": "admin", "notes": "not actionable"})
+        resp = client.post(
+            f"/research/recommendations/{rec_id}/dismiss",
+            json={"resolved_by": "admin", "notes": "not actionable"},
+        )
         assert resp.status_code == 200
         rec = resp.json()["recommendation"]
         assert rec["status"] == "DISMISSED"
         assert rec["notes"] == "not actionable"
 
     def test_approve_nonexistent_returns_400(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         app = self._make_app(warehouse, db, cfg)
         client = TestClient(app, raise_server_exceptions=False)
-        resp = client.post("/research/recommendations/nope/approve",
-                           json={"resolved_by": "admin"})
+        resp = client.post("/research/recommendations/nope/approve", json={"resolved_by": "admin"})
         assert resp.status_code == 400
 
     def test_dismiss_nonexistent_returns_400(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         app = self._make_app(warehouse, db, cfg)
         client = TestClient(app, raise_server_exceptions=False)
-        resp = client.post("/research/recommendations/nope/dismiss",
-                           json={"resolved_by": "admin"})
+        resp = client.post("/research/recommendations/nope/dismiss", json={"resolved_by": "admin"})
         assert resp.status_code == 400
 
     def test_double_approve_returns_400(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
+
         for i in range(20):
             _trade(warehouse, pnl_pct=1.0, ts=NOW + i)
         for i in range(10):
@@ -1128,13 +1198,13 @@ class TestRecommendationEndpoints:
         recs = client.get("/research/recommendations?status=PROPOSED").json()["recommendations"]
         rec_id = recs[0]["recommendation_id"]
         client.post(f"/research/recommendations/{rec_id}/approve", json={"resolved_by": "admin"})
-        resp = client.post(f"/research/recommendations/{rec_id}/approve",
-                           json={"resolved_by": "admin"})
+        resp = client.post(
+            f"/research/recommendations/{rec_id}/approve", json={"resolved_by": "admin"}
+        )
         assert resp.status_code == 400
 
     def test_get_recommendation_by_id(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
 
@@ -1155,8 +1225,7 @@ class TestRecommendationEndpoints:
         assert body["recommendation"]["recommendation_id"] == rec_id
 
     def test_get_recommendation_not_found_returns_404(
-        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase,
-        cfg: RecommendationConfig
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: RecommendationConfig
     ) -> None:
         from starlette.testclient import TestClient
 

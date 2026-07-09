@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from trainer.research_lab.rl_database import ResearchLabDatabase
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.qde_resilience import (
     ArtifactIntegrityVerifier,
     DeploymentSafetyMonitor,
@@ -31,7 +31,7 @@ from trainer.research_lab.qde_resilience import (
     WorkerPoolManager,
     form_batches,
 )
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
+from trainer.research_lab.rl_database import ResearchLabDatabase
 
 NOW = time.time()
 
@@ -105,11 +105,17 @@ class TestWorkerPoolManager:
     def test_supervision_cycle_failover_promotes_standby(self, db) -> None:
         pool = WorkerPoolManager(db, heartbeat_timeout_s=1.0)
         pool.register_worker(worker_id="active-1", kind="GPU", role="ACTIVE", capacity=1.0, now=NOW)
-        pool.register_worker(worker_id="standby-1", kind="GPU", role="STANDBY", capacity=1.0, now=NOW)
+        pool.register_worker(
+            worker_id="standby-1", kind="GPU", role="STANDBY", capacity=1.0, now=NOW
+        )
         pool.heartbeat("standby-1", now=NOW + 9.5)  # standby stays alive; active goes stale/dead
         result = pool.run_supervision_cycle(now=NOW + 10.0)
         assert result["n_failovers"] == 1
-        assert pool.get_resilience_worker("standby-1")["role"] == "ACTIVE" if hasattr(pool, "get_resilience_worker") else True
+        assert (
+            pool.get_resilience_worker("standby-1")["role"] == "ACTIVE"
+            if hasattr(pool, "get_resilience_worker")
+            else True
+        )
         standby = db.get_resilience_worker("standby-1")
         assert standby["role"] == "ACTIVE"
         assert standby["status"] == "ACTIVE"
@@ -167,9 +173,18 @@ class TestInferenceQueueMonitor:
 
         wh = TelemetryWarehouse(db)
         wh.ingest_inference(
-            model_version="v1.0", symbol="EURUSD", timestamp=NOW, inference_count=10,
-            latency_ms_p50=5.0, latency_ms_p95=9.0, latency_ms_max=20.0,
-            queue_length=3, throughput_per_s=3.0, cpu_pct=40.0, memory_pct=50.0, gpu_pct=None,
+            model_version="v1.0",
+            symbol="EURUSD",
+            timestamp=NOW,
+            inference_count=10,
+            latency_ms_p50=5.0,
+            latency_ms_p95=9.0,
+            latency_ms_max=20.0,
+            queue_length=3,
+            throughput_per_s=3.0,
+            cpu_pct=40.0,
+            memory_pct=50.0,
+            gpu_pct=None,
         )
         pool = WorkerPoolManager(db)
         pool.register_worker(worker_id="w1", kind="GPU", role="ACTIVE", capacity=1.0, now=NOW)
@@ -202,10 +217,22 @@ class _FakeRegistry:
     def get_artifact(self, artifact_id):
         return self._artifacts.get(artifact_id)
 
-    def list_artifacts(self, artifact_type=None, model_version=None, training_run_id=None, experiment_id=None, limit=50):
+    def list_artifacts(
+        self,
+        artifact_type=None,
+        model_version=None,
+        training_run_id=None,
+        experiment_id=None,
+        limit=50,
+    ):
         rows = [
-            {"artifact_id": a.artifact_id, "path": a.path, "artifact_hash": a.artifact_hash,
-             "name": a.artifact_id, "extra": {}}
+            {
+                "artifact_id": a.artifact_id,
+                "path": a.path,
+                "artifact_hash": a.artifact_hash,
+                "name": a.artifact_id,
+                "extra": {},
+            }
             for a in self._artifacts.values()
             if model_version is None or a.model_version == model_version
         ]
@@ -217,6 +244,7 @@ class TestArtifactIntegrityVerifier:
         p = tmp_path / "weights.bin"
         p.write_bytes(b"hello world")
         import hashlib
+
         h = hashlib.sha256(b"hello world").hexdigest()
         registry = _FakeRegistry()
         registry.add(_FakeArtifact("art-1", str(p), h))
@@ -242,7 +270,9 @@ class TestArtifactIntegrityVerifier:
 
     def test_rollback_safety_fails_closed_on_unverifiable(self, db, tmp_path) -> None:
         registry = _FakeRegistry()
-        registry.add(_FakeArtifact("art-1", str(tmp_path / "missing.bin"), "0" * 64, model_version="v1"))
+        registry.add(
+            _FakeArtifact("art-1", str(tmp_path / "missing.bin"), "0" * 64, model_version="v1")
+        )
         verifier = ArtifactIntegrityVerifier(db, registry)
         result = verifier.check_rollback_safety("v1")
         assert result["safe"] is False
@@ -252,6 +282,7 @@ class TestArtifactIntegrityVerifier:
         p = tmp_path / "weights.bin"
         p.write_bytes(b"good bytes")
         import hashlib
+
         h = hashlib.sha256(b"good bytes").hexdigest()
         registry = _FakeRegistry()
         registry.add(_FakeArtifact("art-1", str(p), h, model_version="v1"))
@@ -266,7 +297,9 @@ class TestArtifactIntegrityVerifier:
             def verify_artifact_signatures(self, model_version):
                 return [_FailingSigResult()]
 
-        verifier = ArtifactIntegrityVerifier(db, registry, deployment_manager=_FakeDeploymentManagerForSig())
+        verifier = ArtifactIntegrityVerifier(
+            db, registry, deployment_manager=_FakeDeploymentManagerForSig()
+        )
         result = verifier.check_rollback_safety("v1")
         assert result["safe"] is False
         assert "signature" in result["reasons"][0]
@@ -290,6 +323,7 @@ class TestArtifactIntegrityVerifier:
         p = tmp_path / "weights.bin"
         p.write_bytes(b"good bytes")
         import hashlib
+
         h = hashlib.sha256(b"good bytes").hexdigest()
         registry = _FakeRegistry()
         registry.add(_FakeArtifact("art-1", str(p), h, model_version="v1"))
@@ -314,14 +348,16 @@ class TestArtifactIntegrityVerifier:
     def test_version_compatibility_architecture_mismatch(self, db) -> None:
         verifier = ArtifactIntegrityVerifier(db, _FakeRegistry())
         result = verifier.check_version_compatibility(
-            {"architecture": "signalium_v3"}, {"architecture": "signalium_v4"},
+            {"architecture": "signalium_v3"},
+            {"architecture": "signalium_v4"},
         )
         assert result["compatible"] is False
 
     def test_version_compatibility_major_schema_mismatch(self, db) -> None:
         verifier = ArtifactIntegrityVerifier(db, _FakeRegistry())
         result = verifier.check_version_compatibility(
-            {"schema_version": "1.0"}, {"schema_version": "2.0"},
+            {"schema_version": "1.0"},
+            {"schema_version": "2.0"},
         )
         assert result["compatible"] is False
 
@@ -379,10 +415,17 @@ class TestResearchLabBackupManager:
 
 class TestTrainingResilienceMonitor:
     def _seed_job(self, db, job_id, status, updated_at):
-        db.upsert_pipeline_job({
-            "job_id": job_id, "status": status, "experiment_id": "", "recommendation_id": "",
-            "requested_by": "tester", "created_at": updated_at, "updated_at": updated_at,
-        })
+        db.upsert_pipeline_job(
+            {
+                "job_id": job_id,
+                "status": status,
+                "experiment_id": "",
+                "recommendation_id": "",
+                "requested_by": "tester",
+                "created_at": updated_at,
+                "updated_at": updated_at,
+            }
+        )
 
     def test_detect_stale_jobs(self, db) -> None:
         self._seed_job(db, "job-1", "RUNNING", NOW - 7200)
@@ -437,7 +480,9 @@ class TestTrainingResilienceMonitor:
 class TestDisasterRecoveryManager:
     def test_create_and_verify_snapshot(self, db) -> None:
         mgr = DisasterRecoveryManager(db)
-        record = mgr.create_snapshot(model_version="v1", dataset_version="ds-1", experiment_ids=["exp-1"])
+        record = mgr.create_snapshot(
+            model_version="v1", dataset_version="ds-1", experiment_ids=["exp-1"]
+        )
         result = mgr.verify_snapshot(record["snapshot_id"])
         assert result["status"] == "VERIFIED"
         assert mgr.list_snapshots()[0]["snapshot_id"] == record["snapshot_id"]
@@ -490,7 +535,9 @@ class TestDeploymentSafetyMonitor:
 
     def test_validate_deployment_health_below_threshold(self, db) -> None:
         verifier = ArtifactIntegrityVerifier(db, _FakeRegistry())
-        monitor = DeploymentSafetyMonitor(_FakeDeploymentManager(), _FakeScorer(40.0), verifier, health_threshold=70.0)
+        monitor = DeploymentSafetyMonitor(
+            _FakeDeploymentManager(), _FakeScorer(40.0), verifier, health_threshold=70.0
+        )
         result = monitor.validate_deployment_health()
         assert result["healthy"] is False
 
@@ -541,14 +588,17 @@ class TestResilienceServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-res-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_res.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_dashboard_superadmin(self, client) -> None:
@@ -565,7 +615,10 @@ class TestResilienceServerEndpoints:
         assert resp.status_code == 401
 
     def test_register_and_list_workers(self, client) -> None:
-        resp = client.post("/resilience/workers/register?kind=GPU&role=ACTIVE&capacity=2.0", headers=self._SUPERADMIN_HDR)
+        resp = client.post(
+            "/resilience/workers/register?kind=GPU&role=ACTIVE&capacity=2.0",
+            headers=self._SUPERADMIN_HDR,
+        )
         assert resp.status_code == 200
         worker_id = resp.json()["worker"]["worker_id"]
         list_resp = client.get("/resilience/workers", headers=self._SUPERADMIN_HDR)
@@ -582,9 +635,14 @@ class TestResilienceServerEndpoints:
     def test_heartbeat_and_restart_worker(self, client) -> None:
         reg = client.post("/resilience/workers/register", headers=self._SUPERADMIN_HDR)
         worker_id = reg.json()["worker"]["worker_id"]
-        hb = client.post(f"/resilience/workers/{worker_id}/heartbeat?current_load=0.5", headers=self._SUPERADMIN_HDR)
+        hb = client.post(
+            f"/resilience/workers/{worker_id}/heartbeat?current_load=0.5",
+            headers=self._SUPERADMIN_HDR,
+        )
         assert hb.status_code == 200
-        restart = client.post(f"/resilience/workers/{worker_id}/restart", headers=self._SUPERADMIN_HDR)
+        restart = client.post(
+            f"/resilience/workers/{worker_id}/restart", headers=self._SUPERADMIN_HDR
+        )
         assert restart.status_code == 200
         assert restart.json()["worker"]["restart_count"] == 1
 
@@ -602,7 +660,9 @@ class TestResilienceServerEndpoints:
         create_resp = client.post("/resilience/backups/create", headers=self._SUPERADMIN_HDR)
         assert create_resp.status_code == 200
         backup_id = create_resp.json()["backup"]["backup_id"]
-        verify_resp = client.post(f"/resilience/backups/{backup_id}/verify", headers=self._SUPERADMIN_HDR)
+        verify_resp = client.post(
+            f"/resilience/backups/{backup_id}/verify", headers=self._SUPERADMIN_HDR
+        )
         assert verify_resp.json()["result"]["status"] == "VERIFIED"
         list_resp = client.get("/resilience/backups", headers=self._SUPERADMIN_HDR)
         assert any(b["backup_id"] == backup_id for b in list_resp.json()["backups"])
@@ -628,19 +688,28 @@ class TestResilienceServerEndpoints:
         )
         assert create_resp.status_code == 200
         snapshot_id = create_resp.json()["snapshot"]["snapshot_id"]
-        verify_resp = client.get(f"/resilience/disaster-recovery/snapshots/{snapshot_id}/verify", headers=self._SUPERADMIN_HDR)
+        verify_resp = client.get(
+            f"/resilience/disaster-recovery/snapshots/{snapshot_id}/verify",
+            headers=self._SUPERADMIN_HDR,
+        )
         assert verify_resp.json()["result"]["status"] == "VERIFIED"
-        list_resp = client.get("/resilience/disaster-recovery/snapshots", headers=self._SUPERADMIN_HDR)
+        list_resp = client.get(
+            "/resilience/disaster-recovery/snapshots", headers=self._SUPERADMIN_HDR
+        )
         assert any(s["snapshot_id"] == snapshot_id for s in list_resp.json()["snapshots"])
 
     def test_deployment_health_and_active_model_endpoints(self, client) -> None:
         health_resp = client.get("/resilience/deployment/health", headers=self._SUPERADMIN_HDR)
         assert health_resp.status_code == 200
-        active_resp = client.get("/resilience/deployment/active-model/verify", headers=self._SUPERADMIN_HDR)
+        active_resp = client.get(
+            "/resilience/deployment/active-model/verify", headers=self._SUPERADMIN_HDR
+        )
         assert active_resp.status_code == 200
         assert active_resp.json()["result"]["active"] is False
 
     def test_auto_rollback_endpoint_noop_when_no_score(self, client) -> None:
-        resp = client.post("/resilience/deployment/auto-rollback?model_version=v1", headers=self._SUPERADMIN_HDR)
+        resp = client.post(
+            "/resilience/deployment/auto-rollback?model_version=v1", headers=self._SUPERADMIN_HDR
+        )
         assert resp.status_code == 200
         assert resp.json()["triggered"] is False

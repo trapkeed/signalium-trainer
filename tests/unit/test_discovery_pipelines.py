@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -21,17 +20,16 @@ from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySumma
 from trainer.research_lab.experiment_creator import ExperimentCreator
 from trainer.research_lab.feature_discovery_pipeline import FeatureDiscoveryPipeline
 from trainer.research_lab.investigation_models import (
-    InvestigationConfig,
     InvestigationFailureKind,
-    InvestigationQuery,
 )
 from trainer.research_lab.label_discovery_engine import (
     LabelDiscoveryEngine,
     _trade_to_outcome_path,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.research_lab.rl_models import DiscoveredFeature, ExperimentStatus
+from trainer.research_lab.rl_models import ExperimentStatus
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+
 
 # ── Module-level Pydantic model for endpoint tests (avoid deferred-annotation issues)
 class _DiscoverReq(BaseModel):
@@ -75,36 +73,56 @@ def query() -> DiscoveryQuery:
 
 # ── Telemetry helpers ──────────────────────────────────────────────────────────
 
+
 def _trade(wh, pnl=50.0, confidence=0.7, hold_s=3600.0, symbol=SYM, mv=MV, ts=None):
     return wh.ingest_trade(
-        model_version=mv, symbol=symbol, timestamp=ts or NOW,
-        direction="LONG", entry_price=1950.0,
+        model_version=mv,
+        symbol=symbol,
+        timestamp=ts or NOW,
+        direction="LONG",
+        entry_price=1950.0,
         exit_price=1950.0 + pnl / 0.1,
-        size=0.1, pnl=pnl, pnl_pct=pnl / 1950 * 100,
-        hold_duration_s=hold_s, confidence_at_entry=confidence,
+        size=0.1,
+        pnl=pnl,
+        pnl_pct=pnl / 1950 * 100,
+        hold_duration_s=hold_s,
+        confidence_at_entry=confidence,
     )
 
 
 def _decision(wh, symbol=SYM, mv=MV, ts=None, confidence=0.7):
     return wh.ingest_decision(
-        model_version=mv, symbol=symbol, timestamp=ts or NOW,
-        direction="LONG", confidence=confidence,
+        model_version=mv,
+        symbol=symbol,
+        timestamp=ts or NOW,
+        direction="LONG",
+        confidence=confidence,
     )
 
 
 def _position(wh, action="SCALE_IN", cum_pnl=50.0, symbol=SYM, mv=MV):
     return wh.ingest_position(
-        model_version=mv, symbol=symbol, timestamp=NOW,
-        action=action, size=0.1, price=1950.0, cumulative_pnl=cum_pnl,
+        model_version=mv,
+        symbol=symbol,
+        timestamp=NOW,
+        action=action,
+        size=0.1,
+        price=1950.0,
+        cumulative_pnl=cum_pnl,
     )
 
 
 def _failure_report(db, kind: InvestigationFailureKind, severity=0.75, mv=MV):
     from trainer.research_lab.investigation_models import FailureReport
+
     r = FailureReport.new(
-        failure_kind=kind, model_version=mv, affected_symbols=[SYM],
-        time_range_start=NOW - 3600, time_range_end=NOW,
-        evidence=[], severity_score=severity,
+        failure_kind=kind,
+        model_version=mv,
+        affected_symbols=[SYM],
+        time_range_start=NOW - 3600,
+        time_range_end=NOW,
+        evidence=[],
+        severity_score=severity,
         summary=f"Synthetic {kind.value} report",
     )
     db.upsert_failure_report(r.to_dict())
@@ -224,7 +242,9 @@ class TestExperimentCreator:
         _failure_report(db, InvestigationFailureKind.HIGH_CONFIDENCE_LOSS)
         _failure_report(db, InvestigationFailureKind.FAILED_SCALE_IN)
         creator = ExperimentCreator(db)
-        creator.propose(DiscoveryQuery(min_failure_severity=0.0, max_proposed_per_run=10), DiscoverySummary())
+        creator.propose(
+            DiscoveryQuery(min_failure_severity=0.0, max_proposed_per_run=10), DiscoverySummary()
+        )
         proposed = creator.list_proposed()
         assert len(proposed) == 2
         assert all(p["status"] == "PROPOSED" for p in proposed)
@@ -363,9 +383,17 @@ class TestFeatureDiscoveryPipeline:
         features = db.list_features()
         assert features
         f = features[0]
-        required = {"feature_id", "name", "category", "importance_score",
-                    "evidence_strength", "formula_description", "suggested_qde_role",
-                    "sample_count", "status"}
+        required = {
+            "feature_id",
+            "name",
+            "category",
+            "importance_score",
+            "evidence_strength",
+            "formula_description",
+            "suggested_qde_role",
+            "sample_count",
+            "status",
+        }
         assert required.issubset(f.keys())
         assert 0.0 <= f["importance_score"] <= 1.0
         assert 0.0 <= f["evidence_strength"] <= 1.0
@@ -512,9 +540,14 @@ class TestTradeToOutcomePath:
 
     def test_long_trade_produces_valid_path(self) -> None:
         trade = {
-            "entry_price": 1950.0, "exit_price": 1960.0,
-            "direction": "LONG", "pnl": 10.0, "pnl_pct": 0.51,
-            "hold_duration_s": 3600.0, "timestamp": NOW, "symbol": "XAUUSD",
+            "entry_price": 1950.0,
+            "exit_price": 1960.0,
+            "direction": "LONG",
+            "pnl": 10.0,
+            "pnl_pct": 0.51,
+            "hold_duration_s": 3600.0,
+            "timestamp": NOW,
+            "symbol": "XAUUSD",
         }
         path = _trade_to_outcome_path(trade)
         assert path is not None
@@ -525,9 +558,14 @@ class TestTradeToOutcomePath:
 
     def test_short_trade_direction(self) -> None:
         trade = {
-            "entry_price": 1950.0, "exit_price": 1940.0,
-            "direction": "SHORT", "pnl": 10.0, "pnl_pct": 0.51,
-            "hold_duration_s": 3600.0, "timestamp": NOW, "symbol": "XAUUSD",
+            "entry_price": 1950.0,
+            "exit_price": 1940.0,
+            "direction": "SHORT",
+            "pnl": 10.0,
+            "pnl_pct": 0.51,
+            "hold_duration_s": 3600.0,
+            "timestamp": NOW,
+            "symbol": "XAUUSD",
         }
         path = _trade_to_outcome_path(trade)
         assert path is not None
@@ -535,17 +573,28 @@ class TestTradeToOutcomePath:
 
     def test_losing_trade_works(self) -> None:
         trade = {
-            "entry_price": 1950.0, "exit_price": 1930.0,
-            "direction": "LONG", "pnl": -20.0, "pnl_pct": -1.0,
-            "hold_duration_s": 1800.0, "timestamp": NOW, "symbol": "XAUUSD",
+            "entry_price": 1950.0,
+            "exit_price": 1930.0,
+            "direction": "LONG",
+            "pnl": -20.0,
+            "pnl_pct": -1.0,
+            "hold_duration_s": 1800.0,
+            "timestamp": NOW,
+            "symbol": "XAUUSD",
         }
         path = _trade_to_outcome_path(trade)
         assert path is not None
         assert path.future_bars[-1].close == pytest.approx(1930.0)
 
     def test_invalid_entry_price_returns_none(self) -> None:
-        trade = {"entry_price": 0.0, "exit_price": 1950.0, "direction": "LONG",
-                 "pnl": 0.0, "hold_duration_s": 3600.0, "timestamp": NOW}
+        trade = {
+            "entry_price": 0.0,
+            "exit_price": 1950.0,
+            "direction": "LONG",
+            "pnl": 0.0,
+            "hold_duration_s": 3600.0,
+            "timestamp": NOW,
+        }
         assert _trade_to_outcome_path(trade) is None
 
 
@@ -555,9 +604,12 @@ class TestTradeToOutcomePath:
 class TestLabelDatasetsDB:
     def test_upsert_and_get(self, db: ResearchLabDatabase) -> None:
         from trainer.research_lab.label_discovery_engine import LabelDataset
+
         ds = LabelDataset.new(
-            label_type="stop_loss", model_version=MV,
-            sample_count=42, label_statistics={"stop_distance_mean": 0.05},
+            label_type="stop_loss",
+            model_version=MV,
+            sample_count=42,
+            label_statistics={"stop_distance_mean": 0.05},
             notes="test dataset",
         )
         db.upsert_label_dataset(ds.to_dict())
@@ -568,6 +620,7 @@ class TestLabelDatasetsDB:
 
     def test_list_filter_by_type(self, db: ResearchLabDatabase) -> None:
         from trainer.research_lab.label_discovery_engine import LabelDataset
+
         for lt in ["stop_loss", "take_profit", "position_size"]:
             ds = LabelDataset.new(lt, MV, 10, {}, "")
             db.upsert_label_dataset(ds.to_dict())
@@ -576,8 +629,10 @@ class TestLabelDatasetsDB:
         assert sl[0]["label_type"] == "stop_loss"
 
     def test_list_all_sorted_newest_first(self, db: ResearchLabDatabase) -> None:
-        from trainer.research_lab.label_discovery_engine import LabelDataset
         import time as _time
+
+        from trainer.research_lab.label_discovery_engine import LabelDataset
+
         for _ in range(3):
             ds = LabelDataset.new("stop_loss", MV, 5, {}, "")
             db.upsert_label_dataset(ds.to_dict())
@@ -591,6 +646,7 @@ class TestLabelDatasetsDB:
         self, db: ResearchLabDatabase, warehouse: TelemetryWarehouse
     ) -> None:
         from trainer.research_lab.label_discovery_engine import LabelDataset
+
         ds = LabelDataset.new("stop_loss", MV, 5, {}, "")
         db.upsert_label_dataset(ds.to_dict())
         stats = db.stats()
@@ -729,9 +785,7 @@ class TestDiscoverEndpoint:
 class TestProposedExperimentEndpoints:
     """Tests for /research/proposed-experiments approve/reject endpoints."""
 
-    def _make_app(
-        self, db: ResearchLabDatabase
-    ):
+    def _make_app(self, db: ResearchLabDatabase):
         from fastapi import FastAPI, HTTPException
 
         test_app = FastAPI()
@@ -773,9 +827,7 @@ class TestProposedExperimentEndpoints:
         from starlette.testclient import TestClient
 
         _failure_report(db, InvestigationFailureKind.LATE_EXIT)
-        ExperimentCreator(db).propose(
-            DiscoveryQuery(min_failure_severity=0.0), DiscoverySummary()
-        )
+        ExperimentCreator(db).propose(DiscoveryQuery(min_failure_severity=0.0), DiscoverySummary())
         app = self._make_app(db)
         client = TestClient(app)
         resp = client.get("/research/proposed-experiments")

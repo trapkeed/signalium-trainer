@@ -16,13 +16,17 @@ from trainer.market_data.providers.base_stub_provider import BaseStubProvider
 
 class TiingoProvider(BaseStubProvider):
     def __init__(self, api_key: str | None = None) -> None:
-        super().__init__(api_key=api_key if api_key is not None else os.environ.get("TIINGO_API_KEY"))
+        super().__init__(
+            api_key=api_key if api_key is not None else os.environ.get("TIINGO_API_KEY")
+        )
 
     def name(self) -> str:
         return "tiingo"
 
     def _request(self, path: str, params: dict[str, Any] | None = None) -> Any:
-        raise NotImplementedError("Tiingo HTTP client not yet wired — add credentials and implement _request")
+        raise NotImplementedError(
+            "Tiingo HTTP client not yet wired — add credentials and implement _request"
+        )
 
     def get_price(self, symbol: str) -> dict[str, Any]:
         self._require_configured()
@@ -30,7 +34,9 @@ class TiingoProvider(BaseStubProvider):
 
     def get_candles(self, symbol: str, timeframe: str, count: int = 100) -> list[dict[str, Any]]:
         self._require_configured()
-        return self._request(f"/tiingo/fx/{symbol}/prices", {"resampleFreq": timeframe, "count": count})
+        return self._request(
+            f"/tiingo/fx/{symbol}/prices", {"resampleFreq": timeframe, "count": count}
+        )
 
     def get_ticks(self, symbol: str, count: int = 100) -> list[dict[str, Any]]:
         self._require_configured()

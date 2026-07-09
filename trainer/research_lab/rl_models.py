@@ -27,7 +27,7 @@ from typing import Any
 
 
 class ExperimentStatus(str, Enum):
-    PROPOSED = "PROPOSED"   # auto-generated, awaiting admin approval
+    PROPOSED = "PROPOSED"  # auto-generated, awaiting admin approval
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -386,8 +386,8 @@ class DiscoveredFeature:
     notes: str = ""
     # S20 auto-discovery fields (optional for backward compatibility)
     formula_description: str = ""
-    evidence_strength: float = 0.0      # [0, 1]
-    suggested_qde_role: str = ""        # e.g. "confidence_calibration_input"
+    evidence_strength: float = 0.0  # [0, 1]
+    suggested_qde_role: str = ""  # e.g. "confidence_calibration_input"
     sample_count: int = 0
 
     @classmethod

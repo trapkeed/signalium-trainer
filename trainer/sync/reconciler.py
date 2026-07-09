@@ -53,14 +53,22 @@ class ReconciliationDomain(str, Enum):
 
 
 SIGNALIUM_OWNED = {
-    ReconciliationDomain.IDENTITIES, ReconciliationDomain.PERMISSIONS,
-    ReconciliationDomain.SUBSCRIPTIONS, ReconciliationDomain.API_KEYS, ReconciliationDomain.INFRA,
-    ReconciliationDomain.SYMBOLS, ReconciliationDomain.USER_STATUS,
+    ReconciliationDomain.IDENTITIES,
+    ReconciliationDomain.PERMISSIONS,
+    ReconciliationDomain.SUBSCRIPTIONS,
+    ReconciliationDomain.API_KEYS,
+    ReconciliationDomain.INFRA,
+    ReconciliationDomain.SYMBOLS,
+    ReconciliationDomain.USER_STATUS,
     ReconciliationDomain.AUTONOMOUS_TRADING_PERMISSIONS,
 }
 TRAINER_OWNED = {
-    ReconciliationDomain.EXPERIMENTS, ReconciliationDomain.DATASETS, ReconciliationDomain.ARTIFACTS,
-    ReconciliationDomain.MEMORY, ReconciliationDomain.MODELS, ReconciliationDomain.DEPLOYMENTS,
+    ReconciliationDomain.EXPERIMENTS,
+    ReconciliationDomain.DATASETS,
+    ReconciliationDomain.ARTIFACTS,
+    ReconciliationDomain.MEMORY,
+    ReconciliationDomain.MODELS,
+    ReconciliationDomain.DEPLOYMENTS,
 }
 
 
@@ -91,8 +99,12 @@ class AuditEntry:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "domain": self.domain, "record_id": self.record_id, "version": self.version,
-            "outcome": self.outcome, "detail": self.detail, "at": self.at,
+            "domain": self.domain,
+            "record_id": self.record_id,
+            "version": self.version,
+            "outcome": self.outcome,
+            "detail": self.detail,
+            "at": self.at,
         }
 
 
@@ -108,9 +120,13 @@ class DeadLetter:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "domain": self.domain, "record_id": self.record_id, "version": self.version,
-            "error": self.error, "attempts": self.attempts,
-            "first_failed_at": self.first_failed_at, "last_failed_at": self.last_failed_at,
+            "domain": self.domain,
+            "record_id": self.record_id,
+            "version": self.version,
+            "error": self.error,
+            "attempts": self.attempts,
+            "first_failed_at": self.first_failed_at,
+            "last_failed_at": self.last_failed_at,
         }
 
 
@@ -122,7 +138,9 @@ class SyncReconciler:
     def __init__(self, interval_s: float = 60.0) -> None:
         self._interval_s = interval_s
         self._handlers: dict[ReconciliationDomain, DomainHandler] = {}
-        self._applied_versions: dict[tuple[str, str], str] = {}  # (domain, record_id) -> last applied version
+        self._applied_versions: dict[tuple[str, str], str] = (
+            {}
+        )  # (domain, record_id) -> last applied version
         self._audit_log: list[AuditEntry] = []
         self._dlq: dict[tuple[str, str], DeadLetter] = {}
         self._lock = threading.Lock()
@@ -134,17 +152,23 @@ class SyncReconciler:
 
     def _record_audit(self, entry: AuditEntry) -> None:
         self._audit_log.append(entry)
-        logger.info(f"SyncReconciler[{entry.domain}] {entry.record_id} v{entry.version}: {entry.outcome} {entry.detail}")
+        logger.info(
+            f"SyncReconciler[{entry.domain}] {entry.record_id} v{entry.version}: {entry.outcome} {entry.detail}"
+        )
 
     def _apply_with_retry(self, handler: DomainHandler, record: RemoteRecord) -> None:
         key = (handler.domain.value, record.record_id)
 
         # Reconciliation-record idempotency: never reapply the same version twice.
         if self._applied_versions.get(key) == record.version:
-            self._record_audit(AuditEntry(
-                domain=handler.domain.value, record_id=record.record_id,
-                version=record.version, outcome="skipped_idempotent",
-            ))
+            self._record_audit(
+                AuditEntry(
+                    domain=handler.domain.value,
+                    record_id=record.record_id,
+                    version=record.version,
+                    outcome="skipped_idempotent",
+                )
+            )
             return
 
         attempt = 0
@@ -155,11 +179,15 @@ class SyncReconciler:
                 handler.apply_local(record)
                 self._applied_versions[key] = record.version
                 self._dlq.pop(key, None)
-                self._record_audit(AuditEntry(
-                    domain=handler.domain.value, record_id=record.record_id,
-                    version=record.version, outcome="applied",
-                    detail=f"attempt {attempt + 1}",
-                ))
+                self._record_audit(
+                    AuditEntry(
+                        domain=handler.domain.value,
+                        record_id=record.record_id,
+                        version=record.version,
+                        outcome="applied",
+                        detail=f"attempt {attempt + 1}",
+                    )
+                )
                 return
             except Exception as exc:  # noqa: BLE001 — any apply failure is retryable-then-DLQ
                 last_error = f"{exc!r}\n{traceback.format_exc(limit=3)}"
@@ -167,25 +195,37 @@ class SyncReconciler:
                     first_failed_at = time.time()
                 attempt += 1
                 if attempt <= handler.max_retries:
-                    self._record_audit(AuditEntry(
-                        domain=handler.domain.value, record_id=record.record_id,
-                        version=record.version, outcome="retrying",
-                        detail=f"attempt {attempt} failed: {exc!r}",
-                    ))
+                    self._record_audit(
+                        AuditEntry(
+                            domain=handler.domain.value,
+                            record_id=record.record_id,
+                            version=record.version,
+                            outcome="retrying",
+                            detail=f"attempt {attempt} failed: {exc!r}",
+                        )
+                    )
                     time.sleep(handler.retry_backoff_s * attempt)
 
         existing = self._dlq.get(key)
         attempts_total = (existing.attempts if existing else 0) + attempt
         self._dlq[key] = DeadLetter(
-            domain=handler.domain.value, record_id=record.record_id, version=record.version,
-            error=last_error, attempts=attempts_total,
+            domain=handler.domain.value,
+            record_id=record.record_id,
+            version=record.version,
+            error=last_error,
+            attempts=attempts_total,
             first_failed_at=existing.first_failed_at if existing else first_failed_at,
             last_failed_at=time.time(),
         )
-        self._record_audit(AuditEntry(
-            domain=handler.domain.value, record_id=record.record_id,
-            version=record.version, outcome="dead_lettered", detail=last_error,
-        ))
+        self._record_audit(
+            AuditEntry(
+                domain=handler.domain.value,
+                record_id=record.record_id,
+                version=record.version,
+                outcome="dead_lettered",
+                detail=last_error,
+            )
+        )
 
     def run_once(self, domains: list[ReconciliationDomain] | None = None) -> dict[str, Any]:
         with self._lock:

@@ -12,7 +12,6 @@ Covers:
 
 from __future__ import annotations
 
-import sqlite3
 import time
 from pathlib import Path
 
@@ -24,7 +23,6 @@ from trainer.research_lab.telemetry_models import (
     TelemetryStream,
 )
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -112,20 +110,41 @@ class TestTradeStream:
         assert event.to_dict()["exit_reason"] == "TP_HIT"
 
     def test_read_by_model_version(self, warehouse: TelemetryWarehouse) -> None:
-        warehouse.ingest_trade(**_base(model_version="v1"), direction="LONG",
-                               entry_price=1.0, exit_price=1.1, size=1.0,
-                               pnl=100.0, pnl_pct=10.0, hold_duration_s=100.0)
-        warehouse.ingest_trade(**_base(model_version="v2"), direction="SHORT",
-                               entry_price=1.0, exit_price=0.9, size=1.0,
-                               pnl=100.0, pnl_pct=10.0, hold_duration_s=100.0)
+        warehouse.ingest_trade(
+            **_base(model_version="v1"),
+            direction="LONG",
+            entry_price=1.0,
+            exit_price=1.1,
+            size=1.0,
+            pnl=100.0,
+            pnl_pct=10.0,
+            hold_duration_s=100.0,
+        )
+        warehouse.ingest_trade(
+            **_base(model_version="v2"),
+            direction="SHORT",
+            entry_price=1.0,
+            exit_price=0.9,
+            size=1.0,
+            pnl=100.0,
+            pnl_pct=10.0,
+            hold_duration_s=100.0,
+        )
         v1 = warehouse.query_trades(TelemetryQuery(model_version="v1"))
         assert len(v1) == 1
         assert v1[0]["model_version"] == "v1"
 
     def test_trades_for_symbol_helper(self, warehouse: TelemetryWarehouse) -> None:
-        warehouse.ingest_trade(**_base(), direction="LONG",
-                               entry_price=1.0, exit_price=1.1, size=1.0,
-                               pnl=10.0, pnl_pct=1.0, hold_duration_s=60.0)
+        warehouse.ingest_trade(
+            **_base(),
+            direction="LONG",
+            entry_price=1.0,
+            exit_price=1.1,
+            size=1.0,
+            pnl=10.0,
+            pnl_pct=1.0,
+            hold_duration_s=60.0,
+        )
         trades = warehouse.trades_for_symbol(SYM)
         assert len(trades) == 1
 
@@ -178,6 +197,7 @@ class TestFailureStream:
         t_new = NOW
         # Ingest failure with old timestamp (create manually via model)
         from trainer.research_lab.telemetry_models import TelemetryFailureEvent
+
         old_ev = TelemetryFailureEvent.new("v1", SYM, t_old, "TIMEOUT")
         warehouse._db.insert_telemetry_event("tel_failures", old_ev.event_id, old_ev.to_dict())
         # Ingest failure with new timestamp
@@ -228,8 +248,11 @@ class TestExecutionStream:
 
     def test_slippage_computed(self, warehouse: TelemetryWarehouse) -> None:
         event = warehouse.ingest_execution(
-            **_base(), order_type="LIMIT",
-            requested_price=2000.0, executed_price=2001.5, size=1.0,
+            **_base(),
+            order_type="LIMIT",
+            requested_price=2000.0,
+            executed_price=2001.5,
+            size=1.0,
         )
         assert event.slippage == pytest.approx(1.5)
 
@@ -314,9 +337,16 @@ class TestWarehouseFilters:
 
     def test_stream_counts(self, warehouse: TelemetryWarehouse) -> None:
         warehouse.ingest_decision(**_base(), direction="LONG", confidence=0.7)
-        warehouse.ingest_trade(**_base(), direction="LONG",
-                               entry_price=1.0, exit_price=1.1, size=1.0,
-                               pnl=10.0, pnl_pct=1.0, hold_duration_s=60.0)
+        warehouse.ingest_trade(
+            **_base(),
+            direction="LONG",
+            entry_price=1.0,
+            exit_price=1.1,
+            size=1.0,
+            pnl=10.0,
+            pnl_pct=1.0,
+            hold_duration_s=60.0,
+        )
         warehouse.ingest_lifecycle(**_base(), kind="SESSION_STARTED")
         counts = warehouse.stream_counts()
         assert counts["tel_decisions"] == 1
@@ -324,7 +354,9 @@ class TestWarehouseFilters:
         assert counts["tel_lifecycle"] == 1
         assert counts.get("tel_positions", 0) == 0
 
-    def test_stats_includes_telemetry(self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase) -> None:
+    def test_stats_includes_telemetry(
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase
+    ) -> None:
         warehouse.ingest_decision(**_base(), direction="LONG", confidence=0.7)
         stats = db.stats()
         assert "tel_decisions" in stats
@@ -371,6 +403,7 @@ class TestApiIdempotency:
     def _make_app(self, warehouse: TelemetryWarehouse):
         """Build a minimal FastAPI test app with the telemetry router."""
         from fastapi import FastAPI
+
         from trainer.research_lab.telemetry_server import make_telemetry_router
 
         test_app = FastAPI()
@@ -389,8 +422,11 @@ class TestApiIdempotency:
 
         client = TestClient(self._make_app(warehouse))
         payload = {
-            "model_version": MV, "symbol": SYM, "timestamp": NOW,
-            "direction": "LONG", "confidence": 0.87,
+            "model_version": MV,
+            "symbol": SYM,
+            "timestamp": NOW,
+            "direction": "LONG",
+            "confidence": 0.87,
             "event_id": "dec-idempotency-test-001",
         }
         r1 = client.post("/telemetry/decisions", json=payload)
@@ -409,9 +445,16 @@ class TestApiIdempotency:
 
         client = TestClient(self._make_app(warehouse))
         payload = {
-            "model_version": MV, "symbol": SYM, "timestamp": NOW,
-            "direction": "LONG", "entry_price": 1950.0, "exit_price": 1965.0,
-            "size": 0.1, "pnl": 150.0, "pnl_pct": 0.77, "hold_duration_s": 3600.0,
+            "model_version": MV,
+            "symbol": SYM,
+            "timestamp": NOW,
+            "direction": "LONG",
+            "entry_price": 1950.0,
+            "exit_price": 1965.0,
+            "size": 0.1,
+            "pnl": 150.0,
+            "pnl_pct": 0.77,
+            "hold_duration_s": 3600.0,
             "event_id": "trd-idempotency-test-001",
         }
         client.post("/telemetry/trades", json=payload)
@@ -427,26 +470,53 @@ class TestApiIdempotency:
         base = {"model_version": MV, "symbol": SYM, "timestamp": NOW}
 
         endpoints_payloads = [
-            ("/telemetry/decisions",
-             {**base, "direction": "LONG", "confidence": 0.8, "event_id": "eid-dec"}),
-            ("/telemetry/trades",
-             {**base, "direction": "LONG", "entry_price": 1.0, "exit_price": 1.1,
-              "size": 1.0, "pnl": 10.0, "pnl_pct": 1.0, "hold_duration_s": 60.0,
-              "event_id": "eid-trd"}),
-            ("/telemetry/positions",
-             {**base, "action": "OPEN", "size": 0.1, "price": 1950.0, "event_id": "eid-pos"}),
-            ("/telemetry/failures",
-             {**base, "failure_type": "TIMEOUT", "event_id": "eid-fail"}),
-            ("/telemetry/reasoning",
-             {**base, "decision_id": "did-1", "event_id": "eid-rsn"}),
-            ("/telemetry/execution",
-             {**base, "order_type": "MARKET", "requested_price": 1950.0,
-              "executed_price": 1950.5, "size": 0.1, "event_id": "eid-exec"}),
-            ("/telemetry/counterfactuals",
-             {**base, "trade_id": "tid-1", "what_if_description": "test",
-              "actual_pnl": 10.0, "counterfactual_pnl": 20.0, "event_id": "eid-cf"}),
-            ("/telemetry/lifecycle",
-             {**base, "kind": "SESSION_STARTED", "event_id": "eid-lce"}),
+            (
+                "/telemetry/decisions",
+                {**base, "direction": "LONG", "confidence": 0.8, "event_id": "eid-dec"},
+            ),
+            (
+                "/telemetry/trades",
+                {
+                    **base,
+                    "direction": "LONG",
+                    "entry_price": 1.0,
+                    "exit_price": 1.1,
+                    "size": 1.0,
+                    "pnl": 10.0,
+                    "pnl_pct": 1.0,
+                    "hold_duration_s": 60.0,
+                    "event_id": "eid-trd",
+                },
+            ),
+            (
+                "/telemetry/positions",
+                {**base, "action": "OPEN", "size": 0.1, "price": 1950.0, "event_id": "eid-pos"},
+            ),
+            ("/telemetry/failures", {**base, "failure_type": "TIMEOUT", "event_id": "eid-fail"}),
+            ("/telemetry/reasoning", {**base, "decision_id": "did-1", "event_id": "eid-rsn"}),
+            (
+                "/telemetry/execution",
+                {
+                    **base,
+                    "order_type": "MARKET",
+                    "requested_price": 1950.0,
+                    "executed_price": 1950.5,
+                    "size": 0.1,
+                    "event_id": "eid-exec",
+                },
+            ),
+            (
+                "/telemetry/counterfactuals",
+                {
+                    **base,
+                    "trade_id": "tid-1",
+                    "what_if_description": "test",
+                    "actual_pnl": 10.0,
+                    "counterfactual_pnl": 20.0,
+                    "event_id": "eid-cf",
+                },
+            ),
+            ("/telemetry/lifecycle", {**base, "kind": "SESSION_STARTED", "event_id": "eid-lce"}),
         ]
         for endpoint, payload in endpoints_payloads:
             resp = client.post(endpoint, json=payload)
@@ -461,9 +531,10 @@ class TestAuthEnforcement:
 
     def _make_authenticated_app(self, warehouse: TelemetryWarehouse):
         """Build an app that enforces a real bearer token."""
-        import os
+
         from fastapi import FastAPI, HTTPException, Security
         from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
         from trainer.research_lab.telemetry_server import make_telemetry_router
 
         test_app = FastAPI()
@@ -488,8 +559,13 @@ class TestAuthEnforcement:
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post(
             "/telemetry/decisions",
-            json={"model_version": MV, "symbol": SYM, "timestamp": NOW,
-                  "direction": "LONG", "confidence": 0.8},
+            json={
+                "model_version": MV,
+                "symbol": SYM,
+                "timestamp": NOW,
+                "direction": "LONG",
+                "confidence": 0.8,
+            },
         )
         assert resp.status_code == 403
 
@@ -500,8 +576,13 @@ class TestAuthEnforcement:
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post(
             "/telemetry/decisions",
-            json={"model_version": MV, "symbol": SYM, "timestamp": NOW,
-                  "direction": "LONG", "confidence": 0.8},
+            json={
+                "model_version": MV,
+                "symbol": SYM,
+                "timestamp": NOW,
+                "direction": "LONG",
+                "confidence": 0.8,
+            },
             headers={"Authorization": "Bearer wrong-token"},
         )
         assert resp.status_code == 403
@@ -513,8 +594,13 @@ class TestAuthEnforcement:
         client = TestClient(app)
         resp = client.post(
             "/telemetry/decisions",
-            json={"model_version": MV, "symbol": SYM, "timestamp": NOW,
-                  "direction": "LONG", "confidence": 0.8},
+            json={
+                "model_version": MV,
+                "symbol": SYM,
+                "timestamp": NOW,
+                "direction": "LONG",
+                "confidence": 0.8,
+            },
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200
@@ -527,9 +613,7 @@ class TestAuthEnforcement:
         resp = client.get("/telemetry/status")
         assert resp.status_code == 403
 
-    def test_all_post_endpoints_blocked_without_auth(
-        self, warehouse: TelemetryWarehouse
-    ) -> None:
+    def test_all_post_endpoints_blocked_without_auth(self, warehouse: TelemetryWarehouse) -> None:
         """Verify every POST endpoint is auth-gated, not just decisions."""
         from starlette.testclient import TestClient
 
@@ -537,39 +621,84 @@ class TestAuthEnforcement:
         client = TestClient(app, raise_server_exceptions=False)
 
         endpoints_payloads = [
-            ("/telemetry/decisions",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "direction": "LONG", "confidence": 0.8}),
-            ("/telemetry/trades",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "direction": "LONG", "entry_price": 1.0, "exit_price": 1.1,
-              "size": 1.0, "pnl": 10.0, "pnl_pct": 1.0, "hold_duration_s": 60.0}),
-            ("/telemetry/positions",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "action": "OPEN", "size": 0.1, "price": 1950.0}),
-            ("/telemetry/failures",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "failure_type": "TIMEOUT"}),
-            ("/telemetry/reasoning",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "decision_id": "did-1"}),
-            ("/telemetry/execution",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "order_type": "MARKET", "requested_price": 1950.0,
-              "executed_price": 1950.5, "size": 0.1}),
-            ("/telemetry/counterfactuals",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "trade_id": "tid-1", "what_if_description": "test",
-              "actual_pnl": 10.0, "counterfactual_pnl": 20.0}),
-            ("/telemetry/lifecycle",
-             {"model_version": MV, "symbol": SYM, "timestamp": NOW,
-              "kind": "SESSION_STARTED"}),
+            (
+                "/telemetry/decisions",
+                {
+                    "model_version": MV,
+                    "symbol": SYM,
+                    "timestamp": NOW,
+                    "direction": "LONG",
+                    "confidence": 0.8,
+                },
+            ),
+            (
+                "/telemetry/trades",
+                {
+                    "model_version": MV,
+                    "symbol": SYM,
+                    "timestamp": NOW,
+                    "direction": "LONG",
+                    "entry_price": 1.0,
+                    "exit_price": 1.1,
+                    "size": 1.0,
+                    "pnl": 10.0,
+                    "pnl_pct": 1.0,
+                    "hold_duration_s": 60.0,
+                },
+            ),
+            (
+                "/telemetry/positions",
+                {
+                    "model_version": MV,
+                    "symbol": SYM,
+                    "timestamp": NOW,
+                    "action": "OPEN",
+                    "size": 0.1,
+                    "price": 1950.0,
+                },
+            ),
+            (
+                "/telemetry/failures",
+                {"model_version": MV, "symbol": SYM, "timestamp": NOW, "failure_type": "TIMEOUT"},
+            ),
+            (
+                "/telemetry/reasoning",
+                {"model_version": MV, "symbol": SYM, "timestamp": NOW, "decision_id": "did-1"},
+            ),
+            (
+                "/telemetry/execution",
+                {
+                    "model_version": MV,
+                    "symbol": SYM,
+                    "timestamp": NOW,
+                    "order_type": "MARKET",
+                    "requested_price": 1950.0,
+                    "executed_price": 1950.5,
+                    "size": 0.1,
+                },
+            ),
+            (
+                "/telemetry/counterfactuals",
+                {
+                    "model_version": MV,
+                    "symbol": SYM,
+                    "timestamp": NOW,
+                    "trade_id": "tid-1",
+                    "what_if_description": "test",
+                    "actual_pnl": 10.0,
+                    "counterfactual_pnl": 20.0,
+                },
+            ),
+            (
+                "/telemetry/lifecycle",
+                {"model_version": MV, "symbol": SYM, "timestamp": NOW, "kind": "SESSION_STARTED"},
+            ),
         ]
         for endpoint, payload in endpoints_payloads:
             resp = client.post(endpoint, json=payload)
-            assert resp.status_code == 403, (
-                f"{endpoint} should be 403 without auth, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 403
+            ), f"{endpoint} should be 403 without auth, got {resp.status_code}"
 
 
 # ── Pydantic request model validation ─────────────────────────────────────────
@@ -591,6 +720,7 @@ class TestRequestModels:
 
     def test_ingest_trade_request_requires_prices(self) -> None:
         from pydantic import ValidationError
+
         from trainer.research_lab.telemetry_server import IngestTradeRequest
 
         with pytest.raises(ValidationError):
@@ -617,11 +747,13 @@ class TestRequestModels:
         IngestFailureRequest(**base, failure_type="TIMEOUT")
         IngestReasoningRequest(**base, decision_id="did-1")
         IngestExecutionRequest(
-            **base, order_type="MARKET", requested_price=1950.0,
-            executed_price=1950.5, size=0.1
+            **base, order_type="MARKET", requested_price=1950.0, executed_price=1950.5, size=0.1
         )
         IngestCounterfactualRequest(
-            **base, trade_id="tid-1", what_if_description="test",
-            actual_pnl=10.0, counterfactual_pnl=20.0
+            **base,
+            trade_id="tid-1",
+            what_if_description="test",
+            actual_pnl=10.0,
+            counterfactual_pnl=20.0,
         )
         IngestLifecycleRequest(**base, kind="SESSION_STARTED")

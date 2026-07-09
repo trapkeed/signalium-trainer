@@ -81,7 +81,9 @@ class MarketDataRouter:
             if provider is not None:
                 resolved.append(provider)
             else:
-                logger.warning(f"MarketDataRouter: provider {name.value!r} not configured, skipping in priority list")
+                logger.warning(
+                    f"MarketDataRouter: provider {name.value!r} not configured, skipping in priority list"
+                )
         return resolved
 
     def _build_manager(self, names: list[ProviderName]) -> ProviderManager:
@@ -91,16 +93,22 @@ class MarketDataRouter:
         # reused independently of) the routing contexts here, so we always
         # feed the same ordered list into both of its slots and only ever
         # call with DataContext.LIVE.
-        return ProviderManager(live_priority=ordered, training_priority=ordered, **self._manager_kwargs)
+        return ProviderManager(
+            live_priority=ordered, training_priority=ordered, **self._manager_kwargs
+        )
 
-    def priority_for(self, mode: TradingMode | None = None, *, context: RoutingContext = "inference") -> list[str]:
+    def priority_for(
+        self, mode: TradingMode | None = None, *, context: RoutingContext = "inference"
+    ) -> list[str]:
         if context == "training":
             return [p.value for p in self._priority.training_providers]
         if mode is None:
             raise ValueError("mode is required for inference routing context")
         return [p.value for p in self._priority.for_mode(mode)]
 
-    def active_provider_name(self, mode: TradingMode | None = None, *, context: RoutingContext = "inference") -> str:
+    def active_provider_name(
+        self, mode: TradingMode | None = None, *, context: RoutingContext = "inference"
+    ) -> str:
         manager = self._manager_for(mode, context)
         return manager.active_provider(DataContext.LIVE).name()
 
@@ -137,7 +145,9 @@ class MarketDataRouter:
         highest-priority available provider for ``mode``/``context``."""
         if context == "training":
             canonical = symbol.upper()
-            if canonical not in self._normalizer._symbols:  # noqa: SLF001 — same-package internal use
+            if (
+                canonical not in self._normalizer._symbols
+            ):  # noqa: SLF001 — same-package internal use
                 raise SymbolNotCanonicalError(
                     f"Training data must use canonical symbols only; {symbol!r} is not canonical. "
                     f"Normalize explicitly via SymbolNormalizer before requesting training data."
@@ -157,9 +167,11 @@ class MarketDataRouter:
             "configured_providers": sorted(self._providers.keys()),
             "contexts": {
                 key: {
-                    "active_provider": manager.active_provider(DataContext.LIVE).name()
-                    if manager.health_snapshot(DataContext.LIVE)
-                    else None,
+                    "active_provider": (
+                        manager.active_provider(DataContext.LIVE).name()
+                        if manager.health_snapshot(DataContext.LIVE)
+                        else None
+                    ),
                     "health": manager.health_snapshot(DataContext.LIVE),
                     "recent_failovers": manager.recent_failovers(),
                 }

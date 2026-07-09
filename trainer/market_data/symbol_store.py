@@ -66,7 +66,12 @@ class StoredAlias:
     created_at: float
 
     def to_dict(self) -> dict[str, Any]:
-        return {"raw": self.raw, "canonical": self.canonical, "source": self.source, "created_at": self.created_at}
+        return {
+            "raw": self.raw,
+            "canonical": self.canonical,
+            "source": self.source,
+            "created_at": self.created_at,
+        }
 
 
 class SymbolStore:
@@ -78,7 +83,11 @@ class SymbolStore:
     """
 
     def __init__(self, db_path: str | None = None) -> None:
-        self._db_path = db_path if db_path is not None else os.environ.get("SYMBOL_STORE_DB_PATH", DEFAULT_DB_PATH)
+        self._db_path = (
+            db_path
+            if db_path is not None
+            else os.environ.get("SYMBOL_STORE_DB_PATH", DEFAULT_DB_PATH)
+        )
         if self._db_path != ":memory:":
             parent = os.path.dirname(self._db_path)
             if parent:
@@ -109,10 +118,13 @@ class SymbolStore:
     def list_aliases(self, canonical: str | None = None) -> list[StoredAlias]:
         if canonical is not None:
             rows = self._conn.execute(
-                "SELECT * FROM symbol_aliases WHERE canonical = ? ORDER BY raw", (canonical.upper(),)
+                "SELECT * FROM symbol_aliases WHERE canonical = ? ORDER BY raw",
+                (canonical.upper(),),
             ).fetchall()
         else:
-            rows = self._conn.execute("SELECT * FROM symbol_aliases ORDER BY canonical, raw").fetchall()
+            rows = self._conn.execute(
+                "SELECT * FROM symbol_aliases ORDER BY canonical, raw"
+            ).fetchall()
         return [StoredAlias(r["raw"], r["canonical"], r["source"], r["created_at"]) for r in rows]
 
     # ── Symbol enable/disable state ─────────────────────────────────────────
@@ -131,7 +143,14 @@ class SymbolStore:
 
     # ── Normalization event log ─────────────────────────────────────────────
 
-    def log_event(self, raw: str, canonical: str | None, matched_via: str, enabled: bool, broker: str | None = None) -> None:
+    def log_event(
+        self,
+        raw: str,
+        canonical: str | None,
+        matched_via: str,
+        enabled: bool,
+        broker: str | None = None,
+    ) -> None:
         try:
             self._conn.execute(
                 "INSERT INTO normalization_events (raw, canonical, matched_via, broker, enabled, at) "
@@ -140,9 +159,13 @@ class SymbolStore:
             )
             self._conn.commit()
         except Exception as exc:  # noqa: BLE001 — event logging must never break normalization
-            logger.warning(f"SymbolStore: failed to persist normalization event for {raw!r}: {exc!r}")
+            logger.warning(
+                f"SymbolStore: failed to persist normalization event for {raw!r}: {exc!r}"
+            )
 
-    def recent_events(self, limit: int = 200, unresolved_only: bool = False) -> list[dict[str, Any]]:
+    def recent_events(
+        self, limit: int = 200, unresolved_only: bool = False
+    ) -> list[dict[str, Any]]:
         query = "SELECT * FROM normalization_events"
         if unresolved_only:
             query += " WHERE canonical IS NULL"

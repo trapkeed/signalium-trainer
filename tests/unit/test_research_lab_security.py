@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -50,21 +49,47 @@ _WRONG_AUTH = {
 @pytest.fixture(scope="module")
 def client(tmp_path_factory: pytest.TempPathFactory):
     """Fresh TestClient with a known admin token and isolated DB."""
+    from trainer.research_lab.signing import ArtifactSigner
+
     tmp = tmp_path_factory.mktemp("rl_security")
     os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = _VALID_TOKEN
     os.environ["RESEARCH_LAB_ADMIN_ID"] = "security-test-admin"
     os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp / "security.db")
     os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
+    os.environ["ARTIFACT_STORE_ROOT"] = str(tmp / "artifact_store")
+    priv, pub = ArtifactSigner.generate_keypair()
+    os.environ["ARTIFACT_SIGNING_PRIVATE_KEY"] = priv
+    os.environ["ARTIFACT_SIGNING_PUBLIC_KEY"] = pub
 
     # Purge any cached server module so we get a fresh singleton
     for mod_name in list(sys.modules):
         if "research_lab_server" in mod_name:
             del sys.modules[mod_name]
 
-    import trainer.research_lab.research_lab_server as srv_mod
     from starlette.testclient import TestClient
 
+    import trainer.research_lab.research_lab_server as srv_mod
+
     return TestClient(srv_mod.app, raise_server_exceptions=False)
+
+
+def _register_signed_artifact(model_version: str) -> None:
+    """Export + register a signed artifact set for *model_version* against the
+    running server's ArtifactRegistry, so signature-gated promotion endpoints
+    have something valid to verify (see artifact-signing-promotion-gate)."""
+    import trainer.research_lab.research_lab_server as srv_mod
+    from trainer.exporters.pipeline import QDEExportPipeline
+
+    weights = srv_mod._artifact_registry.store.root.parent / f"src_{model_version}.pt"
+    weights.parent.mkdir(parents=True, exist_ok=True)
+    weights.write_bytes(f"fake-weights-{model_version}".encode())
+    pipeline = QDEExportPipeline(artifact_registry=srv_mod._artifact_registry)
+    pipeline.export_version(
+        model_version=model_version,
+        output_dir=srv_mod._artifact_registry.store.root,
+        weights_path=weights,
+        export_formats=(),
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -266,13 +291,18 @@ class TestAllEndpointCategoriesRequireAuth:
         _assert_auth_required(client, "get", "/approvals")
 
     def test_create_approval(self, client):
-        _assert_auth_required(client, "post", "/approvals", body={
-            "gate_type": "TRAINING_START",
-            "resource_id": "exp-sweep-001",
-            "resource_type": "experiment",
-            "requested_by": "admin",
-            "action_summary": "Security sweep test",
-        })
+        _assert_auth_required(
+            client,
+            "post",
+            "/approvals",
+            body={
+                "gate_type": "TRAINING_START",
+                "resource_id": "exp-sweep-001",
+                "resource_type": "experiment",
+                "requested_by": "admin",
+                "action_summary": "Security sweep test",
+            },
+        )
 
     # Pipeline
     def test_list_pipeline_jobs(self, client):
@@ -308,18 +338,28 @@ class TestAllEndpointCategoriesRequireAuth:
         _assert_auth_required(client, "get", "/deployment/history")
 
     def test_deployment_promote(self, client):
-        _assert_auth_required(client, "post", "/deployment/promote", body={
-            "model_version": "v-sweep-1.0",
-            "target_status": "SHADOW",
-            "requested_by": "admin",
-        })
+        _assert_auth_required(
+            client,
+            "post",
+            "/deployment/promote",
+            body={
+                "model_version": "v-sweep-1.0",
+                "target_status": "SHADOW",
+                "requested_by": "admin",
+            },
+        )
 
     def test_deployment_rollback(self, client):
-        _assert_auth_required(client, "post", "/deployment/rollback", body={
-            "model_version": "latest_retired",
-            "reason": "security sweep test",
-            "requested_by": "admin",
-        })
+        _assert_auth_required(
+            client,
+            "post",
+            "/deployment/rollback",
+            body={
+                "model_version": "latest_retired",
+                "reason": "security sweep test",
+                "requested_by": "admin",
+            },
+        )
 
     # Retraining recommendations
     def test_list_recommendations(self, client):
@@ -339,13 +379,17 @@ class TestAdminIdentityInAuditRecords:
     def test_approval_approve_records_authenticated_admin(self, client):
         """Approving a request must return authenticated_as matching RESEARCH_LAB_ADMIN_ID."""
         # Create an approval request first
-        create_resp = client.post("/approvals", headers=_AUTH, json={
-            "gate_type": "TRAINING_START",
-            "resource_id": "exp-identity-001",
-            "resource_type": "experiment",
-            "requested_by": "system",
-            "action_summary": "Identity capture test",
-        })
+        create_resp = client.post(
+            "/approvals",
+            headers=_AUTH,
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "exp-identity-001",
+                "resource_type": "experiment",
+                "requested_by": "system",
+                "action_summary": "Identity capture test",
+            },
+        )
         assert create_resp.status_code == 200
         req_id = create_resp.json()["approval_request"]["request_id"]
 
@@ -365,13 +409,17 @@ class TestAdminIdentityInAuditRecords:
 
     def test_approval_reject_records_authenticated_admin(self, client):
         """Rejecting a request must return authenticated_as matching RESEARCH_LAB_ADMIN_ID."""
-        create_resp = client.post("/approvals", headers=_AUTH, json={
-            "gate_type": "DEPLOYMENT",
-            "resource_id": "exp-identity-reject-001",
-            "resource_type": "experiment",
-            "requested_by": "system",
-            "action_summary": "Reject identity test",
-        })
+        create_resp = client.post(
+            "/approvals",
+            headers=_AUTH,
+            json={
+                "gate_type": "DEPLOYMENT",
+                "resource_id": "exp-identity-reject-001",
+                "resource_type": "experiment",
+                "requested_by": "system",
+                "action_summary": "Reject identity test",
+            },
+        )
         assert create_resp.status_code == 200
         req_id = create_resp.json()["approval_request"]["request_id"]
 
@@ -387,19 +435,28 @@ class TestAdminIdentityInAuditRecords:
 
     def test_deployment_activate_records_authenticated_admin(self, client):
         """Deployment activation must return authenticated_as."""
+        _register_signed_artifact("v-identity-1.0")
         # Create a promotion request
-        promo = client.post("/deployment/promote", headers=_AUTH, json={
-            "model_version": "v-identity-1.0",
-            "target_status": "SHADOW",
-            "requested_by": "system",
-        })
+        promo = client.post(
+            "/deployment/promote",
+            headers=_AUTH,
+            json={
+                "model_version": "v-identity-1.0",
+                "target_status": "SHADOW",
+                "requested_by": "system",
+            },
+        )
         assert promo.status_code == 200
         req_id = promo.json()["promotion_request"]["approval_request"]["request_id"]
 
-        activate = client.post("/deployment/activate", headers=_AUTH, json={
-            "request_id": req_id,
-            "approved_by": "",   # intentionally empty — should fall back to auth identity
-        })
+        activate = client.post(
+            "/deployment/activate",
+            headers=_AUTH,
+            json={
+                "request_id": req_id,
+                "approved_by": "",  # intentionally empty — should fall back to auth identity
+            },
+        )
         assert activate.status_code == 200
         body = activate.json()
         assert body["success"] is True
@@ -409,13 +466,17 @@ class TestAdminIdentityInAuditRecords:
 
     def test_body_approved_by_overrides_when_provided(self, client):
         """When approved_by is explicitly provided in the body, it is used as-is."""
-        create_resp = client.post("/approvals", headers=_AUTH, json={
-            "gate_type": "PROMOTION",
-            "resource_id": "exp-override-001",
-            "resource_type": "experiment",
-            "requested_by": "system",
-            "action_summary": "Override test",
-        })
+        create_resp = client.post(
+            "/approvals",
+            headers=_AUTH,
+            json={
+                "gate_type": "PROMOTION",
+                "resource_id": "exp-override-001",
+                "resource_type": "experiment",
+                "requested_by": "system",
+                "action_summary": "Override test",
+            },
+        )
         assert create_resp.status_code == 200
         req_id = create_resp.json()["approval_request"]["request_id"]
 
@@ -458,22 +519,24 @@ class TestTelemetryRouterAuth:
     def test_all_ingestion_endpoints_require_auth(self, client):
         """Every telemetry POST endpoint must reject missing or invalid tokens."""
         body = {
-            "events": [{
-                "event_id": "evt-sec-001",
-                "model_version": "v1.0",
-                "symbol": "AAPL",
-                "timestamp": 1700000000.0,
-            }]
+            "events": [
+                {
+                    "event_id": "evt-sec-001",
+                    "model_version": "v1.0",
+                    "symbol": "AAPL",
+                    "timestamp": 1700000000.0,
+                }
+            ]
         }
         for endpoint in self.TELEMETRY_POST_ENDPOINTS:
             resp_missing = client.post(endpoint, json=body)
-            assert resp_missing.status_code == 401, (
-                f"{endpoint}: expected 401 for missing auth, got {resp_missing.status_code}"
-            )
+            assert (
+                resp_missing.status_code == 401
+            ), f"{endpoint}: expected 401 for missing auth, got {resp_missing.status_code}"
             resp_wrong = client.post(endpoint, headers=_WRONG_AUTH, json=body)
-            assert resp_wrong.status_code == 403, (
-                f"{endpoint}: expected 403 for wrong token, got {resp_wrong.status_code}"
-            )
+            assert (
+                resp_wrong.status_code == 403
+            ), f"{endpoint}: expected 403 for wrong token, got {resp_wrong.status_code}"
 
 
 # ── App-level router dependency (belt-and-suspenders) ─────────────────────────
@@ -498,9 +561,9 @@ class TestAppLevelRouterDependency:
         ]
         for ep in endpoints:
             resp = client.get(ep)
-            assert resp.status_code == 401, (
-                f"Expected 401 for {ep} with no auth, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 401
+            ), f"Expected 401 for {ep} with no auth, got {resp.status_code}"
 
     def test_router_level_dep_blocks_wrong_token(self, client):
         """Wrong token returns 403 across all endpoint categories."""
@@ -512,6 +575,6 @@ class TestAppLevelRouterDependency:
         ]
         for ep in endpoints:
             resp = client.get(ep, headers=_WRONG_AUTH)
-            assert resp.status_code == 403, (
-                f"Expected 403 for {ep} with wrong auth, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 403
+            ), f"Expected 403 for {ep} with wrong auth, got {resp.status_code}"

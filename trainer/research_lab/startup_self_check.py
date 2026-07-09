@@ -86,11 +86,16 @@ class StartupSelfCheck:
             return StartupCheckResult("model_health", True, "not configured — skipped")
         score = self._health_scorer.get_latest()
         if score is None:
-            return StartupCheckResult("model_health", True, "no composite health score recorded yet")
+            return StartupCheckResult(
+                "model_health", True, "no composite health score recorded yet"
+            )
         composite = score.get("composite", 100.0)
         passed = composite >= self._health_threshold
         return StartupCheckResult(
-            "model_health", passed, f"composite={composite} threshold={self._health_threshold}", score
+            "model_health",
+            passed,
+            f"composite={composite} threshold={self._health_threshold}",
+            score,
         )
 
     def _check_operational_safety(self) -> StartupCheckResult:
@@ -99,7 +104,10 @@ class StartupSelfCheck:
         state = self._operational_safety.get_state()
         blocking = state.get("emergency_disabled") or state.get("inference_killed")
         return StartupCheckResult(
-            "operational_safety", not blocking, "safety switches clear" if not blocking else "blocking switch engaged", state
+            "operational_safety",
+            not blocking,
+            "safety switches clear" if not blocking else "blocking switch engaged",
+            state,
         )
 
     def run(self) -> StartupSelfCheckReport:
@@ -109,9 +117,13 @@ class StartupSelfCheck:
             self._check_operational_safety(),
         ]
         ok_to_serve = all(c.passed for c in checks)
-        report = StartupSelfCheckReport(generated_at=time.time(), checks=checks, ok_to_serve=ok_to_serve)
+        report = StartupSelfCheckReport(
+            generated_at=time.time(), checks=checks, ok_to_serve=ok_to_serve
+        )
         logger.info(
-            "StartupSelfCheck: " + ("OK_TO_SERVE" if ok_to_serve else "BLOCKED") +
-            " " + ", ".join(f"{c.name}={'PASS' if c.passed else 'FAIL'}" for c in checks)
+            "StartupSelfCheck: "
+            + ("OK_TO_SERVE" if ok_to_serve else "BLOCKED")
+            + " "
+            + ", ".join(f"{c.name}={'PASS' if c.passed else 'FAIL'}" for c in checks)
         )
         return report

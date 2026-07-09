@@ -18,7 +18,9 @@ console = Console()
 @app.callback(invoke_without_command=True)
 def export(
     checkpoint: Path = typer.Argument(..., help="Path to the .pt checkpoint file."),
-    model_version: str = typer.Option(..., "--model-version", "-v", help="Version tag, e.g. 'v3.1'."),
+    model_version: str = typer.Option(
+        ..., "--model-version", "-v", help="Version tag, e.g. 'v3.1'."
+    ),
     output_dir: Path = typer.Option(
         Path("exports"), "--output-dir", "-o", help="Export output directory."
     ),
@@ -111,6 +113,10 @@ def export(
         promotion_status=promotion_status,
     )
 
-    console.print(f"[bold green]Exported[/bold green] {len(result['files'])} artifact(s) to {result['output_dir']}")
-    console.print(f"Manifest: {result['manifest_path']} (sha256={result['manifest_sha256'][:12]}...)")
+    console.print(
+        f"[bold green]Exported[/bold green] {len(result['files'])} artifact(s) to {result['output_dir']}"
+    )
+    console.print(
+        f"Manifest: {result['manifest_path']} (sha256={result['manifest_sha256'][:12]}...)"
+    )
     console.print(f"Registered artifacts: {result['artifacts']}")

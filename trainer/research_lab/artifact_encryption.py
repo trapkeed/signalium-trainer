@@ -54,11 +54,10 @@ except ImportError:  # pragma: no cover
 
 from trainer.research_lab.artifact_models import ArtifactRecord
 from trainer.research_lab.artifact_registry import (
-    ArtifactHashMismatchError,
     ArtifactRegistry,
 )
 from trainer.research_lab.artifact_store import ArtifactKind
-from trainer.research_lab.signing import ArtifactSigner, SigningKeyError
+from trainer.research_lab.signing import ArtifactSigner
 
 #: Env var holding the base64-encoded 32-byte Fernet key used to encrypt
 #: model artifacts at rest. Managed as a secret; never hardcoded/committed.
@@ -236,7 +235,9 @@ def load_artifact_securely(
     try:
         raw = raw_path.read_bytes()
     except OSError as exc:
-        raise ArtifactCorruptionError(f"Failed to read artifact bytes at {record.path!r}: {exc}") from exc
+        raise ArtifactCorruptionError(
+            f"Failed to read artifact bytes at {record.path!r}: {exc}"
+        ) from exc
 
     is_encrypted = bool((record.extra or {}).get(ENCRYPTED_METADATA_FLAG))
     if is_encrypted:
@@ -262,8 +263,8 @@ def load_artifact_securely(
         )
 
     signature_verified = False
-    effective_signature = signature_hex if signature_hex is not None else (
-        (record.extra or {}).get("signature", "")
+    effective_signature = (
+        signature_hex if signature_hex is not None else ((record.extra or {}).get("signature", ""))
     )
     if effective_signature or require_signature:
         signer = signer or ArtifactSigner()

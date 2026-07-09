@@ -33,7 +33,6 @@ from trainer.research_lab.investigation_models import (
 from trainer.research_lab.telemetry_models import TelemetryQuery
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
-
 # ── Base ──────────────────────────────────────────────────────────────────────
 
 
@@ -114,9 +113,7 @@ class HighConfidenceLossDetector(BaseDetector):
                 continue
 
             total_loss = sum(t.get("pnl", 0.0) or 0.0 for t in bad_trades)
-            avg_conf = statistics.mean(
-                t.get("confidence_at_entry", 0.0) or 0.0 for t in bad_trades
-            )
+            avg_conf = statistics.mean(t.get("confidence_at_entry", 0.0) or 0.0 for t in bad_trades)
             # severity: blend of loss magnitude (capped at 10% account loss proxy)
             # and count relative to min threshold
             count_factor = min(1.0, len(bad_trades) / (self._cfg.min_high_confidence_losses * 5))
@@ -195,7 +192,9 @@ class UnexpectedReversalDetector(BaseDetector):
             total_loss = sum(t.get("pnl", 0.0) or 0.0 for t in rev_trades)
             avg_hold = statistics.mean(t.get("hold_duration_s", 0.0) or 0.0 for t in rev_trades)
             count_factor = min(1.0, len(rev_trades) / (self._cfg.min_reversals * 5))
-            severity = self._clamp_severity(0.6 * count_factor + 0.4 * min(1.0, abs(total_loss) / 500.0))
+            severity = self._clamp_severity(
+                0.6 * count_factor + 0.4 * min(1.0, abs(total_loss) / 500.0)
+            )
 
             evidence = [
                 EvidenceItem(
@@ -270,11 +269,16 @@ class LateExitDetector(BaseDetector):
                 continue
 
             total_missed = sum(
-                (e.get("pnl_delta") or (e.get("counterfactual_pnl", 0.0) - e.get("actual_pnl", 0.0)))
+                (
+                    e.get("pnl_delta")
+                    or (e.get("counterfactual_pnl", 0.0) - e.get("actual_pnl", 0.0))
+                )
                 for e in events
             )
             count_factor = min(1.0, len(events) / (self._cfg.min_counterfactual_events * 5))
-            severity = self._clamp_severity(0.5 * count_factor + 0.5 * min(1.0, total_missed / 500.0))
+            severity = self._clamp_severity(
+                0.5 * count_factor + 0.5 * min(1.0, total_missed / 500.0)
+            )
 
             evidence = [
                 EvidenceItem(
@@ -363,17 +367,15 @@ class PrematureExitDetector(BaseDetector):
                     event_id=e.get("event_id", ""),
                     symbol=sym,
                     timestamp=e.get("timestamp", 0.0),
-                    metric_value=(e.get("counterfactual_pnl", 0.0) or 0.0) / max(
-                        0.01, e.get("actual_pnl", 0.01) or 0.01
-                    ),
+                    metric_value=(e.get("counterfactual_pnl", 0.0) or 0.0)
+                    / max(0.01, e.get("actual_pnl", 0.01) or 0.01),
                     metric_label="counterfactual/actual ratio",
                     raw=e,
                 )
                 for e in sorted(
                     events,
-                    key=lambda x: (x.get("counterfactual_pnl", 0.0) or 0.0) / max(
-                        0.01, x.get("actual_pnl", 0.01) or 0.01
-                    ),
+                    key=lambda x: (x.get("counterfactual_pnl", 0.0) or 0.0)
+                    / max(0.01, x.get("actual_pnl", 0.01) or 0.01),
                     reverse=True,
                 )[:20]
             ]

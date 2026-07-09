@@ -14,11 +14,10 @@ Label types produced:
 
 from __future__ import annotations
 
-import math
 import statistics
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 try:
@@ -38,7 +37,6 @@ from trainer.training_signals.outcome_path import TradeOutcomePath
 from trainer.training_signals.position_size_labels import HindsightPositionSizeLabeler
 from trainer.training_signals.stop_loss_labels import HindsightStopLossLabeler
 from trainer.training_signals.take_profit_labels import HindsightTakeProfitLabeler
-
 
 # ── Synthetic path construction ────────────────────────────────────────────────
 
@@ -141,11 +139,13 @@ class LabelDataset:
     """Persisted output of one labeler run over a batch of trades."""
 
     dataset_id: str
-    label_type: str          # "stop_loss" | "take_profit" | "position_size" | "lifecycle" | "portfolio_size"
+    label_type: (
+        str  # "stop_loss" | "take_profit" | "position_size" | "lifecycle" | "portfolio_size"
+    )
     model_version: str
     created_at: float
     sample_count: int
-    label_statistics: dict[str, float]    # mean, std, min, max per key field
+    label_statistics: dict[str, float]  # mean, std, min, max per key field
     notes: str = ""
 
     @classmethod
@@ -221,7 +221,9 @@ class LabelDiscoveryEngine:
             logger.debug("LabelDiscoveryEngine.discover: no trade telemetry — skipping")
             return
 
-        mv = query.model_version or (trades[0].get("model_version", "unknown") if trades else "unknown")
+        mv = query.model_version or (
+            trades[0].get("model_version", "unknown") if trades else "unknown"
+        )
         paths = [p for t in trades if (p := _trade_to_outcome_path(t)) is not None]
 
         if len(paths) < query.min_label_samples:
@@ -331,11 +333,7 @@ class LabelDiscoveryEngine:
         # where each transition has `bar_index` and `state`.
         # Summarise by counting transitions per label and recording mean bar indices.
         transition_counts = [float(len(lb.transitions)) for lb in labels]
-        first_bar_idxs = [
-            float(lb.transitions[0].bar_index)
-            for lb in labels
-            if lb.transitions
-        ]
+        first_bar_idxs = [float(lb.transitions[0].bar_index) for lb in labels if lb.transitions]
         return_pcts = [lb.realized_return_pct for lb in labels]
         if not transition_counts:
             return None

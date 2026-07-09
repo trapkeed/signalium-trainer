@@ -97,14 +97,22 @@ class ProductionVerificationRunner:
             checksum = self._integrity.verify_artifact_checksum(active.version_id)
             evidence["checksum"] = checksum
             if checksum.get("status") == "CORRUPTED":
-                return DimensionResult("active_model", "FAIL", "active model artifact checksum mismatch", evidence)
+                return DimensionResult(
+                    "active_model", "FAIL", "active model artifact checksum mismatch", evidence
+                )
             if checksum.get("status") == "UNVERIFIABLE":
-                return DimensionResult("active_model", "WARN", "active model artifact unverifiable", evidence)
-        return DimensionResult("active_model", "PASS", "active model registered and verified", evidence)
+                return DimensionResult(
+                    "active_model", "WARN", "active model artifact unverifiable", evidence
+                )
+        return DimensionResult(
+            "active_model", "PASS", "active model registered and verified", evidence
+        )
 
     def check_artifacts(self, artifact_ids: list[str] | None = None) -> DimensionResult:
         if self._integrity is None:
-            return DimensionResult("artifacts", "SKIPPED", "no ArtifactIntegrityVerifier configured")
+            return DimensionResult(
+                "artifacts", "SKIPPED", "no ArtifactIntegrityVerifier configured"
+            )
         if not artifact_ids:
             return DimensionResult("artifacts", "SKIPPED", "no artifact_ids provided to verify")
         results = [self._integrity.verify_artifact_checksum(aid) for aid in artifact_ids]
@@ -112,14 +120,20 @@ class ProductionVerificationRunner:
         unverifiable = [r for r in results if r.get("status") == "UNVERIFIABLE"]
         evidence = {"n_checked": len(results), "corrupted": corrupted, "unverifiable": unverifiable}
         if corrupted:
-            return DimensionResult("artifacts", "FAIL", f"{len(corrupted)} corrupted artifact(s)", evidence)
+            return DimensionResult(
+                "artifacts", "FAIL", f"{len(corrupted)} corrupted artifact(s)", evidence
+            )
         if unverifiable:
-            return DimensionResult("artifacts", "WARN", f"{len(unverifiable)} unverifiable artifact(s)", evidence)
+            return DimensionResult(
+                "artifacts", "WARN", f"{len(unverifiable)} unverifiable artifact(s)", evidence
+            )
         return DimensionResult("artifacts", "PASS", "all checked artifacts verified", evidence)
 
     def check_feature_store(self) -> DimensionResult:
         if self._feature_events_provider is None or self._feature_health_config is None:
-            return DimensionResult("feature_store", "SKIPPED", "no feature health provider configured")
+            return DimensionResult(
+                "feature_store", "SKIPPED", "no feature health provider configured"
+            )
         try:
             from trainer.research_lab.feature_health import check_feature_health
         except ImportError as exc:
@@ -127,9 +141,13 @@ class ProductionVerificationRunner:
         events = self._feature_events_provider()
         evidence_report = check_feature_health(events, self._feature_health_config)
         if evidence_report is None:
-            return DimensionResult("feature_store", "PASS", "no threshold breaches detected", {"n_events": len(events)})
+            return DimensionResult(
+                "feature_store", "PASS", "no threshold breaches detected", {"n_events": len(events)}
+            )
         status = "FAIL" if evidence_report.get("is_critical") else "WARN"
-        return DimensionResult("feature_store", status, "feature health threshold breach", evidence_report)
+        return DimensionResult(
+            "feature_store", status, "feature health threshold breach", evidence_report
+        )
 
     def check_dataset(self) -> DimensionResult:
         if self._dataset_dir is None:
@@ -158,7 +176,9 @@ class ProductionVerificationRunner:
         ]
         evidence = {"n_nodes": len(nodes), "orphans": orphans}
         if orphans:
-            return DimensionResult("lineage", "FAIL", f"{len(orphans)} node(s) reference a missing parent", evidence)
+            return DimensionResult(
+                "lineage", "FAIL", f"{len(orphans)} node(s) reference a missing parent", evidence
+            )
         return DimensionResult("lineage", "PASS", "lineage graph internally consistent", evidence)
 
     # ── Aggregation ──────────────────────────────────────────────────────────
@@ -181,5 +201,8 @@ class ProductionVerificationRunner:
         report = ProductionVerificationReport(
             generated_at=time.time(), dimensions=dimensions, overall_status=overall
         )
-        logger.info(f"ProductionVerification: overall={overall} " + ", ".join(f"{d.dimension}={d.status}" for d in dimensions))
+        logger.info(
+            f"ProductionVerification: overall={overall} "
+            + ", ".join(f"{d.dimension}={d.status}" for d in dimensions)
+        )
         return report

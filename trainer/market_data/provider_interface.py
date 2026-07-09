@@ -53,8 +53,11 @@ class HealthStatus:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "provider": self.provider, "healthy": self.healthy, "latency_ms": self.latency_ms,
-            "detail": self.detail, "checked_at": self.checked_at,
+            "provider": self.provider,
+            "healthy": self.healthy,
+            "latency_ms": self.latency_ms,
+            "detail": self.detail,
+            "checked_at": self.checked_at,
         }
 
 
@@ -77,7 +80,9 @@ class MarketDataProvider(Protocol):
 
     def get_price(self, symbol: str) -> dict[str, Any]: ...
 
-    def get_candles(self, symbol: str, timeframe: str, count: int = 100) -> list[dict[str, Any]]: ...
+    def get_candles(
+        self, symbol: str, timeframe: str, count: int = 100
+    ) -> list[dict[str, Any]]: ...
 
     def get_ticks(self, symbol: str, count: int = 100) -> list[dict[str, Any]]: ...
 

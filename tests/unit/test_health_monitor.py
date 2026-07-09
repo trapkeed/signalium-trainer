@@ -11,15 +11,13 @@ Covers:
 
 from __future__ import annotations
 
-import hashlib
 import sys
 import time
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.health_monitor import (
     AlertSeverity,
     DriftAlert,
@@ -34,9 +32,7 @@ from trainer.research_lab.health_monitor import (
     _tv_distance,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.research_lab.telemetry_warehouse import TelemetryQuery, TelemetryWarehouse
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
-
+from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -214,24 +210,23 @@ class TestHelpers:
 class TestConfidenceDrift:
     def _cfg(self, warning=0.06, critical=0.12) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            confidence_warning=warning, confidence_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            confidence_warning=warning,
+            confidence_critical=critical,
         )
 
     def test_no_alert_below_threshold(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            _decisions(20, confidence=0.72) + _decisions(10, confidence=0.73, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.72) + _decisions(10, confidence=0.73, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v1.0")
         assert alert is None
 
     def test_warning_above_threshold(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
         # baseline=0.72, recent=0.65 → drift=0.07 > 0.06
-        decisions = (
-            _decisions(20, confidence=0.72) + _decisions(10, confidence=0.65, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.72) + _decisions(10, confidence=0.65, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v1.0")
         assert alert is not None
         assert alert.severity == AlertSeverity.WARNING.value
@@ -240,9 +235,7 @@ class TestConfidenceDrift:
     def test_critical_above_threshold(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
         # drift = 0.72 - 0.55 = 0.17 > 0.12 → CRITICAL
-        decisions = (
-            _decisions(20, confidence=0.72) + _decisions(10, confidence=0.55, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.72) + _decisions(10, confidence=0.55, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v1.0")
         assert alert is not None
         assert alert.severity == AlertSeverity.CRITICAL.value
@@ -255,9 +248,7 @@ class TestConfidenceDrift:
 
     def test_evidence_fields(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            _decisions(20, confidence=0.72) + _decisions(10, confidence=0.58, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.72) + _decisions(10, confidence=0.58, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v1.0")
         assert alert is not None
         assert "baseline_mean_confidence" in alert.evidence
@@ -271,16 +262,18 @@ class TestConfidenceDrift:
 class TestFeatureDrift:
     def _cfg(self, warning=0.08, critical=0.16) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            feature_warning=warning, feature_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            feature_warning=warning,
+            feature_critical=critical,
         )
 
     def test_no_alert_stable_distribution(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
         # Identical distribution across windows
-        decisions = (
-            _decisions(20, buy_prob=0.5, sell_prob=0.3, no_trade_prob=0.2)
-            + _decisions(10, buy_prob=0.51, sell_prob=0.29, no_trade_prob=0.20, ts_start=_NOW)
+        decisions = _decisions(20, buy_prob=0.5, sell_prob=0.3, no_trade_prob=0.2) + _decisions(
+            10, buy_prob=0.51, sell_prob=0.29, no_trade_prob=0.20, ts_start=_NOW
         )
         alert = monitor._check_feature(decisions, "v1.0")
         assert alert is None
@@ -319,15 +312,17 @@ class TestFeatureDrift:
 class TestMarketDrift:
     def _cfg(self, warning=0.12, critical=0.25) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            market_warning=warning, market_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            market_warning=warning,
+            market_critical=critical,
         )
 
     def test_no_alert_stable_regimes(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            _decisions(20, regime="RANGING")
-            + _decisions(10, regime="RANGING", ts_start=_NOW)
+        decisions = _decisions(20, regime="RANGING") + _decisions(
+            10, regime="RANGING", ts_start=_NOW
         )
         alert = monitor._check_market(decisions, "v1.0")
         assert alert is None
@@ -356,9 +351,7 @@ class TestMarketDrift:
 
     def test_no_alert_no_regime_labels(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            [{"confidence": 0.7, "timestamp": _NOW + i} for i in range(30)]
-        )
+        decisions = [{"confidence": 0.7, "timestamp": _NOW + i} for i in range(30)]
         alert = monitor._check_market(decisions, "v1.0")
         assert alert is None
 
@@ -380,9 +373,13 @@ class TestDataQualityDrift:
         self, warn_s=3600.0, crit_s=7200.0, drop_warn=0.5, drop_crit=0.8
     ) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            staleness_warning_s=warn_s, staleness_critical_s=crit_s,
-            event_rate_drop_warning=drop_warn, event_rate_drop_critical=drop_crit,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            staleness_warning_s=warn_s,
+            staleness_critical_s=crit_s,
+            event_rate_drop_warning=drop_warn,
+            event_rate_drop_critical=drop_crit,
         )
 
     def test_no_alert_fresh_data(self, db, warehouse) -> None:
@@ -426,8 +423,11 @@ class TestDataQualityDrift:
 class TestRegimeDrift:
     def _cfg(self, warning=0.08, critical=0.15) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            regime_win_rate_warning=warning, regime_win_rate_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            regime_win_rate_warning=warning,
+            regime_win_rate_critical=critical,
         )
 
     def test_no_alert_stable_win_rate(self, db, warehouse) -> None:
@@ -484,15 +484,17 @@ class TestRegimeDrift:
 class TestEntropyDrift:
     def _cfg(self, warning=0.15, critical=0.30) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            entropy_warning=warning, entropy_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            entropy_warning=warning,
+            entropy_critical=critical,
         )
 
     def test_no_alert_stable_entropy(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            _decisions(20, buy_prob=0.7, sell_prob=0.2, no_trade_prob=0.1)
-            + _decisions(10, buy_prob=0.72, sell_prob=0.19, no_trade_prob=0.09, ts_start=_NOW)
+        decisions = _decisions(20, buy_prob=0.7, sell_prob=0.2, no_trade_prob=0.1) + _decisions(
+            10, buy_prob=0.72, sell_prob=0.19, no_trade_prob=0.09, ts_start=_NOW
         )
         alert = monitor._check_entropy(decisions, "v1.0")
         assert alert is None
@@ -536,16 +538,22 @@ class TestEntropyDrift:
 class TestUncertaintyDrift:
     def _cfg(self, warning=0.05, critical=0.10) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            uncertainty_warning=warning, uncertainty_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            uncertainty_warning=warning,
+            uncertainty_critical=critical,
         )
 
     def test_no_alert_stable_spread(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        decisions = (
-            [{"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (30 - i) * 60} for i in range(20)]
-            + [{"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (10 - i) * 60} for i in range(10)]
-        )
+        decisions = [
+            {"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (30 - i) * 60}
+            for i in range(20)
+        ] + [
+            {"confidence": 0.7 + (i % 2) * 0.02, "timestamp": _NOW - (10 - i) * 60}
+            for i in range(10)
+        ]
         alert = monitor._check_uncertainty(decisions, "v1.0")
         assert alert is None
 
@@ -578,8 +586,11 @@ class TestUncertaintyDrift:
 class TestCalibrationDrift:
     def _cfg(self, warning=0.08, critical=0.15) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            calibration_warning=warning, calibration_critical=critical,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            calibration_warning=warning,
+            calibration_critical=critical,
         )
 
     def _well_calibrated_trades(self, n: int, ts_start: float) -> list[dict]:
@@ -588,42 +599,44 @@ class TestCalibrationDrift:
         for i in range(n):
             conf = 0.7
             win = (i % 10) < 7  # 70% win rate matches 0.7 confidence
-            out.append({
-                "confidence_at_entry": conf,
-                "pnl": 10.0 if win else -10.0,
-                "timestamp": ts_start + i * 60,
-                "regime": "RANGING",
-                "model_version": "v1.0",
-            })
+            out.append(
+                {
+                    "confidence_at_entry": conf,
+                    "pnl": 10.0 if win else -10.0,
+                    "timestamp": ts_start + i * 60,
+                    "regime": "RANGING",
+                    "model_version": "v1.0",
+                }
+            )
         return out
 
     def _poorly_calibrated_trades(self, n: int, ts_start: float) -> list[dict]:
         # confidence stays high but win rate collapses → large calibration gap
         out = []
         for i in range(n):
-            out.append({
-                "confidence_at_entry": 0.9,
-                "pnl": -10.0 if i % 10 < 8 else 10.0,  # only 20% win rate
-                "timestamp": ts_start + i * 60,
-                "regime": "RANGING",
-                "model_version": "v1.0",
-            })
+            out.append(
+                {
+                    "confidence_at_entry": 0.9,
+                    "pnl": -10.0 if i % 10 < 8 else 10.0,  # only 20% win rate
+                    "timestamp": ts_start + i * 60,
+                    "regime": "RANGING",
+                    "model_version": "v1.0",
+                }
+            )
         return out
 
     def test_no_alert_stable_calibration(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        trades = (
-            self._well_calibrated_trades(20, _NOW - 30 * 60)
-            + self._well_calibrated_trades(10, _NOW - 10 * 60)
+        trades = self._well_calibrated_trades(20, _NOW - 30 * 60) + self._well_calibrated_trades(
+            10, _NOW - 10 * 60
         )
         alert = monitor._check_calibration(trades, "v1.0")
         assert alert is None
 
     def test_alert_worsening_calibration(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, config=self._cfg())
-        trades = (
-            self._well_calibrated_trades(20, _NOW - 30 * 60)
-            + self._poorly_calibrated_trades(10, _NOW - 10 * 60)
+        trades = self._well_calibrated_trades(20, _NOW - 30 * 60) + self._poorly_calibrated_trades(
+            10, _NOW - 10 * 60
         )
         alert = monitor._check_calibration(trades, "v1.0")
         assert alert is not None
@@ -651,8 +664,11 @@ class TestCalibrationDrift:
 class TestRunCheck:
     def _cfg(self) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            confidence_warning=0.06, confidence_critical=0.12,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            confidence_warning=0.06,
+            confidence_critical=0.12,
         )
 
     def test_healthy_model_no_alerts(self, db, warehouse) -> None:
@@ -660,8 +676,12 @@ class TestRunCheck:
         # Stable data — no drift in any dimension
         for i in range(30):
             warehouse.ingest_decision(
-                model_version="v1.0", symbol="XAUUSD", timestamp=_NOW - (30 - i) * 60,
-                direction="buy", confidence=0.72, regime="RANGING",
+                model_version="v1.0",
+                symbol="XAUUSD",
+                timestamp=_NOW - (30 - i) * 60,
+                direction="buy",
+                confidence=0.72,
+                regime="RANGING",
             )
         result = monitor.run_check(model_version="v1.0")
         assert result.is_healthy
@@ -670,41 +690,65 @@ class TestRunCheck:
 
     def test_drifting_model_produces_alert(self, db, warehouse) -> None:
         cfg = HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            confidence_warning=0.06, confidence_critical=0.20,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            confidence_warning=0.06,
+            confidence_critical=0.20,
         )
         monitor = _make_monitor(db, warehouse, config=cfg)
         # Ingest 20 high-confidence baseline decisions
         for i in range(20):
             warehouse.ingest_decision(
-                model_version="v2.0", symbol="EURUSD", timestamp=_NOW - (30 - i) * 60,
-                direction="buy", confidence=0.82, regime="TRENDING_BULL",
+                model_version="v2.0",
+                symbol="EURUSD",
+                timestamp=_NOW - (30 - i) * 60,
+                direction="buy",
+                confidence=0.82,
+                regime="TRENDING_BULL",
             )
         # Ingest 10 low-confidence recent decisions
         for i in range(10):
             warehouse.ingest_decision(
-                model_version="v2.0", symbol="EURUSD", timestamp=_NOW - (10 - i) * 60,
-                direction="no_trade", confidence=0.55, regime="TRENDING_BULL",
+                model_version="v2.0",
+                symbol="EURUSD",
+                timestamp=_NOW - (10 - i) * 60,
+                direction="no_trade",
+                confidence=0.55,
+                regime="TRENDING_BULL",
             )
         result = monitor.run_check(model_version="v2.0")
-        confidence_alerts = [a for a in result.alerts if a.dimension == DriftDimension.CONFIDENCE.value]
+        confidence_alerts = [
+            a for a in result.alerts if a.dimension == DriftDimension.CONFIDENCE.value
+        ]
         assert len(confidence_alerts) >= 1
 
     def test_alerts_persisted_to_db(self, db, warehouse) -> None:
         cfg = HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            confidence_warning=0.01, confidence_critical=0.20,
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            confidence_warning=0.01,
+            confidence_critical=0.20,
         )
         monitor = _make_monitor(db, warehouse, config=cfg)
         for i in range(20):
             warehouse.ingest_decision(
-                model_version="v3.0", symbol="XAUUSD", timestamp=_NOW - (30 - i) * 60,
-                direction="buy", confidence=0.80, regime="RANGING",
+                model_version="v3.0",
+                symbol="XAUUSD",
+                timestamp=_NOW - (30 - i) * 60,
+                direction="buy",
+                confidence=0.80,
+                regime="RANGING",
             )
         for i in range(10):
             warehouse.ingest_decision(
-                model_version="v3.0", symbol="XAUUSD", timestamp=_NOW - (10 - i) * 60,
-                direction="buy", confidence=0.60, regime="RANGING",
+                model_version="v3.0",
+                symbol="XAUUSD",
+                timestamp=_NOW - (10 - i) * 60,
+                direction="buy",
+                confidence=0.60,
+                regime="RANGING",
             )
         monitor.run_check(model_version="v3.0")
         alerts_in_db = db.list_health_alerts(model_version="v3.0")
@@ -722,8 +766,11 @@ class TestRunCheck:
 class TestCriticalAlertCreatesRecommendation:
     def _cfg(self) -> HealthMonitorConfig:
         return HealthMonitorConfig(
-            baseline_window=20, rolling_window=10, min_samples=5,
-            confidence_warning=0.01, confidence_critical=0.02,  # very low → force CRITICAL
+            baseline_window=20,
+            rolling_window=10,
+            min_samples=5,
+            confidence_warning=0.01,
+            confidence_critical=0.02,  # very low → force CRITICAL
         )
 
     def _mock_rec_engine(self, db: ResearchLabDatabase):
@@ -735,6 +782,7 @@ class TestCriticalAlertCreatesRecommendation:
 
         wh = TelemetryWarehouse(db)
         from trainer.research_lab.recommendation_models import RecommendationConfig
+
         return RetrainingRecommendationEngine(wh, db, RecommendationConfig())
 
     def test_critical_alert_creates_recommendation(self, db, warehouse) -> None:
@@ -742,10 +790,7 @@ class TestCriticalAlertCreatesRecommendation:
         monitor = _make_monitor(db, warehouse, rec_engine=rec_engine, config=self._cfg())
 
         # Force a CRITICAL confidence alert
-        decisions = (
-            _decisions(20, confidence=0.80)
-            + _decisions(10, confidence=0.55, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.80) + _decisions(10, confidence=0.55, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v-crit-test")
         assert alert is not None
         assert alert.severity == AlertSeverity.CRITICAL.value
@@ -762,10 +807,7 @@ class TestCriticalAlertCreatesRecommendation:
         rec_engine = self._mock_rec_engine(db)
         monitor = _make_monitor(db, warehouse, rec_engine=rec_engine, config=self._cfg())
 
-        decisions = (
-            _decisions(20, confidence=0.80)
-            + _decisions(10, confidence=0.55, ts_start=_NOW)
-        )
+        decisions = _decisions(20, confidence=0.80) + _decisions(10, confidence=0.55, ts_start=_NOW)
         alert = monitor._check_confidence(decisions, "v-dedup")
         rec_id_1 = monitor._maybe_create_recommendation(alert)
         rec_id_2 = monitor._maybe_create_recommendation(alert)
@@ -784,14 +826,26 @@ class TestCriticalAlertCreatesRecommendation:
         monitor = _make_monitor(db, warehouse, rec_engine=rec_engine, config=self._cfg())
 
         entropy_alert = DriftAlert(
-            alert_id="hal-ent", dimension=DriftDimension.ENTROPY.value, severity="CRITICAL",
-            model_version="v-multi", affected_symbols=[], affected_features=[],
-            evidence={}, recommended_action="test entropy", created_at=time.time(),
+            alert_id="hal-ent",
+            dimension=DriftDimension.ENTROPY.value,
+            severity="CRITICAL",
+            model_version="v-multi",
+            affected_symbols=[],
+            affected_features=[],
+            evidence={},
+            recommended_action="test entropy",
+            created_at=time.time(),
         )
         calibration_alert = DriftAlert(
-            alert_id="hal-cal", dimension=DriftDimension.CALIBRATION.value, severity="CRITICAL",
-            model_version="v-multi", affected_symbols=[], affected_features=[],
-            evidence={}, recommended_action="test calibration", created_at=time.time(),
+            alert_id="hal-cal",
+            dimension=DriftDimension.CALIBRATION.value,
+            severity="CRITICAL",
+            model_version="v-multi",
+            affected_symbols=[],
+            affected_features=[],
+            evidence={},
+            recommended_action="test calibration",
+            created_at=time.time(),
         )
         rec_id_1 = monitor._maybe_create_recommendation(entropy_alert)
         rec_id_2 = monitor._maybe_create_recommendation(calibration_alert)
@@ -805,9 +859,15 @@ class TestCriticalAlertCreatesRecommendation:
     def test_no_rec_engine_returns_empty(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse, rec_engine=None, config=self._cfg())
         alert = DriftAlert(
-            alert_id="hal-x", dimension="CONFIDENCE", severity="CRITICAL",
-            model_version="v-test", affected_symbols=[], affected_features=[],
-            evidence={}, recommended_action="test", created_at=time.time(),
+            alert_id="hal-x",
+            dimension="CONFIDENCE",
+            severity="CRITICAL",
+            model_version="v-test",
+            affected_symbols=[],
+            affected_features=[],
+            evidence={},
+            recommended_action="test",
+            created_at=time.time(),
         )
         rec_id = monitor._maybe_create_recommendation(alert)
         assert rec_id == ""
@@ -904,13 +964,13 @@ class TestHealthAlertDB:
 
         # Scalar-column filter must reflect the new values
         crits = db.list_health_alerts(severity="CRITICAL")
-        assert any(r["alert_id"] == "hal-update-test" for r in crits), (
-            "Updated severity not reflected in scalar column — filter returned nothing"
-        )
+        assert any(
+            r["alert_id"] == "hal-update-test" for r in crits
+        ), "Updated severity not reflected in scalar column — filter returned nothing"
         warns = db.list_health_alerts(severity="WARNING")
-        assert not any(r["alert_id"] == "hal-update-test" for r in warns), (
-            "Old severity still visible in scalar index after update"
-        )
+        assert not any(
+            r["alert_id"] == "hal-update-test" for r in warns
+        ), "Old severity still visible in scalar index after update"
         market = db.list_health_alerts(dimension="MARKET")
         assert any(r["alert_id"] == "hal-update-test" for r in market)
         v2 = db.list_health_alerts(model_version="v2.0")
@@ -929,18 +989,34 @@ class TestGetStatus:
 
     def test_status_with_alerts(self, db, warehouse) -> None:
         monitor = _make_monitor(db, warehouse)
-        db.upsert_health_alert({
-            "alert_id": "hal-s1", "dimension": "CONFIDENCE",
-            "severity": "CRITICAL", "model_version": "v1.0",
-            "created_at": time.time(), "affected_symbols": [],
-            "affected_features": [], "evidence": {}, "recommended_action": "", "recommendation_id": "",
-        })
-        db.upsert_health_alert({
-            "alert_id": "hal-s2", "dimension": "MARKET",
-            "severity": "WARNING", "model_version": "v1.0",
-            "created_at": time.time() - 1, "affected_symbols": [],
-            "affected_features": [], "evidence": {}, "recommended_action": "", "recommendation_id": "",
-        })
+        db.upsert_health_alert(
+            {
+                "alert_id": "hal-s1",
+                "dimension": "CONFIDENCE",
+                "severity": "CRITICAL",
+                "model_version": "v1.0",
+                "created_at": time.time(),
+                "affected_symbols": [],
+                "affected_features": [],
+                "evidence": {},
+                "recommended_action": "",
+                "recommendation_id": "",
+            }
+        )
+        db.upsert_health_alert(
+            {
+                "alert_id": "hal-s2",
+                "dimension": "MARKET",
+                "severity": "WARNING",
+                "model_version": "v1.0",
+                "created_at": time.time() - 1,
+                "affected_symbols": [],
+                "affected_features": [],
+                "evidence": {},
+                "recommended_action": "",
+                "recommendation_id": "",
+            }
+        )
         status = monitor.get_status(model_version="v1.0")
         assert status["is_healthy"] is False
         assert status["n_critical"] == 1
@@ -965,14 +1041,17 @@ class TestHealthServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-health-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_health.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_run_check_empty_warehouse(self, client) -> None:

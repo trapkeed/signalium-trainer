@@ -99,9 +99,9 @@ class DecisionTraceRecord:
             qde_version=qde_version,
             dataset_version=dataset_version,
             feature_version=feature_version,
-            inference_timestamp=inference_timestamp
-            if inference_timestamp is not None
-            else time.time(),
+            inference_timestamp=(
+                inference_timestamp if inference_timestamp is not None else time.time()
+            ),
             input_feature_hash=compute_input_feature_hash(input_features),
             output_decision=output_decision,
             confidence=confidence,

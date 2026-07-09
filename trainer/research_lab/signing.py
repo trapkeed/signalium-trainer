@@ -105,11 +105,15 @@ class ArtifactSigner:
         private_key_pem: str | None = None,
         public_key_pem: str | None = None,
     ) -> None:
-        self._private_key_pem = private_key_pem if private_key_pem is not None else os.environ.get(
-            SIGNING_PRIVATE_KEY_ENV, ""
+        self._private_key_pem = (
+            private_key_pem
+            if private_key_pem is not None
+            else os.environ.get(SIGNING_PRIVATE_KEY_ENV, "")
         )
-        self._public_key_pem = public_key_pem if public_key_pem is not None else os.environ.get(
-            SIGNING_PUBLIC_KEY_ENV, ""
+        self._public_key_pem = (
+            public_key_pem
+            if public_key_pem is not None
+            else os.environ.get(SIGNING_PUBLIC_KEY_ENV, "")
         )
         self._private_key: Ed25519PrivateKey | None = None
         self._public_key: Ed25519PublicKey | None = None
@@ -139,9 +143,7 @@ class ArtifactSigner:
         except Exception as exc:  # noqa: BLE001
             raise SigningKeyError(f"Failed to parse {SIGNING_PRIVATE_KEY_ENV}: {exc}") from exc
         if not isinstance(key, Ed25519PrivateKey):
-            raise SigningKeyError(
-                f"{SIGNING_PRIVATE_KEY_ENV} is not an Ed25519 private key."
-            )
+            raise SigningKeyError(f"{SIGNING_PRIVATE_KEY_ENV} is not an Ed25519 private key.")
         self._private_key = key
         return key
 
@@ -158,9 +160,7 @@ class ArtifactSigner:
         except Exception as exc:  # noqa: BLE001
             raise SigningKeyError(f"Failed to parse {SIGNING_PUBLIC_KEY_ENV}: {exc}") from exc
         if not isinstance(key, Ed25519PublicKey):
-            raise SigningKeyError(
-                f"{SIGNING_PUBLIC_KEY_ENV} is not an Ed25519 public key."
-            )
+            raise SigningKeyError(f"{SIGNING_PUBLIC_KEY_ENV} is not an Ed25519 public key.")
         self._public_key = key
         return key
 
@@ -210,8 +210,12 @@ class ArtifactSigner:
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption(),
         ).decode("utf-8")
-        public_pem = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        ).decode("utf-8")
+        public_pem = (
+            private_key.public_key()
+            .public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            .decode("utf-8")
+        )
         return private_pem, public_pem

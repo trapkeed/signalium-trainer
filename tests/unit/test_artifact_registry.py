@@ -12,13 +12,12 @@ Covers:
 from __future__ import annotations
 
 import hashlib
-import json
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.artifact_models import (
     ARTIFACT_TYPES,
     ArtifactRecord,
@@ -35,7 +34,6 @@ from trainer.research_lab.artifact_registry import (
 )
 from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -170,8 +168,12 @@ class TestArtifactModels:
 
     def test_artifact_type_enum_values(self) -> None:
         assert set(ARTIFACT_TYPES) == {
-            "WEIGHTS", "CONFIG", "CALIBRATION",
-            "ONNX", "TORCHSCRIPT", "DEPLOYMENT_MANIFEST",
+            "WEIGHTS",
+            "CONFIG",
+            "CALIBRATION",
+            "ONNX",
+            "TORCHSCRIPT",
+            "DEPLOYMENT_MANIFEST",
         }
 
 
@@ -179,7 +181,9 @@ class TestArtifactModels:
 
 
 class TestArtifactRegistry:
-    def _make_artifact(self, artifact_type: str = "WEIGHTS", content: str = "data") -> ArtifactRecord:
+    def _make_artifact(
+        self, artifact_type: str = "WEIGHTS", content: str = "data"
+    ) -> ArtifactRecord:
         return ArtifactRecord.new(
             artifact_type=artifact_type,
             name=f"{artifact_type.lower()}.bin",
@@ -224,15 +228,20 @@ class TestArtifactRegistry:
         assert weights[0]["artifact_type"] == "WEIGHTS"
 
     def test_list_filter_by_model_version(self, registry: ArtifactRegistry) -> None:
-        art = ArtifactRecord.new("CONFIG", "cfg.json", "/cfg.json", _make_hash("cfg"), model_version="v3")
+        art = ArtifactRecord.new(
+            "CONFIG", "cfg.json", "/cfg.json", _make_hash("cfg"), model_version="v3"
+        )
         registry.register_artifact(art)
         results = registry.list_artifacts(model_version="v3")
         assert len(results) == 1
         assert results[0]["model_version"] == "v3"
 
-    def test_list_filter_by_training_run(self, registry: ArtifactRegistry, good_run: TrainingRunRecord) -> None:
-        art = ArtifactRecord.new("WEIGHTS", "w.pt", "/w.pt", _make_hash("weights"),
-                                  training_run_id=good_run.run_id)
+    def test_list_filter_by_training_run(
+        self, registry: ArtifactRegistry, good_run: TrainingRunRecord
+    ) -> None:
+        art = ArtifactRecord.new(
+            "WEIGHTS", "w.pt", "/w.pt", _make_hash("weights"), training_run_id=good_run.run_id
+        )
         registry.register_artifact(art)
         arts = registry.artifacts_for_run(good_run.run_id)
         assert len(arts) == 1
@@ -241,9 +250,14 @@ class TestArtifactRegistry:
     def test_provenance_includes_training_run(
         self, registry: ArtifactRegistry, good_run: TrainingRunRecord
     ) -> None:
-        art = ArtifactRecord.new("WEIGHTS", "w.pt", "/w.pt", _make_hash("weights"),
-                                  training_run_id=good_run.run_id,
-                                  experiment_id=good_run.experiment_id)
+        art = ArtifactRecord.new(
+            "WEIGHTS",
+            "w.pt",
+            "/w.pt",
+            _make_hash("weights"),
+            training_run_id=good_run.run_id,
+            experiment_id=good_run.experiment_id,
+        )
         registry.register_artifact(art)
         prov = registry.provenance(art.artifact_id)
         assert prov is not None
@@ -269,17 +283,23 @@ class TestArtifactRegistry:
         fpath = tmp_path / "weights.pt"
         fpath.write_bytes(content)
         art = ArtifactRecord.new(
-            "WEIGHTS", "weights.pt", str(fpath),
+            "WEIGHTS",
+            "weights.pt",
+            str(fpath),
             artifact_hash=hashlib.sha256(content).hexdigest(),
         )
         registry.register_artifact(art, verify_file=True)  # must not raise
 
-    def test_verify_file_hash_mismatch_raises(self, registry: ArtifactRegistry, tmp_path: Path) -> None:
+    def test_verify_file_hash_mismatch_raises(
+        self, registry: ArtifactRegistry, tmp_path: Path
+    ) -> None:
         content = b"actual content"
         fpath = tmp_path / "weights.pt"
         fpath.write_bytes(content)
         art = ArtifactRecord.new(
-            "WEIGHTS", "weights.pt", str(fpath),
+            "WEIGHTS",
+            "weights.pt",
+            str(fpath),
             artifact_hash=_make_hash("different content"),
         )
         with pytest.raises(ArtifactHashMismatchError):
@@ -287,9 +307,7 @@ class TestArtifactRegistry:
 
     def test_verify_file_missing_file_skipped(self, registry: ArtifactRegistry) -> None:
         """If path does not exist, file verification is skipped silently."""
-        art = ArtifactRecord.new(
-            "TORCHSCRIPT", "model.pt", "/nonexistent/path.pt", _GOOD_HASH
-        )
+        art = ArtifactRecord.new("TORCHSCRIPT", "model.pt", "/nonexistent/path.pt", _GOOD_HASH)
         registry.register_artifact(art, verify_file=True)  # must not raise
 
     def test_hash_bytes_utility(self) -> None:
@@ -301,9 +319,12 @@ class TestArtifactRegistry:
 
     def test_register_and_get_training_run(self, registry: ArtifactRegistry) -> None:
         run = TrainingRunRecord.new(
-            experiment_id="exp-r1", dataset_version="ds-v1",
-            feature_version="feat-v1", code_commit="a" * 40,
-            config_hash=_GOOD_HASH, artifact_hash=_make_hash("r1"),
+            experiment_id="exp-r1",
+            dataset_version="ds-v1",
+            feature_version="feat-v1",
+            code_commit="a" * 40,
+            config_hash=_GOOD_HASH,
+            artifact_hash=_make_hash("r1"),
         )
         registry.register_training_run(run)
         fetched = registry.get_training_run(run.run_id)
@@ -315,8 +336,10 @@ class TestArtifactRegistry:
         for i in range(3):
             run = TrainingRunRecord.new(
                 experiment_id="exp-filter" if i < 2 else "exp-other",
-                dataset_version="ds", feature_version="feat",
-                code_commit="a" * 40, config_hash=_GOOD_HASH,
+                dataset_version="ds",
+                feature_version="feat",
+                code_commit="a" * 40,
+                config_hash=_GOOD_HASH,
                 artifact_hash=_make_hash(f"run-{i}"),
             )
             registry.register_training_run(run)
@@ -330,7 +353,10 @@ class TestArtifactRegistry:
 class TestArtifactDB:
     def test_upsert_and_get_artifact(self, db: ResearchLabDatabase) -> None:
         rec = ArtifactRecord.new(
-            "CALIBRATION", "cal.json", "/cal.json", _make_hash("cal"),
+            "CALIBRATION",
+            "cal.json",
+            "/cal.json",
+            _make_hash("cal"),
         )
         db.upsert_artifact(rec.to_dict())
         row = db.get_artifact(rec.artifact_id)
@@ -365,8 +391,12 @@ class TestArtifactDB:
 
     def test_stats_includes_artifacts_and_runs(self, db: ResearchLabDatabase) -> None:
         run = TrainingRunRecord.new(
-            experiment_id="e1", dataset_version="ds", feature_version="feat",
-            code_commit="a" * 40, config_hash=_GOOD_HASH, artifact_hash=_make_hash("r"),
+            experiment_id="e1",
+            dataset_version="ds",
+            feature_version="feat",
+            code_commit="a" * 40,
+            config_hash=_GOOD_HASH,
+            artifact_hash=_make_hash("r"),
         )
         db.upsert_training_run(run.to_dict())
         art = ArtifactRecord.new("WEIGHTS", "w.pt", "/w.pt", _make_hash("weights"))
@@ -382,7 +412,7 @@ class TestArtifactDB:
 class TestMLOpsExporterArtifactHook:
     def test_save_without_registry_no_error(self, tmp_path: Path, db: ResearchLabDatabase) -> None:
         """save() works with no artifact_registry (legacy callers)."""
-        from unittest.mock import MagicMock
+
         exporter = self._make_exporter(db, artifact_registry=None)
         data = {"export_type": "model_registry", "models": []}
         exporter.save(data, str(tmp_path / "export.json"))
@@ -412,9 +442,10 @@ class TestMLOpsExporterArtifactHook:
 
     def _make_exporter(self, db, artifact_registry=None):
         from unittest.mock import MagicMock
-        from trainer.mlops.export import MLOpsExporter
-        from trainer.mlops.audit import AuditSystem
+
         from trainer.mlops.alerting import AlertingSystem
+        from trainer.mlops.audit import AuditSystem
+        from trainer.mlops.export import MLOpsExporter
 
         mock_db = MagicMock()
         mock_registry = MagicMock()
@@ -446,15 +477,17 @@ class TestArtifactServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
-        import sys
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-artifact-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_artifacts.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def _good_payload(self, content: str = "weights", atype: str = "WEIGHTS") -> dict:
@@ -502,7 +535,9 @@ class TestArtifactServerEndpoints:
         assert resp.json()["total"] == 0
 
     def test_list_artifacts_with_filter(self, client) -> None:
-        client.post("/artifacts/register", json=self._good_payload("w1", "WEIGHTS"), headers=self._HDR)
+        client.post(
+            "/artifacts/register", json=self._good_payload("w1", "WEIGHTS"), headers=self._HDR
+        )
         client.post("/artifacts/register", json=self._good_payload("o1", "ONNX"), headers=self._HDR)
         resp = client.get("/artifacts?artifact_type=WEIGHTS", headers=self._HDR)
         assert resp.status_code == 200
@@ -510,7 +545,9 @@ class TestArtifactServerEndpoints:
         assert resp.json()["artifacts"][0]["artifact_type"] == "WEIGHTS"
 
     def test_get_artifact_by_id(self, client) -> None:
-        reg_resp = client.post("/artifacts/register", json=self._good_payload("getme"), headers=self._HDR)
+        reg_resp = client.post(
+            "/artifacts/register", json=self._good_payload("getme"), headers=self._HDR
+        )
         art_id = reg_resp.json()["artifact"]["artifact_id"]
         resp = client.get(f"/artifacts/{art_id}", headers=self._HDR)
         assert resp.status_code == 200
@@ -557,8 +594,10 @@ class TestArtifactServerEndpoints:
     def test_register_training_run_bad_hash(self, client) -> None:
         payload = {
             "experiment_id": "exp-srv-001",
-            "dataset_version": "ds", "feature_version": "feat",
-            "code_commit": "abc", "config_hash": _GOOD_HASH,
+            "dataset_version": "ds",
+            "feature_version": "feat",
+            "code_commit": "abc",
+            "config_hash": _GOOD_HASH,
             "artifact_hash": "bad",
         }
         resp = client.post("/artifacts/runs", json=payload, headers=self._HDR)
@@ -567,8 +606,10 @@ class TestArtifactServerEndpoints:
     def test_list_training_runs(self, client) -> None:
         payload = {
             "experiment_id": "exp-list-test",
-            "dataset_version": "ds-v1", "feature_version": "feat-v1",
-            "code_commit": "b" * 40, "config_hash": _GOOD_HASH,
+            "dataset_version": "ds-v1",
+            "feature_version": "feat-v1",
+            "code_commit": "b" * 40,
+            "config_hash": _GOOD_HASH,
             "artifact_hash": _make_hash("r1"),
         }
         client.post("/artifacts/runs", json=payload, headers=self._HDR)
@@ -577,11 +618,18 @@ class TestArtifactServerEndpoints:
         assert resp.json()["total"] == 1
 
     def test_get_training_run_with_artifacts(self, client) -> None:
-        run_resp = client.post("/artifacts/runs", json={
-            "experiment_id": "exp-full", "dataset_version": "ds-v1",
-            "feature_version": "feat-v1", "code_commit": "c" * 40,
-            "config_hash": _GOOD_HASH, "artifact_hash": _make_hash("main-w"),
-        }, headers=self._HDR)
+        run_resp = client.post(
+            "/artifacts/runs",
+            json={
+                "experiment_id": "exp-full",
+                "dataset_version": "ds-v1",
+                "feature_version": "feat-v1",
+                "code_commit": "c" * 40,
+                "config_hash": _GOOD_HASH,
+                "artifact_hash": _make_hash("main-w"),
+            },
+            headers=self._HDR,
+        )
         run_id = run_resp.json()["training_run"]["run_id"]
 
         art_payload = self._good_payload("weights-for-run")
@@ -634,6 +682,7 @@ class TestArtifactDBUniqueIndexEnforcement:
 
     def test_db_unique_index_rejects_duplicate(self, db: ResearchLabDatabase) -> None:
         import sqlite3
+
         rec1 = ArtifactRecord.new("WEIGHTS", "w1.pt", "/w1.pt", _make_hash("shared"))
         rec2 = ArtifactRecord.new("WEIGHTS", "w2.pt", "/w2.pt", _make_hash("shared"))
         db.upsert_artifact(rec1.to_dict())
@@ -649,6 +698,7 @@ class TestArtifactDBUniqueIndexEnforcement:
         db.upsert_artifact(rec2.to_dict())  # must not raise
         assert db.find_artifact_by_type_hash("WEIGHTS", h) is not None
         assert db.find_artifact_by_type_hash("ONNX", h) is not None
+
 
 class TestArtifactRegistryStoreIntegration:
     """S21A — write_and_register / resolve_path against the immutable store."""

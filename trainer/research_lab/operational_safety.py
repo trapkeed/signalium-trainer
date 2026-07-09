@@ -41,7 +41,12 @@ class SafetyEvent:
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"action": self.action, "actor": self.actor, "reason": self.reason, "timestamp": self.timestamp}
+        return {
+            "action": self.action,
+            "actor": self.actor,
+            "reason": self.reason,
+            "timestamp": self.timestamp,
+        }
 
 
 class DeploymentsFrozenError(Exception):
@@ -120,7 +125,9 @@ class OperationalSafetySwitches:
 
     def assert_not_frozen(self) -> None:
         if self._deployments_frozen:
-            raise DeploymentsFrozenError("deployments are frozen; unfreeze before promoting/rolling back")
+            raise DeploymentsFrozenError(
+                "deployments are frozen; unfreeze before promoting/rolling back"
+            )
 
     # ── Rollback shortcut (delegates to existing rollback authorities) ─────
 
@@ -132,13 +139,17 @@ class OperationalSafetySwitches:
         self.assert_not_frozen()
         self._record("ROLLBACK_SHORTCUT", actor, reason)
         if self._qde_rollback_manager is not None:
-            record = self._qde_rollback_manager.rollback_to_previous(reason=reason, initiated_by=actor)
+            record = self._qde_rollback_manager.rollback_to_previous(
+                reason=reason, initiated_by=actor
+            )
             return record.to_dict() if hasattr(record, "to_dict") else record
         if self._deployment_manager is not None:
             return self._deployment_manager.request_rollback(
                 model_version="latest_retired", reason=reason, requested_by=actor
             )
-        raise RuntimeError("no rollback authority configured (qde_rollback_manager or deployment_manager)")
+        raise RuntimeError(
+            "no rollback authority configured (qde_rollback_manager or deployment_manager)"
+        )
 
     # ── State + audit ────────────────────────────────────────────────────────
 

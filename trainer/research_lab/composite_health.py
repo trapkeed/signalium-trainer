@@ -37,6 +37,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.health_monitor import (
@@ -45,7 +46,6 @@ from trainer.research_lab.health_monitor import (
     ResearchLabHealthMonitor,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-
 
 # ── Category partition ───────────────────────────────────────────────────────
 
@@ -152,7 +152,9 @@ class CategoryScore:
     score: float  # 0-100
     weight: float
     weighted_score: float
-    dimension_states: dict[str, str] = field(default_factory=dict)  # dim -> HEALTHY/WARNING/CRITICAL
+    dimension_states: dict[str, str] = field(
+        default_factory=dict
+    )  # dim -> HEALTHY/WARNING/CRITICAL
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -91,7 +91,9 @@ def publish_dataset_version(
             metadata={"dataset_id": version.dataset_id, "version": version.version},
         )
     )
-    logger.info("dataset.protection: published {} v{} at {}", version.dataset_id, version.version, directory)
+    logger.info(
+        "dataset.protection: published {} v{} at {}", version.dataset_id, version.version, directory
+    )
 
 
 def is_published(manifest_path: Path) -> bool:
@@ -118,7 +120,12 @@ def load_dataset_version_securely(
         DatasetIntegrityError: checksum/manifest validation failed.
     """
     audit = audit or AuditSystem()
-    validator = DatasetValidator(dataset_dir, manifest_name=manifest_name, verify_checksums=verify_checksums, fail_on_error=False)
+    validator = DatasetValidator(
+        dataset_dir,
+        manifest_name=manifest_name,
+        verify_checksums=verify_checksums,
+        fail_on_error=False,
+    )
     result = validator.validate()
 
     manifest_path = Path(dataset_dir) / manifest_name

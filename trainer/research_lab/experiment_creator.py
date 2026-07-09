@@ -145,7 +145,7 @@ class ExperimentCreator:
             min_severity=query.min_failure_severity,
             since=query.since,
             until=query.until,
-            model_version=query.model_version,   # scope proposals to the requested version
+            model_version=query.model_version,  # scope proposals to the requested version
             limit=500,
         )
         if not reports:
@@ -179,9 +179,7 @@ class ExperimentCreator:
             name = hypothesis["name"]
 
             if name in open_names:
-                logger.debug(
-                    f"ExperimentCreator.propose: skipping duplicate experiment '{name}'"
-                )
+                logger.debug(f"ExperimentCreator.propose: skipping duplicate experiment '{name}'")
                 summary.experiments_skipped_duplicate += 1
                 continue
 
@@ -214,9 +212,7 @@ class ExperimentCreator:
             summary.experiments_proposed += 1
             proposed_count += 1
             open_names.add(name)  # prevent duplicates within the same run
-            logger.info(
-                f"ExperimentCreator.propose: proposed {exp.experiment_id} for {kind}"
-            )
+            logger.info(f"ExperimentCreator.propose: proposed {exp.experiment_id} for {kind}")
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -230,9 +226,7 @@ class ExperimentCreator:
         if not record:
             raise ValueError(f"Experiment {experiment_id!r} not found")
         if record.get("status") != ExperimentStatus.PROPOSED.value:
-            raise ValueError(
-                f"Experiment {experiment_id} is {record['status']}, expected PROPOSED"
-            )
+            raise ValueError(f"Experiment {experiment_id} is {record['status']}, expected PROPOSED")
         record["status"] = ExperimentStatus.PENDING.value
         record["updated_at"] = time.time()
         self._db.upsert_experiment(record)
@@ -244,9 +238,7 @@ class ExperimentCreator:
         if not record:
             raise ValueError(f"Experiment {experiment_id!r} not found")
         if record.get("status") != ExperimentStatus.PROPOSED.value:
-            raise ValueError(
-                f"Experiment {experiment_id} is {record['status']}, expected PROPOSED"
-            )
+            raise ValueError(f"Experiment {experiment_id} is {record['status']}, expected PROPOSED")
         record["status"] = ExperimentStatus.ARCHIVED.value
         record["updated_at"] = time.time()
         record["notes"] = record.get("notes", "") + "\n[REJECTED by admin]"

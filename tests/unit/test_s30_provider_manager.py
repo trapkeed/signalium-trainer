@@ -96,14 +96,18 @@ class TestProviderManagerFailover:
     def test_excessive_latency_triggers_failover(self):
         p1 = _FakeProvider("p1", latency_s=0.05)
         p2 = _FakeProvider("p2")
-        manager = ProviderManager([p1, p2], [p2, p1], latency_threshold_ms=10.0, max_consecutive_failures=1)
+        manager = ProviderManager(
+            [p1, p2], [p2, p1], latency_threshold_ms=10.0, max_consecutive_failures=1
+        )
         result = manager.call(DataContext.LIVE, "get_price", "EURUSD")
         assert result["provider"] == "p2"
 
     def test_degraded_provider_marked_after_max_failures(self):
         p1 = _FakeProvider("p1", behavior="error")
         p2 = _FakeProvider("p2")
-        manager = ProviderManager([p1, p2], [p2, p1], max_consecutive_failures=1, degrade_cooldown_s=60.0)
+        manager = ProviderManager(
+            [p1, p2], [p2, p1], max_consecutive_failures=1, degrade_cooldown_s=60.0
+        )
         manager.call(DataContext.LIVE, "get_price", "EURUSD")
         active = manager.active_provider(DataContext.LIVE)
         assert active.name() == "p2"  # p1 now degraded, p2 preferred
@@ -127,9 +131,13 @@ class TestProviderManagerFailover:
         p2 = _FakeProvider("p2")
         manager = ProviderManager([p1, p2], [p2, p1], max_consecutive_failures=1)
         result = manager.call(
-            DataContext.LIVE, "get_price", "EURUSD",
+            DataContext.LIVE,
+            "get_price",
+            "EURUSD",
             max_staleness_s=10.0,
-            staleness_extractor=lambda r: time.time() - 100 if r["provider"] == "p1" else time.time(),
+            staleness_extractor=lambda r: (
+                time.time() - 100 if r["provider"] == "p1" else time.time()
+            ),
         )
         assert result["provider"] == "p2"
 

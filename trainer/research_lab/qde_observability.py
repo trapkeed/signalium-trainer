@@ -31,11 +31,11 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryQuery, TelemetryWarehouse
-
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -175,7 +175,9 @@ class InferenceMonitor:
         persist: bool = True,
     ) -> InferenceReport:
         q = TelemetryQuery(
-            model_version=model_version, since=since, until=until,
+            model_version=model_version,
+            since=since,
+            until=until,
             limit=self._cfg.window_limit,
         )
         samples = sorted(self._wh.query_inference(q), key=lambda s: s.get("timestamp", 0))
@@ -200,7 +202,9 @@ class InferenceMonitor:
             window_end=window_end,
             n_samples=len(samples),
             total_inference_count=sum(int(s.get("inference_count", 0)) for s in samples),
-            avg_throughput_per_s=round(_mean([float(s.get("throughput_per_s", 0.0)) for s in samples]), 4),
+            avg_throughput_per_s=round(
+                _mean([float(s.get("throughput_per_s", 0.0)) for s in samples]), 4
+            ),
             latency_ms_p50=round(_mean(latencies_p50), 3),
             latency_ms_p95=round(_percentile(latencies_p95, 95), 3),
             latency_ms_max=round(max(latencies_max) if latencies_max else 0.0, 3),
@@ -219,11 +223,17 @@ class InferenceMonitor:
         return report
 
     def get_latest_report(self, model_version: str | None = None) -> dict[str, Any] | None:
-        reports = self._db.list_observability_reports("inference", model_version=model_version, limit=1)
+        reports = self._db.list_observability_reports(
+            "inference", model_version=model_version, limit=1
+        )
         return reports[0] if reports else None
 
-    def list_reports(self, model_version: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-        return self._db.list_observability_reports("inference", model_version=model_version, limit=limit)
+    def list_reports(
+        self, model_version: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._db.list_observability_reports(
+            "inference", model_version=model_version, limit=limit
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -312,13 +322,27 @@ class ModelDistributionReport:
 
 _CONFIDENCE_BUCKET_EDGES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 _CONFIDENCE_BUCKET_LABELS = [
-    "0.0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5",
-    "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1.0",
+    "0.0-0.1",
+    "0.1-0.2",
+    "0.2-0.3",
+    "0.3-0.4",
+    "0.4-0.5",
+    "0.5-0.6",
+    "0.6-0.7",
+    "0.7-0.8",
+    "0.8-0.9",
+    "0.9-1.0",
 ]
 _POSITION_SIZE_BUCKET_EDGES = [0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
 _HOLD_DURATION_BUCKET_EDGES_S = [60.0, 300.0, 900.0, 3600.0, 14400.0, 86400.0]
 _HOLD_DURATION_BUCKET_LABELS = [
-    "<1m", "1-5m", "5-15m", "15m-1h", "1-4h", "4-24h", ">24h",
+    "<1m",
+    "1-5m",
+    "5-15m",
+    "15m-1h",
+    "1-4h",
+    "4-24h",
+    ">24h",
 ]
 
 
@@ -342,7 +366,9 @@ class ModelDistributionMonitor:
         trades = sorted(self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0))
 
         now = time.time()
-        all_ts = [d.get("timestamp", now) for d in decisions] + [t.get("timestamp", now) for t in trades]
+        all_ts = [d.get("timestamp", now) for d in decisions] + [
+            t.get("timestamp", now) for t in trades
+        ]
         window_start = min(all_ts) if all_ts else now
         window_end = max(all_ts) if all_ts else now
 
@@ -383,11 +409,17 @@ class ModelDistributionMonitor:
         return report
 
     def get_latest_report(self, model_version: str | None = None) -> dict[str, Any] | None:
-        reports = self._db.list_observability_reports("model_distribution", model_version=model_version, limit=1)
+        reports = self._db.list_observability_reports(
+            "model_distribution", model_version=model_version, limit=1
+        )
         return reports[0] if reports else None
 
-    def list_reports(self, model_version: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-        return self._db.list_observability_reports("model_distribution", model_version=model_version, limit=limit)
+    def list_reports(
+        self, model_version: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._db.list_observability_reports(
+            "model_distribution", model_version=model_version, limit=limit
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -487,7 +519,7 @@ def _expected_value_accuracy(trades: list[dict[str, Any]]) -> dict[str, Any]:
         if predicted_favorable == realized_favorable:
             correct += 1
         # Predicted EV proxy: (2*conf - 1) scaled by size; realized: pnl_pct.
-        predicted_ev = (2.0 * conf - 1.0)
+        predicted_ev = 2.0 * conf - 1.0
         realized_ev = float(t.get("pnl_pct", 0.0))
         errors.append(abs(predicted_ev - realized_ev))
     return {
@@ -530,9 +562,7 @@ def _risk_estimation_accuracy(trades: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "n_losing_trades_scored": len(ratios),
         "mean_realized_to_predicted_risk_ratio": round(_mean(ratios), 4),
-        "pct_exceeded_predicted_risk": round(
-            sum(1 for r in ratios if r > 1.05) / len(ratios), 4
-        ),
+        "pct_exceeded_predicted_risk": round(sum(1 for r in ratios if r > 1.05) / len(ratios), 4),
     }
 
 
@@ -610,7 +640,9 @@ class AccuracyMonitor:
 
         directional = [_predicted_direction_correct(t) for t in trades]
         directional = [d for d in directional if d is not None]
-        directional_accuracy = round(sum(1 for d in directional if d) / len(directional), 4) if directional else 0.0
+        directional_accuracy = (
+            round(sum(1 for d in directional if d) / len(directional), 4) if directional else 0.0
+        )
 
         report = AccuracyReport(
             report_id=f"acc-{uuid.uuid4().hex[:12]}",
@@ -634,11 +666,17 @@ class AccuracyMonitor:
         return report
 
     def get_latest_report(self, model_version: str | None = None) -> dict[str, Any] | None:
-        reports = self._db.list_observability_reports("accuracy", model_version=model_version, limit=1)
+        reports = self._db.list_observability_reports(
+            "accuracy", model_version=model_version, limit=1
+        )
         return reports[0] if reports else None
 
-    def list_reports(self, model_version: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-        return self._db.list_observability_reports("accuracy", model_version=model_version, limit=limit)
+    def list_reports(
+        self, model_version: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._db.list_observability_reports(
+            "accuracy", model_version=model_version, limit=limit
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -708,9 +746,14 @@ class AutonomousTradingReport:
 # Lifecycle event kinds counted as an active "management action" — i.e. the
 # QDE system intervening on an already-open position, as opposed to
 # open/close/session bookkeeping.
-_MANAGEMENT_ACTION_KINDS = frozenset({
-    "STOP_ADJUSTED", "TP_ADJUSTED", "SIZE_SCALED", "RISK_STATE_CHANGED",
-})
+_MANAGEMENT_ACTION_KINDS = frozenset(
+    {
+        "STOP_ADJUSTED",
+        "TP_ADJUSTED",
+        "SIZE_SCALED",
+        "RISK_STATE_CHANGED",
+    }
+)
 
 
 class AutonomousTradingMonitor:
@@ -733,11 +776,15 @@ class AutonomousTradingMonitor:
         trades = sorted(self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0))
 
         now = time.time()
-        all_ts = [e.get("timestamp", now) for e in lifecycle_events] + [t.get("timestamp", now) for t in trades]
+        all_ts = [e.get("timestamp", now) for e in lifecycle_events] + [
+            t.get("timestamp", now) for t in trades
+        ]
         window_start = min(all_ts) if all_ts else now
         window_end = max(all_ts) if all_ts else now
 
-        management_events = [e for e in lifecycle_events if e.get("kind") in _MANAGEMENT_ACTION_KINDS]
+        management_events = [
+            e for e in lifecycle_events if e.get("kind") in _MANAGEMENT_ACTION_KINDS
+        ]
         management_counts = _histogram(management_events, lambda e: e.get("kind"))
         stop_adjustments = management_counts.get("STOP_ADJUSTED", 0)
         scale_ins = management_counts.get("SIZE_SCALED", 0)
@@ -754,8 +801,12 @@ class AutonomousTradingMonitor:
             n_lifecycle_events=len(lifecycle_events),
             n_trades=n_trades,
             management_action_counts=management_counts,
-            intervention_frequency_per_trade=round(len(management_events) / n_trades, 4) if n_trades else 0.0,
-            stop_adjustment_frequency_per_trade=round(stop_adjustments / n_trades, 4) if n_trades else 0.0,
+            intervention_frequency_per_trade=(
+                round(len(management_events) / n_trades, 4) if n_trades else 0.0
+            ),
+            stop_adjustment_frequency_per_trade=(
+                round(stop_adjustments / n_trades, 4) if n_trades else 0.0
+            ),
             scale_in_frequency_per_trade=round(scale_ins / n_trades, 4) if n_trades else 0.0,
             avg_holding_duration_s=round(_mean(holding_durations), 3),
             median_holding_duration_s=round(_percentile(holding_durations, 50), 3),
@@ -770,11 +821,17 @@ class AutonomousTradingMonitor:
         return report
 
     def get_latest_report(self, model_version: str | None = None) -> dict[str, Any] | None:
-        reports = self._db.list_observability_reports("autonomous_trading", model_version=model_version, limit=1)
+        reports = self._db.list_observability_reports(
+            "autonomous_trading", model_version=model_version, limit=1
+        )
         return reports[0] if reports else None
 
-    def list_reports(self, model_version: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-        return self._db.list_observability_reports("autonomous_trading", model_version=model_version, limit=limit)
+    def list_reports(
+        self, model_version: str | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
+        return self._db.list_observability_reports(
+            "autonomous_trading", model_version=model_version, limit=limit
+        )
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -808,16 +865,24 @@ class ResearchMonitor:
         validation_queue = [j for j in active_jobs if j.get("current_stage") == "VALIDATION"]
 
         experiments = self._db.list_experiments()
-        active_experiments = [e for e in experiments if e.get("status") in ("RUNNING", "IN_PROGRESS", "PENDING")]
+        active_experiments = [
+            e for e in experiments if e.get("status") in ("RUNNING", "IN_PROGRESS", "PENDING")
+        ]
 
         shadow_tests = self._db.list_shadow_tests()
-        active_shadow_tests = [s for s in shadow_tests if s.get("status") not in ("COMPLETED", "REJECTED", "PROMOTED")]
+        active_shadow_tests = [
+            s for s in shadow_tests if s.get("status") not in ("COMPLETED", "REJECTED", "PROMOTED")
+        ]
 
-        pending_approvals = self._approval_gate.list_requests(status="PENDING") if self._approval_gate else []
+        pending_approvals = (
+            self._approval_gate.list_requests(status="PENDING") if self._approval_gate else []
+        )
         # RetrainingRecommendation lifecycle is PROPOSED -> APPROVED/DISMISSED
         # (no "PENDING" status exists) — PROPOSED is the "awaiting admin
         # decision" state that corresponds to "pending" here.
-        pending_recommendations = self._rec_engine.list_recommendations(status="PROPOSED") if self._rec_engine else []
+        pending_recommendations = (
+            self._rec_engine.list_recommendations(status="PROPOSED") if self._rec_engine else []
+        )
 
         return {
             "generated_at": round(time.time(), 3),
@@ -877,21 +942,28 @@ class QDEHealthDashboard:
         self._rec_engine = rec_engine
 
     def compute(self, model_version: str | None = None) -> dict[str, Any]:
-        current_deployment = self._deployment_manager.get_current() if self._deployment_manager else None
+        current_deployment = (
+            self._deployment_manager.get_current() if self._deployment_manager else None
+        )
         resolved_version = model_version or (current_deployment or {}).get("model_version")
 
         composite = None
         if self._composite_health_scorer is not None:
             composite = self._composite_health_scorer.get_latest(model_version=resolved_version)
             if composite is None:
-                composite = self._composite_health_scorer.compute(model_version=resolved_version).to_dict()
+                composite = self._composite_health_scorer.compute(
+                    model_version=resolved_version
+                ).to_dict()
 
         pending_recommendations = (
             self._rec_engine.list_recommendations(status="PROPOSED", model_version=resolved_version)
-            if self._rec_engine else []
+            if self._rec_engine
+            else []
         )
 
-        category_scores = {cs["category"]: cs for cs in (composite or {}).get("category_scores", [])}
+        category_scores = {
+            cs["category"]: cs for cs in (composite or {}).get("category_scores", [])
+        }
         calibration_score = (category_scores.get("calibration") or {}).get("score")
         drift_score = (category_scores.get("drift") or {}).get("score")
 

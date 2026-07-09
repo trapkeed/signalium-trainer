@@ -439,9 +439,7 @@ class QDERollbackRecord:
         # rollback moved between, even if the caller passes nothing — a
         # rollback event that can't answer "which versions were touched"
         # would defeat the point of this field.
-        versions = list(dict.fromkeys(
-            [from_version_id, to_version_id] + (affected_versions or [])
-        ))
+        versions = list(dict.fromkeys([from_version_id, to_version_id] + (affected_versions or [])))
         return cls(
             rollback_id=str(uuid.uuid4())[:12],
             from_version_id=from_version_id,

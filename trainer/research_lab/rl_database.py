@@ -2363,6 +2363,7 @@ class ResearchLabDatabase:
         double-consume. Returns the number of rows updated (1 = success, 0 = blocked).
         """
         import json as _json
+
         now = consumed_at
         # We need to also update the data_json to reflect CONSUMED status.
         # First, get the matching APPROVED row.
@@ -2384,13 +2385,15 @@ class ResearchLabDatabase:
         data["consumed_at"] = round(now, 3)
         data["consumed_by"] = consumed_by
         data["updated_at"] = round(now, 3)
-        data.setdefault("audit_log", []).append({
-            "event": "consumed",
-            "actor": consumed_by,
-            "timestamp": round(now, 3),
-            "reason": "Gated action executed",
-            "metadata": {},
-        })
+        data.setdefault("audit_log", []).append(
+            {
+                "event": "consumed",
+                "actor": consumed_by,
+                "timestamp": round(now, 3),
+                "reason": "Gated action executed",
+                "metadata": {},
+            }
+        )
 
         # Single explicit transaction: update scalar status + JSON payload in
         # one atomic block with a single COMMIT.  The WHERE status='APPROVED'
@@ -2687,7 +2690,8 @@ class ResearchLabDatabase:
 
     def get_disaster_recovery_snapshot(self, snapshot_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
-            "SELECT data_json FROM disaster_recovery_snapshots WHERE snapshot_id = ?", (snapshot_id,)
+            "SELECT data_json FROM disaster_recovery_snapshots WHERE snapshot_id = ?",
+            (snapshot_id,),
         ).fetchone()
         return json.loads(row["data_json"]) if row else None
 
@@ -3066,35 +3070,49 @@ class ResearchLabDatabase:
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
-        tables = [
-            "experiments",
-            "datasets",
-            "dataset_generation_jobs",
-            "backtests",
-            "gate_results",
-            "failures",
-            "comparisons",
-            "shadow_tests",
-            "shadow_decisions",
-            "deployments",
-            "rollback_requests",
-            "lifecycle_authorizations",
-            "parameter_searches",
-            "regime_reports",
-            "features",
-            "benchmarks",
-            "research_notes",
-        ] + list(self._TELEMETRY_TABLES) + [
-            "failure_reports", "label_datasets",
-            "retraining_recommendations", "approval_requests", "pipeline_jobs",
-            "training_runs", "artifacts", "health_alerts",
-            "model_deployments", "deployment_events",
-            "decision_quality_reports", "performance_reports",
-            "feature_health_reports", "regime_coverage_reports",
-            "observability_reports",
-            "institutional_certifications", "deployment_approval_workflows",
-            "decision_traces", "decision_audits",
-        ]
+        tables = (
+            [
+                "experiments",
+                "datasets",
+                "dataset_generation_jobs",
+                "backtests",
+                "gate_results",
+                "failures",
+                "comparisons",
+                "shadow_tests",
+                "shadow_decisions",
+                "deployments",
+                "rollback_requests",
+                "lifecycle_authorizations",
+                "parameter_searches",
+                "regime_reports",
+                "features",
+                "benchmarks",
+                "research_notes",
+            ]
+            + list(self._TELEMETRY_TABLES)
+            + [
+                "failure_reports",
+                "label_datasets",
+                "retraining_recommendations",
+                "approval_requests",
+                "pipeline_jobs",
+                "training_runs",
+                "artifacts",
+                "health_alerts",
+                "model_deployments",
+                "deployment_events",
+                "decision_quality_reports",
+                "performance_reports",
+                "feature_health_reports",
+                "regime_coverage_reports",
+                "observability_reports",
+                "institutional_certifications",
+                "deployment_approval_workflows",
+                "decision_traces",
+                "decision_audits",
+            ]
+        )
         result: dict[str, int] = {}
         for table in tables:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()

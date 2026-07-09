@@ -26,6 +26,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.rl_database import ResearchLabDatabase
@@ -48,7 +49,7 @@ class DecisionQualityConfig:
     high_atr_threshold: float = 25.0
 
     # Degradation thresholds (drift checks, wired into health monitor)
-    expectancy_drift_warning: float = 0.15   # relative drop in expectancy
+    expectancy_drift_warning: float = 0.15  # relative drop in expectancy
     expectancy_drift_critical: float = 0.35
     correlation_drift_warning: float = 0.20  # absolute drop in confidence-outcome corr
     correlation_drift_critical: float = 0.40
@@ -121,9 +122,7 @@ class DecisionQualityReport:
 # ── Pure helpers ──────────────────────────────────────────────────────────────
 
 
-def _volatility_bucket(
-    trade: dict[str, Any], cfg: DecisionQualityConfig
-) -> str:
+def _volatility_bucket(trade: dict[str, Any], cfg: DecisionQualityConfig) -> str:
     """Bucket a trade into a volatility state.
 
     Prefers an explicit ``volatility_state`` key in ``market_conditions``
@@ -166,9 +165,7 @@ def _expectancy_stats(trades: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _group_expectancy(
-    trades: list[dict[str, Any]], key_fn: Any
-) -> dict[str, dict[str, Any]]:
+def _group_expectancy(trades: list[dict[str, Any]], key_fn: Any) -> dict[str, dict[str, Any]]:
     """Group trades by ``key_fn(trade)`` and compute expectancy stats per group."""
     groups: dict[str, list[dict[str, Any]]] = {}
     for t in trades:
@@ -353,8 +350,7 @@ def check_decision_quality_drift(
         return None
 
     is_critical = (
-        exp_drop >= cfg.expectancy_drift_critical
-        or corr_drop >= cfg.correlation_drift_critical
+        exp_drop >= cfg.expectancy_drift_critical or corr_drop >= cfg.correlation_drift_critical
     )
 
     return {

@@ -70,11 +70,17 @@ class TestUnconfigured:
 
 class TestGpuSelection:
     def test_selects_cheapest_eligible(self):
-        options = [GpuOption("NVIDIA A100 80GB PCIe", 1, 1.5), GpuOption("NVIDIA RTX A4000", 3, 0.3)]
+        options = [
+            GpuOption("NVIDIA A100 80GB PCIe", 1, 1.5),
+            GpuOption("NVIDIA RTX A4000", 3, 0.3),
+        ]
         assert select_gpu(options).gpu_type == "NVIDIA RTX A4000"
 
     def test_respects_min_count(self):
-        options = [GpuOption("NVIDIA RTX A4000", 1, 0.3), GpuOption("NVIDIA A100 80GB PCIe", 5, 1.5)]
+        options = [
+            GpuOption("NVIDIA RTX A4000", 1, 0.3),
+            GpuOption("NVIDIA A100 80GB PCIe", 5, 1.5),
+        ]
         assert select_gpu(options, min_count=2).gpu_type == "NVIDIA A100 80GB PCIe"
 
     def test_raises_when_none_eligible(self):
@@ -83,7 +89,10 @@ class TestGpuSelection:
             select_gpu(options, min_count=1)
 
     def test_respects_max_price(self):
-        options = [GpuOption("NVIDIA A100 80GB PCIe", 5, 1.5), GpuOption("NVIDIA RTX A4000", 5, 0.3)]
+        options = [
+            GpuOption("NVIDIA A100 80GB PCIe", 5, 1.5),
+            GpuOption("NVIDIA RTX A4000", 5, 0.3),
+        ]
         assert select_gpu(options, max_price_per_hr=0.5).gpu_type == "NVIDIA RTX A4000"
 
 

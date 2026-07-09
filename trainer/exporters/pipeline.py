@@ -54,7 +54,7 @@ except ImportError:  # pragma: no cover
 
 from trainer.research_lab.artifact_models import ArtifactRecord, ArtifactType
 from trainer.research_lab.artifact_registry import DuplicateArtifactError
-from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
+from trainer.research_lab.artifact_store import ArtifactStore
 from trainer.research_lab.signing import ArtifactSigner, SigningKeyError
 
 #: Canonical file names written by the pipeline (relative to the per-version
@@ -234,10 +234,14 @@ class QDEExportPipeline:
         # ── TorchScript / ONNX ───────────────────────────────────────────
         if model is not None and config is not None and example_input_shape is not None:
             if "torchscript" in export_formats:
-                ts_path = self._export_torchscript(model, config, example_input_shape, store, model_version)
+                ts_path = self._export_torchscript(
+                    model, config, example_input_shape, store, model_version
+                )
                 exported.append((ts_path, ArtifactType.TORCHSCRIPT.value, "torchscript"))
             if "onnx" in export_formats:
-                onnx_path = self._export_onnx(model, config, example_input_shape, store, model_version)
+                onnx_path = self._export_onnx(
+                    model, config, example_input_shape, store, model_version
+                )
                 exported.append((onnx_path, ArtifactType.ONNX.value, "onnx"))
         elif export_formats:
             logger.warning(
@@ -263,7 +267,9 @@ class QDEExportPipeline:
         metadata_payload: dict[str, Any] = dict(metadata or {})
         if model is not None and hasattr(model, "get_architecture_summary"):
             try:
-                metadata_payload.setdefault("architecture_summary", model.get_architecture_summary())
+                metadata_payload.setdefault(
+                    "architecture_summary", model.get_architecture_summary()
+                )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("QDEExportPipeline: get_architecture_summary() failed: {}", exc)
         metadata_payload.setdefault("architecture", architecture)
@@ -310,7 +316,9 @@ class QDEExportPipeline:
             "feature_version": feature_version,
             "training_commit": training_commit,
             "calibration_version": calibration_version,
-            "training_timestamp": training_timestamp if training_timestamp is not None else time.time(),
+            "training_timestamp": (
+                training_timestamp if training_timestamp is not None else time.time()
+            ),
             "certification_status": certification_status,
             "promotion_status": promotion_status,
             "supported_symbols": supported_symbols or [],
@@ -338,7 +346,9 @@ class QDEExportPipeline:
         # write below, and is reported/registered externally (in the
         # returned `files` list and the ArtifactRegistry record) where it is
         # guaranteed to match the real on-disk bytes exactly.
-        manifest_path = store.write_text(model_version, MANIFEST_FILENAME, json.dumps(manifest, indent=2, default=str))
+        manifest_path = store.write_text(
+            model_version, MANIFEST_FILENAME, json.dumps(manifest, indent=2, default=str)
+        )
         manifest_sha256 = _sha256_file(manifest_path)
         manifest_signature, manifest_sig_path = self._sign_file(store, model_version, manifest_path)
         files.append(
@@ -447,7 +457,9 @@ class QDEExportPipeline:
 
         from trainer.exporters.torchscript import TorchScriptExporter
 
-        exporter = TorchScriptExporter(model=model, config=config, example_input_shape=example_input_shape)
+        exporter = TorchScriptExporter(
+            model=model, config=config, example_input_shape=example_input_shape
+        )
         with tempfile.TemporaryDirectory() as scratch:
             scratch_path = exporter.export(Path(scratch))[0]
             # Exporters write to an arbitrary scratch path; import the result

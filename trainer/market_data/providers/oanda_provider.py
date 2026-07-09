@@ -19,8 +19,12 @@ from trainer.market_data.providers.base_stub_provider import BaseStubProvider
 
 class OandaProvider(BaseStubProvider):
     def __init__(self, api_key: str | None = None, account_id: str | None = None) -> None:
-        super().__init__(api_key=api_key if api_key is not None else os.environ.get("OANDA_API_KEY"))
-        self._account_id = account_id if account_id is not None else os.environ.get("OANDA_ACCOUNT_ID")
+        super().__init__(
+            api_key=api_key if api_key is not None else os.environ.get("OANDA_API_KEY")
+        )
+        self._account_id = (
+            account_id if account_id is not None else os.environ.get("OANDA_ACCOUNT_ID")
+        )
 
     def name(self) -> str:
         return "oanda"
@@ -31,15 +35,19 @@ class OandaProvider(BaseStubProvider):
         client — deliberately raising here (rather than a silent mock)
         keeps the "implement only missing functionality" boundary honest:
         the architecture is complete, the network call is not."""
-        raise NotImplementedError("OANDA HTTP client not yet wired — add credentials and implement _request")
+        raise NotImplementedError(
+            "OANDA HTTP client not yet wired — add credentials and implement _request"
+        )
 
     def get_price(self, symbol: str) -> dict[str, Any]:
         self._require_configured()
-        return self._request(f"/pricing", {"instruments": symbol})
+        return self._request("/pricing", {"instruments": symbol})
 
     def get_candles(self, symbol: str, timeframe: str, count: int = 100) -> list[dict[str, Any]]:
         self._require_configured()
-        return self._request(f"/instruments/{symbol}/candles", {"granularity": timeframe, "count": count})
+        return self._request(
+            f"/instruments/{symbol}/candles", {"granularity": timeframe, "count": count}
+        )
 
     def get_ticks(self, symbol: str, count: int = 100) -> list[dict[str, Any]]:
         self._require_configured()

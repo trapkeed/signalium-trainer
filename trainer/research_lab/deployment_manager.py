@@ -43,22 +43,21 @@ from trainer.research_lab.approval_models import ApprovalGateType
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.signing import ArtifactSigner, SignatureResult, SigningKeyError
 
-
 # ── Valid stage transition map ─────────────────────────────────────────────────
 
 #: Maps (from_status, to_status) → required ApprovalGateType.
 #: Transitions not in this map are rejected.
 _VALID_TRANSITIONS: dict[tuple[str, str], ApprovalGateType] = {
-    ("NOT_DEPLOYED", "SHADOW"):    ApprovalGateType.PROMOTION,
+    ("NOT_DEPLOYED", "SHADOW"): ApprovalGateType.PROMOTION,
     # S21A: a version that has gone through the full pre-SHADOW pipeline
     # (DRAFT → TRAINING → VALIDATING) is also eligible to enter SHADOW.
-    ("VALIDATING",   "SHADOW"):   ApprovalGateType.PROMOTION,
-    ("SHADOW",       "CANDIDATE"): ApprovalGateType.PROMOTION,
-    ("CANDIDATE",   "ACTIVE"):    ApprovalGateType.DEPLOYMENT,
+    ("VALIDATING", "SHADOW"): ApprovalGateType.PROMOTION,
+    ("SHADOW", "CANDIDATE"): ApprovalGateType.PROMOTION,
+    ("CANDIDATE", "ACTIVE"): ApprovalGateType.DEPLOYMENT,
     # Re-promotion paths (e.g. after rollback the model sits at RETIRED)
-    ("RETIRED",      "SHADOW"):   ApprovalGateType.PROMOTION,
-    ("RETIRED",      "CANDIDATE"): ApprovalGateType.PROMOTION,
-    ("RETIRED",      "ACTIVE"):   ApprovalGateType.DEPLOYMENT,
+    ("RETIRED", "SHADOW"): ApprovalGateType.PROMOTION,
+    ("RETIRED", "CANDIDATE"): ApprovalGateType.PROMOTION,
+    ("RETIRED", "ACTIVE"): ApprovalGateType.DEPLOYMENT,
 }
 
 
@@ -571,8 +570,7 @@ class DeploymentManager:
                 resource_type="model_version",
                 requested_by=requested_by,
                 action_summary=(
-                    f"Rollback: restore {model_version!r} to ACTIVE "
-                    f"(reason: {reason!r})"
+                    f"Rollback: restore {model_version!r} to ACTIVE " f"(reason: {reason!r})"
                 ),
                 requestor_context={
                     "model_version": model_version,
@@ -807,7 +805,9 @@ class DeploymentManager:
 
         path = Path(path_str)
         if not path.exists():
-            return SignatureResult(name=name, verified=False, reason=f"artifact file missing: {path}")
+            return SignatureResult(
+                name=name, verified=False, reason=f"artifact file missing: {path}"
+            )
 
         data = path.read_bytes()
 

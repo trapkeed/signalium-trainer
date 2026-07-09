@@ -148,45 +148,65 @@ ROLE_CAPABILITIES: dict[Role, frozenset[Capability]] = {
     Role.SUPER_ADMIN: frozenset({Capability.UNRESTRICTED}),
     Role.ADMIN: frozenset({Capability.UNRESTRICTED}),
     Role.FOUNDER: frozenset(),  # visibility-only, no mutation capabilities
-    Role.QUANT_RESEARCHER: frozenset({
-        Capability.EXPERIMENT_CREATION,
-        Capability.DATASET_MANAGEMENT,
-        Capability.FEATURE_ENGINEERING,
-        Capability.SHADOW_TESTING,
-        Capability.RESEARCH_WORKFLOWS,
-    }),
-    Role.ML_RESEARCHER: frozenset({
-        Capability.TRAINING_RUNS,
-        Capability.VALIDATION,
-        Capability.ARCHITECTURE_RESEARCH,
-        Capability.RETRAINING_WORKFLOWS,
-        Capability.RESILIENCE_OPERATIONS,
-    }),
-    Role.DEPLOYMENT_APPROVER: frozenset({
-        Capability.APPROVE_PROMOTIONS,
-        Capability.APPROVE_DEPLOYMENTS,
-        Capability.APPROVE_ROLLBACKS,
-        Capability.RESILIENCE_OPERATIONS,
-    }),
+    Role.QUANT_RESEARCHER: frozenset(
+        {
+            Capability.EXPERIMENT_CREATION,
+            Capability.DATASET_MANAGEMENT,
+            Capability.FEATURE_ENGINEERING,
+            Capability.SHADOW_TESTING,
+            Capability.RESEARCH_WORKFLOWS,
+        }
+    ),
+    Role.ML_RESEARCHER: frozenset(
+        {
+            Capability.TRAINING_RUNS,
+            Capability.VALIDATION,
+            Capability.ARCHITECTURE_RESEARCH,
+            Capability.RETRAINING_WORKFLOWS,
+            Capability.RESILIENCE_OPERATIONS,
+        }
+    ),
+    Role.DEPLOYMENT_APPROVER: frozenset(
+        {
+            Capability.APPROVE_PROMOTIONS,
+            Capability.APPROVE_DEPLOYMENTS,
+            Capability.APPROVE_ROLLBACKS,
+            Capability.RESILIENCE_OPERATIONS,
+        }
+    ),
     Role.AUDITOR: frozenset(),  # read-only, no mutation permissions
 }
 
 ROLE_VISIBILITY: dict[Role, frozenset[Visibility]] = {
     Role.SUPER_ADMIN: frozenset(Visibility),
     Role.ADMIN: frozenset(Visibility),
-    Role.FOUNDER: frozenset({
-        Visibility.QDE_LIFECYCLE, Visibility.DEPLOYMENT, Visibility.MODEL_GOVERNANCE,
-        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
-    }),
-    Role.QUANT_RESEARCHER: frozenset({
-        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
-    }),
-    Role.ML_RESEARCHER: frozenset({
-        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
-    }),
-    Role.DEPLOYMENT_APPROVER: frozenset({
-        Visibility.OBSERVABILITY_DASHBOARD, Visibility.DECISION_TRACEABILITY,
-    }),
+    Role.FOUNDER: frozenset(
+        {
+            Visibility.QDE_LIFECYCLE,
+            Visibility.DEPLOYMENT,
+            Visibility.MODEL_GOVERNANCE,
+            Visibility.OBSERVABILITY_DASHBOARD,
+            Visibility.DECISION_TRACEABILITY,
+        }
+    ),
+    Role.QUANT_RESEARCHER: frozenset(
+        {
+            Visibility.OBSERVABILITY_DASHBOARD,
+            Visibility.DECISION_TRACEABILITY,
+        }
+    ),
+    Role.ML_RESEARCHER: frozenset(
+        {
+            Visibility.OBSERVABILITY_DASHBOARD,
+            Visibility.DECISION_TRACEABILITY,
+        }
+    ),
+    Role.DEPLOYMENT_APPROVER: frozenset(
+        {
+            Visibility.OBSERVABILITY_DASHBOARD,
+            Visibility.DECISION_TRACEABILITY,
+        }
+    ),
     # Role.AUDITOR has no other entry (excluded from OBSERVABILITY_DASHBOARD
     # per the S25 spec), but S28 explicitly requires Auditor to see decision
     # traceability/audit records — that is the core of its compliance-review

@@ -24,16 +24,20 @@ from typing import Any
 
 from trainer.research_lab.sso import Role
 
-MANDATORY_APPROVER_ROLES: frozenset[Role] = frozenset({
-    Role.SUPER_ADMIN,
-    Role.DEPLOYMENT_APPROVER,
-})
+MANDATORY_APPROVER_ROLES: frozenset[Role] = frozenset(
+    {
+        Role.SUPER_ADMIN,
+        Role.DEPLOYMENT_APPROVER,
+    }
+)
 
-OPTIONAL_REVIEWER_ROLES: frozenset[Role] = frozenset({
-    Role.FOUNDER,
-    Role.QUANT_RESEARCHER,
-    Role.ML_RESEARCHER,
-})
+OPTIONAL_REVIEWER_ROLES: frozenset[Role] = frozenset(
+    {
+        Role.FOUNDER,
+        Role.QUANT_RESEARCHER,
+        Role.ML_RESEARCHER,
+    }
+)
 
 # Admin is treated as an alias for SuperAdmin's mandatory-approver seat —
 # both hold Capability.UNRESTRICTED in sso.py's ROLE_CAPABILITIES.
@@ -153,9 +157,7 @@ class DeploymentApprovalWorkflow:
         who reviewed (the replaced review is dropped, not hidden — this
         mirrors the single-actor gate's re-review semantics).
         """
-        self.reviews = [
-            r for r in self.reviews if not (r.reviewer == reviewer and r.role == role)
-        ]
+        self.reviews = [r for r in self.reviews if not (r.reviewer == reviewer and r.role == role)]
         review = DeploymentReview(
             reviewer=reviewer,
             role=role,

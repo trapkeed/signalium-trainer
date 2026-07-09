@@ -37,7 +37,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
 
@@ -54,7 +53,7 @@ class ApprovalStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     EXPIRED = "EXPIRED"
-    CONSUMED = "CONSUMED"   # atomically consumed after the gated action executes
+    CONSUMED = "CONSUMED"  # atomically consumed after the gated action executes
 
 
 # ── Exceptions ────────────────────────────────────────────────────────────────
@@ -107,7 +106,7 @@ class ApprovalAlreadyResolved(Exception):
 class ApprovalAuditEntry:
     """One event in the permanent approval audit log."""
 
-    event: str           # "created" | "approved" | "rejected" | "expired" | "consumed"
+    event: str  # "created" | "approved" | "rejected" | "expired" | "consumed"
     actor: str
     timestamp: float
     reason: str = ""
@@ -138,15 +137,15 @@ class ApprovalRequest:
     """
 
     request_id: str
-    gate_type: str              # ApprovalGateType.value
-    resource_id: str            # e.g. experiment_id, model_version
-    resource_type: str          # e.g. "experiment", "qde_version"
+    gate_type: str  # ApprovalGateType.value
+    resource_id: str  # e.g. experiment_id, model_version
+    resource_type: str  # e.g. "experiment", "qde_version"
     requested_by: str
-    action_summary: str         # human-readable: "Launch experiment exp-abc for v2.1"
+    action_summary: str  # human-readable: "Launch experiment exp-abc for v2.1"
     requestor_context: dict[str, Any]
-    status: str                 # ApprovalStatus.value
+    status: str  # ApprovalStatus.value
     created_at: float
-    expires_at: float           # PENDING requests expire after this epoch time
+    expires_at: float  # PENDING requests expire after this epoch time
     updated_at: float
 
     resolved_by: str = ""
@@ -199,10 +198,7 @@ class ApprovalRequest:
 
     def is_expired(self) -> bool:
         """True if the request is PENDING and has passed its expiry time."""
-        return (
-            self.status == ApprovalStatus.PENDING.value
-            and time.time() > self.expires_at
-        )
+        return self.status == ApprovalStatus.PENDING.value and time.time() > self.expires_at
 
     def approve(self, approved_by: str, reason: str = "") -> None:
         """Admin approves the request (PENDING → APPROVED)."""
@@ -249,8 +245,10 @@ class ApprovalRequest:
         self.updated_at = now
         self.audit_log.append(
             ApprovalAuditEntry(
-                event="expired", actor="system", timestamp=now,
-                reason="TTL elapsed without admin decision"
+                event="expired",
+                actor="system",
+                timestamp=now,
+                reason="TTL elapsed without admin decision",
             ).to_dict()
         )
 
@@ -269,8 +267,7 @@ class ApprovalRequest:
         self.updated_at = now
         self.audit_log.append(
             ApprovalAuditEntry(
-                event="consumed", actor=consumed_by, timestamp=now,
-                reason="Gated action executed"
+                event="consumed", actor=consumed_by, timestamp=now, reason="Gated action executed"
             ).to_dict()
         )
 

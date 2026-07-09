@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from trainer.market_data.market_data_router import MarketDataRouter, SymbolNotCanonicalError
-from trainer.market_data.provider_priority import ProviderName, ProviderPriority, TradingMode
+from trainer.market_data.provider_priority import TradingMode
 from trainer.market_data.symbol_normalizer import SymbolNormalizer
 
 
@@ -69,7 +69,9 @@ class TestActiveProvider:
         assert router.active_provider_name(TradingMode.AUTONOMOUS) == "ea_feed"
 
     def test_missing_ea_feed_degrades_gracefully(self):
-        router = MarketDataRouter({"oanda": FakeProvider("oanda"), "tiingo": FakeProvider("tiingo")})
+        router = MarketDataRouter(
+            {"oanda": FakeProvider("oanda"), "tiingo": FakeProvider("tiingo")}
+        )
         assert router.active_provider_name(TradingMode.AUTONOMOUS) == "oanda"
 
 
@@ -81,7 +83,9 @@ class TestRouting:
         assert result["provider"] == "oanda"
 
     def test_inference_fails_over_on_provider_error(self):
-        router = MarketDataRouter({"oanda": FakeProvider("oanda", fail=True), "tiingo": FakeProvider("tiingo")})
+        router = MarketDataRouter(
+            {"oanda": FakeProvider("oanda", fail=True), "tiingo": FakeProvider("tiingo")}
+        )
         result = router.route("EURUSD", "get_price", mode=TradingMode.MANUAL)
         assert result["provider"] == "tiingo"
 

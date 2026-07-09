@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 try:
@@ -40,26 +40,55 @@ except ImportError:
 #: default-enabled set but the registry supports adding it (architecturally
 #: supported, disabled by default).
 DEFAULT_SYMBOLS: dict[str, str] = {
-    "EURUSD": "forex", "GBPUSD": "forex", "USDJPY": "forex", "AUDUSD": "forex",
-    "USDCHF": "forex", "USDCAD": "forex", "NZDUSD": "forex",
-    "XAUUSD": "metal", "XAGUSD": "metal",
-    "US30": "index", "NAS100": "index", "SPX500": "index", "GER40": "index", "UK100": "index",
+    "EURUSD": "forex",
+    "GBPUSD": "forex",
+    "USDJPY": "forex",
+    "AUDUSD": "forex",
+    "USDCHF": "forex",
+    "USDCAD": "forex",
+    "NZDUSD": "forex",
+    "XAUUSD": "metal",
+    "XAGUSD": "metal",
+    "US30": "index",
+    "NAS100": "index",
+    "SPX500": "index",
+    "GER40": "index",
+    "UK100": "index",
 }
 
 #: Built-in vendor aliases that don't fit the structural
 #: suffix/prefix/separator-stripping rule (e.g. "GOLD" for XAUUSD is a
 #: different word entirely, not a decorated spelling of XAUUSD).
 BUILTIN_ALIASES: dict[str, str] = {
-    "GOLD": "XAUUSD", "XAU/USD": "XAUUSD",
-    "SILVER": "XAGUSD", "XAG/USD": "XAGUSD",
-    "DJI30": "US30", "DOW": "US30", "DOW30": "US30",
-    "DJ30": "US30", "US30CASH": "US30", "US30USD": "US30", "WALLST30": "US30",
-    "NASDAQ100": "NAS100", "NDX": "NAS100",
-    "SP500": "SPX500", "SPX": "SPX500",
-    "DAX": "GER40", "DAX40": "GER40", "DE40": "GER40", "GER40CASH": "GER40", "GERMANY40": "GER40",
-    "FTSE": "UK100", "FTSE100": "UK100",
-    "EUR/USD": "EURUSD", "GBP/USD": "GBPUSD", "USD/JPY": "USDJPY",
-    "AUD/USD": "AUDUSD", "USD/CHF": "USDCHF", "USD/CAD": "USDCAD", "NZD/USD": "NZDUSD",
+    "GOLD": "XAUUSD",
+    "XAU/USD": "XAUUSD",
+    "SILVER": "XAGUSD",
+    "XAG/USD": "XAGUSD",
+    "DJI30": "US30",
+    "DOW": "US30",
+    "DOW30": "US30",
+    "DJ30": "US30",
+    "US30CASH": "US30",
+    "US30USD": "US30",
+    "WALLST30": "US30",
+    "NASDAQ100": "NAS100",
+    "NDX": "NAS100",
+    "SP500": "SPX500",
+    "SPX": "SPX500",
+    "DAX": "GER40",
+    "DAX40": "GER40",
+    "DE40": "GER40",
+    "GER40CASH": "GER40",
+    "GERMANY40": "GER40",
+    "FTSE": "UK100",
+    "FTSE100": "UK100",
+    "EUR/USD": "EURUSD",
+    "GBP/USD": "GBPUSD",
+    "USD/JPY": "USDJPY",
+    "AUD/USD": "AUDUSD",
+    "USD/CHF": "USDCHF",
+    "USD/CAD": "USDCAD",
+    "NZD/USD": "NZDUSD",
 }
 
 #: Broker-specific profiles — a broker's own house spellings for canonical
@@ -70,10 +99,16 @@ BUILTIN_ALIASES: dict[str, str] = {
 #: calls for per-broker scoping rather than one global flat namespace).
 BROKER_PROFILES: dict[str, dict[str, str]] = {
     "oanda": {
-        "US30_USD": "US30", "DE30_EUR": "GER40", "SPX500_USD": "SPX500", "NAS100_USD": "NAS100",
+        "US30_USD": "US30",
+        "DE30_EUR": "GER40",
+        "SPX500_USD": "SPX500",
+        "NAS100_USD": "NAS100",
     },
     "ig": {
-        "WALL STREET": "US30", "GERMANY 40": "GER40", "US 500": "SPX500", "US TECH 100": "NAS100",
+        "WALL STREET": "US30",
+        "GERMANY 40": "GER40",
+        "US 500": "SPX500",
+        "US TECH 100": "NAS100",
     },
 }
 
@@ -81,20 +116,26 @@ BROKER_PROFILES: dict[str, dict[str, str]] = {
 #: Order matters: separators first, then suffix/prefix noise.
 _SEPARATOR_RE = re.compile(r"[/_\-\s]")
 _SUFFIX_RE = re.compile(r"\.(r|pro|raw|cash|m|micro|ecn)$", re.IGNORECASE)
-_TRAILING_LETTER_RE = re.compile(r"(m|c|i)$", re.IGNORECASE)  # e.g. EURUSDm, US30m — trailing broker-type letter
+_TRAILING_LETTER_RE = re.compile(
+    r"(m|c|i)$", re.IGNORECASE
+)  # e.g. EURUSDm, US30m — trailing broker-type letter
 
 
 @dataclass
 class NormalizationResult:
     input_symbol: str
     canonical: str | None
-    matched_via: str  # "exact" | "builtin_alias" | "admin_alias" | "learned" | "structural" | "unresolved"
+    matched_via: (
+        str  # "exact" | "builtin_alias" | "admin_alias" | "learned" | "structural" | "unresolved"
+    )
     enabled: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "input_symbol": self.input_symbol, "canonical": self.canonical,
-            "matched_via": self.matched_via, "enabled": self.enabled,
+            "input_symbol": self.input_symbol,
+            "canonical": self.canonical,
+            "matched_via": self.matched_via,
+            "enabled": self.enabled,
         }
 
 
@@ -196,7 +237,9 @@ class SymbolNormalizer:
         an admin needing to hand-register the alias."""
         canonical = canonical.upper()
         if canonical not in self._symbols:
-            raise UnknownSymbolError(f"Cannot learn alias to unregistered canonical symbol {canonical!r}")
+            raise UnknownSymbolError(
+                f"Cannot learn alias to unregistered canonical symbol {canonical!r}"
+            )
         self._learned_aliases[raw.upper()] = (canonical, time.time())
         logger.info(f"SymbolNormalizer: learned {raw!r} -> {canonical!r}")
 
@@ -207,7 +250,9 @@ class SymbolNormalizer:
         s = _SUFFIX_RE.sub("", s)
         return s
 
-    def normalize(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> NormalizationResult:
+    def normalize(
+        self, raw: str, *, broker: str | None = None, fuzzy: bool = False
+    ) -> NormalizationResult:
         result = self._resolve(raw, broker=broker, fuzzy=fuzzy)
         # Every normalization event is logged — both to the process logger
         # (S33 requirement: "logging of normalization events") and, if a
@@ -222,10 +267,14 @@ class SymbolNormalizer:
                 f"via {result.matched_via!r} (broker={broker!r}, enabled={result.enabled})"
             )
         if self._store is not None:
-            self._store.log_event(raw, result.canonical, result.matched_via, result.enabled, broker=broker)
+            self._store.log_event(
+                raw, result.canonical, result.matched_via, result.enabled, broker=broker
+            )
         return result
 
-    def _resolve(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> NormalizationResult:
+    def _resolve(
+        self, raw: str, *, broker: str | None = None, fuzzy: bool = False
+    ) -> NormalizationResult:
         if not raw:
             return NormalizationResult(raw, None, "unresolved", enabled=False)
         upper = raw.upper()
@@ -234,7 +283,9 @@ class SymbolNormalizer:
             profile = BROKER_PROFILES.get(broker.lower(), {})
             if upper in profile:
                 canonical = profile[upper]
-                return NormalizationResult(raw, canonical, "broker_profile", self.is_enabled(canonical))
+                return NormalizationResult(
+                    raw, canonical, "broker_profile", self.is_enabled(canonical)
+                )
 
         if upper in self._symbols:
             return NormalizationResult(raw, upper, "exact", self.is_enabled(upper))
@@ -277,7 +328,12 @@ class SymbolNormalizer:
         produce false positives for genuinely unknown instruments."""
         import difflib
 
-        candidates = set(self._symbols) | set(BUILTIN_ALIASES) | set(self._admin_aliases) | set(self._learned_aliases)
+        candidates = (
+            set(self._symbols)
+            | set(BUILTIN_ALIASES)
+            | set(self._admin_aliases)
+            | set(self._learned_aliases)
+        )
         best = difflib.get_close_matches(stripped, candidates, n=1, cutoff=cutoff)
         if not best:
             return None

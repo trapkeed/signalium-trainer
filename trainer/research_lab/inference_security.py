@@ -130,7 +130,9 @@ class ReplayGuard:
     nonce_ttl_seconds: float = 600.0
     _seen: dict[tuple[str, str], float] = field(default_factory=dict)
 
-    def check_and_record(self, caller_id: str, nonce: str, timestamp: float, *, now: float | None = None) -> None:
+    def check_and_record(
+        self, caller_id: str, nonce: str, timestamp: float, *, now: float | None = None
+    ) -> None:
         """Validate freshness and novelty, then record the nonce as consumed.
 
         Raises:

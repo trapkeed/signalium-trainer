@@ -5,15 +5,22 @@ import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
+// PORT/BASE_PATH are only meaningful for the dev/preview servers — a
+// production `vite build` never binds a port and should not require one
+// (e.g. CI build jobs that never start the server). Default them for
+// `build`, but keep the hard failure for `serve`/`dev` so a misconfigured
+// runtime environment still fails loudly.
+const command = process.argv.includes('build') ? 'build' : 'serve';
+
 const rawPort = process.env.PORT;
 
-if (!rawPort) {
+if (!rawPort && command !== 'build') {
   throw new Error(
     'PORT environment variable is required but was not provided.',
   );
 }
 
-const port = Number(rawPort);
+const port = Number(rawPort ?? '5173');
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
@@ -21,14 +28,14 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH;
 
-if (!basePath) {
+if (!basePath && command !== 'build') {
   throw new Error(
     'BASE_PATH environment variable is required but was not provided.',
   );
 }
 
 export default defineConfig({
-  base: basePath,
+  base: basePath ?? '/',
   plugins: [
     react(),
     tailwindcss(),

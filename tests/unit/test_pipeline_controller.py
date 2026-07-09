@@ -23,14 +23,13 @@ from typing import Any
 
 import pytest
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.approval_gate import ApprovalGate
 from trainer.research_lab.approval_models import ApprovalGateType
 from trainer.research_lab.pipeline_controller import (
     DefaultStageExecutor,
     ResearchLabPipelineController,
-    StageExecutor,
 )
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
 from trainer.research_lab.pipeline_models import (
     PIPELINE_STAGE_ORDER,
     PipelineEventType,
@@ -44,8 +43,8 @@ from trainer.research_lab.pipeline_models import (
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
 
-
 # ── Fixtures ───────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def db(tmp_path: Path) -> ResearchLabDatabase:
@@ -62,9 +61,7 @@ def ctrl(db: ResearchLabDatabase, gate: ApprovalGate) -> ResearchLabPipelineCont
     return ResearchLabPipelineController(db=db, approval_gate=gate)
 
 
-def _approved_ctrl(
-    db: ResearchLabDatabase, gate: ApprovalGate, job_id: str
-) -> None:
+def _approved_ctrl(db: ResearchLabDatabase, gate: ApprovalGate, job_id: str) -> None:
     """Helper: create and approve a TRAINING_START gate for *job_id*."""
     req = gate.create_request(
         gate_type=ApprovalGateType.TRAINING_START,
@@ -88,6 +85,7 @@ def _spec(
 
 
 # ── PipelineJobSpec ────────────────────────────────────────────────────────────
+
 
 class TestPipelineJobSpec:
     def test_requires_experiment_or_recommendation(self) -> None:
@@ -117,6 +115,7 @@ class TestPipelineJobSpec:
 
 
 # ── PipelineStageResult ────────────────────────────────────────────────────────
+
 
 class TestPipelineStageResult:
     def test_complete_sets_status_and_timestamps(self) -> None:
@@ -150,8 +149,16 @@ class TestPipelineStageResult:
             started_at=time.time(),
         )
         d = r.to_dict()
-        for key in ("stage", "status", "started_at", "completed_at",
-                    "duration_s", "artifacts", "logs", "error"):
+        for key in (
+            "stage",
+            "status",
+            "started_at",
+            "completed_at",
+            "duration_s",
+            "artifacts",
+            "logs",
+            "error",
+        ):
             assert key in d
 
     def test_roundtrip_from_dict(self) -> None:
@@ -170,6 +177,7 @@ class TestPipelineStageResult:
 
 
 # ── PipelineJob model ─────────────────────────────────────────────────────────
+
 
 class TestPipelineJob:
     def test_new_starts_in_queued(self) -> None:
@@ -238,9 +246,7 @@ class TestPipelineJob:
 
     def test_emit_event_appends_to_events(self) -> None:
         job = PipelineJob.new(_spec())
-        evt = PipelineStageEvent.new(
-            job.job_id, PipelineEventType.JOB_STARTED
-        )
+        evt = PipelineStageEvent.new(job.job_id, PipelineEventType.JOB_STARTED)
         job.emit_event(evt)
         assert len(job.events) == 1
         assert job.events[0]["event_type"] == PipelineEventType.JOB_STARTED.value
@@ -270,6 +276,7 @@ class TestPipelineJob:
 
 # ── DefaultStageExecutor ───────────────────────────────────────────────────────
 
+
 class TestDefaultStageExecutor:
     def test_all_stages_succeed(self) -> None:
         executor = DefaultStageExecutor()
@@ -282,6 +289,7 @@ class TestDefaultStageExecutor:
 
 # ── ResearchLabPipelineController ─────────────────────────────────────────────
 
+
 class TestPipelineController:
     def test_run_pipeline_full_success_with_approval(
         self, db: ResearchLabDatabase, gate: ApprovalGate
@@ -291,10 +299,9 @@ class TestPipelineController:
         spec = _spec()
         # We don't know the job_id in advance; run without training stage first
         # to get the job_id, then test the gated path separately.
-        spec_no_train = _spec(stages=[
-            s.value for s in PIPELINE_STAGE_ORDER
-            if s != PipelineStage.TRAINING
-        ])
+        spec_no_train = _spec(
+            stages=[s.value for s in PIPELINE_STAGE_ORDER if s != PipelineStage.TRAINING]
+        )
         job = ctrl.run_pipeline(spec_no_train)
         assert job.status == PipelineJobStatus.COMPLETED.value
         assert PipelineStage.TRAINING.value not in job.stages_completed
@@ -414,8 +421,7 @@ class TestPipelineController:
             db=db, approval_gate=gate, executor=_FailOnValidation()
         )
         stages_no_training = [
-            s.value for s in PIPELINE_STAGE_ORDER
-            if s not in (PipelineStage.TRAINING,)
+            s.value for s in PIPELINE_STAGE_ORDER if s not in (PipelineStage.TRAINING,)
         ]
         spec = PipelineJobSpec(
             requested_by="test",
@@ -438,9 +444,7 @@ class TestPipelineController:
             def execute_stage(self, stage, job, context):
                 raise RuntimeError(f"GPU out of memory at {stage.value}")
 
-        ctrl = ResearchLabPipelineController(
-            db=db, approval_gate=gate, executor=_RaisingExecutor()
-        )
+        ctrl = ResearchLabPipelineController(db=db, approval_gate=gate, executor=_RaisingExecutor())
         spec = PipelineJobSpec(
             requested_by="test",
             experiment_id="exp-exc-test",
@@ -467,8 +471,9 @@ class TestPipelineController:
         assert job.status == PipelineJobStatus.COMPLETED.value
         # DATASET_GENERATION must come before BACKTEST
         completed = job.stages_completed
-        assert completed.index(PipelineStage.DATASET_GENERATION.value) < \
-               completed.index(PipelineStage.BACKTEST.value)
+        assert completed.index(PipelineStage.DATASET_GENERATION.value) < completed.index(
+            PipelineStage.BACKTEST.value
+        )
 
     def test_events_record_job_and_stage_lifecycle(
         self, ctrl: ResearchLabPipelineController
@@ -486,21 +491,19 @@ class TestPipelineController:
         assert PipelineEventType.STAGE_COMPLETED.value in event_types
         assert PipelineEventType.JOB_COMPLETED.value in event_types
 
-    def test_events_include_stage_name(
-        self, ctrl: ResearchLabPipelineController
-    ) -> None:
+    def test_events_include_stage_name(self, ctrl: ResearchLabPipelineController) -> None:
         spec = PipelineJobSpec(
             requested_by="test",
             experiment_id="exp-evt-stage",
             stages_to_run=[PipelineStage.FEATURE_GENERATION.value],
         )
         job = ctrl.run_pipeline(spec)
-        stage_evts = [e for e in job.events if e.get("stage") == PipelineStage.FEATURE_GENERATION.value]
+        stage_evts = [
+            e for e in job.events if e.get("stage") == PipelineStage.FEATURE_GENERATION.value
+        ]
         assert len(stage_evts) >= 2  # STARTED + COMPLETED
 
-    def test_job_readable_from_db_after_run(
-        self, ctrl: ResearchLabPipelineController
-    ) -> None:
+    def test_job_readable_from_db_after_run(self, ctrl: ResearchLabPipelineController) -> None:
         spec = PipelineJobSpec(
             requested_by="test",
             experiment_id="exp-readable",
@@ -512,20 +515,18 @@ class TestPipelineController:
         assert fetched.job_id == job.job_id
         assert fetched.status == PipelineJobStatus.COMPLETED.value
 
-    def test_get_job_returns_none_for_missing(
-        self, ctrl: ResearchLabPipelineController
-    ) -> None:
+    def test_get_job_returns_none_for_missing(self, ctrl: ResearchLabPipelineController) -> None:
         assert ctrl.get_job("nonexistent") is None
 
-    def test_list_jobs_filter_by_status(
-        self, ctrl: ResearchLabPipelineController
-    ) -> None:
+    def test_list_jobs_filter_by_status(self, ctrl: ResearchLabPipelineController) -> None:
         spec1 = PipelineJobSpec(
-            requested_by="test", experiment_id="exp-list-1",
+            requested_by="test",
+            experiment_id="exp-list-1",
             stages_to_run=[PipelineStage.DATASET_GENERATION.value],
         )
         spec2_failing = PipelineJobSpec(
-            requested_by="test", experiment_id="exp-list-2",
+            requested_by="test",
+            experiment_id="exp-list-2",
             stages_to_run=[PipelineStage.TRAINING.value],  # will be blocked
         )
         ctrl.run_pipeline(spec1)
@@ -535,11 +536,10 @@ class TestPipelineController:
         assert len(completed) >= 1
         assert len(failed) >= 1
 
-    def test_list_jobs_filter_by_experiment_id(
-        self, ctrl: ResearchLabPipelineController
-    ) -> None:
+    def test_list_jobs_filter_by_experiment_id(self, ctrl: ResearchLabPipelineController) -> None:
         spec = PipelineJobSpec(
-            requested_by="test", experiment_id="exp-specific",
+            requested_by="test",
+            experiment_id="exp-specific",
             stages_to_run=[PipelineStage.DATASET_GENERATION.value],
         )
         ctrl.run_pipeline(spec)
@@ -562,6 +562,7 @@ class TestPipelineController:
 
 
 # ── DB CRUD ────────────────────────────────────────────────────────────────────
+
 
 class TestPipelineJobsDB:
     def _make_job_dict(
@@ -603,8 +604,9 @@ class TestPipelineJobsDB:
 
     def test_list_filter_by_status(self, db: ResearchLabDatabase) -> None:
         db.upsert_pipeline_job(self._make_job_dict(job_id="a", status="QUEUED"))
-        db.upsert_pipeline_job(self._make_job_dict(job_id="b", status="COMPLETED",
-                                                    experiment_id="exp-002"))
+        db.upsert_pipeline_job(
+            self._make_job_dict(job_id="b", status="COMPLETED", experiment_id="exp-002")
+        )
         queued = db.list_pipeline_jobs(status="QUEUED")
         completed = db.list_pipeline_jobs(status="COMPLETED")
         assert len(queued) == 1
@@ -634,14 +636,15 @@ class TestPipelineJobsDB:
 
 # ── Server endpoints ───────────────────────────────────────────────────────────
 
+
 class TestPipelineServerEndpoints:
     """Integration tests against the real research_lab_server.app."""
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
-        import importlib
         import os
         import sys
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-pipeline-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_pipeline.db")
@@ -649,8 +652,10 @@ class TestPipelineServerEndpoints:
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     _HDR = {
@@ -825,20 +830,25 @@ class TestPipelineServerEndpoints:
 class TestControllerResolveStages:
     def test_empty_list_returns_all_stages(self) -> None:
         from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
+
         stages = ResearchLabPipelineController._resolve_stages([])
         assert stages == PIPELINE_STAGE_ORDER
 
     def test_unknown_stage_raises_value_error(self) -> None:
         from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
+
         with pytest.raises(ValueError, match="Unknown pipeline stage"):
             ResearchLabPipelineController._resolve_stages(["BOGUS_STAGE"])
 
     def test_valid_subset_returned_in_canonical_order(self) -> None:
         from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
-        stages = ResearchLabPipelineController._resolve_stages([
-            "CERTIFICATION",
-            "DATASET_GENERATION",  # out of canonical order in input
-        ])
+
+        stages = ResearchLabPipelineController._resolve_stages(
+            [
+                "CERTIFICATION",
+                "DATASET_GENERATION",  # out of canonical order in input
+            ]
+        )
         assert stages[0] == PipelineStage.DATASET_GENERATION
         assert stages[1] == PipelineStage.CERTIFICATION
 

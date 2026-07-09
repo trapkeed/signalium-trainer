@@ -301,7 +301,9 @@ class MultiTaskTrainingEngine:
                 t_arr = torch.cat(tp_prob_targets).numpy()
                 if t_arr.dim() > 0 and len(set(t_arr.tolist())) > 1:
                     metrics["val_tp_prob_roc_auc"] = float(roc_auc_score(t_arr, p_arr))
-            except Exception as exc:  # noqa: BLE001 — roc_auc is a bonus metric, must not abort validation
+            except (
+                Exception
+            ) as exc:  # noqa: BLE001 — roc_auc is a bonus metric, must not abort validation
                 logger.debug(f"MultiTaskEngine: val_tp_prob_roc_auc computation skipped: {exc!r}")
 
         return metrics

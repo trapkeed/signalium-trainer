@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
 from trainer.research_lab.failure_detectors import (
     FailedScaleInDetector,
@@ -26,8 +27,6 @@ from trainer.research_lab.failure_detectors import (
     PrematureExitDetector,
     UnexpectedReversalDetector,
 )
-from pydantic import BaseModel
-
 from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
 from trainer.research_lab.investigation_models import (
     InvestigationConfig,
@@ -35,7 +34,6 @@ from trainer.research_lab.investigation_models import (
     InvestigationQuery,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.research_lab.telemetry_models import TelemetryQuery
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
 
@@ -87,11 +85,14 @@ def cfg() -> InvestigationConfig:
 
 
 @pytest.fixture()
-def engine(warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: InvestigationConfig) -> FailureInvestigationEngine:
+def engine(
+    warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: InvestigationConfig
+) -> FailureInvestigationEngine:
     return FailureInvestigationEngine(warehouse, db, cfg)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _trade(
     warehouse: TelemetryWarehouse,
@@ -174,7 +175,9 @@ def _decision(
 
 
 class TestHighConfidenceLossDetector:
-    def test_detects_high_conf_losses(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_high_conf_losses(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # Two high-confidence losers → should fire
         _trade(warehouse, pnl=-50.0, confidence=0.90)
         _trade(warehouse, pnl=-30.0, confidence=0.92)
@@ -188,25 +191,33 @@ class TestHighConfidenceLossDetector:
         assert SYM in r.summary
         assert r.metadata["count"] == 2
 
-    def test_low_confidence_losers_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_low_confidence_losers_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-50.0, confidence=0.60)
         _trade(warehouse, pnl=-30.0, confidence=0.70)
         detector = HighConfidenceLossDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_winners_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_winners_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=50.0, confidence=0.95)
         _trade(warehouse, pnl=30.0, confidence=0.97)
         detector = HighConfidenceLossDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_below_min_count_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_below_min_count_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # Only 1 high-confidence loss; min is 2
         _trade(warehouse, pnl=-50.0, confidence=0.92)
         detector = HighConfidenceLossDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_symbol_filter_respected(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_symbol_filter_respected(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-50.0, confidence=0.92, symbol="EURUSD")
         _trade(warehouse, pnl=-30.0, confidence=0.91, symbol="EURUSD")
         _trade(warehouse, pnl=-20.0, confidence=0.90, symbol="XAUUSD")
@@ -215,15 +226,27 @@ class TestHighConfidenceLossDetector:
         assert all("EURUSD" in r.affected_symbols for r in reports)
         assert all("XAUUSD" not in r.affected_symbols for r in reports)
 
-    def test_report_to_dict_contract(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_report_to_dict_contract(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-50.0, confidence=0.92)
         _trade(warehouse, pnl=-30.0, confidence=0.88)
         detector = HighConfidenceLossDetector(warehouse, cfg)
         reports = detector.detect(InvestigationQuery())
         d = reports[0].to_dict()
-        required = {"report_id", "failure_kind", "model_version", "affected_symbols",
-                    "time_range_start", "time_range_end", "evidence_count", "evidence",
-                    "severity_score", "summary", "created_at"}
+        required = {
+            "report_id",
+            "failure_kind",
+            "model_version",
+            "affected_symbols",
+            "time_range_start",
+            "time_range_end",
+            "evidence_count",
+            "evidence",
+            "severity_score",
+            "summary",
+            "created_at",
+        }
         assert required.issubset(d.keys())
 
 
@@ -231,7 +254,9 @@ class TestHighConfidenceLossDetector:
 
 
 class TestUnexpectedReversalDetector:
-    def test_detects_fast_reversals(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_fast_reversals(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-20.0, hold_s=30.0)
         _trade(warehouse, pnl=-15.0, hold_s=60.0)
         detector = UnexpectedReversalDetector(warehouse, cfg)
@@ -241,19 +266,25 @@ class TestUnexpectedReversalDetector:
         assert r.failure_kind == InvestigationFailureKind.UNEXPECTED_REVERSAL
         assert r.metadata["count"] == 2
 
-    def test_long_hold_losers_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_long_hold_losers_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-50.0, hold_s=7200.0)
         _trade(warehouse, pnl=-30.0, hold_s=3600.0)
         detector = UnexpectedReversalDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_winners_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_winners_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=20.0, hold_s=30.0)
         _trade(warehouse, pnl=15.0, hold_s=60.0)
         detector = UnexpectedReversalDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_evidence_contains_hold_duration(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_evidence_contains_hold_duration(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _trade(warehouse, pnl=-20.0, hold_s=30.0)
         _trade(warehouse, pnl=-15.0, hold_s=60.0)
         detector = UnexpectedReversalDetector(warehouse, cfg)
@@ -265,7 +296,9 @@ class TestUnexpectedReversalDetector:
 
 
 class TestLateExitDetector:
-    def test_detects_late_exits(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_late_exits(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # Counterfactual shows more PnL → late exit
         _counterfactual(warehouse, actual_pnl=20.0, cf_pnl=80.0)
         detector = LateExitDetector(warehouse, cfg)
@@ -275,13 +308,17 @@ class TestLateExitDetector:
         assert r.failure_kind == InvestigationFailureKind.LATE_EXIT
         assert r.metadata["total_missed_pnl"] == pytest.approx(60.0, abs=0.01)
 
-    def test_cf_pnl_less_than_actual_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_cf_pnl_less_than_actual_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # Counterfactual is worse → not a late exit
         _counterfactual(warehouse, actual_pnl=80.0, cf_pnl=20.0)
         detector = LateExitDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_summary_mentions_symbol(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_summary_mentions_symbol(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _counterfactual(warehouse, actual_pnl=10.0, cf_pnl=50.0)
         detector = LateExitDetector(warehouse, cfg)
         r = detector.detect(InvestigationQuery())[0]
@@ -292,7 +329,9 @@ class TestLateExitDetector:
 
 
 class TestPrematureExitDetector:
-    def test_detects_premature_exits(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_premature_exits(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # actual=20, cf=40 → ratio=2.0 ≥ 1.5
         _counterfactual(warehouse, actual_pnl=20.0, cf_pnl=40.0)
         detector = PrematureExitDetector(warehouse, cfg)
@@ -302,13 +341,17 @@ class TestPrematureExitDetector:
         assert r.failure_kind == InvestigationFailureKind.PREMATURE_EXIT
         assert r.metadata["total_left_behind"] == pytest.approx(20.0, abs=0.01)
 
-    def test_ratio_below_threshold_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_ratio_below_threshold_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # actual=20, cf=25 → ratio=1.25 < 1.5
         _counterfactual(warehouse, actual_pnl=20.0, cf_pnl=25.0)
         detector = PrematureExitDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_losing_actual_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_losing_actual_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # actual is negative — premature exit only applies to winners
         _counterfactual(warehouse, actual_pnl=-20.0, cf_pnl=40.0)
         detector = PrematureExitDetector(warehouse, cfg)
@@ -319,7 +362,9 @@ class TestPrematureExitDetector:
 
 
 class TestFailedScaleInDetector:
-    def test_detects_failed_scale_ins(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_failed_scale_ins(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # SCALE_IN while cumulative_pnl is negative → bad
         _position(warehouse, action="SCALE_IN", cum_pnl=-50.0)
         detector = FailedScaleInDetector(warehouse, cfg)
@@ -329,17 +374,23 @@ class TestFailedScaleInDetector:
         assert r.failure_kind == InvestigationFailureKind.FAILED_SCALE_IN
         assert r.metadata["worst_pnl"] == pytest.approx(-50.0)
 
-    def test_scale_in_while_winning_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_scale_in_while_winning_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _position(warehouse, action="SCALE_IN", cum_pnl=100.0)
         detector = FailedScaleInDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_open_actions_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_open_actions_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _position(warehouse, action="OPEN", cum_pnl=-100.0)
         detector = FailedScaleInDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_evidence_has_cumulative_pnl(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_evidence_has_cumulative_pnl(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         _position(warehouse, action="SCALE_IN", cum_pnl=-30.0)
         detector = FailedScaleInDetector(warehouse, cfg)
         r = detector.detect(InvestigationQuery())[0]
@@ -350,7 +401,9 @@ class TestFailedScaleInDetector:
 
 
 class TestPortfolioConcentrationDetector:
-    def test_detects_concentration(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_detects_concentration(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # 6 XAUUSD decisions, 2 EURUSD → 75% XAUUSD in window → concentration
         for i in range(6):
             _decision(warehouse, symbol="XAUUSD", ts=NOW + i)
@@ -358,10 +411,14 @@ class TestPortfolioConcentrationDetector:
             _decision(warehouse, symbol="EURUSD", ts=NOW + 6 + i)
         detector = PortfolioConcentrationDetector(warehouse, cfg)
         reports = detector.detect(InvestigationQuery())
-        assert any(r.failure_kind == InvestigationFailureKind.PORTFOLIO_CONCENTRATION for r in reports)
+        assert any(
+            r.failure_kind == InvestigationFailureKind.PORTFOLIO_CONCENTRATION for r in reports
+        )
         assert any("XAUUSD" in r.affected_symbols for r in reports)
 
-    def test_balanced_distribution_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_balanced_distribution_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # 50/50 split → below 50% threshold
         for i in range(5):
             _decision(warehouse, symbol="XAUUSD", ts=NOW + i)
@@ -376,20 +433,26 @@ class TestPortfolioConcentrationDetector:
         for r in reports:
             assert 0.0 <= r.severity_score <= 1.0
 
-    def test_below_min_decisions_not_flagged(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_below_min_decisions_not_flagged(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         # Only 3 decisions; min is 4
         for i in range(3):
             _decision(warehouse, symbol="XAUUSD", ts=NOW + i)
         detector = PortfolioConcentrationDetector(warehouse, cfg)
         assert detector.detect(InvestigationQuery()) == []
 
-    def test_summary_mentions_fraction(self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig) -> None:
+    def test_summary_mentions_fraction(
+        self, warehouse: TelemetryWarehouse, cfg: InvestigationConfig
+    ) -> None:
         for i in range(8):
             _decision(warehouse, symbol="XAUUSD", ts=NOW + i)
         for i in range(2):
             _decision(warehouse, symbol="EURUSD", ts=NOW + 8 + i)
         detector = PortfolioConcentrationDetector(warehouse, cfg)
-        reports = [r for r in detector.detect(InvestigationQuery()) if "XAUUSD" in r.affected_symbols]
+        reports = [
+            r for r in detector.detect(InvestigationQuery()) if "XAUUSD" in r.affected_symbols
+        ]
         assert reports
         assert "%" in reports[0].summary
 
@@ -426,7 +489,9 @@ class TestPortfolioConcentrationDetector:
             _decision(warehouse, symbol="XAUUSD", ts=NOW + i)
         _decision(warehouse, symbol="EURUSD", ts=NOW + 9)
         detector = PortfolioConcentrationDetector(warehouse, cfg)
-        reports = [r for r in detector.detect(InvestigationQuery()) if "XAUUSD" in r.affected_symbols]
+        reports = [
+            r for r in detector.detect(InvestigationQuery()) if "XAUUSD" in r.affected_symbols
+        ]
         assert len(reports) == 1  # not one per sliding window position
 
 
@@ -450,7 +515,10 @@ class TestFailureInvestigationEngine:
         assert severities == sorted(severities, reverse=True)
 
     def test_investigate_persists_to_db(
-        self, engine: FailureInvestigationEngine, warehouse: TelemetryWarehouse, db: ResearchLabDatabase
+        self,
+        engine: FailureInvestigationEngine,
+        warehouse: TelemetryWarehouse,
+        db: ResearchLabDatabase,
     ) -> None:
         _trade(warehouse, pnl=-100.0, confidence=0.92)
         _trade(warehouse, pnl=-80.0, confidence=0.90)
@@ -495,10 +563,10 @@ class TestFailureInvestigationEngine:
         _trade(warehouse, pnl=-100.0, confidence=0.92)
         _trade(warehouse, pnl=-80.0, confidence=0.90)
         engine.investigate(InvestigationQuery())
-        rows = engine.get_reports(
-            failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value
+        rows = engine.get_reports(failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value)
+        assert all(
+            r["failure_kind"] == InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value for r in rows
         )
-        assert all(r["failure_kind"] == InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value for r in rows)
 
     def test_get_reports_min_severity(
         self, engine: FailureInvestigationEngine, warehouse: TelemetryWarehouse
@@ -544,7 +612,7 @@ class TestFailureInvestigationEngine:
 
 class TestFailureReportDB:
     def test_upsert_and_get(self, db: ResearchLabDatabase) -> None:
-        from trainer.research_lab.investigation_models import EvidenceItem, FailureReport
+        from trainer.research_lab.investigation_models import FailureReport
 
         report = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
@@ -567,20 +635,30 @@ class TestFailureReportDB:
 
         r1 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 100, time_range_end=NOW,
-            evidence=[], severity_score=0.8, summary="hcl",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 100,
+            time_range_end=NOW,
+            evidence=[],
+            severity_score=0.8,
+            summary="hcl",
         )
         r2 = FailureReport.new(
             failure_kind=InvestigationFailureKind.FAILED_SCALE_IN,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 200, time_range_end=NOW,
-            evidence=[], severity_score=0.5, summary="fsi",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 200,
+            time_range_end=NOW,
+            evidence=[],
+            severity_score=0.5,
+            summary="fsi",
         )
         db.upsert_failure_report(r1.to_dict())
         db.upsert_failure_report(r2.to_dict())
 
-        hcl = db.list_failure_reports(failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value)
+        hcl = db.list_failure_reports(
+            failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value
+        )
         assert len(hcl) == 1
         assert hcl[0]["failure_kind"] == InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value
 
@@ -590,9 +668,13 @@ class TestFailureReportDB:
         for sev in [0.2, 0.5, 0.9]:
             r = FailureReport.new(
                 failure_kind=InvestigationFailureKind.UNEXPECTED_REVERSAL,
-                model_version=MV, affected_symbols=[SYM],
-                time_range_start=NOW - 100, time_range_end=NOW,
-                evidence=[], severity_score=sev, summary=f"sev={sev}",
+                model_version=MV,
+                affected_symbols=[SYM],
+                time_range_start=NOW - 100,
+                time_range_end=NOW,
+                evidence=[],
+                severity_score=sev,
+                summary=f"sev={sev}",
             )
             db.upsert_failure_report(r.to_dict())
 
@@ -606,9 +688,13 @@ class TestFailureReportDB:
         for sev in [0.3, 0.7, 0.5]:
             r = FailureReport.new(
                 failure_kind=InvestigationFailureKind.LATE_EXIT,
-                model_version=MV, affected_symbols=[SYM],
-                time_range_start=NOW - 100, time_range_end=NOW,
-                evidence=[], severity_score=sev, summary=f"sev={sev}",
+                model_version=MV,
+                affected_symbols=[SYM],
+                time_range_start=NOW - 100,
+                time_range_end=NOW,
+                evidence=[],
+                severity_score=sev,
+                summary=f"sev={sev}",
             )
             db.upsert_failure_report(r.to_dict())
 
@@ -637,8 +723,7 @@ class TestEngineExceptionIsolation:
     def test_failing_detector_isolated(
         self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: InvestigationConfig
     ) -> None:
-        from unittest.mock import MagicMock, patch
-        from trainer.research_lab import failure_investigation_engine as fie_module
+        from unittest.mock import MagicMock
 
         # Inject a detector that always raises
         bad_detector = MagicMock()
@@ -679,7 +764,9 @@ class TestEngineExceptionIsolation:
 class TestInvestigateEndpoints:
     """Integration-level tests for POST /research/investigate and GET /research/reports."""
 
-    def _make_app(self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: InvestigationConfig):
+    def _make_app(
+        self, warehouse: TelemetryWarehouse, db: ResearchLabDatabase, cfg: InvestigationConfig
+    ):
         from fastapi import FastAPI, HTTPException
 
         # _InvestigateReq is defined at module scope (see top of file) to avoid
@@ -702,7 +789,11 @@ class TestInvestigateEndpoints:
                     limit_per_stream=req.limit_per_stream,
                 )
                 reports = engine.investigate(query)
-                return {"success": True, "report_count": len(reports), "reports": [r.to_dict() for r in reports]}
+                return {
+                    "success": True,
+                    "report_count": len(reports),
+                    "reports": [r.to_dict() for r in reports],
+                }
             except Exception as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
 
@@ -712,7 +803,9 @@ class TestInvestigateEndpoints:
             min_severity: float = 0.0,
             limit: int = 100,
         ) -> dict:
-            rows = engine.get_reports(failure_kind=failure_kind, min_severity=min_severity, limit=limit)
+            rows = engine.get_reports(
+                failure_kind=failure_kind, min_severity=min_severity, limit=limit
+            )
             return {"success": True, "report_count": len(rows), "reports": rows}
 
         @test_app.get("/research/reports/{report_id}")
@@ -792,7 +885,9 @@ class TestInvestigateEndpoints:
         app = self._make_app(warehouse, db, cfg)
         client = TestClient(app)
         client.post("/research/investigate", json={})
-        resp = client.get(f"/research/reports?failure_kind={InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value}")
+        resp = client.get(
+            f"/research/reports?failure_kind={InvestigationFailureKind.HIGH_CONFIDENCE_LOSS.value}"
+        )
         assert resp.status_code == 200
         body = resp.json()
         for r in body["reports"]:
@@ -834,20 +929,28 @@ class TestDeduplication:
     def test_overlapping_same_kind_and_symbol_deduped(
         self, engine: FailureInvestigationEngine
     ) -> None:
-        from trainer.research_lab.investigation_models import EvidenceItem, FailureReport
+        from trainer.research_lab.investigation_models import FailureReport
 
         # Two reports: same kind, same symbol, overlapping time
         r1 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 1000, time_range_end=NOW - 500,
-            evidence=[], severity_score=0.4, summary="r1",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 1000,
+            time_range_end=NOW - 500,
+            evidence=[],
+            severity_score=0.4,
+            summary="r1",
         )
         r2 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 600, time_range_end=NOW,
-            evidence=[], severity_score=0.8, summary="r2 higher severity",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 600,
+            time_range_end=NOW,
+            evidence=[],
+            severity_score=0.8,
+            summary="r2 higher severity",
         )
         deduped = engine._deduplicate([r1, r2])
         assert len(deduped) == 1
@@ -858,15 +961,23 @@ class TestDeduplication:
 
         r1 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 2000, time_range_end=NOW - 1500,
-            evidence=[], severity_score=0.6, summary="r1",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 2000,
+            time_range_end=NOW - 1500,
+            evidence=[],
+            severity_score=0.6,
+            summary="r1",
         )
         r2 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 1000, time_range_end=NOW - 500,
-            evidence=[], severity_score=0.6, summary="r2",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 1000,
+            time_range_end=NOW - 500,
+            evidence=[],
+            severity_score=0.6,
+            summary="r2",
         )
         deduped = engine._deduplicate([r1, r2])
         assert len(deduped) == 2
@@ -876,15 +987,23 @@ class TestDeduplication:
 
         r1 = FailureReport.new(
             failure_kind=InvestigationFailureKind.HIGH_CONFIDENCE_LOSS,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 1000, time_range_end=NOW,
-            evidence=[], severity_score=0.6, summary="hcl",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 1000,
+            time_range_end=NOW,
+            evidence=[],
+            severity_score=0.6,
+            summary="hcl",
         )
         r2 = FailureReport.new(
             failure_kind=InvestigationFailureKind.FAILED_SCALE_IN,
-            model_version=MV, affected_symbols=[SYM],
-            time_range_start=NOW - 800, time_range_end=NOW,
-            evidence=[], severity_score=0.6, summary="fsi",
+            model_version=MV,
+            affected_symbols=[SYM],
+            time_range_start=NOW - 800,
+            time_range_end=NOW,
+            evidence=[],
+            severity_score=0.6,
+            summary="fsi",
         )
         deduped = engine._deduplicate([r1, r2])
         assert len(deduped) == 2

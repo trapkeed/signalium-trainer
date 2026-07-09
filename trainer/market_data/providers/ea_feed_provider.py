@@ -22,7 +22,9 @@ from trainer.market_data.providers.base_stub_provider import BaseStubProvider
 
 class EAFeedProvider(BaseStubProvider):
     def __init__(self, api_key: str | None = None, endpoint: str | None = None) -> None:
-        super().__init__(api_key=api_key if api_key is not None else os.environ.get("EA_FEED_SHARED_SECRET"))
+        super().__init__(
+            api_key=api_key if api_key is not None else os.environ.get("EA_FEED_SHARED_SECRET")
+        )
         self._endpoint = endpoint if endpoint is not None else os.environ.get("EA_FEED_ENDPOINT")
 
     def name(self) -> str:
@@ -33,13 +35,17 @@ class EAFeedProvider(BaseStubProvider):
         if not self._endpoint:
             from trainer.market_data.provider_interface import ProviderNotConfigured
 
-            raise ProviderNotConfigured(f"{self.name()} has no endpoint configured — set EA_FEED_ENDPOINT")
+            raise ProviderNotConfigured(
+                f"{self.name()} has no endpoint configured — set EA_FEED_ENDPOINT"
+            )
 
     def _request(self, path: str, params: dict[str, Any] | None = None) -> Any:
         """Seam for the real EA feed client (webhook consumer / local socket
         reader). Not implemented until an EA feed endpoint is wired up —
         raising here keeps the architecture complete without faking data."""
-        raise NotImplementedError("EA feed client not yet wired — add EA_FEED_ENDPOINT and implement _request")
+        raise NotImplementedError(
+            "EA feed client not yet wired — add EA_FEED_ENDPOINT and implement _request"
+        )
 
     def get_price(self, symbol: str) -> dict[str, Any]:
         self._require_configured()

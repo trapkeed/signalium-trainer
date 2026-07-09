@@ -50,20 +50,14 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 from trainer.research_lab.artifact_models import (
-    ARTIFACT_TYPES,
     ArtifactRecord,
-    ArtifactType,
     TrainingRunRecord,
-    validate_artifact_hash,
-    validate_artifact_type,
 )
 from trainer.research_lab.artifact_store import (
-    ArtifactImmutabilityError,
     ArtifactKind,
     ArtifactStore,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-
 
 # ── Errors ────────────────────────────────────────────────────────────────────
 
@@ -159,9 +153,7 @@ class ArtifactRegistry:
                     )
 
         # Duplicate detection: same (type, hash) is rejected
-        existing = self._db.find_artifact_by_type_hash(
-            record.artifact_type, record.artifact_hash
-        )
+        existing = self._db.find_artifact_by_type_hash(record.artifact_type, record.artifact_hash)
         if existing:
             raise DuplicateArtifactError(
                 f"Artifact (type={record.artifact_type!r}, "
@@ -212,7 +204,9 @@ class ArtifactRegistry:
         )
         return self.register_artifact(record)
 
-    def resolve_path(self, version: str, filename: str, kind: str | ArtifactKind | None = None) -> Path:
+    def resolve_path(
+        self, version: str, filename: str, kind: str | ArtifactKind | None = None
+    ) -> Path:
         """Return the store path for *filename* under *version* without
         requiring the file to already exist — the canonical way for readers
         to locate an artifact instead of trusting an arbitrary caller path."""

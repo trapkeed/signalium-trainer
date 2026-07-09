@@ -18,10 +18,9 @@ from __future__ import annotations
 
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -415,8 +414,8 @@ class ReasoningEvent:
     timestamp: float
 
     decision_id: str
-    output_heads: dict[str, Any]          # raw model output tensors/values
-    feature_values: dict[str, float]      # input features at inference time
+    output_heads: dict[str, Any]  # raw model output tensors/values
+    feature_values: dict[str, float]  # input features at inference time
     confidence_breakdown: dict[str, float]  # per-head confidence components
 
     ingested_at: float
@@ -473,11 +472,11 @@ class ExecutionEvent:
     order_type: str
     requested_price: float
     executed_price: float
-    slippage: float       # executed_price - requested_price (signed)
+    slippage: float  # executed_price - requested_price (signed)
     slippage_pct: float
     execution_time_ms: float
     venue: str
-    status: str           # ExecutionStatus value
+    status: str  # ExecutionStatus value
     size: float
 
     ingested_at: float
@@ -552,7 +551,7 @@ class CounterfactualEvent:
     what_if_description: str
     actual_pnl: float
     counterfactual_pnl: float
-    pnl_delta: float           # counterfactual_pnl - actual_pnl
+    pnl_delta: float  # counterfactual_pnl - actual_pnl
     actual_outcome: dict[str, Any]
     counterfactual_outcome: dict[str, Any]
 
@@ -614,7 +613,7 @@ class LifecycleEvent:
     symbol: str
     timestamp: float
 
-    kind: str            # LifecycleEventKind value
+    kind: str  # LifecycleEventKind value
     previous_state: str
     new_state: str
     trigger: str
@@ -681,16 +680,16 @@ class InferenceEvent:
     symbol: str
     timestamp: float
 
-    inference_count: int          # predictions served in this sample window
+    inference_count: int  # predictions served in this sample window
     latency_ms_p50: float
     latency_ms_p95: float
     latency_ms_max: float
-    queue_length: int              # pending requests at sample time
-    throughput_per_s: float        # inference_count / window_s
-    cpu_pct: float                 # 0-100
-    memory_pct: float               # 0-100
-    gpu_pct: float | None           # 0-100, None if no GPU present
-    window_s: float                 # sampling window duration, seconds
+    queue_length: int  # pending requests at sample time
+    throughput_per_s: float  # inference_count / window_s
+    cpu_pct: float  # 0-100
+    memory_pct: float  # 0-100
+    gpu_pct: float | None  # 0-100, None if no GPU present
+    window_s: float  # sampling window duration, seconds
 
     ingested_at: float
 
@@ -760,6 +759,6 @@ class TelemetryQuery:
 
     model_version: str | None = None
     symbol: str | None = None
-    since: float | None = None   # unix timestamp lower bound
-    until: float | None = None   # unix timestamp upper bound
+    since: float | None = None  # unix timestamp lower bound
+    until: float | None = None  # unix timestamp upper bound
     limit: int = 1000

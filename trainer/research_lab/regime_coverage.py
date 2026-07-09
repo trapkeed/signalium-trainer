@@ -37,6 +37,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.dimension_evaluators import _mean, _split_windows, _std
@@ -53,10 +54,21 @@ from trainer.research_lab.telemetry_warehouse import TelemetryQuery, TelemetryWa
 # "unseen condition" by definition.
 DEFAULT_KNOWN_REGIMES: frozenset[str] = frozenset(
     {
-        "trending_strong", "trending_weak", "ranging", "breakout", "pullback",
-        "high_volatility", "low_volatility", "compression", "expansion",
-        "accumulation", "distribution", "news_period", "session_open",
-        "session_close", "weekend_gap",
+        "trending_strong",
+        "trending_weak",
+        "ranging",
+        "breakout",
+        "pullback",
+        "high_volatility",
+        "low_volatility",
+        "compression",
+        "expansion",
+        "accumulation",
+        "distribution",
+        "news_period",
+        "session_open",
+        "session_close",
+        "weekend_gap",
     }
 )
 
@@ -185,9 +197,7 @@ def detect_black_swans(
     falling back to pnl_pct), scored against ``baseline``'s own mean/std —
     NOT against ``records`` itself, so a black-swan move can't inflate the
     very baseline it's being measured against."""
-    baseline_vals = [
-        float(r.get("pnl", r.get("pnl_pct", 0.0))) for r in baseline
-    ]
+    baseline_vals = [float(r.get("pnl", r.get("pnl_pct", 0.0))) for r in baseline]
     if len(baseline_vals) < 2:
         return {"black_swan_rate": 0.0, "black_swan_events": [], "n_total": len(records)}
 
@@ -201,12 +211,14 @@ def detect_black_swans(
         val = float(r.get("pnl", r.get("pnl_pct", 0.0)))
         z = (val - mu) / sigma
         if abs(z) >= zscore_threshold:
-            events.append({
-                "timestamp": r.get("timestamp"),
-                "symbol": r.get("symbol"),
-                "value": round(val, 4),
-                "zscore": round(z, 3),
-            })
+            events.append(
+                {
+                    "timestamp": r.get("timestamp"),
+                    "symbol": r.get("symbol"),
+                    "value": round(val, 4),
+                    "zscore": round(z, 3),
+                }
+            )
 
     n = len(records)
     return {
@@ -347,13 +359,13 @@ class RegimeCoverageMonitor:
         # (needed for black-swan detection). Prefer trades when present
         # (they have both regime and pnl); fall back to decisions.
         trades = sorted(self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0))
-        records = trades if trades else sorted(
-            self._wh.query_decisions(q), key=lambda d: d.get("timestamp", 0)
+        records = (
+            trades
+            if trades
+            else sorted(self._wh.query_decisions(q), key=lambda d: d.get("timestamp", 0))
         )
 
-        report = build_regime_coverage_report(
-            records, self._cfg, model_version=model_version or ""
-        )
+        report = build_regime_coverage_report(records, self._cfg, model_version=model_version or "")
         if persist:
             self._db.upsert_regime_coverage_report(report.to_dict())
             logger.info(
@@ -395,9 +407,7 @@ def check_unseen_conditions(
     rate = result["unseen_rate"]
     if rate < cfg.unseen_condition_rate_warning:
         return None
-    severity = (
-        "CRITICAL" if rate >= cfg.unseen_condition_rate_critical else "WARNING"
-    )
+    severity = "CRITICAL" if rate >= cfg.unseen_condition_rate_critical else "WARNING"
     return {"severity": severity, "kind": "UNSEEN_CONDITION", "evidence": result}
 
 
@@ -415,9 +425,7 @@ def check_distribution_shift(
     tv = result["tv_distance"]
     if tv < cfg.distribution_shift_warning:
         return None
-    severity = (
-        "CRITICAL" if tv >= cfg.distribution_shift_critical else "WARNING"
-    )
+    severity = "CRITICAL" if tv >= cfg.distribution_shift_critical else "WARNING"
     return {"severity": severity, "kind": "DISTRIBUTION_SHIFT", "evidence": result}
 
 
@@ -436,7 +444,5 @@ def check_black_swans(
     rate = result["black_swan_rate"]
     if rate < cfg.black_swan_rate_warning:
         return None
-    severity = (
-        "CRITICAL" if rate >= cfg.black_swan_rate_critical else "WARNING"
-    )
+    severity = "CRITICAL" if rate >= cfg.black_swan_rate_critical else "WARNING"
     return {"severity": severity, "kind": "BLACK_SWAN", "evidence": result}

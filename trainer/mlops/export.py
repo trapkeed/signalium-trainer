@@ -298,7 +298,9 @@ class MLOpsExporter:
             return
         try:
             import hashlib
+
             from trainer.research_lab.artifact_models import ArtifactRecord
+
             h = hashlib.sha256()
             with open(path, "rb") as fh:
                 for chunk in iter(lambda: fh.read(65_536), b""):

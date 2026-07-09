@@ -180,9 +180,7 @@ def make_telemetry_router(
     # ── POST /telemetry/decisions ─────────────────────────────────────────────
 
     @router.post("/decisions")
-    def ingest_decision(
-        req: IngestDecisionRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_decision(req: IngestDecisionRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest a QDE decision event from Signalium."""
         try:
             event = warehouse.ingest_decision(**req.model_dump())
@@ -193,9 +191,7 @@ def make_telemetry_router(
     # ── POST /telemetry/trades ────────────────────────────────────────────────
 
     @router.post("/trades")
-    def ingest_trade(
-        req: IngestTradeRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_trade(req: IngestTradeRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest a completed trade outcome from Signalium."""
         try:
             event = warehouse.ingest_trade(**req.model_dump())
@@ -206,9 +202,7 @@ def make_telemetry_router(
     # ── POST /telemetry/positions ─────────────────────────────────────────────
 
     @router.post("/positions")
-    def ingest_position(
-        req: IngestPositionRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_position(req: IngestPositionRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest a position lifecycle event from Signalium."""
         try:
             event = warehouse.ingest_position(**req.model_dump())
@@ -219,9 +213,7 @@ def make_telemetry_router(
     # ── POST /telemetry/failures ──────────────────────────────────────────────
 
     @router.post("/failures")
-    def ingest_failure(
-        req: IngestFailureRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_failure(req: IngestFailureRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest an execution-level failure event from Signalium."""
         try:
             event = warehouse.ingest_failure(**req.model_dump())
@@ -232,9 +224,7 @@ def make_telemetry_router(
     # ── POST /telemetry/reasoning ─────────────────────────────────────────────
 
     @router.post("/reasoning")
-    def ingest_reasoning(
-        req: IngestReasoningRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_reasoning(req: IngestReasoningRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest raw model output heads and feature values for a decision."""
         try:
             event = warehouse.ingest_reasoning(**req.model_dump())
@@ -245,9 +235,7 @@ def make_telemetry_router(
     # ── POST /telemetry/execution ─────────────────────────────────────────────
 
     @router.post("/execution")
-    def ingest_execution(
-        req: IngestExecutionRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_execution(req: IngestExecutionRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest an order execution record from Signalium."""
         try:
             event = warehouse.ingest_execution(**req.model_dump())
@@ -271,9 +259,7 @@ def make_telemetry_router(
     # ── POST /telemetry/lifecycle ─────────────────────────────────────────────
 
     @router.post("/lifecycle")
-    def ingest_lifecycle(
-        req: IngestLifecycleRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_lifecycle(req: IngestLifecycleRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest a QDE lifecycle state transition from Signalium."""
         try:
             event = warehouse.ingest_lifecycle(**req.model_dump())
@@ -284,9 +270,7 @@ def make_telemetry_router(
     # ── POST /telemetry/inference ─────────────────────────────────────────────
 
     @router.post("/inference")
-    def ingest_inference(
-        req: IngestInferenceRequest, _: None = Depends(auth_dep)
-    ) -> dict:
+    def ingest_inference(req: IngestInferenceRequest, _: None = Depends(auth_dep)) -> dict:
         """Ingest a periodic inference-serving telemetry sample (S25) from
         Signalium's live inference host: prediction throughput/latency and
         system resource usage (CPU/memory/GPU/queue length)."""

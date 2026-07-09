@@ -37,11 +37,11 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.approval_models import (
     DEFAULT_TTL_SECONDS,
-    ApprovalAuditEntry,
     ApprovalAlreadyResolved,
     ApprovalGateType,
     ApprovalRequest,
@@ -81,9 +81,7 @@ class ApprovalGate:
     Atomic consume uses a single UPDATE WHERE status='APPROVED' + rowcount check.
     """
 
-    def __init__(
-        self, db: ResearchLabDatabase, default_ttl: float = DEFAULT_TTL_SECONDS
-    ) -> None:
+    def __init__(self, db: ResearchLabDatabase, default_ttl: float = DEFAULT_TTL_SECONDS) -> None:
         self._db = db
         self._default_ttl = default_ttl
 
@@ -193,9 +191,7 @@ class ApprovalGate:
         req = self._load_or_raise(request_id)
         req.reject(rejected_by=rejected_by, reason=reason)
         self._db.upsert_approval_request(req.to_dict())
-        logger.info(
-            f"ApprovalGate: rejected {request_id} by {rejected_by!r} — {reason!r}"
-        )
+        logger.info(f"ApprovalGate: rejected {request_id} by {rejected_by!r} — {reason!r}")
         return req
 
     def expire_request(self, request_id: str) -> ApprovalRequest:
@@ -308,12 +304,14 @@ class ApprovalGate:
         entries = []
         for row in rows:
             for entry in row.get("audit_log", []):
-                entries.append({
-                    "request_id": row["request_id"],
-                    "gate_type": row["gate_type"],
-                    "resource_id": row["resource_id"],
-                    **entry,
-                })
+                entries.append(
+                    {
+                        "request_id": row["request_id"],
+                        "gate_type": row["gate_type"],
+                        "resource_id": row["resource_id"],
+                        **entry,
+                    }
+                )
         entries.sort(key=lambda e: e.get("timestamp", 0))
         return entries
 

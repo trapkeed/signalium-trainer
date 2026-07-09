@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from trainer.market_data.symbol_normalizer import SymbolNormalizer
 from trainer.market_data.symbol_store import SymbolStore
 

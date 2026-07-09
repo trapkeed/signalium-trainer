@@ -158,9 +158,7 @@ class FailureInvestigationEngine:
 
     # ── Internals ─────────────────────────────────────────────────────────────
 
-    def _select_detectors(
-        self, kinds: list[InvestigationFailureKind] | None
-    ) -> list[BaseDetector]:
+    def _select_detectors(self, kinds: list[InvestigationFailureKind] | None) -> list[BaseDetector]:
         if not kinds:
             return self._detectors
         kind_set = set(kinds)
@@ -202,9 +200,7 @@ class FailureInvestigationEngine:
                 if current.severity_score > last.severity_score:
                     merged[-1] = current
                 # Extend the end time of the survivor
-                merged[-1].time_range_end = max(
-                    last.time_range_end, current.time_range_end
-                )
+                merged[-1].time_range_end = max(last.time_range_end, current.time_range_end)
             else:
                 merged.append(current)
         return merged

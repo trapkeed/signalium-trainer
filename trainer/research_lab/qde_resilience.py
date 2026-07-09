@@ -39,7 +39,7 @@ import shutil
 import sqlite3
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -127,7 +127,9 @@ class WorkerPoolManager:
     liveness.
     """
 
-    def __init__(self, db: ResearchLabDatabase, heartbeat_timeout_s: float = _DEFAULT_HEARTBEAT_TIMEOUT_S) -> None:
+    def __init__(
+        self, db: ResearchLabDatabase, heartbeat_timeout_s: float = _DEFAULT_HEARTBEAT_TIMEOUT_S
+    ) -> None:
         self._db = db
         self._heartbeat_timeout_s = heartbeat_timeout_s
 
@@ -164,7 +166,9 @@ class WorkerPoolManager:
         logger.info(f"WorkerPoolManager: registered {record.worker_id} kind={kind} role={role}")
         return record
 
-    def heartbeat(self, worker_id: str, *, current_load: float | None = None, now: float | None = None) -> None:
+    def heartbeat(
+        self, worker_id: str, *, current_load: float | None = None, now: float | None = None
+    ) -> None:
         """Record a liveness heartbeat, reviving a DEAD/DRAINING worker to
         its prior role since a heartbeat is proof of life."""
         row = self._db.get_resilience_worker(worker_id)
@@ -182,7 +186,9 @@ class WorkerPoolManager:
     def list_workers(self, status: str | None = None) -> list[dict[str, Any]]:
         return self._db.list_resilience_workers(status=status)
 
-    def assign_worker(self, *, prefer_gpu: bool = True, now: float | None = None) -> dict[str, Any] | None:
+    def assign_worker(
+        self, *, prefer_gpu: bool = True, now: float | None = None
+    ) -> dict[str, Any] | None:
         """Pick the least-loaded healthy ACTIVE worker for the next inference
         request. GPU workers are preferred; if none are healthy, falls back
         to CPU workers automatically (CPU fallback support). Returns ``None``
@@ -194,19 +200,28 @@ class WorkerPoolManager:
         next supervision cycle has had a chance to mark it DEAD/failed-over.
         """
         candidates = [
-            w for w in self.list_workers(status=_WORKER_STATUS_ACTIVE)
+            w
+            for w in self.list_workers(status=_WORKER_STATUS_ACTIVE)
             if w["capacity"] > 0 and self.check_worker_health(w, now=now) == "HEALTHY"
         ]
         if not candidates:
             return None
-        gpu = sorted((w for w in candidates if w["kind"] == "GPU"), key=lambda w: w["current_load"] / w["capacity"])
-        cpu = sorted((w for w in candidates if w["kind"] == "CPU"), key=lambda w: w["current_load"] / w["capacity"])
+        gpu = sorted(
+            (w for w in candidates if w["kind"] == "GPU"),
+            key=lambda w: w["current_load"] / w["capacity"],
+        )
+        cpu = sorted(
+            (w for w in candidates if w["kind"] == "CPU"),
+            key=lambda w: w["current_load"] / w["capacity"],
+        )
         ordered = (gpu + cpu) if prefer_gpu else (cpu + gpu)
         return ordered[0] if ordered else None
 
     # ── Dynamic allocation ───────────────────────────────────────────────────
 
-    def recommend_scaling(self, *, queue_depth: int, high_watermark: float = 0.8, low_watermark: float = 0.2) -> dict[str, Any]:
+    def recommend_scaling(
+        self, *, queue_depth: int, high_watermark: float = 0.8, low_watermark: float = 0.2
+    ) -> dict[str, Any]:
         """Recommend scaling the ACTIVE pool up or down based on current
         aggregate utilization vs. queue depth.
 
@@ -219,15 +234,33 @@ class WorkerPoolManager:
         active = self.list_workers(status=_WORKER_STATUS_ACTIVE)
         total_capacity = sum(w["capacity"] for w in active)
         total_load = sum(w["current_load"] for w in active)
-        utilization = (total_load / total_capacity) if total_capacity > 0 else 1.0  # no capacity == maximally saturated
+        utilization = (
+            (total_load / total_capacity) if total_capacity > 0 else 1.0
+        )  # no capacity == maximally saturated
 
         if not active:
-            return {"action": "SCALE_UP", "reason": "no ACTIVE workers available", "utilization": utilization}
+            return {
+                "action": "SCALE_UP",
+                "reason": "no ACTIVE workers available",
+                "utilization": utilization,
+            }
         if utilization >= high_watermark or queue_depth > 0 and utilization >= low_watermark:
-            return {"action": "SCALE_UP", "reason": f"utilization={utilization:.2f} queue_depth={queue_depth}", "utilization": utilization}
+            return {
+                "action": "SCALE_UP",
+                "reason": f"utilization={utilization:.2f} queue_depth={queue_depth}",
+                "utilization": utilization,
+            }
         if utilization <= low_watermark and queue_depth == 0 and len(active) > 1:
-            return {"action": "SCALE_DOWN", "reason": f"utilization={utilization:.2f} queue_depth=0", "utilization": utilization}
-        return {"action": "NONE", "reason": f"utilization={utilization:.2f} queue_depth={queue_depth}", "utilization": utilization}
+            return {
+                "action": "SCALE_DOWN",
+                "reason": f"utilization={utilization:.2f} queue_depth=0",
+                "utilization": utilization,
+            }
+        return {
+            "action": "NONE",
+            "reason": f"utilization={utilization:.2f} queue_depth={queue_depth}",
+            "utilization": utilization,
+        }
 
     # ── High Availability: supervision, restart, failover ────────────────────
 
@@ -294,11 +327,14 @@ class WorkerPoolManager:
         """
         now = now if now is not None else time.time()
         standbys = [
-            w for w in self.list_workers(status=_WORKER_STATUS_STANDBY)
+            w
+            for w in self.list_workers(status=_WORKER_STATUS_STANDBY)
             if self.check_worker_health(w, now=now) == "HEALTHY"
         ]
         if not standbys:
-            logger.warning(f"WorkerPoolManager: failover for {dead_worker_id!r} found no healthy STANDBY worker")
+            logger.warning(
+                f"WorkerPoolManager: failover for {dead_worker_id!r} found no healthy STANDBY worker"
+            )
             return None
         promoted = min(standbys, key=lambda w: w["current_load"] / max(w["capacity"], 1e-9))
         promoted["role"] = _WORKER_STATUS_ACTIVE
@@ -327,7 +363,13 @@ class WorkerPoolManager:
 # ── 2. InferenceQueueMonitor — async queues, batching, saturation ────────────
 
 
-def form_batches(pending: list[dict[str, Any]], *, max_batch_size: int, max_wait_s: float, now: float | None = None) -> list[list[dict[str, Any]]]:
+def form_batches(
+    pending: list[dict[str, Any]],
+    *,
+    max_batch_size: int,
+    max_wait_s: float,
+    now: float | None = None,
+) -> list[list[dict[str, Any]]]:
     """Pure request-batching helper.
 
     Groups ``pending`` inference requests (each a dict with a ``queued_at``
@@ -361,16 +403,27 @@ class InferenceQueueMonitor:
         self._db = db
         self._worker_pool = worker_pool
 
-    def compute_report(self, *, model_version: str | None = None, since: float | None = None, until: float | None = None) -> dict[str, Any]:
+    def compute_report(
+        self,
+        *,
+        model_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+    ) -> dict[str, Any]:
         from trainer.research_lab.telemetry_models import TelemetryQuery
 
         rows = self._db.query_telemetry(
-            "tel_inference", TelemetryQuery(model_version=model_version, since=since, until=until, limit=5000)
+            "tel_inference",
+            TelemetryQuery(model_version=model_version, since=since, until=until, limit=5000),
         )
         active = self._worker_pool.list_workers(status=_WORKER_STATUS_ACTIVE)
         total_capacity = sum(w["capacity"] for w in active)
         total_load = sum(w["current_load"] for w in active)
-        saturation = (total_load / total_capacity) if total_capacity > 0 else (1.0 if active or rows else 0.0)
+        saturation = (
+            (total_load / total_capacity)
+            if total_capacity > 0
+            else (1.0 if active or rows else 0.0)
+        )
 
         queue_lengths = [r["queue_length"] for r in rows if r.get("queue_length") is not None]
         avg_queue_depth = sum(queue_lengths) / len(queue_lengths) if queue_lengths else 0.0
@@ -399,7 +452,9 @@ class ArtifactIntegrityVerifier:
     logic — it always defers to ``compute_bytes_hash``/``ArtifactSigner``).
     """
 
-    def __init__(self, db: ResearchLabDatabase, artifact_registry: Any, deployment_manager: Any | None = None) -> None:
+    def __init__(
+        self, db: ResearchLabDatabase, artifact_registry: Any, deployment_manager: Any | None = None
+    ) -> None:
         self._db = db
         self._registry = artifact_registry
         # Signature verification is intentionally delegated to
@@ -429,12 +484,17 @@ class ArtifactIntegrityVerifier:
             return {"artifact_id": artifact_id, "status": "UNVERIFIABLE", "path": str(path)}
         if actual_hash != record.artifact_hash:
             return {
-                "artifact_id": artifact_id, "status": "CORRUPTED", "path": str(path),
-                "expected_hash": record.artifact_hash, "actual_hash": actual_hash,
+                "artifact_id": artifact_id,
+                "status": "CORRUPTED",
+                "path": str(path),
+                "expected_hash": record.artifact_hash,
+                "actual_hash": actual_hash,
             }
         return {"artifact_id": artifact_id, "status": "VERIFIED", "path": str(path)}
 
-    def check_version_compatibility(self, from_manifest: dict[str, Any], to_manifest: dict[str, Any]) -> dict[str, Any]:
+    def check_version_compatibility(
+        self, from_manifest: dict[str, Any], to_manifest: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compare two deployment manifests' declared schema/architecture
         metadata for forward/backward compatibility.
 
@@ -477,7 +537,11 @@ class ArtifactIntegrityVerifier:
         """
         artifacts = self._registry.list_artifacts(model_version=model_version, limit=200)
         if not artifacts:
-            return {"model_version": model_version, "safe": False, "reasons": [f"no artifacts registered for {model_version!r}"]}
+            return {
+                "model_version": model_version,
+                "safe": False,
+                "reasons": [f"no artifacts registered for {model_version!r}"],
+            }
 
         reasons: list[str] = []
         for art in artifacts:
@@ -487,14 +551,23 @@ class ArtifactIntegrityVerifier:
             elif check["status"] == "NOT_FOUND":
                 reasons.append(f"artifact {art['artifact_id']!r} vanished from the registry")
             elif check["status"] == "UNVERIFIABLE":
-                reasons.append(f"artifact {art['artifact_id']!r} ({art.get('name')}) is UNVERIFIABLE (file missing/unreadable)")
+                reasons.append(
+                    f"artifact {art['artifact_id']!r} ({art.get('name')}) is UNVERIFIABLE (file missing/unreadable)"
+                )
 
         if self._deployment_manager is not None:
             for sig_result in self._deployment_manager.verify_artifact_signatures(model_version):
                 if not sig_result.verified:
-                    reasons.append(f"artifact {sig_result.name!r} failed signature verification: {sig_result.reason}")
+                    reasons.append(
+                        f"artifact {sig_result.name!r} failed signature verification: {sig_result.reason}"
+                    )
 
-        return {"model_version": model_version, "safe": len(reasons) == 0, "reasons": reasons, "n_artifacts_checked": len(artifacts)}
+        return {
+            "model_version": model_version,
+            "safe": len(reasons) == 0,
+            "reasons": reasons,
+            "n_artifacts_checked": len(artifacts),
+        }
 
 
 # ── 4. ResearchLabBackupManager ───────────────────────────────────────────────
@@ -505,7 +578,9 @@ class ResearchLabBackupManager:
     recovery procedures for the Research Lab's own state.
     """
 
-    def __init__(self, db: ResearchLabDatabase, backup_dir: str | Path = _DEFAULT_BACKUP_DIR) -> None:
+    def __init__(
+        self, db: ResearchLabDatabase, backup_dir: str | Path = _DEFAULT_BACKUP_DIR
+    ) -> None:
         self._db = db
         self._backup_dir = Path(backup_dir)
         self._backup_dir.mkdir(parents=True, exist_ok=True)
@@ -596,13 +671,19 @@ class ResearchLabBackupManager:
     # ── Persistence verification ─────────────────────────────────────────────
 
     def verify_experiment_persistence(self, experiment_id: str) -> dict[str, Any]:
-        record = self._db.get_experiment(experiment_id) if hasattr(self._db, "get_experiment") else None
+        record = (
+            self._db.get_experiment(experiment_id) if hasattr(self._db, "get_experiment") else None
+        )
         if record is None:
             return {"experiment_id": experiment_id, "persisted": False}
         return {"experiment_id": experiment_id, "persisted": True}
 
     def verify_shadow_test_persistence(self, shadow_test_id: str) -> dict[str, Any]:
-        record = self._db.get_shadow_test(shadow_test_id) if hasattr(self._db, "get_shadow_test") else None
+        record = (
+            self._db.get_shadow_test(shadow_test_id)
+            if hasattr(self._db, "get_shadow_test")
+            else None
+        )
         if record is None:
             return {"shadow_test_id": shadow_test_id, "persisted": False}
         return {"shadow_test_id": shadow_test_id, "persisted": True}
@@ -613,12 +694,27 @@ class ResearchLabBackupManager:
         dashboard rather than executed automatically, since the actual
         cutover step is always operator-supervised."""
         return [
-            {"step": "1", "action": "Identify the most recent VERIFIED backup via list_backups()/verify_backup()."},
-            {"step": "2", "action": "restore_backup() the chosen backup to a staging path, distinct from the live DB file."},
-            {"step": "3", "action": "Validate the staged copy (integrity_check + spot-check recent experiments/shadow tests)."},
+            {
+                "step": "1",
+                "action": "Identify the most recent VERIFIED backup via list_backups()/verify_backup().",
+            },
+            {
+                "step": "2",
+                "action": "restore_backup() the chosen backup to a staging path, distinct from the live DB file.",
+            },
+            {
+                "step": "3",
+                "action": "Validate the staged copy (integrity_check + spot-check recent experiments/shadow tests).",
+            },
             {"step": "4", "action": "Stop the Research Lab server process."},
-            {"step": "5", "action": "Swap the staged copy into the live RESEARCH_LAB_DB_PATH location."},
-            {"step": "6", "action": "Restart the Research Lab server and re-verify via telemetry_status/health-dashboard."},
+            {
+                "step": "5",
+                "action": "Swap the staged copy into the live RESEARCH_LAB_DB_PATH location.",
+            },
+            {
+                "step": "6",
+                "action": "Restart the Research Lab server and re-verify via telemetry_status/health-dashboard.",
+            },
         ]
 
 
@@ -634,7 +730,9 @@ class TrainingResilienceMonitor:
         self._db = db
         self._registry = artifact_registry
 
-    def detect_stale_jobs(self, *, stale_after_s: float = _DEFAULT_STALE_JOB_TIMEOUT_S, now: float | None = None) -> list[dict[str, Any]]:
+    def detect_stale_jobs(
+        self, *, stale_after_s: float = _DEFAULT_STALE_JOB_TIMEOUT_S, now: float | None = None
+    ) -> list[dict[str, Any]]:
         """Return pipeline jobs stuck in QUEUED/RUNNING whose ``updated_at``
         (interrupted-training continuation would have refreshed it) is older
         than ``stale_after_s`` — i.e. training that appears to have died
@@ -651,7 +749,9 @@ class TrainingResilienceMonitor:
                 stale.append(job)
         return stale
 
-    def cleanup_failed_jobs(self, *, stale_after_s: float = _DEFAULT_STALE_JOB_TIMEOUT_S, now: float | None = None) -> dict[str, Any]:
+    def cleanup_failed_jobs(
+        self, *, stale_after_s: float = _DEFAULT_STALE_JOB_TIMEOUT_S, now: float | None = None
+    ) -> dict[str, Any]:
         """Mark every stale job (see ``detect_stale_jobs``) FAILED, so
         downstream retraining/scheduling logic never treats a dead job as
         still in flight."""
@@ -661,12 +761,16 @@ class TrainingResilienceMonitor:
         for job in stale:
             job["status"] = "FAILED"
             job["updated_at"] = now
-            job.setdefault("error", "cleaned up by TrainingResilienceMonitor: exceeded stale-job timeout")
+            job.setdefault(
+                "error", "cleaned up by TrainingResilienceMonitor: exceeded stale-job timeout"
+            )
             self._db.upsert_pipeline_job(job)
             cleaned.append(job["job_id"])
         return {"generated_at": now, "n_cleaned": len(cleaned), "job_ids": cleaned}
 
-    def detect_corrupted_artifacts(self, *, model_version: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+    def detect_corrupted_artifacts(
+        self, *, model_version: str | None = None, limit: int = 200
+    ) -> list[dict[str, Any]]:
         """Recompute checksums for every registered artifact (optionally
         scoped to a model version) and return the ones that fail."""
         if self._registry is None:
@@ -677,10 +781,14 @@ class TrainingResilienceMonitor:
             path = Path(art["path"])
             actual_hash = _sha256_file(path)
             if actual_hash is not None and actual_hash != art["artifact_hash"]:
-                corrupted.append({
-                    "artifact_id": art["artifact_id"], "name": art.get("name"),
-                    "expected_hash": art["artifact_hash"], "actual_hash": actual_hash,
-                })
+                corrupted.append(
+                    {
+                        "artifact_id": art["artifact_id"],
+                        "name": art.get("name"),
+                        "expected_hash": art["artifact_hash"],
+                        "actual_hash": actual_hash,
+                    }
+                )
         return corrupted
 
     @staticmethod
@@ -691,7 +799,11 @@ class TrainingResilienceMonitor:
         """
         directory = Path(checkpoint_dir)
         if not directory.is_dir():
-            return {"checkpoint_dir": str(directory), "resumable": False, "reason": "directory does not exist"}
+            return {
+                "checkpoint_dir": str(directory),
+                "resumable": False,
+                "reason": "directory does not exist",
+            }
         candidates = [directory / "latest.pt", directory / "best.pt"]
         usable = [str(c) for c in candidates if c.exists() and c.stat().st_size > 0]
         return {
@@ -738,6 +850,7 @@ class DisasterRecoveryManager:
             "notes": notes,
         }
         import json as _json
+
         manifest_json = _json.dumps(manifest, sort_keys=True)
         checksum = hashlib.sha256(manifest_json.encode("utf-8")).hexdigest()
         record = {
@@ -754,6 +867,7 @@ class DisasterRecoveryManager:
         if record is None:
             return {"snapshot_id": snapshot_id, "status": "NOT_FOUND"}
         import json as _json
+
         manifest_json = _json.dumps(record["manifest"], sort_keys=True)
         actual_checksum = hashlib.sha256(manifest_json.encode("utf-8")).hexdigest()
         ok = actual_checksum == record["manifest_checksum"]
@@ -785,14 +899,29 @@ class DeploymentSafetyMonitor:
         self._health_threshold = health_threshold
 
     def validate_deployment_health(self, model_version: str | None = None) -> dict[str, Any]:
-        score = self._composite_health_scorer.get_latest(model_version=model_version) if self._composite_health_scorer else None
+        score = (
+            self._composite_health_scorer.get_latest(model_version=model_version)
+            if self._composite_health_scorer
+            else None
+        )
         if score is None:
-            return {"model_version": model_version, "healthy": True, "composite_score": None, "reason": "no composite health score yet"}
+            return {
+                "model_version": model_version,
+                "healthy": True,
+                "composite_score": None,
+                "reason": "no composite health score yet",
+            }
         composite = score.get("composite", 100.0)
         healthy = composite >= self._health_threshold
         return {
-            "model_version": model_version, "healthy": healthy, "composite_score": composite,
-            "reason": "" if healthy else f"composite score {composite} below threshold {self._health_threshold}",
+            "model_version": model_version,
+            "healthy": healthy,
+            "composite_score": composite,
+            "reason": (
+                ""
+                if healthy
+                else f"composite score {composite} below threshold {self._health_threshold}"
+            ),
         }
 
     def verify_active_model(self) -> dict[str, Any]:
@@ -806,11 +935,15 @@ class DeploymentSafetyMonitor:
         model_version = current.get("model_version")
         rollback_check = self._integrity.check_rollback_safety(model_version)
         return {
-            "active": True, "model_version": model_version,
-            "artifacts_ok": rollback_check["safe"], "reasons": rollback_check["reasons"],
+            "active": True,
+            "model_version": model_version,
+            "artifacts_ok": rollback_check["safe"],
+            "reasons": rollback_check["reasons"],
         }
 
-    def maybe_auto_rollback(self, model_version: str, *, requested_by: str = "DeploymentSafetyMonitor") -> dict[str, Any] | None:
+    def maybe_auto_rollback(
+        self, model_version: str, *, requested_by: str = "DeploymentSafetyMonitor"
+    ) -> dict[str, Any] | None:
         """If the currently ACTIVE deployment's health has fallen below
         threshold, automatically raise a rollback request (still gated by
         the normal ApprovalGate — this automates *detection and request*,
@@ -861,16 +994,22 @@ class ResilienceDashboard:
         stale_jobs = self._training_resilience.detect_stale_jobs()
         snapshots = self._disaster_recovery.list_snapshots(limit=1)
         latest_snapshot = snapshots[0] if snapshots else None
-        deployment_health = self._deployment_safety.validate_deployment_health(model_version=model_version)
+        deployment_health = self._deployment_safety.validate_deployment_health(
+            model_version=model_version
+        )
 
         return {
             "generated_at": time.time(),
             "model_version": model_version,
             "workers": {
-                "n_active": len(active), "n_standby": len(standby), "n_dead": len(dead),
+                "n_active": len(active),
+                "n_standby": len(standby),
+                "n_dead": len(dead),
                 "n_total": len(workers),
             },
-            "scaling_recommendation": self._worker_pool.recommend_scaling(queue_depth=int(queue_report["avg_queue_depth"])),
+            "scaling_recommendation": self._worker_pool.recommend_scaling(
+                queue_depth=int(queue_report["avg_queue_depth"])
+            ),
             "queue": queue_report,
             "latest_backup": latest_backup,
             "n_stale_training_jobs": len(stale_jobs),

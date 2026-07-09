@@ -51,6 +51,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.decision_quality import (
@@ -58,31 +59,28 @@ from trainer.research_lab.decision_quality import (
     check_decision_quality_drift,
 )
 from trainer.research_lab.dimension_evaluators import _split_windows
+from trainer.research_lab.feature_health import (
+    FeatureHealthConfig,
+    check_feature_health,
+)
 from trainer.research_lab.performance_monitor import (
     PerformanceMonitorConfig,
     check_performance_drift,
 )
-from trainer.research_lab.feature_health import (
-    FeatureHealthConfig,
-    check_feature_health,
+from trainer.research_lab.recommendation_models import (
+    EvaluationDimension,
+    RecommendationStatus,
+    RecommendationUrgency,
+    RecommendedScope,
+    RetrainingRecommendation,
 )
 from trainer.research_lab.regime_coverage import (
     RegimeCoverageConfig,
     check_black_swans,
     check_unseen_conditions,
 )
-from trainer.research_lab.recommendation_models import (
-    EvaluationDimension,
-    EvaluationResult,
-    RecommendationConfig,
-    RecommendedScope,
-    RecommendationStatus,
-    RecommendationUrgency,
-    RetrainingRecommendation,
-)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryQuery, TelemetryWarehouse
-
 
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
@@ -226,7 +224,7 @@ class HealthMonitorConfig:
     min_samples: int = 10
 
     # ── 1. Feature drift (output probability distribution TV distance) ─────────
-    feature_warning: float = 0.08   # total-variation distance warning
+    feature_warning: float = 0.08  # total-variation distance warning
     feature_critical: float = 0.16
 
     # ── 2. Confidence drift (|mean_recent - mean_baseline|) ────────────────────
@@ -238,17 +236,17 @@ class HealthMonitorConfig:
     market_critical: float = 0.25
 
     # ── 4. Data quality (staleness + event-rate drop) ──────────────────────────
-    staleness_warning_s: float = 3_600.0   # 1 hour with no new events
+    staleness_warning_s: float = 3_600.0  # 1 hour with no new events
     staleness_critical_s: float = 14_400.0  # 4 hours with no new events
     event_rate_drop_warning: float = 0.50  # 50 % drop in events-per-unit-time
     event_rate_drop_critical: float = 0.80  # 80 % drop
 
     # ── 5. Regime performance drift (win-rate drop per regime) ─────────────────
-    regime_win_rate_warning: float = 0.08   # absolute drop in win rate
+    regime_win_rate_warning: float = 0.08  # absolute drop in win rate
     regime_win_rate_critical: float = 0.15
 
     # ── 6. Prediction entropy drift (|mean_recent - mean_baseline| entropy) ────
-    entropy_warning: float = 0.15   # bits (3-class max entropy ≈ 1.585 bits)
+    entropy_warning: float = 0.15  # bits (3-class max entropy ≈ 1.585 bits)
     entropy_critical: float = 0.30
 
     # ── 7. Uncertainty drift (|std_recent - std_baseline| of confidence) ───────
@@ -261,7 +259,7 @@ class HealthMonitorConfig:
     calibration_bins: int = 5
 
     # ── 9. Decision quality (expectancy + confidence-outcome correlation) ──────
-    decision_quality_expectancy_warning: float = 0.15   # relative expectancy drop
+    decision_quality_expectancy_warning: float = 0.15  # relative expectancy drop
     decision_quality_expectancy_critical: float = 0.35
     decision_quality_correlation_warning: float = 0.20  # absolute correlation drop
     decision_quality_correlation_critical: float = 0.40
@@ -374,15 +372,9 @@ class ResearchLabHealthMonitor:
         now = time.time()
         q = TelemetryQuery(model_version=model_version or None, since=since)
 
-        decisions = sorted(
-            self._wh.query_decisions(q), key=lambda d: d.get("timestamp", 0)
-        )
-        trades = sorted(
-            self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0)
-        )
-        reasoning_events = sorted(
-            self._wh.query_reasoning(q), key=lambda e: e.get("timestamp", 0)
-        )
+        decisions = sorted(self._wh.query_decisions(q), key=lambda d: d.get("timestamp", 0))
+        trades = sorted(self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0))
+        reasoning_events = sorted(self._wh.query_reasoning(q), key=lambda e: e.get("timestamp", 0))
 
         alerts: list[DriftAlert] = []
         checked = []
@@ -398,7 +390,11 @@ class ResearchLabHealthMonitor:
             (DriftDimension.CALIBRATION.value, self._check_calibration, (trades, mv)),
             (DriftDimension.DECISION_QUALITY.value, self._check_decision_quality, (trades, mv)),
             (DriftDimension.PERFORMANCE.value, self._check_performance, (trades, mv)),
-            (DriftDimension.FEATURE_HEALTH.value, self._check_feature_health, (reasoning_events, mv, now)),
+            (
+                DriftDimension.FEATURE_HEALTH.value,
+                self._check_feature_health,
+                (reasoning_events, mv, now),
+            ),
             (DriftDimension.UNSEEN_CONDITION.value, self._check_unseen_condition, (decisions, mv)),
             (DriftDimension.BLACK_SWAN.value, self._check_black_swan, (trades, mv)),
         ]:
@@ -456,9 +452,7 @@ class ResearchLabHealthMonitor:
 
     def get_status(self, model_version: str | None = None) -> dict[str, Any]:
         """Return a current health status summary without re-running checks."""
-        recent_alerts = self._db.list_health_alerts(
-            model_version=model_version, limit=200
-        )
+        recent_alerts = self._db.list_health_alerts(model_version=model_version, limit=200)
         n_critical = sum(
             1 for a in recent_alerts if a.get("severity") == AlertSeverity.CRITICAL.value
         )
@@ -492,9 +486,7 @@ class ResearchLabHealthMonitor:
 
     # ── Dimension: Confidence drift ───────────────────────────────────────────
 
-    def _check_confidence(
-        self, decisions: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_confidence(self, decisions: list[dict], model_version: str) -> DriftAlert | None:
         """Detect shift in mean prediction confidence (baseline vs recent)."""
         confs = [d.get("confidence", 0.5) for d in decisions]
         baseline, recent = _split_windows(
@@ -535,18 +527,18 @@ class ResearchLabHealthMonitor:
             recommended_action=(
                 f"Confidence has {direction} by {drift:.3f} from baseline "
                 f"({b_mean:.3f} → {r_mean:.3f}). "
-                + ("Immediate recalibration or full retrain recommended."
-                   if severity == AlertSeverity.CRITICAL.value
-                   else "Monitor confidence trend; consider recalibration.")
+                + (
+                    "Immediate recalibration or full retrain recommended."
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Monitor confidence trend; consider recalibration."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Feature drift ──────────────────────────────────────────────
 
-    def _check_feature(
-        self, decisions: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_feature(self, decisions: list[dict], model_version: str) -> DriftAlert | None:
         """Detect shift in output probability distribution (buy/sell/no_trade)
         as a proxy for input feature distribution shift.
 
@@ -602,19 +594,19 @@ class ResearchLabHealthMonitor:
             recommended_action=(
                 f"Output probability distribution has shifted (TV={tv:.3f}); "
                 f"largest shift in class '{max_shift_class}'. "
-                + ("Input distribution may have changed significantly — "
-                   "full retrain on recent data recommended."
-                   if severity == AlertSeverity.CRITICAL.value
-                   else "Review input feature pipeline for upstream changes.")
+                + (
+                    "Input distribution may have changed significantly — "
+                    "full retrain on recent data recommended."
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Review input feature pipeline for upstream changes."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Market / regime distribution drift ─────────────────────────
 
-    def _check_market(
-        self, decisions: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_market(self, decisions: list[dict], model_version: str) -> DriftAlert | None:
         """Detect shift in market regime distribution over time.
 
         Computes TV distance between the regime histogram of baseline and
@@ -669,9 +661,11 @@ class ResearchLabHealthMonitor:
             recommended_action=(
                 f"Market regime distribution has shifted significantly (TV={tv:.3f}). "
                 + (f"New regimes: {new_regimes}. " if new_regimes else "")
-                + ("Regime-conditional recalibration or retrain on recent market data recommended."
-                   if severity == AlertSeverity.CRITICAL.value
-                   else "Monitor regime shift; consider regime-targeted fine-tuning.")
+                + (
+                    "Regime-conditional recalibration or retrain on recent market data recommended."
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Monitor regime shift; consider regime-targeted fine-tuning."
+                )
             ),
             created_at=time.time(),
         )
@@ -745,6 +739,7 @@ class ResearchLabHealthMonitor:
             return None
 
         from datetime import UTC, datetime
+
         return DriftAlert(
             alert_id=f"hal-{uuid.uuid4().hex[:12]}",
             dimension=DriftDimension.DATA_QUALITY.value,
@@ -754,9 +749,11 @@ class ResearchLabHealthMonitor:
             affected_features=[],
             evidence={
                 "staleness_s": round(staleness_s, 1),
-                "latest_event_at": datetime.fromtimestamp(latest_ts, UTC).isoformat()
-                if latest_ts > 0
-                else "unknown",
+                "latest_event_at": (
+                    datetime.fromtimestamp(latest_ts, UTC).isoformat()
+                    if latest_ts > 0
+                    else "unknown"
+                ),
                 "n_total_events": len(decisions),
                 "staleness_warning_threshold_s": self._cfg.staleness_warning_s,
                 "staleness_critical_threshold_s": self._cfg.staleness_critical_s,
@@ -766,7 +763,8 @@ class ResearchLabHealthMonitor:
                 f"Telemetry freshness degraded: last event {staleness_s / 3600:.1f}h ago. "
                 + (
                     f"Event rate dropped by {rate_evidence.get('rate_drop_fraction', 0) * 100:.0f}%. "
-                    if rate_evidence.get("rate_drop_fraction", 0) >= self._cfg.event_rate_drop_warning
+                    if rate_evidence.get("rate_drop_fraction", 0)
+                    >= self._cfg.event_rate_drop_warning
                     else ""
                 )
                 + (
@@ -780,9 +778,7 @@ class ResearchLabHealthMonitor:
 
     # ── Dimension: Per-regime win-rate drift ──────────────────────────────────
 
-    def _check_regime(
-        self, trades: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_regime(self, trades: list[dict], model_version: str) -> DriftAlert | None:
         """Detect per-regime performance degradation.
 
         For each regime with sufficient trades in both windows, computes the
@@ -869,9 +865,7 @@ class ResearchLabHealthMonitor:
 
     # ── Dimension: Prediction entropy drift ───────────────────────────────────
 
-    def _check_entropy(
-        self, decisions: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_entropy(self, decisions: list[dict], model_version: str) -> DriftAlert | None:
         """Detect drift in mean prediction entropy (baseline vs recent).
 
         Entropy is computed per-decision from the 3-class (buy/sell/no_trade)
@@ -942,9 +936,7 @@ class ResearchLabHealthMonitor:
 
     # ── Dimension: Uncertainty drift ──────────────────────────────────────────
 
-    def _check_uncertainty(
-        self, decisions: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_uncertainty(self, decisions: list[dict], model_version: str) -> DriftAlert | None:
         """Detect drift in confidence dispersion (std) — a proxy for the
         model's own uncertainty when no explicit uncertainty estimate is
         exposed. Distinct from ``_check_confidence``, which tracks the mean;
@@ -990,19 +982,19 @@ class ResearchLabHealthMonitor:
             recommended_action=(
                 f"Confidence dispersion has {direction} by {drift:.3f} from baseline "
                 f"({b_std:.3f} → {r_std:.3f}). "
-                + ("Model uncertainty behavior has changed sharply — "
-                   "investigate before continuing autonomous operation."
-                   if severity == AlertSeverity.CRITICAL.value
-                   else "Monitor uncertainty trend.")
+                + (
+                    "Model uncertainty behavior has changed sharply — "
+                    "investigate before continuing autonomous operation."
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Monitor uncertainty trend."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Calibration drift ──────────────────────────────────────────
 
-    def _check_calibration(
-        self, trades: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_calibration(self, trades: list[dict], model_version: str) -> DriftAlert | None:
         """Detect worsening calibration (confidence vs realized outcome) using
         a rolling Expected-Calibration-Error-style metric.
 
@@ -1057,18 +1049,18 @@ class ResearchLabHealthMonitor:
                 f"Calibration error worsened by {drift:.3f} from baseline "
                 f"({b_ece:.3f} → {r_ece:.3f}) — confidence no longer tracks "
                 f"realized outcomes as well. "
-                + ("Recalibration (temperature scaling) or full retrain recommended."
-                   if severity == AlertSeverity.CRITICAL.value
-                   else "Monitor confidence-vs-outcome alignment.")
+                + (
+                    "Recalibration (temperature scaling) or full retrain recommended."
+                    if severity == AlertSeverity.CRITICAL.value
+                    else "Monitor confidence-vs-outcome alignment."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Decision quality (expectancy + confidence-outcome corr) ─────
 
-    def _check_decision_quality(
-        self, trades: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_decision_quality(self, trades: list[dict], model_version: str) -> DriftAlert | None:
         """Detect degradation in decision quality: a relative drop in
         expectancy and/or a drop in how well confidence tracks realized
         outcomes, comparing baseline vs recent trade windows.
@@ -1110,18 +1102,18 @@ class ResearchLabHealthMonitor:
                 f"confidence-outcome correlation "
                 f"{evidence['baseline_confidence_outcome_correlation']} → "
                 f"{evidence['recent_confidence_outcome_correlation']}. "
-                + ("Full retrain or expectancy-breakdown investigation recommended."
-                   if result["severity"] == AlertSeverity.CRITICAL.value
-                   else "Monitor expectancy and confidence-outcome trend.")
+                + (
+                    "Full retrain or expectancy-breakdown investigation recommended."
+                    if result["severity"] == AlertSeverity.CRITICAL.value
+                    else "Monitor expectancy and confidence-outcome trend."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Autonomous performance (profit factor/Sharpe/drawdown/hit rate) ──
 
-    def _check_performance(
-        self, trades: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_performance(self, trades: list[dict], model_version: str) -> DriftAlert | None:
         """Detect degradation in autonomous trading performance: a relative
         drop in profit factor and/or Sharpe ratio, a rise in max drawdown,
         or a drop in hit rate, comparing baseline vs recent trade windows.
@@ -1169,9 +1161,11 @@ class ResearchLabHealthMonitor:
                 f"{evidence['recent_max_drawdown']:.3f}, "
                 f"hit rate {evidence['baseline_hit_rate']:.3f} → "
                 f"{evidence['recent_hit_rate']:.3f}. "
-                + ("Full retrain or risk-budget review recommended."
-                   if result["severity"] == AlertSeverity.CRITICAL.value
-                   else "Monitor performance trend across symbols/regimes/cohorts.")
+                + (
+                    "Full retrain or risk-budget review recommended."
+                    if result["severity"] == AlertSeverity.CRITICAL.value
+                    else "Monitor performance trend across symbols/regimes/cohorts."
+                )
             ),
             created_at=time.time(),
         )
@@ -1221,13 +1215,18 @@ class ResearchLabHealthMonitor:
                 f"stale: {evidence['stale_features'] or 'none'}, "
                 f"corrupted: {evidence['corrupted_features'] or 'none'}, "
                 f"delayed: {evidence['delayed_features'] or 'none'}"
-                + (f", reasoning stream stale for {evidence['stream_staleness_s']:.0f}s"
-                   if "stream_stale" in result["triggers"] else "")
+                + (
+                    f", reasoning stream stale for {evidence['stream_staleness_s']:.0f}s"
+                    if "stream_stale" in result["triggers"]
+                    else ""
+                )
                 + ". "
-                + ("Investigate upstream feature pipeline immediately — inference "
-                   "quality is compromised."
-                   if result["severity"] == AlertSeverity.CRITICAL.value
-                   else "Monitor feature pipeline; verify upstream data sources.")
+                + (
+                    "Investigate upstream feature pipeline immediately — inference "
+                    "quality is compromised."
+                    if result["severity"] == AlertSeverity.CRITICAL.value
+                    else "Monitor feature pipeline; verify upstream data sources."
+                )
             ),
             created_at=time.time(),
         )
@@ -1269,19 +1268,19 @@ class ResearchLabHealthMonitor:
             recommended_action=(
                 f"Unseen market conditions detected: {evidence.get('unseen_regimes', {})} "
                 f"({evidence.get('unseen_rate', 0) * 100:.1f}% of recent decisions). "
-                + ("Model is operating outside its trained envelope — "
-                   "urgent review of live conditions and retraining scope recommended."
-                   if result["severity"] == AlertSeverity.CRITICAL.value
-                   else "Monitor; consider expanding training data to cover these conditions.")
+                + (
+                    "Model is operating outside its trained envelope — "
+                    "urgent review of live conditions and retraining scope recommended."
+                    if result["severity"] == AlertSeverity.CRITICAL.value
+                    else "Monitor; consider expanding training data to cover these conditions."
+                )
             ),
             created_at=time.time(),
         )
 
     # ── Dimension: Black swan detection ────────────────────────────────────────
 
-    def _check_black_swan(
-        self, trades: list[dict], model_version: str
-    ) -> DriftAlert | None:
+    def _check_black_swan(self, trades: list[dict], model_version: str) -> DriftAlert | None:
         """Detect statistically extreme individual trade outcomes (z-score
         vs the trailing baseline window) — distinct from both ordinary
         distribution shift and per-regime win-rate degradation: a single
@@ -1316,10 +1315,12 @@ class ResearchLabHealthMonitor:
                 f"Black swan move(s) detected: {len(evidence.get('black_swan_events', []))} "
                 f"extreme outcome(s) ({evidence.get('black_swan_rate', 0) * 100:.1f}% of recent trades, "
                 f"z-score threshold {cfg.black_swan_zscore_threshold}). "
-                + ("Review risk controls and position sizing immediately — "
-                   "tail risk exposure is elevated."
-                   if result["severity"] == AlertSeverity.CRITICAL.value
-                   else "Monitor; confirm risk budget accounts for this tail event.")
+                + (
+                    "Review risk controls and position sizing immediately — "
+                    "tail risk exposure is elevated."
+                    if result["severity"] == AlertSeverity.CRITICAL.value
+                    else "Monitor; confirm risk budget accounts for this tail event."
+                )
             ),
             created_at=time.time(),
         )
@@ -1526,7 +1527,8 @@ def _expected_calibration_error(
     for i in range(n_bins):
         lo, hi = bin_edges[i], bin_edges[i + 1]
         bucket = [
-            t for t in usable
+            t
+            for t in usable
             if lo <= t["confidence_at_entry"] < hi
             or (i == n_bins - 1 and t["confidence_at_entry"] >= hi)
         ]

@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from trainer.research_lab.champion_challenger import ChampionChallengerTracker
 from trainer.research_lab.approval_gate import ApprovalGate
+from trainer.research_lab.champion_challenger import ChampionChallengerTracker
 from trainer.research_lab.composite_health import CompositeQDEHealthScorer
 from trainer.research_lab.decision_quality import DecisionQualityTracker
 from trainer.research_lab.experiment_creator import ExperimentCreator
@@ -73,9 +73,16 @@ class TestCycleRegistry:
     def test_all_expected_cycles_registered(self, scheduler: ResearchScheduler) -> None:
         names = {c["name"] for c in scheduler.list_cycles()}
         assert names == {
-            "performance_review", "drift_analysis", "failure_review", "regime_review",
-            "self_evaluation", "feature_discovery", "counterfactual_review",
-            "shadow_promotion_review", "architecture_review", "deployment_review",
+            "performance_review",
+            "drift_analysis",
+            "failure_review",
+            "regime_review",
+            "self_evaluation",
+            "feature_discovery",
+            "counterfactual_review",
+            "shadow_promotion_review",
+            "architecture_review",
+            "deployment_review",
         }
 
     def test_cadences_are_valid(self, scheduler: ResearchScheduler) -> None:
@@ -118,16 +125,12 @@ class TestDueGating:
         scheduler.run_cycle("performance_review")
         assert scheduler.is_due("performance_review") is False
 
-    def test_run_due_cycles_runs_everything_first_time(
-        self, scheduler: ResearchScheduler
-    ) -> None:
+    def test_run_due_cycles_runs_everything_first_time(self, scheduler: ResearchScheduler) -> None:
         results = scheduler.run_due_cycles()
         assert len(results) == len(scheduler.list_cycles())
         assert all(r["status"] == "COMPLETED" for r in results)
 
-    def test_run_due_cycles_second_pass_is_empty(
-        self, scheduler: ResearchScheduler
-    ) -> None:
+    def test_run_due_cycles_second_pass_is_empty(self, scheduler: ResearchScheduler) -> None:
         scheduler.run_due_cycles()
         second = scheduler.run_due_cycles()
         assert second == []
@@ -146,9 +149,7 @@ class TestDueGating:
 
 
 class TestStatus:
-    def test_status_reflects_last_run_and_due_flag(
-        self, scheduler: ResearchScheduler
-    ) -> None:
+    def test_status_reflects_last_run_and_due_flag(self, scheduler: ResearchScheduler) -> None:
         status_before = {s["name"]: s for s in scheduler.status()}
         assert status_before["drift_analysis"]["last_run"] is None
         assert status_before["drift_analysis"]["due"] is True
@@ -243,6 +244,7 @@ class TestConcurrency:
 class TestPollIntervalParsing:
     def _parse(self, raw):
         from trainer.research_lab.research_lab_server import _parse_scheduler_poll_interval
+
         return _parse_scheduler_poll_interval(raw)
 
     def test_none_uses_default(self) -> None:
@@ -290,7 +292,5 @@ class TestBackgroundThread:
             scheduler.stop_background()
         assert scheduler._thread is None
 
-    def test_stop_background_without_start_is_safe(
-        self, scheduler: ResearchScheduler
-    ) -> None:
+    def test_stop_background_without_start_is_safe(self, scheduler: ResearchScheduler) -> None:
         scheduler.stop_background()  # must not raise

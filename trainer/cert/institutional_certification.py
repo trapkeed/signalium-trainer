@@ -56,17 +56,17 @@ PERFORMANCE_THRESHOLDS: dict[str, float] = {
     "min_sharpe_ratio": 1.0,
     "min_sortino_ratio": 1.2,
     "min_calmar_ratio": 0.5,
-    "min_expectancy": 0.0,          # expected value per trade must be positive
-    "max_drawdown_pct": 20.0,       # max peak-to-trough drawdown, percent
-    "min_recovery_factor": 1.5,     # net profit / max drawdown
+    "min_expectancy": 0.0,  # expected value per trade must be positive
+    "max_drawdown_pct": 20.0,  # max peak-to-trough drawdown, percent
+    "min_recovery_factor": 1.5,  # net profit / max drawdown
     "min_consistency_score": 0.55,  # fraction of profitable sub-periods
 }
 
 RISK_THRESHOLDS: dict[str, float] = {
-    "max_var_95_pct": 5.0,          # 95% Value-at-Risk, percent of capital
+    "max_var_95_pct": 5.0,  # 95% Value-at-Risk, percent of capital
     "max_leverage": 5.0,
     "max_concentration_pct": 25.0,  # max single-instrument exposure
-    "max_tail_risk_ratio": 3.0,     # CVaR / VaR
+    "max_tail_risk_ratio": 3.0,  # CVaR / VaR
     "min_risk_adjusted_return": 0.5,
 }
 
@@ -86,7 +86,7 @@ RESEARCH_THRESHOLDS: dict[str, float] = {
 }
 
 MARKET_THRESHOLDS: dict[str, float] = {
-    "min_regime_coverage": 0.75,          # fraction of known regimes tested
+    "min_regime_coverage": 0.75,  # fraction of known regimes tested
     "min_cross_instrument_consistency": 0.55,
     "max_regime_performance_variance": 0.40,
     "min_liquidity_stress_survival": 0.60,
@@ -486,14 +486,14 @@ class InstitutionalCertificationReport:
         if any(d.status == DomainCertificationStatus.FAIL for d in domains):
             decision = InstitutionalCertificationDecision.REJECTED
             failing = [
-                d.__class__.__name__ for d in domains
-                if d.status == DomainCertificationStatus.FAIL
+                d.__class__.__name__ for d in domains if d.status == DomainCertificationStatus.FAIL
             ]
             rationale = f"Rejected: domain(s) failed hard checks: {', '.join(failing)}"
         elif any(d.status == DomainCertificationStatus.CONDITIONAL for d in domains):
             decision = InstitutionalCertificationDecision.CERTIFIED_WITH_CONDITIONS
             conditional = [
-                d.__class__.__name__ for d in domains
+                d.__class__.__name__
+                for d in domains
                 if d.status == DomainCertificationStatus.CONDITIONAL
             ]
             rationale = (

@@ -40,7 +40,8 @@ class BaseStubProvider:
         if not self._api_key:
             return HealthStatus(self.name(), healthy=False, detail="no API key configured")
         return HealthStatus(
-            self.name(), healthy=self._connected,
+            self.name(),
+            healthy=self._connected,
             latency_ms=(time.time() - started) * 1000.0,
             detail="connected" if self._connected else "configured but not connected",
         )

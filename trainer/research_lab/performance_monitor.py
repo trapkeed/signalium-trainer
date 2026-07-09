@@ -29,6 +29,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.research_lab.rl_database import ResearchLabDatabase
@@ -166,7 +167,9 @@ def _sharpe_ratio(
     rfr_per_bar = risk_free_rate / annualisation_factor
     excess = [r - rfr_per_bar for r in returns]
     m = sum(excess) / len(excess)
-    var = sum((e - m) ** 2 for e in excess) / len(excess)  # population std (ddof=0), matches np.std()
+    var = sum((e - m) ** 2 for e in excess) / len(
+        excess
+    )  # population std (ddof=0), matches np.std()
     std = var**0.5
     return m * (annualisation_factor**0.5) / (std + 1e-9)
 
@@ -196,9 +199,13 @@ def performance_stats(
     n = len(trades)
     if n == 0:
         return {
-            "n_trades": 0, "profit_factor": 0.0, "sharpe_ratio": 0.0,
-            "max_drawdown": 0.0, "hit_rate": 0.0,
-            "risk_adjusted_return": 0.0, "capital_efficiency": 0.0,
+            "n_trades": 0,
+            "profit_factor": 0.0,
+            "sharpe_ratio": 0.0,
+            "max_drawdown": 0.0,
+            "hit_rate": 0.0,
+            "risk_adjusted_return": 0.0,
+            "capital_efficiency": 0.0,
         }
     pnls = [float(t.get("pnl", 0.0)) for t in trades]
     return {
@@ -241,8 +248,7 @@ def _group_performance(
         key = key_fn(t) or "UNKNOWN"
         groups.setdefault(str(key), []).append(t)
     return {
-        k: performance_stats(v, annualisation_factor, risk_free_rate)
-        for k, v in groups.items()
+        k: performance_stats(v, annualisation_factor, risk_free_rate) for k, v in groups.items()
     }
 
 

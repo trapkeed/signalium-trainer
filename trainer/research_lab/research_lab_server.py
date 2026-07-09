@@ -84,21 +84,42 @@ except ImportError as exc:
         "FastAPI and Pydantic are required. Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.market_data.symbol_normalizer import SymbolNormalizer, UnknownSymbolError
+from trainer.market_data.symbol_store import SymbolStore
 from trainer.research_lab.approval_gate import ApprovalGate
-from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalGateType, DEFAULT_TTL_SECONDS
-from trainer.research_lab.artifact_models import ARTIFACT_TYPES, ArtifactRecord, ArtifactType, TrainingRunRecord
-from trainer.research_lab.artifact_registry import ArtifactRegistry, ArtifactHashMismatchError, DuplicateArtifactError
+from trainer.research_lab.approval_models import (
+    DEFAULT_TTL_SECONDS,
+    ApprovalAlreadyResolved,
+    ApprovalGateType,
+)
+from trainer.research_lab.artifact_models import (
+    ARTIFACT_TYPES,
+    ArtifactRecord,
+    TrainingRunRecord,
+)
+from trainer.research_lab.artifact_registry import (
+    ArtifactHashMismatchError,
+    ArtifactRegistry,
+    DuplicateArtifactError,
+)
+from trainer.research_lab.audit_log import AuditLogger
 from trainer.research_lab.champion_challenger import (
     ChampionChallengerTracker,
-    PromotionCriterionConfig,
 )
-from trainer.research_lab.deployment_manager import DeploymentManager
 from trainer.research_lab.composite_health import CompositeQDEHealthScorer
 from trainer.research_lab.decision_quality import DecisionQualityTracker
-from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
-from trainer.research_lab.performance_monitor import PerformanceMonitor
+from trainer.research_lab.deployment_manager import DeploymentManager
+from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
+from trainer.research_lab.experiment_creator import ExperimentCreator
+from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
+from trainer.research_lab.feature_discovery_pipeline import FeatureDiscoveryPipeline
 from trainer.research_lab.feature_health import FeatureHealthMonitor
-from trainer.research_lab.regime_coverage import RegimeCoverageMonitor
+from trainer.research_lab.health_monitor import (
+    ResearchLabHealthMonitor,
+)
+from trainer.research_lab.investigation_models import InvestigationQuery
+from trainer.research_lab.label_discovery_engine import LabelDiscoveryEngine
+from trainer.research_lab.performance_monitor import PerformanceMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
 from trainer.research_lab.qde_observability import (
@@ -119,22 +140,14 @@ from trainer.research_lab.qde_resilience import (
     TrainingResilienceMonitor,
     WorkerPoolManager,
 )
-from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
-from trainer.research_lab.experiment_creator import ExperimentCreator
-from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
-from trainer.research_lab.feature_discovery_pipeline import FeatureDiscoveryPipeline
-from trainer.research_lab.investigation_models import InvestigationConfig, InvestigationQuery
-from trainer.research_lab.label_discovery_engine import LabelDiscoveryEngine
 from trainer.research_lab.recommendation_models import RecommendationConfig
+from trainer.research_lab.regime_coverage import RegimeCoverageMonitor
 from trainer.research_lab.research_lab_api import ResearchLabAPI
 from trainer.research_lab.research_scheduler import ResearchScheduler
 from trainer.research_lab.retraining_recommendation_engine import (
     RetrainingRecommendationEngine,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.market_data.symbol_store import SymbolStore
-from trainer.market_data.symbol_normalizer import SymbolNormalizer, UnknownSymbolError
-from trainer.research_lab.audit_log import AuditLogger
 from trainer.research_lab.session_manager import SessionManager
 from trainer.research_lab.sso import (
     Capability,
@@ -245,9 +258,7 @@ _scheduler = ResearchScheduler(
     decision_quality_tracker=_decision_quality_tracker,
     composite_health_scorer=_composite_health_scorer,
     cc_tracker=_cc_tracker,
-    poll_interval_s=_parse_scheduler_poll_interval(
-        os.environ.get("RESEARCH_LAB_SCHEDULER_POLL_S")
-    ),
+    poll_interval_s=_parse_scheduler_poll_interval(os.environ.get("RESEARCH_LAB_SCHEDULER_POLL_S")),
 )
 
 # S24 §2: start the background research-cycle scheduler only when explicitly
@@ -301,7 +312,9 @@ _qde_health_dashboard = QDEHealthDashboard(
 # ── S26 — QDE Scalability and Model Resilience ─────────────────────────────
 _worker_pool = WorkerPoolManager(_db)
 _queue_monitor = InferenceQueueMonitor(_db, _worker_pool)
-_artifact_integrity = ArtifactIntegrityVerifier(_db, _artifact_registry, deployment_manager=_deployment_manager)
+_artifact_integrity = ArtifactIntegrityVerifier(
+    _db, _artifact_registry, deployment_manager=_deployment_manager
+)
 _backup_manager = ResearchLabBackupManager(_db)
 _training_resilience = TrainingResilienceMonitor(_db, _artifact_registry)
 _disaster_recovery = DisasterRecoveryManager(_db)
@@ -309,8 +322,12 @@ _deployment_safety = DeploymentSafetyMonitor(
     _deployment_manager, _composite_health_scorer, _artifact_integrity
 )
 _resilience_dashboard = ResilienceDashboard(
-    _worker_pool, _queue_monitor, _backup_manager, _training_resilience,
-    _disaster_recovery, _deployment_safety,
+    _worker_pool,
+    _queue_monitor,
+    _backup_manager,
+    _training_resilience,
+    _disaster_recovery,
+    _deployment_safety,
 )
 _bearer = HTTPBearer(auto_error=False)
 
@@ -917,7 +934,9 @@ def system_summary(_: None = Depends(_require_admin)) -> dict:
 # ── 1. Dataset Generation ─────────────────────────────────────────────────────
 
 
-@app.post("/research/datasets", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/datasets", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))]
+)
 def create_dataset(req: CreateDatasetRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_dataset(**req.model_dump()))
 
@@ -932,7 +951,10 @@ def get_dataset(dataset_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_dataset(dataset_id))
 
 
-@app.post("/research/datasets/{dataset_id}/generate", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/datasets/{dataset_id}/generate",
+    dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))],
+)
 def create_generation_job(
     dataset_id: str, req: CreateGenerationJobRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -959,12 +981,18 @@ def get_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_generation_job(job_id))
 
 
-@app.post("/research/generation-jobs/{job_id}/start", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/generation-jobs/{job_id}/start",
+    dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))],
+)
 def start_generation_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.start_generation_job(job_id))
 
 
-@app.post("/research/generation-jobs/{job_id}/validating", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/generation-jobs/{job_id}/validating",
+    dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))],
+)
 def validating_generation_job(
     job_id: str,
     req: ValidatingGenerationJobRequest,
@@ -979,7 +1007,10 @@ def validating_generation_job(
     )
 
 
-@app.post("/research/generation-jobs/{job_id}/complete", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/generation-jobs/{job_id}/complete",
+    dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))],
+)
 def complete_generation_job(
     job_id: str,
     req: CompleteGenerationJobRequest,
@@ -993,7 +1024,10 @@ def complete_generation_job(
     )
 
 
-@app.post("/research/generation-jobs/{job_id}/fail", dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))])
+@app.post(
+    "/research/generation-jobs/{job_id}/fail",
+    dependencies=[Depends(require_capability(Capability.DATASET_MANAGEMENT))],
+)
 def fail_generation_job(
     job_id: str, req: FailGenerationJobRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1003,19 +1037,27 @@ def fail_generation_job(
 # ── 2. Feature Discovery ───────────────────────────────────────────────────────
 
 
-@app.post("/research/features", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
+@app.post(
+    "/research/features", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))]
+)
 def record_feature(req: RecordFeatureRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.record_feature(**req.model_dump()))
 
 
-@app.post("/research/features/{feature_id}/accept", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
+@app.post(
+    "/research/features/{feature_id}/accept",
+    dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))],
+)
 def accept_feature(
     feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.accept_feature(feature_id, notes=req.notes))
 
 
-@app.post("/research/features/{feature_id}/reject", dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))])
+@app.post(
+    "/research/features/{feature_id}/reject",
+    dependencies=[Depends(require_capability(Capability.FEATURE_ENGINEERING))],
+)
 def reject_feature(
     feature_id: str, req: FeatureStatusRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1030,24 +1072,36 @@ def list_features(status: str | None = None, _: None = Depends(_require_admin)) 
 # ── 3. Experiment Tracking ─────────────────────────────────────────────────────
 
 
-@app.post("/research/experiments", dependencies=[Depends(require_capability(Capability.EXPERIMENT_CREATION))])
+@app.post(
+    "/research/experiments",
+    dependencies=[Depends(require_capability(Capability.EXPERIMENT_CREATION))],
+)
 def create_experiment(req: CreateExperimentRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_experiment(**req.model_dump()))
 
 
-@app.post("/research/experiments/{experiment_id}/start", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
+@app.post(
+    "/research/experiments/{experiment_id}/start",
+    dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))],
+)
 def start_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.start_experiment(experiment_id))
 
 
-@app.post("/research/experiments/{experiment_id}/complete", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
+@app.post(
+    "/research/experiments/{experiment_id}/complete",
+    dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))],
+)
 def complete_experiment(
     experiment_id: str, req: CompleteExperimentRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.complete_experiment(experiment_id, metrics=req.metrics, notes=req.notes))
 
 
-@app.post("/research/experiments/{experiment_id}/fail", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
+@app.post(
+    "/research/experiments/{experiment_id}/fail",
+    dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))],
+)
 def fail_experiment(
     experiment_id: str, req: FailExperimentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1107,7 +1161,10 @@ def list_backtests(experiment_id: str | None = None, _: None = Depends(_require_
 # ── 5. Validation (Deployment Gates) ──────────────────────────────────────────
 
 
-@app.post("/research/experiments/{experiment_id}/gates", dependencies=[Depends(require_capability(Capability.VALIDATION))])
+@app.post(
+    "/research/experiments/{experiment_id}/gates",
+    dependencies=[Depends(require_capability(Capability.VALIDATION))],
+)
 def evaluate_gates(
     experiment_id: str, req: EvaluateGatesRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1123,7 +1180,10 @@ def evaluate_gates(
     )
 
 
-@app.post("/research/experiments/{experiment_id}/validate-retraining", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/experiments/{experiment_id}/validate-retraining",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def validate_retraining(
     experiment_id: str, req: ValidateRetrainingRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1138,7 +1198,10 @@ def validate_retraining(
 # ── 6. Promotion Approval ─────────────────────────────────────────────────────
 
 
-@app.post("/research/experiments/{experiment_id}/approve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/experiments/{experiment_id}/approve",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def approve_deployment(
     experiment_id: str, req: ApproveDeploymentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1151,7 +1214,10 @@ def approve_deployment(
     )
 
 
-@app.post("/research/experiments/{experiment_id}/reject", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/experiments/{experiment_id}/reject",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def reject_deployment(
     experiment_id: str, req: RejectDeploymentRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1172,7 +1238,10 @@ def deployment_history(_: None = Depends(_require_admin)) -> dict:
 # ── 7. Rollback Approval ──────────────────────────────────────────────────────
 
 
-@app.post("/research/rollbacks", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/rollbacks",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def create_rollback_request(
     req: CreateRollbackRequestModel, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1189,21 +1258,30 @@ def get_rollback_request(request_id: str, _: None = Depends(_require_admin)) -> 
     return _respond(_api.get_rollback_request(request_id))
 
 
-@app.post("/research/rollbacks/{request_id}/approve", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
+@app.post(
+    "/research/rollbacks/{request_id}/approve",
+    dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))],
+)
 def approve_rollback(
     request_id: str, req: ApproveRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.approve_rollback(request_id, approver=req.approver, notes=req.notes))
 
 
-@app.post("/research/rollbacks/{request_id}/reject", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
+@app.post(
+    "/research/rollbacks/{request_id}/reject",
+    dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))],
+)
 def reject_rollback(
     request_id: str, req: RejectRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.reject_rollback(request_id, rejector=req.rejector, notes=req.notes))
 
 
-@app.post("/research/rollbacks/{request_id}/withdraw", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/rollbacks/{request_id}/withdraw",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def withdraw_rollback(
     request_id: str, req: WithdrawRollbackRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1220,7 +1298,10 @@ def withdraw_rollback(
 # the corresponding registry mutation via /research/lifecycle/consume.
 
 
-@app.post("/research/lifecycle/authorize", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/lifecycle/authorize",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def authorize_lifecycle_action(
     req: AuthorizeLifecycleActionRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1234,7 +1315,10 @@ def authorize_lifecycle_action(
     )
 
 
-@app.post("/research/lifecycle/consume", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/lifecycle/consume",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def consume_lifecycle_authorization(
     req: ConsumeLifecycleAuthorizationRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1263,12 +1347,17 @@ def get_lifecycle_authorization(authorization_id: str, _: None = Depends(_requir
 # ── 8. Failure Analysis ───────────────────────────────────────────────────────
 
 
-@app.post("/research/failures", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/failures", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))]
+)
 def record_failure(req: RecordFailureRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.record_failure(**req.model_dump()))
 
 
-@app.post("/research/failures/{failure_id}/investigate", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/failures/{failure_id}/investigate",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def investigate_failure(
     failure_id: str, req: InvestigateFailureRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1277,7 +1366,10 @@ def investigate_failure(
     )
 
 
-@app.post("/research/failures/{failure_id}/resolve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/failures/{failure_id}/resolve",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def resolve_failure(
     failure_id: str, req: ResolveFailureRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1309,7 +1401,9 @@ def list_failures(
 # ── Market Regime Analysis ────────────────────────────────────────────────────
 
 
-@app.post("/research/regime", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/regime", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))]
+)
 def analyze_regime(req: AnalyzeRegimeRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.analyze_regime(**req.model_dump()))
 
@@ -1327,7 +1421,10 @@ def list_regime_reports(qde_version: str | None = None, _: None = Depends(_requi
 # ── Version Comparisons ───────────────────────────────────────────────────────
 
 
-@app.post("/research/comparisons", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/comparisons",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compare_models(req: CompareModelsRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.compare_models(**req.model_dump()))
 
@@ -1345,19 +1442,28 @@ def list_comparisons(_: None = Depends(_require_admin)) -> dict:
 # ── Parameter Search ──────────────────────────────────────────────────────────
 
 
-@app.post("/research/searches", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
+@app.post(
+    "/research/searches",
+    dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))],
+)
 def create_search(req: CreateSearchRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_search(**req.model_dump()))
 
 
-@app.post("/research/searches/{search_id}/trials", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
+@app.post(
+    "/research/searches/{search_id}/trials",
+    dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))],
+)
 def record_trial(
     search_id: str, req: RecordTrialRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.record_trial(search_id, parameters=req.parameters, metrics=req.metrics))
 
 
-@app.post("/research/searches/{search_id}/complete", dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))])
+@app.post(
+    "/research/searches/{search_id}/complete",
+    dependencies=[Depends(require_capability(Capability.ARCHITECTURE_RESEARCH))],
+)
 def complete_search(search_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.complete_search(search_id))
 
@@ -1375,19 +1481,27 @@ def list_searches(qde_version: str | None = None, _: None = Depends(_require_adm
 # ── Shadow Testing ────────────────────────────────────────────────────────────
 
 
-@app.post("/research/shadow-tests", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
+@app.post(
+    "/research/shadow-tests", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))]
+)
 def create_shadow_test(req: CreateShadowTestRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_shadow_test(**req.model_dump()))
 
 
-@app.post("/research/shadow-tests/{test_id}/decisions", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
+@app.post(
+    "/research/shadow-tests/{test_id}/decisions",
+    dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))],
+)
 def record_shadow_decision(
     test_id: str, req: RecordShadowDecisionRequest, _: None = Depends(_require_admin)
 ) -> dict:
     return _respond(_api.record_shadow_decision(test_id, **req.model_dump()))
 
 
-@app.post("/research/shadow-tests/{test_id}/conclude", dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))])
+@app.post(
+    "/research/shadow-tests/{test_id}/conclude",
+    dependencies=[Depends(require_capability(Capability.SHADOW_TESTING))],
+)
 def conclude_shadow_test(
     test_id: str, req: ConcludeShadowTestRequest, _: None = Depends(_require_admin)
 ) -> dict:
@@ -1447,7 +1561,9 @@ def list_shadow_decisions_by_version_pair(
 # ── Research Notes ────────────────────────────────────────────────────────────
 
 
-@app.post("/research/notes", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/notes", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))]
+)
 def create_note(req: CreateNoteRequest, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.create_note(**req.model_dump()))
 
@@ -1485,7 +1601,10 @@ class InvestigateRequest(BaseModel):
     limit_per_stream: int = 2000
 
 
-@app.post("/research/investigate", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/investigate",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def run_investigation(req: InvestigateRequest, _: None = Depends(_require_admin)) -> dict:
     """Run the Failure Investigation Engine against the telemetry warehouse.
 
@@ -1562,7 +1681,9 @@ class DiscoverRequest(BaseModel):
     limit_per_stream: int = 5000
 
 
-@app.post("/research/discover", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/discover", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))]
+)
 def run_discovery(req: DiscoverRequest, _: None = Depends(_require_admin)) -> dict:
     """Trigger all three S20 discovery pipelines in sequence:
       1. ExperimentCreator — proposes experiments from failure reports
@@ -1616,7 +1737,10 @@ def research_schedule_history(
     return {"success": True, "total": len(rows), "runs": rows}
 
 
-@app.post("/research/schedule/run/{cycle_name}", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/research/schedule/run/{cycle_name}",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def run_research_cycle(cycle_name: str, _: None = Depends(_require_admin)) -> dict:
     """Force-run one named research cycle immediately, regardless of whether
     it is currently due. Read-only with respect to trading/execution — this
@@ -1635,10 +1759,11 @@ def list_proposed_experiments(_: None = Depends(_require_admin)) -> dict:
     return {"success": True, "total": len(rows), "experiments": rows}
 
 
-@app.post("/research/proposed-experiments/{experiment_id}/approve", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
-def approve_proposed_experiment(
-    experiment_id: str, _: None = Depends(_require_admin)
-) -> dict:
+@app.post(
+    "/research/proposed-experiments/{experiment_id}/approve",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
+def approve_proposed_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> dict:
     """Advance a PROPOSED experiment to PENDING (admin approval)."""
     try:
         _creator.approve(experiment_id)
@@ -1647,10 +1772,11 @@ def approve_proposed_experiment(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/research/proposed-experiments/{experiment_id}/reject", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
-def reject_proposed_experiment(
-    experiment_id: str, _: None = Depends(_require_admin)
-) -> dict:
+@app.post(
+    "/research/proposed-experiments/{experiment_id}/reject",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
+def reject_proposed_experiment(experiment_id: str, _: None = Depends(_require_admin)) -> dict:
     """Reject a PROPOSED experiment (admin decision)."""
     try:
         _creator.reject(experiment_id)
@@ -1676,10 +1802,10 @@ def list_label_datasets(
 # ── Artifact Registry (S20) ───────────────────────────────────────────────────
 
 
-@app.post("/artifacts/register", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
-def register_artifact(
-    req: RegisterArtifactRequest, _: None = Depends(_require_admin)
-) -> dict:
+@app.post(
+    "/artifacts/register", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))]
+)
+def register_artifact(req: RegisterArtifactRequest, _: None = Depends(_require_admin)) -> dict:
     """Manually register an artifact produced by a training pipeline run.
 
     The registry is **metadata-only**: artifacts are stored by the training
@@ -1919,7 +2045,9 @@ class _DeploymentAdvanceStageRequest(BaseModel):
     notes: str = ""
 
 
-@app.post("/deployment/advance-stage", dependencies=[Depends(require_capability(Capability.VALIDATION))])
+@app.post(
+    "/deployment/advance-stage", dependencies=[Depends(require_capability(Capability.VALIDATION))]
+)
 def deployment_advance_stage(
     req: _DeploymentAdvanceStageRequest,
     admin_id: str = Depends(_require_admin),
@@ -1950,7 +2078,9 @@ def deployment_advance_stage(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/promote", dependencies=[Depends(require_capability(Capability.APPROVE_PROMOTIONS))])
+@app.post(
+    "/deployment/promote", dependencies=[Depends(require_capability(Capability.APPROVE_PROMOTIONS))]
+)
 def deployment_request_promotion(
     req: _DeploymentPromoteRequest,
     _: None = Depends(_require_admin),
@@ -1991,7 +2121,10 @@ def deployment_request_promotion(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/activate", dependencies=[Depends(require_capability(Capability.APPROVE_DEPLOYMENTS))])
+@app.post(
+    "/deployment/activate",
+    dependencies=[Depends(require_capability(Capability.APPROVE_DEPLOYMENTS))],
+)
 def deployment_apply_promotion(
     req: _DeploymentActivateRequest,
     admin_id: str = Depends(_require_admin),
@@ -2023,7 +2156,9 @@ def deployment_apply_promotion(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/rollback", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
+@app.post(
+    "/deployment/rollback", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))]
+)
 def deployment_request_rollback(
     req: _DeploymentRollbackRequest,
     _: None = Depends(_require_admin),
@@ -2052,7 +2187,10 @@ def deployment_request_rollback(
         return {"success": False, "error": str(exc)}
 
 
-@app.post("/deployment/rollback/activate", dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))])
+@app.post(
+    "/deployment/rollback/activate",
+    dependencies=[Depends(require_capability(Capability.APPROVE_ROLLBACKS))],
+)
 def deployment_apply_rollback(
     req: _DeploymentActivateRequest,
     admin_id: str = Depends(_require_admin),
@@ -2127,7 +2265,9 @@ def deployment_get_history(
 # ── Model Health Monitoring (S20) ─────────────────────────────────────────────
 
 
-@app.post("/health/check", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/health/check", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))]
+)
 def run_health_check(
     model_version: str | None = None,
     since: float | None = None,
@@ -2199,7 +2339,10 @@ def list_health_alerts(
 # ── Composite QDE Health Score (S22B) ─────────────────────────────────────────
 
 
-@app.post("/health/composite/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/health/composite/compute",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compute_composite_health_score(
     model_version: str | None = None,
     _: None = Depends(_require_admin),
@@ -2250,7 +2393,10 @@ def list_composite_health_scores(
 # ── Decision Quality Monitoring (S22B) ────────────────────────────────────────
 
 
-@app.post("/decision-quality/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/decision-quality/compute",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compute_decision_quality_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2295,7 +2441,10 @@ def list_decision_quality_reports(
 # ── Autonomous Performance Monitoring (S22B) ──────────────────────────────────
 
 
-@app.post("/performance/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/performance/compute",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compute_performance_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2341,7 +2490,10 @@ def list_performance_reports(
 # ── Feature Health Monitoring (S22B) ──────────────────────────────────────────
 
 
-@app.post("/feature-health/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/feature-health/compute",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compute_feature_health_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2387,7 +2539,10 @@ def list_feature_health_reports(
 # ── Market Regime Coverage Detection (S22B) ───────────────────────────────────
 
 
-@app.post("/regime-coverage/compute", dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))])
+@app.post(
+    "/regime-coverage/compute",
+    dependencies=[Depends(require_capability(Capability.RESEARCH_WORKFLOWS))],
+)
 def compute_regime_coverage_report(
     model_version: str | None = None,
     since: float | None = None,
@@ -2444,9 +2599,7 @@ def list_regime_coverage_reports(
 
 
 @app.post("/pipeline/run", dependencies=[Depends(require_capability(Capability.TRAINING_RUNS))])
-def run_pipeline(
-    req: RunPipelineRequest, _: None = Depends(_require_admin)
-) -> dict:
+def run_pipeline(req: RunPipelineRequest, _: None = Depends(_require_admin)) -> dict:
     """Enqueue and run a training pipeline job.
 
     Accepts an experiment_id, recommendation_id, or both.  Stages run in the
@@ -2472,6 +2625,7 @@ def run_pipeline(
         # Validate stage names early so the caller gets a 400 before the job is
         # created, rather than a silent no-op or a partially-run job.
         from trainer.research_lab.pipeline_controller import ResearchLabPipelineController as _PCtrl
+
         _PCtrl._resolve_stages(req.stages_to_run)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -2504,9 +2658,7 @@ def list_pipeline_jobs(
 
 
 @app.get("/pipeline/jobs/{job_id}")
-def get_pipeline_job(
-    job_id: str, _: None = Depends(_require_admin)
-) -> dict:
+def get_pipeline_job(job_id: str, _: None = Depends(_require_admin)) -> dict:
     """Fetch a specific pipeline job by ID, including full stage results and events."""
     job = _pipeline_ctrl.get_job(job_id)
     if job is None:
@@ -2594,9 +2746,7 @@ def list_approval_requests(
 
 
 @app.get("/approvals/{request_id}")
-def get_approval_request(
-    request_id: str, _: None = Depends(_require_admin)
-) -> dict:
+def get_approval_request(request_id: str, _: None = Depends(_require_admin)) -> dict:
     """Fetch a specific approval request by ID."""
     req = _approval_gate.get_request(request_id)
     if req is None:
@@ -2626,9 +2776,7 @@ def approve_approval_request(
     # the token holder is the authoritative actor recorded in the audit trail.
     actor = req.approved_by or admin_id
     try:
-        approved = _approval_gate.approve(
-            request_id, approved_by=actor, reason=req.reason
-        )
+        approved = _approval_gate.approve(request_id, approved_by=actor, reason=req.reason)
         return {
             "success": True,
             "approval_request": approved.to_dict(),
@@ -2656,9 +2804,7 @@ def reject_approval_request(
     admin_id = identity.admin_id
     actor = req.rejected_by or admin_id
     try:
-        rejected = _approval_gate.reject(
-            request_id, rejected_by=actor, reason=req.reason
-        )
+        rejected = _approval_gate.reject(request_id, rejected_by=actor, reason=req.reason)
         return {
             "success": True,
             "approval_request": rejected.to_dict(),
@@ -2682,7 +2828,10 @@ class ResolveRequest(BaseModel):
     notes: str = ""
 
 
-@app.post("/research/evaluate", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/evaluate",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def run_evaluation(req: EvaluateRequest, _: None = Depends(_require_admin)) -> dict:
     """Run all five evaluation dimensions against the current telemetry.
 
@@ -2715,16 +2864,12 @@ def list_recommendations(
 ) -> dict:
     """List retraining recommendations. Optionally filter by status
     (PROPOSED | APPROVED | DISMISSED) and model_version."""
-    rows = _rec_engine.list_recommendations(
-        status=status, model_version=model_version, limit=limit
-    )
+    rows = _rec_engine.list_recommendations(status=status, model_version=model_version, limit=limit)
     return {"success": True, "total": len(rows), "recommendations": rows}
 
 
 @app.get("/research/recommendations/{recommendation_id}")
-def get_recommendation(
-    recommendation_id: str, _: None = Depends(_require_admin)
-) -> dict:
+def get_recommendation(recommendation_id: str, _: None = Depends(_require_admin)) -> dict:
     """Fetch a single RetrainingRecommendation by ID."""
     rec = _rec_engine.get_recommendation(recommendation_id)
     if rec is None:
@@ -2734,7 +2879,10 @@ def get_recommendation(
     return {"success": True, "recommendation": rec}
 
 
-@app.post("/research/recommendations/{recommendation_id}/approve", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/recommendations/{recommendation_id}/approve",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def approve_recommendation(
     recommendation_id: str,
     req: ResolveRequest,
@@ -2755,7 +2903,10 @@ def approve_recommendation(
         raise HTTPException(status_code=400, detail=str(exc))
 
 
-@app.post("/research/recommendations/{recommendation_id}/dismiss", dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))])
+@app.post(
+    "/research/recommendations/{recommendation_id}/dismiss",
+    dependencies=[Depends(require_capability(Capability.RETRAINING_WORKFLOWS))],
+)
 def dismiss_recommendation(
     recommendation_id: str,
     req: ResolveRequest,
@@ -2766,9 +2917,7 @@ def dismiss_recommendation(
     Advances status to DISMISSED. Records the resolver and optional notes.
     """
     try:
-        rec = _rec_engine.dismiss(
-            recommendation_id, resolved_by=req.resolved_by, notes=req.notes
-        )
+        rec = _rec_engine.dismiss(recommendation_id, resolved_by=req.resolved_by, notes=req.notes)
         return {"success": True, "recommendation": rec}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -2799,8 +2948,9 @@ def symbol_performance(
     Symbols are returned sorted by ``sharpe`` descending so the caller can
     read best-N from the head and worst-N from the tail.
     """
-    from trainer.research_lab.telemetry_models import TelemetryQuery
     import statistics
+
+    from trainer.research_lab.telemetry_models import TelemetryQuery
 
     trades = _warehouse.query_trades(
         TelemetryQuery(model_version=model_version, since=since, until=until, limit=limit)
@@ -2831,12 +2981,12 @@ def symbol_performance(
                 "trade_count": len(symbol_trades),
                 "win_rate": round(win_rate, 4),
                 "sharpe": round(sharpe, 4),
-                "avg_confidence_at_entry": round(statistics.mean(confidences), 4)
-                if confidences
-                else 0.0,
-                "confidence_reliability": round(conf_reliability, 4)
-                if conf_reliability is not None
-                else None,
+                "avg_confidence_at_entry": (
+                    round(statistics.mean(confidences), 4) if confidences else 0.0
+                ),
+                "confidence_reliability": (
+                    round(conf_reliability, 4) if conf_reliability is not None else None
+                ),
                 "total_pnl": round(sum(pnls), 4),
             }
         )
@@ -2944,7 +3094,9 @@ def reasoning_distribution(
     from trainer.research_lab.telemetry_models import TelemetryQuery
 
     events = _warehouse.query_reasoning(
-        TelemetryQuery(model_version=model_version, symbol=symbol, since=since, until=until, limit=limit)
+        TelemetryQuery(
+            model_version=model_version, symbol=symbol, since=since, until=until, limit=limit
+        )
     )
     if bucket_seconds <= 0:
         raise HTTPException(status_code=400, detail="bucket_seconds must be > 0")
@@ -2996,7 +3148,9 @@ def compute_inference_report(
 ) -> dict:
     """Compute and persist an inference-serving report (latency, throughput,
     queue length, CPU/memory/GPU usage) from the ``tel_inference`` stream."""
-    report = _inference_monitor.compute_report(model_version=model_version, since=since, until=until)
+    report = _inference_monitor.compute_report(
+        model_version=model_version, since=since, until=until
+    )
     return {"success": True, "report": report.to_dict()}
 
 
@@ -3063,7 +3217,10 @@ def get_qde_health_dashboard(model_version: str | None = None) -> dict:
     """The single aggregated internal QDE Health Dashboard: version,
     deployment status, composite health/drift/calibration scores, and
     pending research recommendations."""
-    return {"success": True, "dashboard": _qde_health_dashboard.compute(model_version=model_version)}
+    return {
+        "success": True,
+        "dashboard": _qde_health_dashboard.compute(model_version=model_version),
+    }
 
 
 # ── S26 — QDE Scalability and Model Resilience ─────────────────────────────
@@ -3080,7 +3237,10 @@ def get_resilience_dashboard(model_version: str | None = None) -> dict:
     """Aggregated S26 view: worker pool health, queue saturation, latest
     backup/disaster-recovery snapshot status, stale training jobs, and
     current deployment health."""
-    return {"success": True, "dashboard": _resilience_dashboard.compute(model_version=model_version)}
+    return {
+        "success": True,
+        "dashboard": _resilience_dashboard.compute(model_version=model_version),
+    }
 
 
 @app.get("/resilience/workers", dependencies=[_OBSERVABILITY_DEP])
@@ -3089,7 +3249,9 @@ def list_resilience_workers(status: str | None = None) -> dict:
 
 
 @app.post("/resilience/workers/register", dependencies=[_RESILIENCE_OPS_DEP])
-def register_resilience_worker(kind: str = "GPU", role: str = "ACTIVE", capacity: float = 1.0) -> dict:
+def register_resilience_worker(
+    kind: str = "GPU", role: str = "ACTIVE", capacity: float = 1.0
+) -> dict:
     record = _worker_pool.register_worker(kind=kind, role=role, capacity=capacity)
     return {"success": True, "worker": record.to_dict()}
 
@@ -3113,8 +3275,15 @@ def run_resilience_supervision_cycle() -> dict:
 
 
 @app.get("/resilience/queue/report", dependencies=[_OBSERVABILITY_DEP])
-def get_resilience_queue_report(model_version: str | None = None, since: float | None = None, until: float | None = None) -> dict:
-    return {"success": True, "report": _queue_monitor.compute_report(model_version=model_version, since=since, until=until)}
+def get_resilience_queue_report(
+    model_version: str | None = None, since: float | None = None, until: float | None = None
+) -> dict:
+    return {
+        "success": True,
+        "report": _queue_monitor.compute_report(
+            model_version=model_version, since=since, until=until
+        ),
+    }
 
 
 @app.get("/resilience/artifacts/{artifact_id}/verify", dependencies=[_OBSERVABILITY_DEP])
@@ -3122,7 +3291,9 @@ def verify_resilience_artifact(artifact_id: str) -> dict:
     return {"success": True, "result": _artifact_integrity.verify_artifact_checksum(artifact_id)}
 
 
-@app.get("/resilience/deployment/{model_version}/rollback-safety", dependencies=[_OBSERVABILITY_DEP])
+@app.get(
+    "/resilience/deployment/{model_version}/rollback-safety", dependencies=[_OBSERVABILITY_DEP]
+)
 def get_rollback_safety(model_version: str) -> dict:
     return {"success": True, "result": _artifact_integrity.check_rollback_safety(model_version)}
 
@@ -3149,12 +3320,18 @@ def get_resilience_recovery_procedures() -> dict:
 
 @app.post("/resilience/training/cleanup-stale-jobs", dependencies=[_RESILIENCE_OPS_DEP])
 def cleanup_stale_training_jobs(stale_after_s: float = 3600.0) -> dict:
-    return {"success": True, "result": _training_resilience.cleanup_failed_jobs(stale_after_s=stale_after_s)}
+    return {
+        "success": True,
+        "result": _training_resilience.cleanup_failed_jobs(stale_after_s=stale_after_s),
+    }
 
 
 @app.get("/resilience/training/corrupted-artifacts", dependencies=[_OBSERVABILITY_DEP])
 def get_corrupted_artifacts(model_version: str | None = None) -> dict:
-    return {"success": True, "corrupted": _training_resilience.detect_corrupted_artifacts(model_version=model_version)}
+    return {
+        "success": True,
+        "corrupted": _training_resilience.detect_corrupted_artifacts(model_version=model_version),
+    }
 
 
 @app.post("/resilience/disaster-recovery/snapshot", dependencies=[_RESILIENCE_OPS_DEP])
@@ -3167,8 +3344,10 @@ def create_disaster_recovery_snapshot(
     return {
         "success": True,
         "snapshot": _disaster_recovery.create_snapshot(
-            model_version=model_version, dataset_version=dataset_version,
-            feature_version=feature_version, notes=notes,
+            model_version=model_version,
+            dataset_version=dataset_version,
+            feature_version=feature_version,
+            notes=notes,
         ),
     }
 
@@ -3178,14 +3357,20 @@ def list_disaster_recovery_snapshots(limit: int = 50) -> dict:
     return {"success": True, "snapshots": _disaster_recovery.list_snapshots(limit=limit)}
 
 
-@app.get("/resilience/disaster-recovery/snapshots/{snapshot_id}/verify", dependencies=[_OBSERVABILITY_DEP])
+@app.get(
+    "/resilience/disaster-recovery/snapshots/{snapshot_id}/verify",
+    dependencies=[_OBSERVABILITY_DEP],
+)
 def verify_disaster_recovery_snapshot(snapshot_id: str) -> dict:
     return {"success": True, "result": _disaster_recovery.verify_snapshot(snapshot_id)}
 
 
 @app.get("/resilience/deployment/health", dependencies=[_OBSERVABILITY_DEP])
 def get_deployment_safety_health(model_version: str | None = None) -> dict:
-    return {"success": True, "result": _deployment_safety.validate_deployment_health(model_version=model_version)}
+    return {
+        "success": True,
+        "result": _deployment_safety.validate_deployment_health(model_version=model_version),
+    }
 
 
 @app.get("/resilience/deployment/active-model/verify", dependencies=[_OBSERVABILITY_DEP])

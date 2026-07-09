@@ -72,8 +72,7 @@ class StageExecutor(Protocol):
         stage: PipelineStage,
         job: PipelineJob,
         context: dict[str, Any],
-    ) -> PipelineStageResult:
-        ...
+    ) -> PipelineStageResult: ...
 
 
 class DefaultStageExecutor:
@@ -144,12 +143,17 @@ class ResearchLabPipelineController:
         job = PipelineJob.new(spec)
         self._emit_and_persist(
             job,
-            PipelineStageEvent.new(job.job_id, PipelineEventType.JOB_QUEUED,
-                                   data={"spec": {
-                                       "experiment_id": spec.experiment_id,
-                                       "recommendation_id": spec.recommendation_id,
-                                       "stages_to_run": spec.stages_to_run,
-                                   }}),
+            PipelineStageEvent.new(
+                job.job_id,
+                PipelineEventType.JOB_QUEUED,
+                data={
+                    "spec": {
+                        "experiment_id": spec.experiment_id,
+                        "recommendation_id": spec.recommendation_id,
+                        "stages_to_run": spec.stages_to_run,
+                    }
+                },
+            ),
         )
         logger.info(
             f"PipelineController: job {job.job_id} queued "
@@ -178,7 +182,8 @@ class ResearchLabPipelineController:
             if stage == PipelineStage.TRAINING:
                 try:
                     consumed = self._gate.require_approval(
-                        ApprovalGateType.TRAINING_START, job.job_id,
+                        ApprovalGateType.TRAINING_START,
+                        job.job_id,
                         consumed_by=job.requested_by,
                     )
                     self._emit_and_persist(
@@ -187,8 +192,10 @@ class ResearchLabPipelineController:
                             job.job_id,
                             PipelineEventType.GATE_CONSUMED,
                             stage=stage,
-                            data={"approval_request_id": consumed.request_id,
-                                  "approved_by": consumed.resolved_by},
+                            data={
+                                "approval_request_id": consumed.request_id,
+                                "approved_by": consumed.resolved_by,
+                            },
                         ),
                     )
                     logger.info(
@@ -203,8 +210,10 @@ class ResearchLabPipelineController:
                     )
                     blocked_result.block(
                         error=f"TRAINING_START gate blocked: {exc}",
-                        logs=["Approval required but not found. "
-                              "Create and approve a TRAINING_START request via POST /approvals."],
+                        logs=[
+                            "Approval required but not found. "
+                            "Create and approve a TRAINING_START request via POST /approvals."
+                        ],
                     )
                     job.current_stage = stage.value
                     job.record_stage_result(blocked_result)
@@ -217,14 +226,11 @@ class ResearchLabPipelineController:
                             data={"reason": str(exc)},
                         ),
                     )
-                    job.mark_failed(
-                        f"TRAINING_START approval gate blocked for job {job.job_id}"
-                    )
+                    job.mark_failed(f"TRAINING_START approval gate blocked for job {job.job_id}")
                     self._emit_and_persist(
                         job,
                         PipelineStageEvent.new(
-                            job.job_id, PipelineEventType.JOB_FAILED,
-                            data={"error": job.error}
+                            job.job_id, PipelineEventType.JOB_FAILED, data={"error": job.error}
                         ),
                     )
                     logger.warning(
@@ -237,8 +243,7 @@ class ResearchLabPipelineController:
             job.current_stage = stage.value
             self._emit_and_persist(
                 job,
-                PipelineStageEvent.new(job.job_id, PipelineEventType.STAGE_STARTED,
-                                       stage=stage),
+                PipelineStageEvent.new(job.job_id, PipelineEventType.STAGE_STARTED, stage=stage),
             )
 
             try:
@@ -249,8 +254,7 @@ class ResearchLabPipelineController:
                     status=PipelineStageStatus.RUNNING.value,
                     started_at=time.time(),
                 )
-                result.fail(error=f"Executor raised: {exc!r}",
-                            logs=[f"[error] {exc!r}"])
+                result.fail(error=f"Executor raised: {exc!r}", logs=[f"[error] {exc!r}"])
 
             job.record_stage_result(result)
 
@@ -259,10 +263,10 @@ class ResearchLabPipelineController:
                 self._emit_and_persist(
                     job,
                     PipelineStageEvent.new(
-                        job.job_id, PipelineEventType.STAGE_COMPLETED,
+                        job.job_id,
+                        PipelineEventType.STAGE_COMPLETED,
                         stage=stage,
-                        data={"artifacts": result.artifacts,
-                              "duration_s": result.duration_s},
+                        data={"artifacts": result.artifacts, "duration_s": result.duration_s},
                     ),
                 )
                 logger.info(
@@ -273,18 +277,18 @@ class ResearchLabPipelineController:
                 self._emit_and_persist(
                     job,
                     PipelineStageEvent.new(
-                        job.job_id, PipelineEventType.STAGE_FAILED,
+                        job.job_id,
+                        PipelineEventType.STAGE_FAILED,
                         stage=stage,
                         data={"error": result.error},
                     ),
                 )
-                job.mark_failed(
-                    f"Stage {stage.value} failed: {result.error}"
-                )
+                job.mark_failed(f"Stage {stage.value} failed: {result.error}")
                 self._emit_and_persist(
                     job,
                     PipelineStageEvent.new(
-                        job.job_id, PipelineEventType.JOB_FAILED,
+                        job.job_id,
+                        PipelineEventType.JOB_FAILED,
                         data={"failed_stage": stage.value, "error": job.error},
                     ),
                 )
@@ -300,9 +304,12 @@ class ResearchLabPipelineController:
             self._emit_and_persist(
                 job,
                 PipelineStageEvent.new(
-                    job.job_id, PipelineEventType.JOB_COMPLETED,
-                    data={"stages_completed": job.stages_completed,
-                          "artifact_refs": job.artifact_refs},
+                    job.job_id,
+                    PipelineEventType.JOB_COMPLETED,
+                    data={
+                        "stages_completed": job.stages_completed,
+                        "artifact_refs": job.artifact_refs,
+                    },
                 ),
             )
             logger.info(
@@ -367,8 +374,7 @@ class ResearchLabPipelineController:
         unknown = [name for name in requested if name not in valid_values]
         if unknown:
             raise ValueError(
-                f"Unknown pipeline stage(s): {unknown!r}. "
-                f"Valid stages: {sorted(valid_values)}"
+                f"Unknown pipeline stage(s): {unknown!r}. " f"Valid stages: {sorted(valid_values)}"
             )
 
         requested_set = set(requested)

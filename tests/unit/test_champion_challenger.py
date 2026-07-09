@@ -17,22 +17,17 @@ Covers:
 
 from __future__ import annotations
 
-import math
 import sys
 import time
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.champion_challenger import (
-    ComparisonDimension,
     ChampionChallengerTracker,
-    HeadToHeadSummary,
+    ComparisonDimension,
     PromotionCriterionConfig,
-    RollingMetrics,
     _std,
     compute_rolling_metrics,
     score_confidence_quality,
@@ -42,8 +37,7 @@ from trainer.research_lab.champion_challenger import (
     score_sizing_quality,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from trainer.research_lab.rl_models import ShadowDecisionRecord, ShadowTestRun
-
+from trainer.research_lab.rl_models import ShadowTestRun
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -76,6 +70,7 @@ def _decision(
     conf_diff = chall_conf - champ_conf
     if promo is None:
         from trainer.research_lab.rl_models import compute_promotion_score
+
         promo = compute_promotion_score(
             decisions_agree=agree,
             confidence_diff=conf_diff,
@@ -125,7 +120,9 @@ def _shadow_test_in_db(
     run.test_id = test_id
     db.upsert_shadow_test(run.to_dict())
     for i in range(n_decisions):
-        rec = _decision(test_id=test_id, agree=agree, pnl_diff=pnl_diff, risk_diff=risk_diff, regime=regime)
+        rec = _decision(
+            test_id=test_id, agree=agree, pnl_diff=pnl_diff, risk_diff=risk_diff, regime=regime
+        )
         rec["record_id"] = f"sdr-{i}"
         db.save_shadow_decision(rec)
     return test_id
@@ -169,9 +166,8 @@ class TestDirectionAccuracy:
         assert result.challenger_wins is False  # 50% == baseline → no win
 
     def test_per_regime_in_evidence(self) -> None:
-        decisions = (
-            _many(10, agree=True, regime="RANGING")
-            + _many(10, agree=False, regime="TRENDING_BULL")
+        decisions = _many(10, agree=True, regime="RANGING") + _many(
+            10, agree=False, regime="TRENDING_BULL"
         )
         result = score_direction_accuracy(decisions)
         assert "per_regime_agreement" in result.evidence
@@ -290,9 +286,8 @@ class TestHoldQuality:
     def test_erratic_cross_regime_does_not_win(self) -> None:
         # Challenger agrees in one regime, totally disagrees in another
         # → high CoV of per-regime agreement rates → challenger_score < 0.6 → loses
-        decisions = (
-            _many(10, agree=True, regime="RANGING")
-            + _many(10, agree=False, regime="CRISIS")
+        decisions = _many(10, agree=True, regime="RANGING") + _many(
+            10, agree=False, regime="CRISIS"
         )
         result = score_hold_quality(decisions)
         assert result.challenger_wins is False
@@ -304,7 +299,9 @@ class TestHoldQuality:
         assert "insufficient_data" in result.evidence.get("reason", "")
 
     def test_per_regime_in_evidence(self) -> None:
-        decisions = _many(10, agree=True, regime="RANGING") + _many(10, agree=True, regime="TRENDING_BULL")
+        decisions = _many(10, agree=True, regime="RANGING") + _many(
+            10, agree=True, regime="TRENDING_BULL"
+        )
         result = score_hold_quality(decisions)
         assert "per_regime_agreement_rates" in result.evidence
 
@@ -386,10 +383,16 @@ class TestRollingMetrics:
         m = compute_rolling_metrics(decisions)
         d = m.to_dict()
         required = {
-            "n_decisions", "agreement_rate", "avg_promotion_score",
-            "challenger_sharpe", "challenger_sortino", "challenger_profit_factor",
-            "challenger_max_drawdown", "challenger_confidence_calibration",
-            "challenger_confidence_reliability", "mean_pnl_diff",
+            "n_decisions",
+            "agreement_rate",
+            "avg_promotion_score",
+            "challenger_sharpe",
+            "challenger_sortino",
+            "challenger_profit_factor",
+            "challenger_max_drawdown",
+            "challenger_confidence_calibration",
+            "challenger_confidence_reliability",
+            "mean_pnl_diff",
         }
         assert required.issubset(d.keys())
 
@@ -405,8 +408,11 @@ class TestHeadToHeadSummary:
 
     def test_compute_head_to_head_no_decisions(self, db) -> None:
         run = ShadowTestRun.new(
-            name="empty", challenger_version="v2.0", champion_version="v1.0",
-            instruments=["XAUUSD"], min_decisions=5,
+            name="empty",
+            challenger_version="v2.0",
+            champion_version="v1.0",
+            instruments=["XAUUSD"],
+            min_decisions=5,
         )
         db.upsert_shadow_test(run.to_dict())
         tracker = _tracker(db)
@@ -432,10 +438,16 @@ class TestHeadToHeadSummary:
         assert h2h is not None
         d = h2h.to_dict()
         for key in [
-            "test_id", "champion_version", "challenger_version", "n_decisions",
-            "n_dimensions_challenger_wins", "n_dimensions_total",
-            "challenger_win_rate", "promotion_criterion_met",
-            "dimension_results", "rolling_metrics",
+            "test_id",
+            "champion_version",
+            "challenger_version",
+            "n_decisions",
+            "n_dimensions_challenger_wins",
+            "n_dimensions_total",
+            "challenger_win_rate",
+            "promotion_criterion_met",
+            "dimension_results",
+            "rolling_metrics",
         ]:
             assert key in d, f"Missing key: {key}"
 
@@ -455,8 +467,8 @@ class TestPromotionCriterion:
     def _good_cfg(self) -> PromotionCriterionConfig:
         return PromotionCriterionConfig(
             min_decisions=5,
-            majority_threshold=0.4,   # 2 of 5 sufficient for tests
-            min_promotion_score=0.01, # very low → effectively disabled
+            majority_threshold=0.4,  # 2 of 5 sufficient for tests
+            min_promotion_score=0.01,  # very low → effectively disabled
             min_agreement_rate=0.01,
         )
 
@@ -477,8 +489,10 @@ class TestPromotionCriterion:
     def test_criterion_not_met_low_agreement_rate(self, db) -> None:
         test_id = _shadow_test_in_db(db, n_decisions=20, agree=False)
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.4,
-            min_promotion_score=0.0, min_agreement_rate=0.80,
+            min_decisions=5,
+            majority_threshold=0.4,
+            min_promotion_score=0.0,
+            min_agreement_rate=0.80,
         )
         tracker = _tracker(db, cfg=cfg)
         h2h = tracker.compute_head_to_head(test_id)
@@ -488,8 +502,10 @@ class TestPromotionCriterion:
         # All disagree → low promotion_score
         test_id = _shadow_test_in_db(db, n_decisions=10, agree=False, pnl_diff=-0.05)
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.4,
-            min_promotion_score=0.99, min_agreement_rate=0.0,
+            min_decisions=5,
+            majority_threshold=0.4,
+            min_promotion_score=0.99,
+            min_agreement_rate=0.0,
         )
         tracker = _tracker(db, cfg=cfg)
         h2h = tracker.compute_head_to_head(test_id)
@@ -503,8 +519,10 @@ class TestPromotionCriterion:
         )
         # Require 80% of dimensions (4 of 5) → unachievable with bad decisions
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.80,
-            min_promotion_score=0.0, min_agreement_rate=0.0,
+            min_decisions=5,
+            majority_threshold=0.80,
+            min_promotion_score=0.0,
+            min_agreement_rate=0.0,
         )
         tracker = _tracker(db, cfg=cfg)
         h2h = tracker.compute_head_to_head(test_id)
@@ -517,8 +535,10 @@ class TestPromotionCriterion:
 class TestEvaluatePromotion:
     def _good_cfg(self) -> PromotionCriterionConfig:
         return PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.4,
-            min_promotion_score=0.0, min_agreement_rate=0.0,
+            min_decisions=5,
+            majority_threshold=0.4,
+            min_promotion_score=0.0,
+            min_agreement_rate=0.0,
         )
 
     def test_evaluate_missing_test(self, db) -> None:
@@ -545,6 +565,7 @@ class TestEvaluatePromotion:
 
     def test_evaluate_criterion_met_with_gate_creates_request(self, db) -> None:
         from trainer.research_lab.approval_gate import ApprovalGate
+
         gate = ApprovalGate(db)
         test_id = _shadow_test_in_db(db, n_decisions=10, agree=True, pnl_diff=0.05, risk_diff=0.001)
         tracker = _tracker(db, gate=gate, cfg=self._good_cfg())
@@ -572,16 +593,18 @@ class TestEvaluatePromotion:
             db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
         )
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_decisions=5,
+            majority_threshold=0.8,
+            min_promotion_score=0.99,
             min_agreement_rate=0.99,
         )
         tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
         result = tracker.evaluate_promotion(test_id)
 
         assert result["criterion_met"] is False
-        assert result["recommendation_id"], (
-            "decisive rejection must create a RetrainingRecommendation"
-        )
+        assert result[
+            "recommendation_id"
+        ], "decisive rejection must create a RetrainingRecommendation"
         rec = db.get_retraining_recommendation(result["recommendation_id"])
         assert rec is not None
         assert rec["status"] == RecommendationStatus.PROPOSED.value
@@ -600,7 +623,9 @@ class TestEvaluatePromotion:
             db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
         )
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_decisions=5,
+            majority_threshold=0.8,
+            min_promotion_score=0.99,
             min_agreement_rate=0.99,
         )
         tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
@@ -615,7 +640,9 @@ class TestEvaluatePromotion:
             db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
         )
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_decisions=5,
+            majority_threshold=0.8,
+            min_promotion_score=0.99,
             min_agreement_rate=0.99,
         )
         tracker = _tracker(db, cfg=cfg)
@@ -636,12 +663,12 @@ class TestEvaluatePromotion:
         rec_engine = RetrainingRecommendationEngine(warehouse, db, RecommendationConfig())
         # Challenger agrees and has positive pnl_diff (wins most dimensions)
         # but promotion_score threshold is set unreasonably high.
-        test_id = _shadow_test_in_db(
-            db, n_decisions=10, agree=True, pnl_diff=0.05, risk_diff=0.001
-        )
+        test_id = _shadow_test_in_db(db, n_decisions=10, agree=True, pnl_diff=0.05, risk_diff=0.001)
         cfg = PromotionCriterionConfig(
-            min_decisions=5, majority_threshold=0.4,
-            min_promotion_score=0.9999, min_agreement_rate=0.0,
+            min_decisions=5,
+            majority_threshold=0.4,
+            min_promotion_score=0.9999,
+            min_agreement_rate=0.0,
         )
         tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
         result = tracker.evaluate_promotion(test_id)
@@ -650,6 +677,7 @@ class TestEvaluatePromotion:
 
     def test_evaluate_idempotent_duplicate_call(self, db) -> None:
         from trainer.research_lab.approval_gate import ApprovalGate
+
         gate = ApprovalGate(db)
         test_id = _shadow_test_in_db(db, n_decisions=10, agree=True, pnl_diff=0.05, risk_diff=0.001)
         tracker = _tracker(db, gate=gate, cfg=self._good_cfg())
@@ -752,14 +780,17 @@ class TestServerEndpoints:
     @pytest.fixture()
     def client(self, tmp_path: Path):
         import os
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "cc-test-token"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_cc.db")
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     def test_shadow_status_empty(self, client) -> None:

@@ -67,8 +67,11 @@ class FailoverEvent:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "context": self.context.value, "from_provider": self.from_provider,
-            "to_provider": self.to_provider, "reason": self.reason, "at": self.at,
+            "context": self.context.value,
+            "from_provider": self.from_provider,
+            "to_provider": self.to_provider,
+            "reason": self.reason,
+            "at": self.at,
         }
 
 
@@ -116,14 +119,18 @@ class ProviderManager:
                 health = state.provider.health_check()
             except Exception as exc:  # noqa: BLE001
                 health = HealthStatus(state.provider.name(), healthy=False, detail=str(exc))
-            out.append({
-                **health.to_dict(),
-                "degraded": state.is_degraded(now),
-                "consecutive_failures": state.consecutive_failures,
-            })
+            out.append(
+                {
+                    **health.to_dict(),
+                    "degraded": state.is_degraded(now),
+                    "consecutive_failures": state.consecutive_failures,
+                }
+            )
         return out
 
-    def _mark_degraded(self, context: DataContext, state: _ProviderState, reason: str, now: float) -> None:
+    def _mark_degraded(
+        self, context: DataContext, state: _ProviderState, reason: str, now: float
+    ) -> None:
         state.consecutive_failures += 1
         state.last_failure_reason = reason
         if state.consecutive_failures >= self._max_consecutive_failures:
@@ -168,7 +175,9 @@ class ProviderManager:
                 latency_ms = (time.time() - started) * 1000.0
 
                 if latency_ms > self._latency_threshold_ms:
-                    self._mark_degraded(context, state, f"excessive latency ({latency_ms:.0f}ms)", now)
+                    self._mark_degraded(
+                        context, state, f"excessive latency ({latency_ms:.0f}ms)", now
+                    )
                     last_exc = ProviderTimeout(f"{provider.name()} exceeded latency threshold")
                     continue
 
@@ -185,11 +194,17 @@ class ProviderManager:
             except Exception as exc:  # noqa: BLE001 — any provider failure is a failover trigger
                 self._mark_degraded(context, state, str(exc), now)
                 last_exc = exc
-                self._failover_log.append(FailoverEvent(
-                    context=context, from_provider=provider.name(),
-                    to_provider="(next candidate)", reason=str(exc),
-                ))
-                logger.warning(f"ProviderManager: {provider.name()} failed for {method_name!r}: {exc!r}, failing over")
+                self._failover_log.append(
+                    FailoverEvent(
+                        context=context,
+                        from_provider=provider.name(),
+                        to_provider="(next candidate)",
+                        reason=str(exc),
+                    )
+                )
+                logger.warning(
+                    f"ProviderManager: {provider.name()} failed for {method_name!r}: {exc!r}, failing over"
+                )
                 continue
 
         raise AllProvidersUnavailable(

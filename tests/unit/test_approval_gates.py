@@ -21,20 +21,20 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
+from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_jwt
 from trainer.research_lab.approval_gate import ApprovalGate
 from trainer.research_lab.approval_models import (
+    DEFAULT_TTL_SECONDS,
     ApprovalAlreadyResolved,
     ApprovalGateType,
     ApprovalRequest,
     ApprovalRequiredError,
     ApprovalStatus,
-    DEFAULT_TTL_SECONDS,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
-from tests.unit._sso_test_utils import make_signalium_jwt, DEFAULT_TEST_JWT_SECRET
-
 
 # ── Module-scope Pydantic request models ──────────────────────────────────────
+
 
 class _CreateApprovalReq(BaseModel):
     gate_type: str
@@ -241,11 +241,23 @@ class TestApprovalRequest:
         )
         d = r.to_dict()
         for key in (
-            "request_id", "gate_type", "resource_id", "resource_type",
-            "requested_by", "action_summary", "requestor_context",
-            "status", "created_at", "expires_at", "updated_at",
-            "resolved_by", "resolved_at", "resolution_reason",
-            "consumed_at", "consumed_by", "audit_log",
+            "request_id",
+            "gate_type",
+            "resource_id",
+            "resource_type",
+            "requested_by",
+            "action_summary",
+            "requestor_context",
+            "status",
+            "created_at",
+            "expires_at",
+            "updated_at",
+            "resolved_by",
+            "resolved_at",
+            "resolution_reason",
+            "consumed_at",
+            "consumed_by",
+            "audit_log",
         ):
             assert key in d, f"Missing key: {key}"
 
@@ -279,27 +291,23 @@ class TestApprovalGate:
         assert req.status == ApprovalStatus.PENDING.value
         assert req.request_id.startswith("apr-")
 
-    def test_create_request_idempotent_for_same_gate_resource(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_create_request_idempotent_for_same_gate_resource(self, gate: ApprovalGate) -> None:
         r1 = _pending_request(gate, resource_id="exp-idem")
         r2 = _pending_request(gate, resource_id="exp-idem")
         assert r1.request_id == r2.request_id
 
-    def test_create_request_different_resources_are_separate(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_create_request_different_resources_are_separate(self, gate: ApprovalGate) -> None:
         r1 = _pending_request(gate, resource_id="exp-001")
         r2 = _pending_request(gate, resource_id="exp-002")
         assert r1.request_id != r2.request_id
 
-    def test_create_request_different_gate_types_are_separate(
-        self, gate: ApprovalGate
-    ) -> None:
-        r1 = _pending_request(gate, gate_type=ApprovalGateType.EXPERIMENT_LAUNCH,
-                               resource_id="exp-multi")
-        r2 = _pending_request(gate, gate_type=ApprovalGateType.TRAINING_START,
-                               resource_id="exp-multi")
+    def test_create_request_different_gate_types_are_separate(self, gate: ApprovalGate) -> None:
+        r1 = _pending_request(
+            gate, gate_type=ApprovalGateType.EXPERIMENT_LAUNCH, resource_id="exp-multi"
+        )
+        r2 = _pending_request(
+            gate, gate_type=ApprovalGateType.TRAINING_START, resource_id="exp-multi"
+        )
         assert r1.request_id != r2.request_id
 
     def test_approve_changes_status(self, gate: ApprovalGate) -> None:
@@ -334,27 +342,19 @@ class TestApprovalGate:
         assert exc_info.value.gate_type == "EXPERIMENT_LAUNCH"
         assert exc_info.value.resource_id == "exp-no-approval"
 
-    def test_require_approval_blocks_pending_not_approved(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_require_approval_blocks_pending_not_approved(self, gate: ApprovalGate) -> None:
         _pending_request(gate, resource_id="exp-pending-only")
         with pytest.raises(ApprovalRequiredError):
             gate.require_approval(ApprovalGateType.EXPERIMENT_LAUNCH, "exp-pending-only")
 
-    def test_require_approval_passes_after_admin_approves(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_require_approval_passes_after_admin_approves(self, gate: ApprovalGate) -> None:
         req = _pending_request(gate, resource_id="exp-approved")
         gate.approve(req.request_id, approved_by="admin")
-        consumed = gate.require_approval(
-            ApprovalGateType.EXPERIMENT_LAUNCH, "exp-approved"
-        )
+        consumed = gate.require_approval(ApprovalGateType.EXPERIMENT_LAUNCH, "exp-approved")
         assert consumed.status == ApprovalStatus.CONSUMED.value
         assert consumed.consumed_by == "system"
 
-    def test_require_approval_consumed_cannot_be_reused(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_require_approval_consumed_cannot_be_reused(self, gate: ApprovalGate) -> None:
         """Atomic consume: once consumed, the same approval cannot be used again."""
         req = _pending_request(gate, resource_id="exp-atomic")
         gate.approve(req.request_id, approved_by="admin")
@@ -363,17 +363,13 @@ class TestApprovalGate:
         with pytest.raises(ApprovalRequiredError):
             gate.require_approval(ApprovalGateType.EXPERIMENT_LAUNCH, "exp-atomic")
 
-    def test_require_approval_blocks_rejected_requests(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_require_approval_blocks_rejected_requests(self, gate: ApprovalGate) -> None:
         req = _pending_request(gate, resource_id="exp-rejected")
         gate.reject(req.request_id, rejected_by="admin", reason="no")
         with pytest.raises(ApprovalRequiredError):
             gate.require_approval(ApprovalGateType.EXPERIMENT_LAUNCH, "exp-rejected")
 
-    def test_require_approval_auto_expires_stale_pending(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_require_approval_auto_expires_stale_pending(self, gate: ApprovalGate) -> None:
         # Create a request with a tiny TTL so it expires immediately
         req = gate.create_request(
             gate_type=ApprovalGateType.TRAINING_START,
@@ -391,9 +387,7 @@ class TestApprovalGate:
         assert fetched is not None
         assert fetched.status == ApprovalStatus.EXPIRED.value
 
-    def test_new_request_can_be_created_after_expiry(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_new_request_can_be_created_after_expiry(self, gate: ApprovalGate) -> None:
         """After a request expires, a fresh one can be created for the same resource."""
         gate.create_request(
             gate_type=ApprovalGateType.EXPERIMENT_LAUNCH,
@@ -440,10 +434,8 @@ class TestApprovalGate:
         assert len(pending) == 1
 
     def test_list_requests_filter_by_gate_type(self, gate: ApprovalGate) -> None:
-        _pending_request(gate, gate_type=ApprovalGateType.EXPERIMENT_LAUNCH,
-                         resource_id="exp-001")
-        _pending_request(gate, gate_type=ApprovalGateType.TRAINING_START,
-                         resource_id="exp-002")
+        _pending_request(gate, gate_type=ApprovalGateType.EXPERIMENT_LAUNCH, resource_id="exp-001")
+        _pending_request(gate, gate_type=ApprovalGateType.TRAINING_START, resource_id="exp-002")
         launch = gate.list_requests(gate_type=ApprovalGateType.EXPERIMENT_LAUNCH.value)
         assert all(r["gate_type"] == "EXPERIMENT_LAUNCH" for r in launch)
 
@@ -473,8 +465,12 @@ class TestApprovalGate:
 
 
 class TestApprovalRequestsDB:
-    def _make_req(self, gate_type: str = "EXPERIMENT_LAUNCH",
-                  resource_id: str = "exp-001", status: str = "PENDING") -> dict:
+    def _make_req(
+        self,
+        gate_type: str = "EXPERIMENT_LAUNCH",
+        resource_id: str = "exp-001",
+        status: str = "PENDING",
+    ) -> dict:
         r = ApprovalRequest.new(
             gate_type=ApprovalGateType.EXPERIMENT_LAUNCH,
             resource_id=resource_id,
@@ -561,12 +557,16 @@ class TestApprovalRequestsDB:
         req = self._make_req(status="APPROVED")
         db.upsert_approval_request(req)
         first = db.atomic_consume_approval(
-            gate_type="EXPERIMENT_LAUNCH", resource_id="exp-001",
-            consumed_by="system", consumed_at=time.time()
+            gate_type="EXPERIMENT_LAUNCH",
+            resource_id="exp-001",
+            consumed_by="system",
+            consumed_at=time.time(),
         )
         second = db.atomic_consume_approval(
-            gate_type="EXPERIMENT_LAUNCH", resource_id="exp-001",
-            consumed_by="system", consumed_at=time.time()
+            gate_type="EXPERIMENT_LAUNCH",
+            resource_id="exp-001",
+            consumed_by="system",
+            consumed_at=time.time(),
         )
         assert first == 1
         assert second == 0
@@ -580,9 +580,7 @@ class TestApprovalRequestsDB:
         assert "approval_requests" in stats
         assert stats["approval_requests"] >= 1
 
-    def test_atomic_consume_scalar_and_json_consistent(
-        self, db: ResearchLabDatabase
-    ) -> None:
+    def test_atomic_consume_scalar_and_json_consistent(self, db: ResearchLabDatabase) -> None:
         """After consume, both scalar status column and data_json must agree."""
         req = self._make_req(status="APPROVED")
         db.upsert_approval_request(req)
@@ -605,9 +603,7 @@ class TestApprovalRequestsDB:
 class TestApprovalGateConcurrentCreate:
     """Idempotency: create_request must always return the persisted request_id."""
 
-    def test_concurrent_create_returns_same_id(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_concurrent_create_returns_same_id(self, gate: ApprovalGate) -> None:
         """Simulate the race: expire the in-memory PENDING list before the
         insert so both callers see nothing, then call create_request twice in
         sequence — the second call should return the same request_id as the
@@ -629,9 +625,9 @@ class TestApprovalGateConcurrentCreate:
             action_summary="Second caller",
         )
         # Both must return the same canonical persisted request_id
-        assert r1.request_id == r2.request_id, (
-            f"Phantom id returned: r1={r1.request_id}, r2={r2.request_id}"
-        )
+        assert (
+            r1.request_id == r2.request_id
+        ), f"Phantom id returned: r1={r1.request_id}, r2={r2.request_id}"
 
     def test_returned_id_is_fetchable_from_db(self, gate: ApprovalGate) -> None:
         """The request_id returned by create_request must exist in the DB."""
@@ -643,9 +639,7 @@ class TestApprovalGateConcurrentCreate:
             action_summary="",
         )
         fetched = gate.get_request(req.request_id)
-        assert fetched is not None, (
-            f"Returned request_id {req.request_id!r} not found in DB"
-        )
+        assert fetched is not None, f"Returned request_id {req.request_id!r} not found in DB"
         assert fetched.status == ApprovalStatus.PENDING.value
 
     def test_approve_returned_id_succeeds(self, gate: ApprovalGate) -> None:
@@ -675,9 +669,9 @@ class TestApprovalRealServer:
 
     @pytest.fixture()
     def client(self, tmp_path: Path):
-        import importlib
         import os
         import sys
+
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "test-token-real"
         os.environ["SIGNALIUM_JWT_SECRET"] = DEFAULT_TEST_JWT_SECRET
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "real_server.db")
@@ -685,8 +679,10 @@ class TestApprovalRealServer:
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name or "telemetry_server" in mod_name:
                 del sys.modules[mod_name]
-        import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
+
+        import trainer.research_lab.research_lab_server as srv_mod
+
         return TestClient(srv_mod.app)
 
     _HDR = {
@@ -715,17 +711,27 @@ class TestApprovalRealServer:
         assert body["approval_request"]["resource_id"] == "exp-real-001"
 
     def test_create_approval_requires_auth(self, client) -> None:
-        resp = client.post("/approvals", json={
-            "gate_type": "TRAINING_START", "resource_id": "exp-noauth",
-        })
+        resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "exp-noauth",
+            },
+        )
         assert resp.status_code == 401  # no token → 401 Unauthorized
 
     def test_list_approvals(self, client) -> None:
         # Create one first
-        client.post("/approvals", json={
-            "gate_type": "PROMOTION", "resource_id": "v2.0.0",
-            "requested_by": "system", "action_summary": "Promote v2.0.0",
-        }, headers=self._HDR)
+        client.post(
+            "/approvals",
+            json={
+                "gate_type": "PROMOTION",
+                "resource_id": "v2.0.0",
+                "requested_by": "system",
+                "action_summary": "Promote v2.0.0",
+            },
+            headers=self._HDR,
+        )
         resp = client.get("/approvals", headers=self._HDR)
         assert resp.status_code == 200
         body = resp.json()
@@ -733,10 +739,16 @@ class TestApprovalRealServer:
         assert body["total"] >= 1
 
     def test_get_approval_by_id(self, client) -> None:
-        create = client.post("/approvals", json={
-            "gate_type": "DEPLOYMENT", "resource_id": "v3.0.0",
-            "requested_by": "system", "action_summary": "Deploy v3.0.0",
-        }, headers=self._HDR)
+        create = client.post(
+            "/approvals",
+            json={
+                "gate_type": "DEPLOYMENT",
+                "resource_id": "v3.0.0",
+                "requested_by": "system",
+                "action_summary": "Deploy v3.0.0",
+            },
+            headers=self._HDR,
+        )
         rid = create.json()["approval_request"]["request_id"]
         resp = client.get(f"/approvals/{rid}", headers=self._HDR)
         assert resp.status_code == 200
@@ -748,10 +760,16 @@ class TestApprovalRealServer:
 
     def test_approve_endpoint_json_body(self, client) -> None:
         """POST /approvals/{id}/approve must parse JSON body."""
-        create = client.post("/approvals", json={
-            "gate_type": "EXPERIMENT_LAUNCH", "resource_id": "exp-approve-test",
-            "requested_by": "system", "action_summary": "Approve gate test",
-        }, headers=self._HDR)
+        create = client.post(
+            "/approvals",
+            json={
+                "gate_type": "EXPERIMENT_LAUNCH",
+                "resource_id": "exp-approve-test",
+                "requested_by": "system",
+                "action_summary": "Approve gate test",
+            },
+            headers=self._HDR,
+        )
         rid = create.json()["approval_request"]["request_id"]
         resp = client.post(
             f"/approvals/{rid}/approve",
@@ -765,10 +783,16 @@ class TestApprovalRealServer:
 
     def test_reject_endpoint_json_body(self, client) -> None:
         """POST /approvals/{id}/reject must parse JSON body."""
-        create = client.post("/approvals", json={
-            "gate_type": "ROLLBACK", "resource_id": "v1.0.0",
-            "requested_by": "system", "action_summary": "Rollback gate test",
-        }, headers=self._HDR)
+        create = client.post(
+            "/approvals",
+            json={
+                "gate_type": "ROLLBACK",
+                "resource_id": "v1.0.0",
+                "requested_by": "system",
+                "action_summary": "Rollback gate test",
+            },
+            headers=self._HDR,
+        )
         rid = create.json()["approval_request"]["request_id"]
         resp = client.post(
             f"/approvals/{rid}/reject",
@@ -781,28 +805,45 @@ class TestApprovalRealServer:
         assert rec["resolution_reason"] == "not warranted"
 
     def test_double_approve_returns_400(self, client) -> None:
-        create = client.post("/approvals", json={
-            "gate_type": "TRAINING_START", "resource_id": "exp-double-real",
-            "requested_by": "system", "action_summary": "",
-        }, headers=self._HDR)
+        create = client.post(
+            "/approvals",
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "exp-double-real",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+            headers=self._HDR,
+        )
         rid = create.json()["approval_request"]["request_id"]
-        client.post(f"/approvals/{rid}/approve",
-                    json={"approved_by": "admin"}, headers=self._HDR)
-        resp = client.post(f"/approvals/{rid}/approve",
-                           json={"approved_by": "admin"}, headers=self._HDR)
+        client.post(f"/approvals/{rid}/approve", json={"approved_by": "admin"}, headers=self._HDR)
+        resp = client.post(
+            f"/approvals/{rid}/approve", json={"approved_by": "admin"}, headers=self._HDR
+        )
         assert resp.status_code == 400
 
     def test_list_filter_by_status(self, client) -> None:
-        r1 = client.post("/approvals", json={
-            "gate_type": "EXPERIMENT_LAUNCH", "resource_id": "filter-a",
-            "requested_by": "system", "action_summary": "",
-        }, headers=self._HDR).json()["approval_request"]["request_id"]
-        client.post("/approvals", json={
-            "gate_type": "TRAINING_START", "resource_id": "filter-b",
-            "requested_by": "system", "action_summary": "",
-        }, headers=self._HDR)
-        client.post(f"/approvals/{r1}/approve", json={"approved_by": "admin"},
-                    headers=self._HDR)
+        r1 = client.post(
+            "/approvals",
+            json={
+                "gate_type": "EXPERIMENT_LAUNCH",
+                "resource_id": "filter-a",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+            headers=self._HDR,
+        ).json()["approval_request"]["request_id"]
+        client.post(
+            "/approvals",
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "filter-b",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+            headers=self._HDR,
+        )
+        client.post(f"/approvals/{r1}/approve", json={"approved_by": "admin"}, headers=self._HDR)
         approved = client.get("/approvals?status=APPROVED", headers=self._HDR).json()
         pending = client.get("/approvals?status=PENDING", headers=self._HDR).json()
         assert approved["total"] >= 1
@@ -838,12 +879,15 @@ class TestApprovalEndpoints:
             return {"success": True, "approval_request": approval.to_dict()}
 
         @app.get("/approvals")
-        def list_approvals(gate_type: str | None = None,
-                            resource_id: str | None = None,
-                            status: str | None = None,
-                            limit: int = 50) -> dict:
-            rows = gate.list_requests(gate_type=gate_type, resource_id=resource_id,
-                                       status=status, limit=limit)
+        def list_approvals(
+            gate_type: str | None = None,
+            resource_id: str | None = None,
+            status: str | None = None,
+            limit: int = 50,
+        ) -> dict:
+            rows = gate.list_requests(
+                gate_type=gate_type, resource_id=resource_id, status=status, limit=limit
+            )
             return {"success": True, "total": len(rows), "approval_requests": rows}
 
         @app.get("/approvals/{request_id}")
@@ -856,8 +900,7 @@ class TestApprovalEndpoints:
         @app.post("/approvals/{request_id}/approve")
         def approve_approval(request_id: str, req: _ApproveReq) -> dict:
             try:
-                approved = gate.approve(request_id, approved_by=req.approved_by,
-                                        reason=req.reason)
+                approved = gate.approve(request_id, approved_by=req.approved_by, reason=req.reason)
                 return {"success": True, "approval_request": approved.to_dict()}
             except (ValueError, ApprovalAlreadyResolved) as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
@@ -865,45 +908,49 @@ class TestApprovalEndpoints:
         @app.post("/approvals/{request_id}/reject")
         def reject_approval(request_id: str, req: _RejectReq) -> dict:
             try:
-                rejected = gate.reject(request_id, rejected_by=req.rejected_by,
-                                        reason=req.reason)
+                rejected = gate.reject(request_id, rejected_by=req.rejected_by, reason=req.reason)
                 return {"success": True, "approval_request": rejected.to_dict()}
             except (ValueError, ApprovalAlreadyResolved) as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
 
         return app
 
-    def test_create_approval_returns_pending(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_create_approval_returns_pending(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        resp = client.post("/approvals", json={
-            "gate_type": "EXPERIMENT_LAUNCH",
-            "resource_id": "exp-001",
-            "resource_type": "experiment",
-            "requested_by": "researcher",
-            "action_summary": "Launch experiment",
-        })
+        resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "EXPERIMENT_LAUNCH",
+                "resource_id": "exp-001",
+                "resource_type": "experiment",
+                "requested_by": "researcher",
+                "action_summary": "Launch experiment",
+            },
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True
         assert body["approval_request"]["status"] == "PENDING"
         assert body["approval_request"]["gate_type"] == "EXPERIMENT_LAUNCH"
 
-    def test_create_approval_invalid_gate_type_returns_400(
-        self, gate: ApprovalGate
-    ) -> None:
+    def test_create_approval_invalid_gate_type_returns_400(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate), raise_server_exceptions=False)
-        resp = client.post("/approvals", json={
-            "gate_type": "NONEXISTENT_GATE",
-            "resource_id": "exp-001",
-        })
+        resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "NONEXISTENT_GATE",
+                "resource_id": "exp-001",
+            },
+        )
         assert resp.status_code == 400
 
     def test_list_approvals_empty(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
         resp = client.get("/approvals")
         assert resp.status_code == 200
@@ -911,25 +958,33 @@ class TestApprovalEndpoints:
 
     def test_list_approvals_after_create(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        client.post("/approvals", json={
-            "gate_type": "TRAINING_START",
-            "resource_id": "exp-002",
-            "requested_by": "pipeline",
-            "action_summary": "Start training",
-        })
+        client.post(
+            "/approvals",
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "exp-002",
+                "requested_by": "pipeline",
+                "action_summary": "Start training",
+            },
+        )
         resp = client.get("/approvals")
         assert resp.json()["total"] == 1
 
     def test_get_approval_by_id(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        create_resp = client.post("/approvals", json={
-            "gate_type": "PROMOTION",
-            "resource_id": "v2.0.0",
-            "requested_by": "system",
-            "action_summary": "Promote v2.0.0",
-        })
+        create_resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "PROMOTION",
+                "resource_id": "v2.0.0",
+                "requested_by": "system",
+                "action_summary": "Promote v2.0.0",
+            },
+        )
         rid = create_resp.json()["approval_request"]["request_id"]
         resp = client.get(f"/approvals/{rid}")
         assert resp.status_code == 200
@@ -937,51 +992,67 @@ class TestApprovalEndpoints:
 
     def test_get_approval_not_found_returns_404(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate), raise_server_exceptions=False)
         resp = client.get("/approvals/nonexistent")
         assert resp.status_code == 404
 
     def test_approve_endpoint(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        create_resp = client.post("/approvals", json={
-            "gate_type": "DEPLOYMENT",
-            "resource_id": "v3.0.0",
-            "requested_by": "system",
-            "action_summary": "Deploy v3.0.0",
-        })
+        create_resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "DEPLOYMENT",
+                "resource_id": "v3.0.0",
+                "requested_by": "system",
+                "action_summary": "Deploy v3.0.0",
+            },
+        )
         rid = create_resp.json()["approval_request"]["request_id"]
-        resp = client.post(f"/approvals/{rid}/approve",
-                           json={"approved_by": "head_quant", "reason": "metrics pass"})
+        resp = client.post(
+            f"/approvals/{rid}/approve",
+            json={"approved_by": "head_quant", "reason": "metrics pass"},
+        )
         assert resp.status_code == 200
         assert resp.json()["approval_request"]["status"] == "APPROVED"
         assert resp.json()["approval_request"]["resolved_by"] == "head_quant"
 
     def test_reject_endpoint(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        create_resp = client.post("/approvals", json={
-            "gate_type": "ROLLBACK",
-            "resource_id": "v1.5.0",
-            "requested_by": "system",
-            "action_summary": "Rollback v1.5.0",
-        })
+        create_resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "ROLLBACK",
+                "resource_id": "v1.5.0",
+                "requested_by": "system",
+                "action_summary": "Rollback v1.5.0",
+            },
+        )
         rid = create_resp.json()["approval_request"]["request_id"]
-        resp = client.post(f"/approvals/{rid}/reject",
-                           json={"rejected_by": "admin", "reason": "false alarm"})
+        resp = client.post(
+            f"/approvals/{rid}/reject", json={"rejected_by": "admin", "reason": "false alarm"}
+        )
         assert resp.status_code == 200
         assert resp.json()["approval_request"]["status"] == "REJECTED"
         assert resp.json()["approval_request"]["resolution_reason"] == "false alarm"
 
     def test_double_approve_returns_400(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate), raise_server_exceptions=False)
-        create_resp = client.post("/approvals", json={
-            "gate_type": "EXPERIMENT_LAUNCH",
-            "resource_id": "exp-double",
-            "requested_by": "system",
-            "action_summary": "",
-        })
+        create_resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "EXPERIMENT_LAUNCH",
+                "resource_id": "exp-double",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+        )
         rid = create_resp.json()["approval_request"]["request_id"]
         client.post(f"/approvals/{rid}/approve", json={"approved_by": "admin"})
         resp = client.post(f"/approvals/{rid}/approve", json={"approved_by": "admin"})
@@ -989,15 +1060,26 @@ class TestApprovalEndpoints:
 
     def test_list_filter_by_status(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        r1 = client.post("/approvals", json={
-            "gate_type": "EXPERIMENT_LAUNCH", "resource_id": "a",
-            "requested_by": "system", "action_summary": "",
-        }).json()["approval_request"]["request_id"]
-        client.post("/approvals", json={
-            "gate_type": "TRAINING_START", "resource_id": "b",
-            "requested_by": "system", "action_summary": "",
-        })
+        r1 = client.post(
+            "/approvals",
+            json={
+                "gate_type": "EXPERIMENT_LAUNCH",
+                "resource_id": "a",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+        ).json()["approval_request"]["request_id"]
+        client.post(
+            "/approvals",
+            json={
+                "gate_type": "TRAINING_START",
+                "resource_id": "b",
+                "requested_by": "system",
+                "action_summary": "",
+            },
+        )
         client.post(f"/approvals/{r1}/approve", json={"approved_by": "admin"})
         approved = client.get("/approvals?status=APPROVED").json()
         pending = client.get("/approvals?status=PENDING").json()
@@ -1006,11 +1088,17 @@ class TestApprovalEndpoints:
 
     def test_audit_log_in_approval_request(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        create_resp = client.post("/approvals", json={
-            "gate_type": "PROMOTION", "resource_id": "v4.0.0",
-            "requested_by": "system", "action_summary": "Promote v4.0.0",
-        })
+        create_resp = client.post(
+            "/approvals",
+            json={
+                "gate_type": "PROMOTION",
+                "resource_id": "v4.0.0",
+                "requested_by": "system",
+                "action_summary": "Promote v4.0.0",
+            },
+        )
         rid = create_resp.json()["approval_request"]["request_id"]
         client.post(f"/approvals/{rid}/approve", json={"approved_by": "admin"})
         resp = client.get(f"/approvals/{rid}")
@@ -1021,14 +1109,19 @@ class TestApprovalEndpoints:
 
     def test_all_five_gate_types_via_endpoint(self, gate: ApprovalGate) -> None:
         from starlette.testclient import TestClient
+
         client = TestClient(self._make_app(gate))
-        for i, gt in enumerate(["EXPERIMENT_LAUNCH", "TRAINING_START",
-                                  "PROMOTION", "DEPLOYMENT", "ROLLBACK"]):
-            resp = client.post("/approvals", json={
-                "gate_type": gt,
-                "resource_id": f"resource-{i}",
-                "requested_by": "system",
-                "action_summary": f"Test {gt}",
-            })
+        for i, gt in enumerate(
+            ["EXPERIMENT_LAUNCH", "TRAINING_START", "PROMOTION", "DEPLOYMENT", "ROLLBACK"]
+        ):
+            resp = client.post(
+                "/approvals",
+                json={
+                    "gate_type": gt,
+                    "resource_id": f"resource-{i}",
+                    "requested_by": "system",
+                    "action_summary": f"Test {gt}",
+                },
+            )
             assert resp.status_code == 200, f"Failed for gate type {gt}"
             assert resp.json()["approval_request"]["gate_type"] == gt

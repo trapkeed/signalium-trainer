@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-
 # ── Enums ─────────────────────────────────────────────────────────────────────
 
 
@@ -29,7 +28,7 @@ class PipelineStage(str, Enum):
 
     DATASET_GENERATION = "DATASET_GENERATION"
     FEATURE_GENERATION = "FEATURE_GENERATION"
-    TRAINING = "TRAINING"          # ← TRAINING_START gate enforced here
+    TRAINING = "TRAINING"  # ← TRAINING_START gate enforced here
     VALIDATION = "VALIDATION"
     BACKTEST = "BACKTEST"
     CERTIFICATION = "CERTIFICATION"
@@ -61,7 +60,7 @@ class PipelineStageStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
-    BLOCKED = "BLOCKED"   # gate not yet approved
+    BLOCKED = "BLOCKED"  # gate not yet approved
 
 
 class PipelineEventType(str, Enum):
@@ -85,7 +84,7 @@ class PipelineStageResult:
     """Records the outcome of a single pipeline stage."""
 
     stage: str
-    status: str                           # PipelineStageStatus value
+    status: str  # PipelineStageStatus value
     started_at: float
     completed_at: float | None = None
     duration_s: float | None = None
@@ -93,8 +92,9 @@ class PipelineStageResult:
     logs: list[str] = field(default_factory=list)
     error: str = ""
 
-    def complete(self, artifacts: dict[str, Any] | None = None,
-                 logs: list[str] | None = None) -> None:
+    def complete(
+        self, artifacts: dict[str, Any] | None = None, logs: list[str] | None = None
+    ) -> None:
         self.status = PipelineStageStatus.COMPLETED.value
         self.completed_at = time.time()
         self.duration_s = round(self.completed_at - self.started_at, 3)
@@ -161,8 +161,8 @@ class PipelineStageEvent:
 
     event_id: str
     job_id: str
-    stage: str | None           # None for job-level events
-    event_type: str             # PipelineEventType value
+    stage: str | None  # None for job-level events
+    event_type: str  # PipelineEventType value
     timestamp: float
     data: dict[str, Any] = field(default_factory=dict)
 
@@ -209,9 +209,9 @@ class PipelineJobSpec:
     requested_by: str
     experiment_id: str | None = None
     recommendation_id: str | None = None
-    stages_to_run: list[str] = field(default_factory=lambda: [
-        s.value for s in PIPELINE_STAGE_ORDER
-    ])
+    stages_to_run: list[str] = field(
+        default_factory=lambda: [s.value for s in PIPELINE_STAGE_ORDER]
+    )
     stage_configs: dict[str, Any] = field(default_factory=dict)
     notes: str = ""
 
@@ -233,7 +233,7 @@ class PipelineJob:
 
     job_id: str
     requested_by: str
-    status: str                           # PipelineJobStatus value
+    status: str  # PipelineJobStatus value
     stages_to_run: list[str]
     created_at: float
     updated_at: float

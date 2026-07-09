@@ -65,8 +65,11 @@ class JobStatus(str, Enum):
 #: identifiers; kept as data (not an enum) since RunPod's catalog changes
 #: independently of this codebase.
 GPU_PREFERENCE_ORDER: list[str] = [
-    "NVIDIA RTX A4000", "NVIDIA RTX A5000", "NVIDIA RTX A6000",
-    "NVIDIA A100 80GB PCIe", "NVIDIA H100 PCIe",
+    "NVIDIA RTX A4000",
+    "NVIDIA RTX A5000",
+    "NVIDIA RTX A6000",
+    "NVIDIA A100 80GB PCIe",
+    "NVIDIA H100 PCIe",
 ]
 
 
@@ -77,14 +80,25 @@ class GpuOption:
     price_per_hr: float
 
     def to_dict(self) -> dict[str, Any]:
-        return {"gpu_type": self.gpu_type, "available_count": self.available_count, "price_per_hr": self.price_per_hr}
+        return {
+            "gpu_type": self.gpu_type,
+            "available_count": self.available_count,
+            "price_per_hr": self.price_per_hr,
+        }
 
 
-def select_gpu(options: list[GpuOption], *, min_count: int = 1, max_price_per_hr: float | None = None) -> GpuOption:
+def select_gpu(
+    options: list[GpuOption], *, min_count: int = 1, max_price_per_hr: float | None = None
+) -> GpuOption:
     """Pick the cheapest available GPU satisfying the constraints, breaking
     ties by ``GPU_PREFERENCE_ORDER`` so selection is deterministic across
     runs with identical pricing."""
-    eligible = [o for o in options if o.available_count >= min_count and (max_price_per_hr is None or o.price_per_hr <= max_price_per_hr)]
+    eligible = [
+        o
+        for o in options
+        if o.available_count >= min_count
+        and (max_price_per_hr is None or o.price_per_hr <= max_price_per_hr)
+    ]
     if not eligible:
         raise GpuUnavailableError(
             f"No GPU option satisfies min_count={min_count} max_price_per_hr={max_price_per_hr!r} "
@@ -115,9 +129,15 @@ class RunPodJob:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "job_id": self.job_id, "pod_id": self.pod_id, "gpu_type": self.gpu_type,
-            "status": self.status.value, "created_at": self.created_at, "updated_at": self.updated_at,
-            "checkpoint_uri": self.checkpoint_uri, "artifact_uris": self.artifact_uris, "error": self.error,
+            "job_id": self.job_id,
+            "pod_id": self.pod_id,
+            "gpu_type": self.gpu_type,
+            "status": self.status.value,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "checkpoint_uri": self.checkpoint_uri,
+            "artifact_uris": self.artifact_uris,
+            "error": self.error,
         }
 
 
@@ -127,7 +147,9 @@ class RunPodClient(Protocol):
 
     def list_gpu_options(self) -> list[GpuOption]: ...
 
-    def create_pod(self, *, gpu_type: str, credentials: RunPodCredentials, job_name: str) -> str: ...
+    def create_pod(
+        self, *, gpu_type: str, credentials: RunPodCredentials, job_name: str
+    ) -> str: ...
 
     def poll_status(self, pod_id: str) -> JobStatus: ...
 
@@ -174,13 +196,19 @@ class RunPodJobManager:
 
         options = client.list_gpu_options()
         chosen = select_gpu(options, min_count=min_gpu_count, max_price_per_hr=max_price_per_hr)
-        pod_id = client.create_pod(gpu_type=chosen.gpu_type, credentials=credentials, job_name=job_name)
+        pod_id = client.create_pod(
+            gpu_type=chosen.gpu_type, credentials=credentials, job_name=job_name
+        )
 
         job_id = f"runpod-job-{uuid.uuid4().hex[:12]}"
         now = time.time()
         job = RunPodJob(
-            job_id=job_id, pod_id=pod_id, gpu_type=chosen.gpu_type,
-            status=JobStatus.PENDING, created_at=now, updated_at=now,
+            job_id=job_id,
+            pod_id=pod_id,
+            gpu_type=chosen.gpu_type,
+            status=JobStatus.PENDING,
+            created_at=now,
+            updated_at=now,
         )
         self._jobs[job_id] = job
         logger.info(f"RunPodJobManager: created job {job_id} on pod {pod_id} ({chosen.gpu_type})")
@@ -232,7 +260,9 @@ class RunPodJobManager:
         job = self.get_job(job_id)
         try:
             client.terminate_pod(job.pod_id)
-        except Exception as exc:  # noqa: BLE001 — cleanup must not raise past this point; record and move on
+        except (
+            Exception
+        ) as exc:  # noqa: BLE001 — cleanup must not raise past this point; record and move on
             job.error = f"cleanup failed: {exc!r}"
             logger.error(f"RunPodJobManager: cleanup failed for job {job_id}: {exc!r}")
         job.status = JobStatus.TERMINATED

@@ -15,7 +15,6 @@ Dimensions:
 from __future__ import annotations
 
 import math
-from typing import Any
 
 from trainer.research_lab.recommendation_models import (
     EvaluationDimension,
@@ -107,15 +106,22 @@ class SharpeDegradationEvaluator:
         since: float | None = None,
         until: float | None = None,
     ) -> EvaluationResult:
-        q = TelemetryQuery(model_version=model_version, since=since, until=until,
-                           limit=self._cfg.baseline_window + self._cfg.rolling_window)
+        q = TelemetryQuery(
+            model_version=model_version,
+            since=since,
+            until=until,
+            limit=self._cfg.baseline_window + self._cfg.rolling_window,
+        )
         trades = self._wh.query_trades(q)
         # oldest → newest
         trades = sorted(trades, key=lambda t: t.get("timestamp", 0))
 
         dim = EvaluationDimension.SHARPE_DEGRADATION
         _not_triggered = EvaluationResult(
-            dimension=dim, triggered=False, score=0.0, evidence={},
+            dimension=dim,
+            triggered=False,
+            score=0.0,
+            evidence={},
             recommended_scope=RecommendedScope.FINE_TUNE,
             urgency=RecommendationUrgency.LOW,
             summary="Insufficient trade data",
@@ -143,8 +149,11 @@ class SharpeDegradationEvaluator:
         triggered = degradation > self._cfg.sharpe_degradation_threshold
 
         urgency = _urgency_from_score(score) if triggered else RecommendationUrgency.LOW
-        scope = RecommendedScope.FULL_RETRAIN if urgency == RecommendationUrgency.CRITICAL \
+        scope = (
+            RecommendedScope.FULL_RETRAIN
+            if urgency == RecommendationUrgency.CRITICAL
             else RecommendedScope.FINE_TUNE
+        )
 
         evidence = {
             "baseline_sharpe": round(baseline_sharpe, 4),
@@ -160,8 +169,13 @@ class SharpeDegradationEvaluator:
             f"({degradation * 100:.1f}% drop)"
         )
         return EvaluationResult(
-            dimension=dim, triggered=triggered, score=round(score, 4),
-            evidence=evidence, recommended_scope=scope, urgency=urgency, summary=summary,
+            dimension=dim,
+            triggered=triggered,
+            score=round(score, 4),
+            evidence=evidence,
+            recommended_scope=scope,
+            urgency=urgency,
+            summary=summary,
         )
 
 
@@ -189,7 +203,10 @@ class ConfidenceDriftEvaluator:
 
         dim = EvaluationDimension.CONFIDENCE_DRIFT
         _not_triggered = EvaluationResult(
-            dimension=dim, triggered=False, score=0.0, evidence={},
+            dimension=dim,
+            triggered=False,
+            score=0.0,
+            evidence={},
             recommended_scope=RecommendedScope.CALIBRATION_ONLY,
             urgency=RecommendationUrgency.LOW,
             summary="Insufficient decision data",
@@ -215,8 +232,9 @@ class ConfidenceDriftEvaluator:
         triggered = drift > self._cfg.confidence_drift_threshold
 
         # Confidence-outcome calibration proxy: are high-confidence recent trades winning?
-        trades_q = TelemetryQuery(model_version=model_version, since=since, until=until,
-                                  limit=self._cfg.rolling_window)
+        trades_q = TelemetryQuery(
+            model_version=model_version, since=since, until=until, limit=self._cfg.rolling_window
+        )
         trades = self._wh.query_trades(trades_q)
         conf_corr: float | None = None
         if len(trades) >= 5:
@@ -227,8 +245,7 @@ class ConfidenceDriftEvaluator:
             m_w = _mean(t_wins)
             num = sum((c - m_c) * (w - m_w) for c, w in zip(t_confs, t_wins))
             den = math.sqrt(
-                sum((c - m_c) ** 2 for c in t_confs)
-                * sum((w - m_w) ** 2 for w in t_wins)
+                sum((c - m_c) ** 2 for c in t_confs) * sum((w - m_w) ** 2 for w in t_wins)
             )
             conf_corr = round(num / den, 4) if den > 1e-9 else 0.0
 
@@ -247,9 +264,13 @@ class ConfidenceDriftEvaluator:
             f"(Δ={drift:.3f}, threshold={self._cfg.confidence_drift_threshold})"
         )
         return EvaluationResult(
-            dimension=dim, triggered=triggered, score=round(score, 4),
-            evidence=evidence, recommended_scope=RecommendedScope.CALIBRATION_ONLY,
-            urgency=urgency, summary=summary,
+            dimension=dim,
+            triggered=triggered,
+            score=round(score, 4),
+            evidence=evidence,
+            recommended_scope=RecommendedScope.CALIBRATION_ONLY,
+            urgency=urgency,
+            summary=summary,
         )
 
 
@@ -276,7 +297,10 @@ class ReasoningDriftEvaluator:
 
         dim = EvaluationDimension.REASONING_DRIFT
         _not_triggered = EvaluationResult(
-            dimension=dim, triggered=False, score=0.0, evidence={},
+            dimension=dim,
+            triggered=False,
+            score=0.0,
+            evidence={},
             recommended_scope=RecommendedScope.HEAD_RETRAIN,
             urgency=RecommendationUrgency.LOW,
             summary="Insufficient reasoning data",
@@ -311,9 +335,7 @@ class ReasoningDriftEvaluator:
         if not shared_heads:
             return _not_triggered
 
-        head_drifts = {
-            k: abs(recent_heads[k] - baseline_heads[k]) for k in shared_heads
-        }
+        head_drifts = {k: abs(recent_heads[k] - baseline_heads[k]) for k in shared_heads}
         avg_drift = _mean(list(head_drifts.values()))
         score = avg_drift / self._cfg.reasoning_drift_threshold
         triggered = avg_drift > self._cfg.reasoning_drift_threshold
@@ -334,9 +356,13 @@ class ReasoningDriftEvaluator:
             f"across {len(shared_heads)} heads"
         )
         return EvaluationResult(
-            dimension=dim, triggered=triggered, score=round(score, 4),
-            evidence=evidence, recommended_scope=RecommendedScope.HEAD_RETRAIN,
-            urgency=urgency, summary=summary,
+            dimension=dim,
+            triggered=triggered,
+            score=round(score, 4),
+            evidence=evidence,
+            recommended_scope=RecommendedScope.HEAD_RETRAIN,
+            urgency=urgency,
+            summary=summary,
         )
 
 
@@ -357,13 +383,20 @@ class RegimeUnderperformEvaluator:
         since: float | None = None,
         until: float | None = None,
     ) -> EvaluationResult:
-        q = TelemetryQuery(model_version=model_version, since=since, until=until,
-                           limit=self._cfg.baseline_window + self._cfg.rolling_window)
+        q = TelemetryQuery(
+            model_version=model_version,
+            since=since,
+            until=until,
+            limit=self._cfg.baseline_window + self._cfg.rolling_window,
+        )
         trades = self._wh.query_trades(q)
 
         dim = EvaluationDimension.REGIME_UNDERPERFORMANCE
         _not_triggered = EvaluationResult(
-            dimension=dim, triggered=False, score=0.0, evidence={},
+            dimension=dim,
+            triggered=False,
+            score=0.0,
+            evidence={},
             recommended_scope=RecommendedScope.FINE_TUNE,
             urgency=RecommendationUrgency.LOW,
             summary="Insufficient trade data for regime analysis",
@@ -384,8 +417,7 @@ class RegimeUnderperformEvaluator:
                 per_regime_sharpe[regime] = round(_sharpe(returns), 4)
 
         underperforming = {
-            r: s for r, s in per_regime_sharpe.items()
-            if s < self._cfg.regime_sharpe_threshold
+            r: s for r, s in per_regime_sharpe.items() if s < self._cfg.regime_sharpe_threshold
         }
         triggered = bool(underperforming)
 
@@ -411,9 +443,13 @@ class RegimeUnderperformEvaluator:
             f"{list(underperforming.keys())}"
         )
         return EvaluationResult(
-            dimension=dim, triggered=triggered, score=round(score, 4),
-            evidence=evidence, recommended_scope=RecommendedScope.FINE_TUNE,
-            urgency=urgency, summary=summary,
+            dimension=dim,
+            triggered=triggered,
+            score=round(score, 4),
+            evidence=evidence,
+            recommended_scope=RecommendedScope.FINE_TUNE,
+            urgency=urgency,
+            summary=summary,
         )
 
 
@@ -441,7 +477,10 @@ class PortfolioInefficiencyEvaluator:
 
         dim = EvaluationDimension.PORTFOLIO_INEFFICIENCY
         _not_triggered = EvaluationResult(
-            dimension=dim, triggered=False, score=0.0, evidence={},
+            dimension=dim,
+            triggered=False,
+            score=0.0,
+            evidence={},
             recommended_scope=RecommendedScope.FINE_TUNE,
             urgency=RecommendationUrgency.LOW,
             summary="Insufficient portfolio data",
@@ -461,7 +500,7 @@ class PortfolioInefficiencyEvaluator:
         dominant_pct = 0.0
         if n_total > 0:
             shares = {s: c / n_total for s, c in symbol_counts.items()}
-            herfindahl = sum(v ** 2 for v in shares.values())
+            herfindahl = sum(v**2 for v in shares.values())
             dominant_symbol = max(shares, key=lambda s: shares[s])
             dominant_pct = round(shares[dominant_symbol], 4)
 
@@ -475,10 +514,7 @@ class PortfolioInefficiencyEvaluator:
         hhi_score = herfindahl / self._cfg.portfolio_concentration_threshold
         scale_in_score = max(0.0, (0.4 - scale_in_rate) / 0.4)
         score = max(hhi_score, scale_in_score)
-        triggered = (
-            herfindahl > self._cfg.portfolio_concentration_threshold
-            or scale_in_rate < 0.4
-        )
+        triggered = herfindahl > self._cfg.portfolio_concentration_threshold or scale_in_rate < 0.4
 
         urgency = _urgency_from_score(score) if triggered else RecommendationUrgency.LOW
         evidence = {
@@ -496,7 +532,11 @@ class PortfolioInefficiencyEvaluator:
             f"scale-in success rate={scale_in_rate:.2%}"
         )
         return EvaluationResult(
-            dimension=dim, triggered=triggered, score=round(score, 4),
-            evidence=evidence, recommended_scope=RecommendedScope.FINE_TUNE,
-            urgency=urgency, summary=summary,
+            dimension=dim,
+            triggered=triggered,
+            score=round(score, 4),
+            evidence=evidence,
+            recommended_scope=RecommendedScope.FINE_TUNE,
+            urgency=urgency,
+            summary=summary,
         )

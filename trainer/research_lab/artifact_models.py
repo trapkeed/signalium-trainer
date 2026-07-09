@@ -52,17 +52,14 @@ def validate_artifact_hash(artifact_hash: str) -> None:
     try:
         int(artifact_hash, 16)
     except ValueError:
-        raise ValueError(
-            f"artifact_hash is not a valid hex string: {artifact_hash[:20]!r}..."
-        )
+        raise ValueError(f"artifact_hash is not a valid hex string: {artifact_hash[:20]!r}...")
 
 
 def validate_artifact_type(artifact_type: str) -> None:
     """Raise ``ValueError`` if *artifact_type* is not a recognised ``ArtifactType``."""
     if artifact_type not in ARTIFACT_TYPES:
         raise ValueError(
-            f"Unknown artifact_type {artifact_type!r}. "
-            f"Valid types: {ARTIFACT_TYPES}"
+            f"Unknown artifact_type {artifact_type!r}. " f"Valid types: {ARTIFACT_TYPES}"
         )
 
 
