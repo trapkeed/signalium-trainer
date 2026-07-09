@@ -32,3 +32,4 @@
 - [Immutable artifact store design](immutable-artifact-store-design.md) — write-once via os.O_CREAT|O_EXCL, not check-then-write; writers must route through the registry's own store, not a locally-constructed one
 - [Artifact signing enforcement wiring](artifact-signing-promotion-gate.md) — signature verification only runs when DeploymentManager gets a real ArtifactRegistry; grep all construction sites, don't assume opt-in default is safe
 - [Health monitor recommendation dedup collision](health-monitor-dedup-collision.md) — dimensions sharing one coarse EvaluationDimension must also dedupe on the fine-grained source, or one CRITICAL alert silently suppresses another
+- [Undefined-correlation drift blind spot](undefined-correlation-drift.md) — a metric becoming undefined (zero variance) between baseline/recent windows is itself degradation; treating "None vs None" as "no drift" hides real failures

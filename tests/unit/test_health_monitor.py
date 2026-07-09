@@ -1,4 +1,4 @@
-"""S20/S22B — Tests for Model Health Monitoring (eight-dimension drift detection).
+"""S20/S22B — Tests for Model Health Monitoring (nine-dimension drift detection).
 
 Covers:
   - Each drift dimension: threshold crossing (below / above WARNING / CRITICAL)
@@ -975,7 +975,7 @@ class TestHealthServerEndpoints:
         hc = body["health_check"]
         assert "is_healthy" in hc
         assert "dimensions_checked" in hc
-        assert len(hc["dimensions_checked"]) == 8
+        assert len(hc["dimensions_checked"]) == 9
 
     def test_run_check_model_version_param(self, client) -> None:
         resp = client.post("/health/check?model_version=v2.0", headers=self._HDR)

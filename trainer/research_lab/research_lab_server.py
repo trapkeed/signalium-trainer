@@ -58,6 +58,7 @@ from trainer.research_lab.champion_challenger import (
     PromotionCriterionConfig,
 )
 from trainer.research_lab.deployment_manager import DeploymentManager
+from trainer.research_lab.decision_quality import DecisionQualityTracker
 from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
@@ -108,6 +109,7 @@ _approval_gate = ApprovalGate(_db)
 _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
 _health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
+_decision_quality_tracker = DecisionQualityTracker(_db, _warehouse)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate)
 
 
@@ -1665,7 +1667,7 @@ def run_health_check(
     since: float | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    """Trigger an on-demand health check across all eight drift/health dimensions.
+    """Trigger an on-demand health check across all nine drift/health dimensions.
 
     Evaluates:
     - **Confidence drift** — mean output confidence shift baseline vs recent
@@ -1676,6 +1678,7 @@ def run_health_check(
     - **Entropy drift** — prediction entropy trend (model decisiveness)
     - **Uncertainty drift** — confidence dispersion (std) vs baseline
     - **Calibration drift** — rolling ECE-style confidence-vs-outcome gap
+    - **Decision quality** — expectancy + confidence-outcome correlation drop
 
     CRITICAL alerts automatically create a ``RetrainingRecommendation``
     (deduplicated against open recommendations for the same dimension).
@@ -1721,6 +1724,51 @@ def list_health_alerts(
         limit=limit,
     )
     return {"success": True, "total": len(alerts), "alerts": alerts}
+
+
+# ── Decision Quality Monitoring (S22B) ────────────────────────────────────────
+
+
+@app.post("/decision-quality/compute")
+def compute_decision_quality_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Compute and persist a decision-quality report.
+
+    Tracks confidence-vs-outcome correlation and expectancy broken down by
+    regime, symbol, session, and volatility state, over trades matching the
+    given filters. Query params:
+        model_version: Restrict to a specific model version. ``None`` = all data.
+        since / until: Unix timestamp bounds on telemetry.
+    """
+    report = _decision_quality_tracker.compute_report(
+        model_version=model_version, since=since, until=until
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/decision-quality/latest")
+def get_latest_decision_quality_report(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the most recently persisted decision-quality report."""
+    report = _decision_quality_tracker.get_latest_report(model_version=model_version)
+    return {"success": True, "report": report}
+
+
+@app.get("/decision-quality/reports")
+def list_decision_quality_reports(
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted decision-quality reports, newest first."""
+    reports = _decision_quality_tracker.list_reports(model_version=model_version, limit=limit)
+    return {"success": True, "total": len(reports), "reports": reports}
 
 
 # ── Training Pipeline (S20) ───────────────────────────────────────────────────

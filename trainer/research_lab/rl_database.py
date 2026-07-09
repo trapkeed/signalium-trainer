@@ -373,6 +373,16 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_registered   ON artifacts(registered_at
 CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_type_hash
     ON artifacts(artifact_type, artifact_hash);
 
+-- Decision quality reports — confidence-vs-outcome + expectancy breakdowns (S22B)
+CREATE TABLE IF NOT EXISTS decision_quality_reports (
+    report_id     TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_dqr_mv      ON decision_quality_reports(model_version);
+CREATE INDEX IF NOT EXISTS idx_dqr_created ON decision_quality_reports(created_at DESC);
+
 -- Model health drift alerts (S20)
 CREATE TABLE IF NOT EXISTS health_alerts (
     alert_id      TEXT PRIMARY KEY,
@@ -1364,6 +1374,51 @@ class ResearchLabDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Decision Quality Reports (S22B) ───────────────────────────────────────
+
+    def upsert_decision_quality_report(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO decision_quality_reports
+                (report_id, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_decision_quality_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM decision_quality_reports WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_decision_quality_reports(
+        self,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM decision_quality_reports WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Training Runs + Artifact Registry (S20) ───────────────────────────────
 
     def upsert_training_run(self, record: dict[str, Any]) -> None:
@@ -1978,6 +2033,7 @@ class ResearchLabDatabase:
             "retraining_recommendations", "approval_requests", "pipeline_jobs",
             "training_runs", "artifacts", "health_alerts",
             "model_deployments", "deployment_events",
+            "decision_quality_reports",
         ]
         result: dict[str, int] = {}
         for table in tables:

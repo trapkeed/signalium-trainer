@@ -1,15 +1,18 @@
 """S20/S22B — Research Lab Model Health Monitor.
 
-Continuously monitors model health across eight drift/health dimensions:
+Continuously monitors model health across nine drift/health dimensions:
 
-  1. **Feature drift**     — input distribution shift (buy/sell/no_trade probs)
-  2. **Confidence drift**  — output calibration shift (mean confidence delta)
-  3. **Market drift**      — regime/volatility distribution shift
-  4. **Data quality**      — telemetry completeness and freshness
-  5. **Regime drift**      — per-regime win-rate performance delta
-  6. **Entropy drift**     — prediction entropy trend (model decisiveness)
-  7. **Uncertainty drift** — dispersion (std) of confidence vs baseline
-  8. **Calibration drift** — rolling ECE-style confidence-vs-outcome gap
+  1. **Feature drift**       — input distribution shift (buy/sell/no_trade probs)
+  2. **Confidence drift**    — output calibration shift (mean confidence delta)
+  3. **Market drift**        — regime/volatility distribution shift
+  4. **Data quality**        — telemetry completeness and freshness
+  5. **Regime drift**        — per-regime win-rate performance delta
+  6. **Entropy drift**       — prediction entropy trend (model decisiveness)
+  7. **Uncertainty drift**   — dispersion (std) of confidence vs baseline
+  8. **Calibration drift**   — rolling ECE-style confidence-vs-outcome gap
+  9. **Decision quality**    — expectancy + confidence-outcome correlation drop
+     (see ``decision_quality.py`` for the full queryable report surface:
+     expectancy broken down by regime/symbol/session/volatility state)
 
 Each dimension emits a ``DriftAlert`` with severity WARNING or CRITICAL.
 CRITICAL alerts automatically create a ``RetrainingRecommendation`` (pending
@@ -35,6 +38,10 @@ except ImportError:
     import logging
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
+from trainer.research_lab.decision_quality import (
+    DecisionQualityConfig,
+    check_decision_quality_drift,
+)
 from trainer.research_lab.dimension_evaluators import _split_windows
 from trainer.research_lab.recommendation_models import (
     EvaluationDimension,
@@ -61,6 +68,7 @@ class DriftDimension(str, Enum):
     ENTROPY = "ENTROPY"
     UNCERTAINTY = "UNCERTAINTY"
     CALIBRATION = "CALIBRATION"
+    DECISION_QUALITY = "DECISION_QUALITY"
 
 
 class AlertSeverity(str, Enum):
@@ -81,6 +89,9 @@ _DIM_TO_EVAL: dict[DriftDimension, EvaluationDimension] = {
     DriftDimension.ENTROPY: EvaluationDimension.CONFIDENCE_DRIFT,
     DriftDimension.UNCERTAINTY: EvaluationDimension.CONFIDENCE_DRIFT,
     DriftDimension.CALIBRATION: EvaluationDimension.CONFIDENCE_DRIFT,
+    # Decision quality (expectancy + confidence-outcome correlation) is an
+    # economic-performance signal, same category as Sharpe degradation.
+    DriftDimension.DECISION_QUALITY: EvaluationDimension.SHARPE_DEGRADATION,
 }
 
 
@@ -151,7 +162,7 @@ class DriftAlert:
 
 @dataclass
 class HealthMonitorConfig:
-    """Configurable thresholds for all eight drift/health dimensions.
+    """Configurable thresholds for all nine drift/health dimensions.
 
     All thresholds can be overridden without redeploying by passing a
     custom config instance to ``ResearchLabHealthMonitor``.
@@ -197,6 +208,12 @@ class HealthMonitorConfig:
     calibration_critical: float = 0.15
     calibration_bins: int = 5
 
+    # ── 9. Decision quality (expectancy + confidence-outcome correlation) ──────
+    decision_quality_expectancy_warning: float = 0.15   # relative expectancy drop
+    decision_quality_expectancy_critical: float = 0.35
+    decision_quality_correlation_warning: float = 0.20  # absolute correlation drop
+    decision_quality_correlation_critical: float = 0.40
+
 
 # ── Health Check Result ───────────────────────────────────────────────────────
 
@@ -230,7 +247,7 @@ class HealthCheckResult:
 
 
 class ResearchLabHealthMonitor:
-    """Orchestrates eight-dimension model health monitoring for the Research Lab.
+    """Orchestrates nine-dimension model health monitoring for the Research Lab.
 
     Args:
         db: ResearchLabDatabase for alert persistence and recommendation
@@ -260,7 +277,7 @@ class ResearchLabHealthMonitor:
         model_version: str | None = None,
         since: float | None = None,
     ) -> HealthCheckResult:
-        """Run all eight drift/health-dimension checks and persist any alerts.
+        """Run all nine drift/health-dimension checks and persist any alerts.
 
         Args:
             model_version: Restrict to a specific model version string.
@@ -290,6 +307,7 @@ class ResearchLabHealthMonitor:
             (DriftDimension.ENTROPY.value, self._check_entropy, (decisions, mv)),
             (DriftDimension.UNCERTAINTY.value, self._check_uncertainty, (decisions, mv)),
             (DriftDimension.CALIBRATION.value, self._check_calibration, (trades, mv)),
+            (DriftDimension.DECISION_QUALITY.value, self._check_decision_quality, (trades, mv)),
         ]:
             checked.append(name)
             try:
@@ -947,6 +965,59 @@ class ResearchLabHealthMonitor:
                 + ("Recalibration (temperature scaling) or full retrain recommended."
                    if severity == AlertSeverity.CRITICAL.value
                    else "Monitor confidence-vs-outcome alignment.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Decision quality (expectancy + confidence-outcome corr) ─────
+
+    def _check_decision_quality(
+        self, trades: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect degradation in decision quality: a relative drop in
+        expectancy and/or a drop in how well confidence tracks realized
+        outcomes, comparing baseline vs recent trade windows.
+
+        Delegates the actual comparison to
+        ``decision_quality.check_decision_quality_drift`` (the same logic
+        backs the queryable ``DecisionQualityTracker`` reports), so this
+        method's only job is translating that result into a ``DriftAlert``
+        and slotting it into the existing alerting/recommendation path.
+        """
+        dq_cfg = DecisionQualityConfig(
+            baseline_window=self._cfg.baseline_window,
+            rolling_window=self._cfg.rolling_window,
+            min_samples=self._cfg.min_samples,
+            expectancy_drift_warning=self._cfg.decision_quality_expectancy_warning,
+            expectancy_drift_critical=self._cfg.decision_quality_expectancy_critical,
+            correlation_drift_warning=self._cfg.decision_quality_correlation_warning,
+            correlation_drift_critical=self._cfg.decision_quality_correlation_critical,
+        )
+        result = check_decision_quality_drift(trades, dq_cfg, _split_windows)
+        if result is None:
+            return None
+
+        evidence = result["evidence"]
+        triggers = result["triggers"]
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.DECISION_QUALITY.value,
+            severity=result["severity"],
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=triggers,
+            evidence=evidence,
+            recommended_action=(
+                f"Decision quality has degraded ({', '.join(triggers)}): "
+                f"expectancy {evidence['baseline_expectancy']:.3f} → "
+                f"{evidence['recent_expectancy']:.3f} "
+                f"(relative drop {evidence['expectancy_relative_drop']:.2%}), "
+                f"confidence-outcome correlation "
+                f"{evidence['baseline_confidence_outcome_correlation']} → "
+                f"{evidence['recent_confidence_outcome_correlation']}. "
+                + ("Full retrain or expectancy-breakdown investigation recommended."
+                   if result["severity"] == AlertSeverity.CRITICAL.value
+                   else "Monitor expectancy and confidence-outcome trend.")
             ),
             created_at=time.time(),
         )
