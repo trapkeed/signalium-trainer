@@ -45,7 +45,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 try:
     from loguru import logger
@@ -379,7 +379,7 @@ class ResearchLabHealthMonitor:
         alerts: list[DriftAlert] = []
         checked = []
 
-        for name, fn, args in [
+        checks: list[tuple[str, Callable[..., DriftAlert | None], tuple[Any, ...]]] = [
             (DriftDimension.CONFIDENCE.value, self._check_confidence, (decisions, mv)),
             (DriftDimension.FEATURE.value, self._check_feature, (decisions, mv)),
             (DriftDimension.MARKET.value, self._check_market, (decisions, mv)),
@@ -397,7 +397,9 @@ class ResearchLabHealthMonitor:
             ),
             (DriftDimension.UNSEEN_CONDITION.value, self._check_unseen_condition, (decisions, mv)),
             (DriftDimension.BLACK_SWAN.value, self._check_black_swan, (trades, mv)),
-        ]:
+        ]
+
+        for name, fn, args in checks:
             checked.append(name)
             try:
                 alert = fn(*args)

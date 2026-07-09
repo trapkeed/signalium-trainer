@@ -12,7 +12,7 @@ Every endpoint:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -174,7 +174,7 @@ def make_telemetry_router(
         """Wrap an ingested event in a standard response envelope."""
         return {"success": True, "event": event_dict}
 
-    def _err(detail: str) -> None:
+    def _err(detail: str) -> NoReturn:
         raise HTTPException(status_code=400, detail=detail)
 
     # ── POST /telemetry/decisions ─────────────────────────────────────────────
