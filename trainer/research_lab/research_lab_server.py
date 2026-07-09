@@ -49,6 +49,8 @@ except ImportError as exc:
         "FastAPI and Pydantic are required. Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
+from trainer.research_lab.investigation_models import InvestigationConfig, InvestigationQuery
 from trainer.research_lab.research_lab_api import ResearchLabAPI
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_server import make_telemetry_router
@@ -77,6 +79,7 @@ _db_path = os.environ.get("RESEARCH_LAB_DB_PATH", "data/research_lab.db")
 _db = ResearchLabDatabase(_db_path)
 _api = ResearchLabAPI(db=_db)
 _warehouse = TelemetryWarehouse(_db)
+_engine = FailureInvestigationEngine(_warehouse, _db)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -873,3 +876,77 @@ def list_notes(
 @app.get("/research/notes/{note_id}")
 def get_note(note_id: str, _: None = Depends(_require_admin)) -> dict:
     return _respond(_api.get_note(note_id))
+
+
+# ── Failure Investigation Engine (S20) ────────────────────────────────────────
+
+
+class InvestigateRequest(BaseModel):
+    model_version: str | None = None
+    symbol: str | None = None
+    since: float | None = None
+    until: float | None = None
+    failure_kinds: list[str] | None = None
+    limit_per_stream: int = 2000
+
+
+@app.post("/research/investigate")
+def run_investigation(req: InvestigateRequest, _: None = Depends(_require_admin)) -> dict:
+    """Run the Failure Investigation Engine against the telemetry warehouse.
+
+    Returns all FailureReport objects detected, sorted by severity_score descending.
+    Reports are also persisted to the database for later retrieval.
+    """
+    from trainer.research_lab.investigation_models import InvestigationFailureKind
+
+    try:
+        kinds = None
+        if req.failure_kinds:
+            kinds = [InvestigationFailureKind(k) for k in req.failure_kinds]
+        query = InvestigationQuery(
+            model_version=req.model_version,
+            symbol=req.symbol,
+            since=req.since,
+            until=req.until,
+            failure_kinds=kinds,
+            limit_per_stream=req.limit_per_stream,
+        )
+        reports = _engine.investigate(query)
+        return {
+            "success": True,
+            "report_count": len(reports),
+            "reports": [r.to_dict() for r in reports],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/research/reports")
+def list_failure_reports(
+    failure_kind: str | None = None,
+    model_version: str | None = None,
+    min_severity: float = 0.0,
+    since: float | None = None,
+    until: float | None = None,
+    limit: int = 100,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Read persisted FailureReport records. Sorted by severity_score descending."""
+    rows = _engine.get_reports(
+        failure_kind=failure_kind,
+        model_version=model_version,
+        min_severity=min_severity,
+        since=since,
+        until=until,
+        limit=limit,
+    )
+    return {"success": True, "report_count": len(rows), "reports": rows}
+
+
+@app.get("/research/reports/{report_id}")
+def get_failure_report(report_id: str, _: None = Depends(_require_admin)) -> dict:
+    """Fetch a single FailureReport by ID."""
+    row = _db.get_failure_report(report_id)
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Report {report_id!r} not found")
+    return {"success": True, "report": row}

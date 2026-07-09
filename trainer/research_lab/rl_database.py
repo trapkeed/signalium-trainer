@@ -297,6 +297,20 @@ CREATE TABLE IF NOT EXISTS benchmarks (
     data_json    TEXT NOT NULL DEFAULT '{}'
 );
 
+-- Automatically-detected failure reports (S20 Failure Investigation Engine)
+CREATE TABLE IF NOT EXISTS failure_reports (
+    report_id     TEXT PRIMARY KEY,
+    failure_kind  TEXT NOT NULL,
+    severity_score REAL NOT NULL,
+    model_version  TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_failure_reports_kind     ON failure_reports(failure_kind);
+CREATE INDEX IF NOT EXISTS idx_failure_reports_created  ON failure_reports(created_at);
+CREATE INDEX IF NOT EXISTS idx_failure_reports_severity ON failure_reports(severity_score DESC);
+CREATE INDEX IF NOT EXISTS idx_failure_reports_mv       ON failure_reports(model_version);
+
 -- Research notes (standalone, addressable notes; not embedded in other records)
 CREATE TABLE IF NOT EXISTS research_notes (
     note_id            TEXT PRIMARY KEY,
@@ -1043,6 +1057,65 @@ class ResearchLabDatabase:
         rows = self._conn.execute(query, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Failure Reports (S20 Investigation Engine) ────────────────────────────
+
+    def upsert_failure_report(self, record: dict[str, Any]) -> None:
+        """Persist a FailureReport.  Uses upsert so re-runs can overwrite stale reports."""
+        self._conn.execute(
+            """
+            INSERT INTO failure_reports
+                (report_id, failure_kind, severity_score, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                severity_score = excluded.severity_score,
+                data_json      = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("failure_kind", ""),
+                record.get("severity_score", 0.0),
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_failure_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM failure_reports WHERE report_id = ?", (report_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_failure_reports(
+        self,
+        failure_kind: str | None = None,
+        model_version: str | None = None,
+        min_severity: float = 0.0,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM failure_reports WHERE severity_score >= ?"
+        params: list[Any] = [min_severity]
+        if failure_kind:
+            sql += " AND failure_kind = ?"
+            params.append(failure_kind)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if since is not None:
+            sql += " AND created_at >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND created_at <= ?"
+            params.append(until)
+        sql += " ORDER BY severity_score DESC, created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Telemetry Warehouse (S20) ──────────────────────────────────────────────
 
     _TELEMETRY_TABLES = (
@@ -1142,7 +1215,7 @@ class ResearchLabDatabase:
             "features",
             "benchmarks",
             "research_notes",
-        ] + list(self._TELEMETRY_TABLES)
+        ] + list(self._TELEMETRY_TABLES) + ["failure_reports"]
         result: dict[str, int] = {}
         for table in tables:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
