@@ -373,6 +373,20 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_registered   ON artifacts(registered_at
 CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_type_hash
     ON artifacts(artifact_type, artifact_hash);
 
+-- Model health drift alerts (S20)
+CREATE TABLE IF NOT EXISTS health_alerts (
+    alert_id      TEXT PRIMARY KEY,
+    dimension     TEXT NOT NULL,
+    severity      TEXT NOT NULL,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_ha_dimension     ON health_alerts(dimension);
+CREATE INDEX IF NOT EXISTS idx_ha_severity      ON health_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_ha_model_version ON health_alerts(model_version);
+CREATE INDEX IF NOT EXISTS idx_ha_created       ON health_alerts(created_at DESC);
+
 -- Training Pipeline jobs (S20)
 CREATE TABLE IF NOT EXISTS pipeline_jobs (
     job_id            TEXT PRIMARY KEY,
@@ -1267,6 +1281,62 @@ class ResearchLabDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Model Health Alerts (S20) ─────────────────────────────────────────────
+
+    def upsert_health_alert(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO health_alerts
+                (alert_id, dimension, severity, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(alert_id) DO UPDATE SET
+                dimension     = excluded.dimension,
+                severity      = excluded.severity,
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["alert_id"],
+                record.get("dimension", ""),
+                record.get("severity", ""),
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_health_alert(self, alert_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM health_alerts WHERE alert_id = ?", (alert_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_health_alerts(
+        self,
+        dimension: str | None = None,
+        severity: str | None = None,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM health_alerts WHERE 1=1"
+        params: list[Any] = []
+        if dimension:
+            sql += " AND dimension = ?"
+            params.append(dimension)
+        if severity:
+            sql += " AND severity = ?"
+            params.append(severity)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Training Runs + Artifact Registry (S20) ───────────────────────────────
 
     def upsert_training_run(self, record: dict[str, Any]) -> None:
@@ -1755,7 +1825,7 @@ class ResearchLabDatabase:
         ] + list(self._TELEMETRY_TABLES) + [
             "failure_reports", "label_datasets",
             "retraining_recommendations", "approval_requests", "pipeline_jobs",
-            "training_runs", "artifacts",
+            "training_runs", "artifacts", "health_alerts",
         ]
         result: dict[str, int] = {}
         for table in tables:

@@ -1,0 +1,229 @@
+Repository:
+signalium-trainer
+
+Phase:
+S21A — QDE Artifact Registry, Deployment Infrastructure and Version Distribution
+
+Objective:
+
+Transform signalium-trainer into the official producer and publisher of deployable QDE versions.
+
+The trainer owns:
+
+* training
+* validation
+* certification
+* promotion
+* deployment approval
+* artifact generation
+* rollback approval
+
+The trainer never executes trades.
+
+---
+
+1. ARTIFACT MANIFEST SYSTEM
+
+---
+
+Implement deployment manifests for every trained QDE version.
+
+Generate:
+
+qde_manifest.json
+
+Fields:
+
+model_version
+artifact_hash
+dataset_version
+feature_version
+training_commit
+calibration_version
+training_timestamp
+certification_status
+promotion_status
+supported_symbols
+supported_tasks
+export_formats
+framework_version
+
+The manifest becomes the authoritative source of truth for deployments.
+
+---
+
+2. MODEL EXPORT PIPELINE
+
+---
+
+Automatically export:
+
+TorchScript artifacts
+ONNX artifacts
+configuration files
+calibration files
+metadata files
+deployment manifests
+
+Generate SHA256 checksums for all exports.
+
+---
+
+3. ARTIFACT REGISTRY
+
+---
+
+Create persistent artifact storage.
+
+Store:
+
+weights
+configs
+calibration artifacts
+validation reports
+certification reports
+research reports
+manifests
+metadata
+
+All artifacts must be immutable and versioned.
+
+---
+
+4. DEPLOYMENT API
+
+---
+
+Expose deployment endpoints:
+
+GET /deployment/active
+GET /deployment/version/{id}
+GET /deployment/manifest/{id}
+GET /deployment/download/{id}
+GET /deployment/history
+
+POST /deployment/promote
+POST /deployment/rollback
+
+Promotion endpoints must require admin authorization.
+
+---
+
+5. PROMOTION WORKFLOW
+
+---
+
+Supported states:
+
+DRAFT
+TRAINING
+VALIDATING
+SHADOW
+CANDIDATE
+ACTIVE
+RETIRED
+
+Only one ACTIVE QDE may exist.
+
+---
+
+6. ROLLBACK SYSTEM
+
+---
+
+Implement instant rollback support.
+
+Rollback must:
+
+deactivate current model
+activate previous model
+restore deployment metadata
+
+Rollback target time:
+
+under 10 seconds.
+
+---
+
+7. SHADOW OBSERVATION
+
+---
+
+Allow candidate models to receive:
+
+market snapshots
+trade telemetry
+decision telemetry
+position telemetry
+
+Shadow models never influence live trading.
+
+Observation only.
+
+---
+
+8. ARTIFACT SIGNING
+
+---
+
+Generate:
+
+artifact signatures
+manifest signatures
+integrity hashes
+
+Validate signatures before promotion.
+
+---
+
+9. DEPLOYMENT AUDIT TRAIL
+
+---
+
+Persist:
+
+promotion history
+rollback history
+deployment history
+artifact history
+approval history
+
+Nothing is deleted.
+
+---
+
+10. ADMIN DEPLOYMENT CENTER
+
+---
+
+Research Lab administrators can:
+
+view artifacts
+approve promotions
+approve rollbacks
+inspect manifests
+inspect validation reports
+
+No public access.
+
+---
+
+11. ARCHITECTURAL RULES
+
+---
+
+signalium-trainer produces QDE versions.
+
+signalium-trainer never executes trades.
+
+signalium-trainer never communicates with brokers.
+
+signalium-trainer never manages positions.
+
+signalium-trainer publishes deployable intelligence only.
+
+Implement production-grade code only.
+
+Avoid placeholders.
+
+Maintain reproducibility and auditability.

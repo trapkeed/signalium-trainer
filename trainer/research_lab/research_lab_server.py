@@ -53,6 +53,7 @@ from trainer.research_lab.approval_gate import ApprovalGate
 from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalGateType, DEFAULT_TTL_SECONDS
 from trainer.research_lab.artifact_models import ARTIFACT_TYPES, ArtifactRecord, ArtifactType, TrainingRunRecord
 from trainer.research_lab.artifact_registry import ArtifactRegistry, ArtifactHashMismatchError, DuplicateArtifactError
+from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
@@ -101,6 +102,7 @@ _rec_engine = RetrainingRecommendationEngine(_warehouse, _db, RecommendationConf
 _approval_gate = ApprovalGate(_db)
 _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
+_health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1283,6 +1285,70 @@ def get_artifact(artifact_id: str, _: None = Depends(_require_admin)) -> dict:
     if prov is None:
         raise HTTPException(status_code=404, detail=f"Artifact {artifact_id!r} not found")
     return {"success": True, **prov}
+
+
+# ── Model Health Monitoring (S20) ─────────────────────────────────────────────
+
+
+@app.post("/health/check")
+def run_health_check(
+    model_version: str | None = None,
+    since: float | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Trigger an on-demand health check across all five drift dimensions.
+
+    Evaluates:
+    - **Confidence drift** — mean output confidence shift baseline vs recent
+    - **Feature drift** — output probability distribution (TV distance)
+    - **Market drift** — regime distribution shift (TV distance)
+    - **Data quality** — telemetry staleness and event-rate drop
+    - **Regime drift** — per-regime win-rate degradation
+
+    CRITICAL alerts automatically create a ``RetrainingRecommendation``
+    (deduplicated against open recommendations for the same dimension).
+
+    Query params:
+        model_version: Restrict to a specific model version. ``None`` = all data.
+        since: Unix timestamp; restrict telemetry to events after this time.
+    """
+    result = _health_monitor.run_check(model_version=model_version, since=since)
+    return {"success": True, "health_check": result.to_dict()}
+
+
+@app.get("/health/status")
+def get_health_status(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return a current health summary without re-running checks.
+
+    Aggregates persisted alerts by dimension and severity.
+    """
+    status = _health_monitor.get_status(model_version=model_version)
+    return {"success": True, "status": status}
+
+
+@app.get("/health/alerts")
+def list_health_alerts(
+    model_version: str | None = None,
+    severity: str | None = None,
+    dimension: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted drift alerts, newest first.
+
+    Filter by ``model_version``, ``severity`` (WARNING | CRITICAL), or
+    ``dimension`` (FEATURE | CONFIDENCE | MARKET | DATA_QUALITY | REGIME).
+    """
+    alerts = _health_monitor.get_alerts(
+        model_version=model_version,
+        severity=severity,
+        dimension=dimension,
+        limit=limit,
+    )
+    return {"success": True, "total": len(alerts), "alerts": alerts}
 
 
 # ── Training Pipeline (S20) ───────────────────────────────────────────────────
