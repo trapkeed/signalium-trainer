@@ -11,19 +11,24 @@ swapping the stub for a live client requires no changes to
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
+from trainer.config_sync.resolve import resolve_synced_value
 from trainer.market_data.providers.base_stub_provider import BaseStubProvider
 
 
 class OandaProvider(BaseStubProvider):
+    """Signalium is the source of truth for OANDA credentials; Trainer only
+    keeps a synced local copy (S31). Credentials are resolved in order:
+    explicit constructor arg > Signalium-synced cache > raw env var
+    (local-dev fallback before any sync has occurred)."""
+
     def __init__(self, api_key: str | None = None, account_id: str | None = None) -> None:
         super().__init__(
-            api_key=api_key if api_key is not None else os.environ.get("OANDA_API_KEY")
+            api_key=api_key if api_key is not None else resolve_synced_value("OANDA_API_KEY")
         )
         self._account_id = (
-            account_id if account_id is not None else os.environ.get("OANDA_ACCOUNT_ID")
+            account_id if account_id is not None else resolve_synced_value("OANDA_ACCOUNT_ID")
         )
 
     def name(self) -> str:

@@ -33,6 +33,9 @@ pytest tests/
 | `SESSION_SECRET`      | Session secret (already configured in Replit secrets) |
 | `ARTIFACT_SIGNING_PRIVATE_KEY` | Ed25519 private key (PEM) used to sign exported artifacts/manifests. Set as a Replit secret; without it, exports are unsigned and promotion to SHADOW/CANDIDATE/ACTIVE is blocked. |
 | `ARTIFACT_SIGNING_PUBLIC_KEY`  | Ed25519 public key (PEM) used to verify signatures at promotion time. Not sensitive, but env-based so verifiers don't need the private key. |
+| `CONFIG_SYNC_SHARED_SECRET`    | HMAC-SHA256 shared secret used to verify signed config payloads from Signalium's config sync (`POST /config/sync`). |
+| `TRAINER_CONFIG_MASTER_KEY`    | Local master key encrypting the on-disk synced-secret cache (`trainer/config_sync/`). Without it, the cache uses an ephemeral key and cannot survive a restart. |
+| `RUNPOD_CREDENTIAL_SECRET`     | HMAC-SHA256 shared secret verifying signed RunPod execution-credential bundles handed to Trainer per job. |
 
 ## Stack
 
@@ -55,6 +58,7 @@ pytest tests/
 | `trainer/training/` | Training loop framework |
 | `trainer/qde/` | Quantitative decision engine |
 | `trainer/research_lab/` | Research Lab persistence (SQLite at `data/research_lab.db`) |
+| `trainer/config_sync/` | S31 Trainer Configuration Manager — signed secret sync from Signalium, encrypted versioned local cache, rollback/rotation |
 | `apps/trainer-api/` | TypeScript trainer API service |
 | `config/` | Hydra YAML configs |
 | `tests/` | pytest test suite (`tests/unit/`, `tests/integration/`) |
@@ -68,6 +72,7 @@ pytest tests/
 - **Research Lab** uses a local SQLite database (`data/research_lab.db`) via `RESEARCH_LAB_DB_PATH` env var; injectable via `ResearchLabAPI(db=...)`.
 - **QDE (Quantitative Decision Engine):** Pure output-heads model; a single translator function maps heads → execution vocabulary. Capabilities never import `QDEDecision` directly.
 - **Registry champion/terminal ordering:** Re-promoting a terminal-state entry must exit terminal state before granting champion status.
+- **S31 ownership refactor:** Trainer owns only model-specific config (Research Lab paths, artifact signing keys, GPU/training/dataset paths, scheduler/concurrency/cache settings — see `trainer/config_sync/ownership.py:TRAINER_OWNED_KEYS`). Platform secrets (payment, SMTP, OAuth, OpenAI, platform JWT signing, user mgmt) are Signalium-exclusive; Trainer may consume a synced copy but never owns/rotates them. Market data (OANDA/Tiingo/EA feed) and RunPod credentials are Signalium-synced — Trainer caches them locally (encrypted, versioned) so it keeps functioning if Signalium is unreachable. `POST /config/sync` rejects any payload claiming a trainer-owned key.
 
 ## Gotchas
 

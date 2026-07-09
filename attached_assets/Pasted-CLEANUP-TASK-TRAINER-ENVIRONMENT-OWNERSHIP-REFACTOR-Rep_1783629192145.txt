@@ -1,0 +1,144 @@
+CLEANUP TASK — TRAINER ENVIRONMENT OWNERSHIP REFACTOR
+
+Repository: signalium-trainer
+
+Objective:
+Preserve all trainer infrastructure while making the trainer consume configuration from Signalium Platform rather than owning platform-level secrets.
+
+Requirements:
+
+1. Introduce a Trainer Configuration Manager.
+
+Responsibilities:
+
+* receive synchronized secrets from Signalium
+* validate signatures
+* decrypt secrets
+* persist local copies
+* support versioning
+* support rollback
+* support rotation
+
+2. The trainer must no longer be the authoritative owner of:
+
+Remove ownership responsibility for:
+
+* payment credentials
+* SMTP credentials
+* OAuth credentials
+* OpenAI credentials
+* platform JWT signing keys
+* user management credentials
+
+Trainer may consume these if required but must not own them.
+
+3. Trainer remains owner of model-specific configuration:
+
+Trainer-owned configuration:
+
+Research:
+
+* RESEARCH_LAB_DB_PATH
+* ARTIFACT_STORE_ROOT
+
+Artifacts:
+
+* ARTIFACT_SIGNING_PRIVATE_KEY
+* ARTIFACT_SIGNING_PUBLIC_KEY
+
+Training:
+
+* local GPU settings
+* training cache settings
+* dataset storage paths
+
+Runtime:
+
+* scheduler intervals
+* worker concurrency
+* cache limits
+
+4. Market data provider handling.
+
+Trainer consumes:
+
+* OANDA credentials
+* Tiingo credentials
+* future providers
+
+However:
+
+Signalium remains source of truth.
+
+Trainer stores synchronized copies only.
+
+5. RunPod architecture.
+
+Implement hybrid ownership:
+
+Signalium:
+
+* stores encrypted RunPod credentials
+* rotates credentials
+* manages permissions
+
+Trainer:
+
+* receives synchronized credentials
+* launches training jobs
+* manages pod lifecycle
+* manages checkpoint uploads
+* manages artifact downloads
+
+Trainer must continue functioning even if Signalium becomes temporarily unavailable.
+
+6. Add local trainer secret storage.
+
+Requirements:
+
+* encrypted local cache
+* version tracking
+* expiration support
+* offline fallback mode
+
+7. Add synchronization endpoints:
+
+GET /config/status
+POST /config/sync
+POST /config/rotate
+GET /config/version
+
+8. Add synchronization validation.
+
+Detect:
+
+* stale configuration
+* missing credentials
+* invalid signatures
+* expired secrets
+* unsupported provider configuration
+
+9. Preserve all existing infrastructure.
+
+Do not remove:
+
+* Research Lab
+* QDE lifecycle
+* MLOps
+* datasets
+* memory systems
+* validation
+* certification
+* RunPod integration
+* market data pipelines
+* shadow testing
+
+This task only refactors ownership boundaries.
+
+No redesign.
+
+No deletions.
+
+No feature removal.
+
+Only implement missing functionality and update ownership rules to align with the Signalium architecture.

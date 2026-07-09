@@ -84,6 +84,8 @@ except ImportError as exc:
         "FastAPI and Pydantic are required. Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.config_sync.config_server import make_config_sync_router
+from trainer.config_sync.manager import get_default_manager
 from trainer.market_data.symbol_normalizer import SymbolNormalizer, UnknownSymbolError
 from trainer.market_data.symbol_store import SymbolStore
 from trainer.research_lab.approval_gate import ApprovalGate
@@ -601,6 +603,10 @@ async def _audit_log_middleware(request: Request, call_next: Any) -> Any:
 # Mount the telemetry router — _require_admin is now defined above.
 _telemetry_router = make_telemetry_router(_warehouse, _require_admin)
 app.include_router(_telemetry_router)
+
+# Mount the S31 config-sync router (Trainer Configuration Manager).
+_config_sync_router = make_config_sync_router(get_default_manager(), Depends(_require_admin))
+app.include_router(_config_sync_router)
 
 # ── Request Models ─────────────────────────────────────────────────────────────
 

@@ -8,16 +8,19 @@ same seam (``_request``) left for the real HTTP client.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
+from trainer.config_sync.resolve import resolve_synced_value
 from trainer.market_data.providers.base_stub_provider import BaseStubProvider
 
 
 class TiingoProvider(BaseStubProvider):
+    """Signalium is the source of truth for Tiingo credentials; Trainer
+    only keeps a synced local copy (S31)."""
+
     def __init__(self, api_key: str | None = None) -> None:
         super().__init__(
-            api_key=api_key if api_key is not None else os.environ.get("TIINGO_API_KEY")
+            api_key=api_key if api_key is not None else resolve_synced_value("TIINGO_API_KEY")
         )
 
     def name(self) -> str:

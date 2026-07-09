@@ -92,6 +92,8 @@ data/datasets/
 data/cache/
 data/raw/
 data/backups/
+data/*.db
+data/trainer_config_cache.db
 *.parquet
 *.csv
 *.arrow
