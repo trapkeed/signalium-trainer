@@ -53,6 +53,10 @@ from trainer.research_lab.approval_gate import ApprovalGate
 from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalGateType, DEFAULT_TTL_SECONDS
 from trainer.research_lab.artifact_models import ARTIFACT_TYPES, ArtifactRecord, ArtifactType, TrainingRunRecord
 from trainer.research_lab.artifact_registry import ArtifactRegistry, ArtifactHashMismatchError, DuplicateArtifactError
+from trainer.research_lab.champion_challenger import (
+    ChampionChallengerTracker,
+    PromotionCriterionConfig,
+)
 from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
@@ -103,6 +107,7 @@ _approval_gate = ApprovalGate(_db)
 _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
 _health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
+_cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1285,6 +1290,67 @@ def get_artifact(artifact_id: str, _: None = Depends(_require_admin)) -> dict:
     if prov is None:
         raise HTTPException(status_code=404, detail=f"Artifact {artifact_id!r} not found")
     return {"success": True, **prov}
+
+
+# ── Champion vs Challenger (S20) ──────────────────────────────────────────────
+
+
+@app.get("/shadow/status")
+def get_shadow_status(
+    test_id: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return head-to-head shadow test status.
+
+    With ``?test_id=...``, returns detailed status for that shadow test
+    including the five-dimension comparison and rolling metrics.
+
+    Without a ``test_id``, returns a summary of all RUNNING shadow tests
+    with progress toward the ``min_decisions`` threshold.
+    """
+    status = _cc_tracker.get_status(test_id=test_id)
+    return {"success": True, "status": status}
+
+
+@app.get("/shadow/comparison")
+def get_shadow_comparison(
+    test_id: str,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return dimension-level champion-vs-challenger comparison for one shadow test.
+
+    Computes:
+      - **DIRECTION_ACCURACY** — agreement rate with champion
+      - **RISK_QUALITY** — absolute risk allocation diff
+      - **SIZING_QUALITY** — expected-PnL proxy advantage
+      - **CONFIDENCE_QUALITY** — calibration delta (more confident on agreements)
+      - **HOLD_QUALITY** — per-regime agreement consistency
+
+    Also returns rolling Sharpe, Sortino, profit factor, max drawdown,
+    confidence calibration, and confidence reliability for the challenger
+    computed from all paired decisions in this shadow test.
+    """
+    comparison = _cc_tracker.get_comparison(test_id=test_id)
+    return {"success": True, "comparison": comparison}
+
+
+@app.post("/shadow/evaluate")
+def evaluate_shadow_promotion(
+    test_id: str,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Evaluate the promotion criterion for a shadow test.
+
+    If the challenger meets the configurable majority-of-dimensions criterion
+    (default: wins ≥ 3 of 5 dimensions AND avg_promotion_score ≥ 0.65 AND
+    agreement_rate ≥ 0.55 AND n_decisions ≥ 50), a PROMOTION
+    ``ApprovalRequest`` is created for admin review.
+
+    Idempotent: repeated calls for the same test return the existing pending
+    approval if one already exists.
+    """
+    result = _cc_tracker.evaluate_promotion(test_id=test_id)
+    return {"success": True, "evaluation": result}
 
 
 # ── Model Health Monitoring (S20) ─────────────────────────────────────────────

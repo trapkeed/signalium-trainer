@@ -25,3 +25,5 @@
 - [Real-server test module isolation](real-server-test-isolation.md) — research_lab_server singletons (_db, _pipeline_ctrl) are module-level; integration test fixtures must purge sys.modules before reimporting to get a fresh singleton with the correct tmp DB path
 - [Telemetry DecisionEvent schema](telemetry-decision-schema.md) — warehouse.ingest_decision uses `direction` (string), not buy_prob/sell_prob/no_trade_prob; health monitors must handle both schemas via fallback in _class_distribution
 - [SQLite ON CONFLICT scalar sync](sqlite-on-conflict-scalar-sync.md) — ON CONFLICT upserts must refresh ALL indexed/filter scalar columns alongside data_json; otherwise list queries on scalar columns return stale results after an update
+- [Approval gate method name](approval-gate-method-name.md) — ApprovalGate.create_request() not request_gate(); requires resource_type + action_summary; fully idempotent on (gate_type, resource_id) PENDING
+- [Champion-challenger scoring design](champion-challenger-scoring.md) — baseline scores must use neutral 0.5 (not 1.0) so challenger_wins↔score_delta>0 is always consistent; max_drawdown must handle all-negative pnl_diff series
