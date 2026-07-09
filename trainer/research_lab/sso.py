@@ -217,6 +217,7 @@ class SignaliumIdentity:
     issued_at: float  # `iat` claim, unix seconds
     expires_at: float  # `exp` claim, unix seconds
     jti: str | None = None
+    nonce: str | None = None
     raw_claims: dict[str, Any] = field(default_factory=dict, repr=False)
 
     def has_capability(self, capability: Capability) -> bool:
@@ -272,6 +273,55 @@ class MissingClaim(SSOError):
 
 class ServerMisconfigured(SSOError):
     pass
+
+
+class ReplayedNonce(SSOError):
+    pass
+
+
+# ── Nonce replay protection ──────────────────────────────────────────────────
+
+
+class NonceStore:
+    """In-memory, TTL-bounded record of consumed ``nonce`` claims.
+
+    Distinct from the existing ``jti``-based session dedup in
+    ``session_manager.py`` (which deduplicates at the *session-establishment*
+    layer): this store is consulted directly inside ``validate_signalium_jwt``
+    so any caller of SSO validation — not just the session-establishment
+    path — gets replay protection on the underlying token, independent of
+    whether a session is ever created from it.
+
+    Entries older than ``ttl_s`` are evicted lazily on each ``consume`` call
+    so the store cannot grow unboundedly across a long-lived process.
+    """
+
+    def __init__(self, ttl_s: float = 600.0) -> None:
+        self._ttl_s = ttl_s
+        self._seen: dict[str, float] = {}
+
+    def consume(self, nonce: str, now: float | None = None) -> bool:
+        """Mark ``nonce`` as used. Returns True if this is the first time it
+        has been seen within the TTL window; False if it is a replay."""
+        now = now if now is not None else time.time()
+        self._evict_expired(now)
+        if nonce in self._seen:
+            return False
+        self._seen[nonce] = now
+        return True
+
+    def _evict_expired(self, now: float) -> None:
+        expired = [n for n, seen_at in self._seen.items() if now - seen_at > self._ttl_s]
+        for n in expired:
+            del self._seen[n]
+
+    def size(self) -> int:
+        return len(self._seen)
+
+
+#: Process-wide default store used by ``validate_signalium_jwt`` when the
+#: caller does not inject its own (e.g. for testing isolation).
+_default_nonce_store = NonceStore()
 
 
 # ── JWT verification (no third-party JWT library) ───────────────────────────
@@ -356,7 +406,13 @@ def _decode_and_verify_signature(token: str) -> dict[str, Any]:
     return payload
 
 
-def validate_signalium_jwt(token: str, now: float | None = None) -> SignaliumIdentity:
+def validate_signalium_jwt(
+    token: str,
+    now: float | None = None,
+    *,
+    nonce_store: "NonceStore | None" = None,
+    require_nonce: bool = False,
+) -> SignaliumIdentity:
     """Validate a Signalium-issued JWT end to end and return the identity it
     asserts.
 
@@ -368,6 +424,12 @@ def validate_signalium_jwt(token: str, now: float | None = None) -> SignaliumIde
          SIGNALIUM_JWT_MAX_SKEW_S seconds of "now", in either direction).
       5. Role validation (``role`` must be one of the seven supported roles).
       6. Optional issuer check (``iss``, if SIGNALIUM_ISSUER is configured).
+      7. Nonce replay check — if the token carries a ``nonce`` claim, it is
+         consumed against ``nonce_store`` (the process-wide default store if
+         none is injected) and rejected if already seen. If
+         ``require_nonce=True``, a token with no ``nonce`` claim at all is
+         also rejected (some callers may want to mandate nonce usage even
+         though it's optional at the claim-schema level).
 
     Raises an ``SSOError`` subclass describing the first failure encountered.
     """
@@ -412,6 +474,14 @@ def validate_signalium_jwt(token: str, now: float | None = None) -> SignaliumIde
 
     originating_service = str(payload.get("service") or payload.get("iss") or "signalium")
 
+    nonce = payload.get("nonce")
+    if require_nonce and not nonce:
+        raise MissingClaim("Token missing required claim 'nonce'")
+    if nonce:
+        store = nonce_store if nonce_store is not None else _default_nonce_store
+        if not store.consume(str(nonce), now=now):
+            raise ReplayedNonce(f"Nonce {nonce!r} has already been used")
+
     return SignaliumIdentity(
         admin_id=str(payload["sub"]),
         role=role,
@@ -419,5 +489,6 @@ def validate_signalium_jwt(token: str, now: float | None = None) -> SignaliumIde
         issued_at=float(iat),
         expires_at=float(exp),
         jti=payload.get("jti"),
+        nonce=str(nonce) if nonce else None,
         raw_claims=payload,
     )
