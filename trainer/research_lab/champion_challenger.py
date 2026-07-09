@@ -52,6 +52,12 @@ except ImportError:
 
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
+from trainer.research_lab.recommendation_models import (
+    EvaluationDimension,
+    RecommendationStatus,
+    RecommendationUrgency,
+    RecommendedScope,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
 
 
@@ -630,10 +636,16 @@ class ChampionChallengerTracker:
         db: ResearchLabDatabase,
         approval_gate: Any | None = None,
         config: PromotionCriterionConfig | None = None,
+        rec_engine: Any | None = None,
     ) -> None:
         self._db = db
         self._gate = approval_gate
         self._cfg = config or PromotionCriterionConfig()
+        # S22B: when a challenger is decisively (not just marginally) rejected
+        # by live shadow traffic, that is itself a degradation finding and
+        # must route into a Research Lab review task — optional so existing
+        # tests/callers that don't care about this wiring are unaffected.
+        self._rec_engine = rec_engine
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -719,11 +731,13 @@ class ChampionChallengerTracker:
                     f"agreement_rate {h2h.rolling_metrics.agreement_rate} "
                     f"< {cfg.min_agreement_rate}"
                 )
+            rec_id = self._maybe_flag_decisive_rejection(h2h)
             return {
                 "criterion_met": False,
                 "approval_id": "",
                 "summary": h2h.to_dict(),
                 "reason": "Promotion criterion not met: " + "; ".join(reasons),
+                "recommendation_id": rec_id,
             }
 
         # Criterion met — create approval request
@@ -772,6 +786,78 @@ class ChampionChallengerTracker:
             "summary": h2h.to_dict(),
             "reason": reason_text,
         }
+
+    def _maybe_flag_decisive_rejection(self, h2h: HeadToHeadSummary) -> str:
+        """S22B: a challenger that is *decisively* rejected by live shadow
+        traffic (not merely short of the promotion bar, but actively losing
+        most dimensions with enough data to be conclusive) is itself a
+        degradation finding and must create/update a Research Lab review
+        task — the same "no finding silently dropped" guarantee that
+        applies to the health-monitor dimensions.
+
+        Deliberately conservative: only fires when there is enough data
+        (``n_decisions >= min_decisions``) and the challenger loses a clear
+        majority of dimensions (mirror image of the promotion criterion),
+        so a challenger that is merely "not yet proven" (EXTEND-equivalent)
+        does not spuriously create a task.
+
+        Returns the recommendation_id, or "" if not flagged / rec_engine
+        absent.
+        """
+        if self._rec_engine is None:
+            return ""
+        if h2h.n_decisions < self._cfg.min_decisions:
+            return ""
+        challenger_win_rate = (
+            h2h.n_dimensions_challenger_wins / h2h.n_dimensions_total
+            if h2h.n_dimensions_total
+            else 0.0
+        )
+        decisively_rejected = challenger_win_rate <= (1.0 - self._cfg.majority_threshold)
+        if not decisively_rejected:
+            return ""
+
+        health_dim = "SHADOW_DECISIVE_REJECTION"
+        open_recs = self._rec_engine._db.list_retraining_recommendations(
+            status=RecommendationStatus.PROPOSED.value,
+            model_version=h2h.challenger_version,
+            limit=200,
+        )
+        for existing in open_recs:
+            if (
+                existing.get("trigger_dimension") == EvaluationDimension.REGIME_UNDERPERFORMANCE.value
+                and existing.get("evidence", {}).get("_health_dimension") == health_dim
+            ):
+                return existing.get("recommendation_id", "")
+
+        from trainer.research_lab.recommendation_models import RetrainingRecommendation
+
+        rec = RetrainingRecommendation.new(
+            model_version=h2h.challenger_version,
+            trigger_dimension=EvaluationDimension.REGIME_UNDERPERFORMANCE,
+            trigger_reason=(
+                f"Challenger {h2h.challenger_version!r} decisively rejected by live "
+                f"shadow traffic against champion {h2h.champion_version!r}: won only "
+                f"{h2h.n_dimensions_challenger_wins}/{h2h.n_dimensions_total} dimensions "
+                f"over {h2h.n_decisions} paired decisions."
+            ),
+            evidence={
+                "_health_dimension": health_dim,
+                "test_id": h2h.test_id,
+                "champion_version": h2h.champion_version,
+                "n_decisions": h2h.n_decisions,
+                "n_dimensions_challenger_wins": h2h.n_dimensions_challenger_wins,
+                "n_dimensions_total": h2h.n_dimensions_total,
+            },
+            recommended_scope=RecommendedScope.FINE_TUNE,
+            urgency=RecommendationUrgency.LOW,
+        )
+        self._rec_engine._db.upsert_retraining_recommendation(rec.to_dict())
+        logger.info(
+            f"ChampionChallengerTracker: flagged decisive shadow rejection "
+            f"{rec.recommendation_id} for challenger={h2h.challenger_version!r}"
+        )
+        return rec.recommendation_id
 
     def get_status(self, test_id: str | None = None) -> dict[str, Any]:
         """Return a status summary for running shadow tests.

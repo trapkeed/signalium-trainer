@@ -163,8 +163,9 @@ class DriftAlert:
         evidence: Quantitative evidence dict (dimension-specific).
         recommended_action: Human-readable recommended next step.
         created_at: Unix timestamp.
-        recommendation_id: Set when a CRITICAL alert creates a
-            RetrainingRecommendation.
+        recommendation_id: Set when this alert creates a
+            RetrainingRecommendation (S22B: both CRITICAL and WARNING alerts
+            route into a recommendation; urgency scales with severity).
     """
 
     alert_id: str
@@ -407,12 +408,14 @@ class ResearchLabHealthMonitor:
                 if alert is not None:
                     # Persist to DB
                     self._db.upsert_health_alert(alert.to_dict())
-                    # Wire CRITICAL → RetrainingRecommendation
-                    if alert.severity == AlertSeverity.CRITICAL.value:
-                        rec_id = self._maybe_create_recommendation(alert)
-                        if rec_id:
-                            alert.recommendation_id = rec_id
-                            self._db.upsert_health_alert(alert.to_dict())
+                    # S22B: every degradation finding — CRITICAL or WARNING —
+                    # must route into a Research Lab review task, not just
+                    # CRITICAL ones. Urgency scales with severity so admins
+                    # can triage, but nothing is silently dropped.
+                    rec_id = self._maybe_create_recommendation(alert)
+                    if rec_id:
+                        alert.recommendation_id = rec_id
+                        self._db.upsert_health_alert(alert.to_dict())
                     alerts.append(alert)
                     logger.warning(
                         f"HealthMonitor: {name} {alert.severity} for model={mv!r} "
@@ -1324,8 +1327,10 @@ class ResearchLabHealthMonitor:
     # ── CRITICAL → RetrainingRecommendation ───────────────────────────────────
 
     def _maybe_create_recommendation(self, alert: DriftAlert) -> str:
-        """If the alert is CRITICAL and no open recommendation exists for the
-        same (model_version, dimension) pair, create one.
+        """If no open recommendation exists for the same (model_version,
+        dimension) pair, create one — for both CRITICAL and WARNING alerts
+        (S22B: universal Research Lab task creation; urgency scales with
+        severity so nothing is silently dropped).
 
         Returns the recommendation_id (or "" if skipped / rec_engine absent).
         """
@@ -1366,21 +1371,26 @@ class ResearchLabHealthMonitor:
             scope = RecommendedScope.CALIBRATION_ONLY
         else:
             scope = RecommendedScope.FINE_TUNE
+        urgency = (
+            RecommendationUrgency.CRITICAL
+            if alert.severity == AlertSeverity.CRITICAL.value
+            else RecommendationUrgency.LOW
+        )
         rec = RetrainingRecommendation.new(
             model_version=alert.model_version,
             trigger_dimension=eval_dim,
             trigger_reason=(
-                f"CRITICAL {alert.dimension} drift alert detected by health monitor. "
+                f"{alert.severity} {alert.dimension} drift alert detected by health monitor. "
                 f"{alert.recommended_action}"
             ),
             evidence={**alert.evidence, "_health_dimension": alert.dimension},
             recommended_scope=scope,
-            urgency=RecommendationUrgency.CRITICAL,
+            urgency=urgency,
         )
         self._rec_engine._db.upsert_retraining_recommendation(rec.to_dict())
         logger.info(
             f"HealthMonitor: created recommendation {rec.recommendation_id} "
-            f"for CRITICAL {alert.dimension} alert on model={alert.model_version!r}"
+            f"for {alert.severity} {alert.dimension} alert on model={alert.model_version!r}"
         )
         return rec.recommendation_id
 

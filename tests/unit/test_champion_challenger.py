@@ -551,6 +551,102 @@ class TestEvaluatePromotion:
         assert result["criterion_met"] is True
         assert result["approval_id"].startswith("apr-")
 
+    def test_decisive_rejection_creates_recommendation(self, db) -> None:
+        """S22B: a challenger decisively rejected by live shadow traffic
+        (loses the mirror-image majority of dimensions, with enough data)
+        must create a Research Lab review task, not be silently dropped."""
+        from trainer.research_lab.recommendation_models import (
+            RecommendationConfig,
+            RecommendationStatus,
+        )
+        from trainer.research_lab.retraining_recommendation_engine import (
+            RetrainingRecommendationEngine,
+        )
+        from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+
+        warehouse = TelemetryWarehouse(db)
+        rec_engine = RetrainingRecommendationEngine(warehouse, db, RecommendationConfig())
+
+        test_id = _shadow_test_in_db(
+            db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
+        )
+        cfg = PromotionCriterionConfig(
+            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_agreement_rate=0.99,
+        )
+        tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
+        result = tracker.evaluate_promotion(test_id)
+
+        assert result["criterion_met"] is False
+        assert result["recommendation_id"], (
+            "decisive rejection must create a RetrainingRecommendation"
+        )
+        rec = db.get_retraining_recommendation(result["recommendation_id"])
+        assert rec is not None
+        assert rec["status"] == RecommendationStatus.PROPOSED.value
+        assert rec["model_version"] == "v2.0"  # challenger_version
+
+    def test_decisive_rejection_is_deduped_on_repeat_evaluation(self, db) -> None:
+        from trainer.research_lab.recommendation_models import RecommendationConfig
+        from trainer.research_lab.retraining_recommendation_engine import (
+            RetrainingRecommendationEngine,
+        )
+        from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+
+        warehouse = TelemetryWarehouse(db)
+        rec_engine = RetrainingRecommendationEngine(warehouse, db, RecommendationConfig())
+        test_id = _shadow_test_in_db(
+            db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
+        )
+        cfg = PromotionCriterionConfig(
+            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_agreement_rate=0.99,
+        )
+        tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
+        result1 = tracker.evaluate_promotion(test_id)
+        result2 = tracker.evaluate_promotion(test_id)
+        assert result1["recommendation_id"] == result2["recommendation_id"]
+
+    def test_no_recommendation_without_rec_engine(self, db) -> None:
+        """Backward compatible: without a rec_engine, evaluate_promotion still
+        works and simply doesn't flag anything."""
+        test_id = _shadow_test_in_db(
+            db, n_decisions=20, agree=False, pnl_diff=-0.05, risk_diff=0.05
+        )
+        cfg = PromotionCriterionConfig(
+            min_decisions=5, majority_threshold=0.8, min_promotion_score=0.99,
+            min_agreement_rate=0.99,
+        )
+        tracker = _tracker(db, cfg=cfg)
+        result = tracker.evaluate_promotion(test_id)
+        assert result["criterion_met"] is False
+        assert result["recommendation_id"] == ""
+
+    def test_marginal_shortfall_does_not_create_recommendation(self, db) -> None:
+        """A challenger that merely falls short of the promotion bar (not
+        decisively rejected) should not spuriously create a task."""
+        from trainer.research_lab.recommendation_models import RecommendationConfig
+        from trainer.research_lab.retraining_recommendation_engine import (
+            RetrainingRecommendationEngine,
+        )
+        from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+
+        warehouse = TelemetryWarehouse(db)
+        rec_engine = RetrainingRecommendationEngine(warehouse, db, RecommendationConfig())
+        # Challenger agrees and has positive pnl_diff (wins most dimensions)
+        # but promotion_score threshold is set unreasonably high.
+        test_id = _shadow_test_in_db(
+            db, n_decisions=10, agree=True, pnl_diff=0.05, risk_diff=0.001
+        )
+        cfg = PromotionCriterionConfig(
+            min_decisions=5, majority_threshold=0.4,
+            min_promotion_score=0.9999, min_agreement_rate=0.0,
+        )
+        tracker = ChampionChallengerTracker(db, config=cfg, rec_engine=rec_engine)
+        result = tracker.evaluate_promotion(test_id)
+        assert result["criterion_met"] is False
+        assert result["recommendation_id"] == ""
+
     def test_evaluate_idempotent_duplicate_call(self, db) -> None:
         from trainer.research_lab.approval_gate import ApprovalGate
         gate = ApprovalGate(db)

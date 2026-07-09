@@ -58,6 +58,7 @@ from trainer.research_lab.champion_challenger import (
     PromotionCriterionConfig,
 )
 from trainer.research_lab.deployment_manager import DeploymentManager
+from trainer.research_lab.composite_health import CompositeQDEHealthScorer
 from trainer.research_lab.decision_quality import DecisionQualityTracker
 from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
 from trainer.research_lab.performance_monitor import PerformanceMonitor
@@ -112,11 +113,12 @@ _approval_gate = ApprovalGate(_db)
 _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
 _health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
+_composite_health_scorer = CompositeQDEHealthScorer(_db, _health_monitor)
 _decision_quality_tracker = DecisionQualityTracker(_db, _warehouse)
 _performance_monitor = PerformanceMonitor(_db, _warehouse)
 _feature_health_monitor = FeatureHealthMonitor(_db, _warehouse)
 _regime_coverage_monitor = RegimeCoverageMonitor(_db, _warehouse)
-_cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate)
+_cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
 
 
 def _build_signalium_notifier():
@@ -1770,6 +1772,57 @@ def list_health_alerts(
         limit=limit,
     )
     return {"success": True, "total": len(alerts), "alerts": alerts}
+
+
+# ── Composite QDE Health Score (S22B) ─────────────────────────────────────────
+
+
+@app.post("/health/composite/compute")
+def compute_composite_health_score(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Compute and persist the composite QDE Health Score for a model version.
+
+    Combines the thirteen drift/health dimensions (calibration, confidence,
+    entropy, uncertainty, performance, decision quality, data quality,
+    regime, feature health, unseen conditions, black swan, market, feature)
+    into five weighted categories — calibration, profitability, stability,
+    robustness, drift — and a single EXCELLENT/GOOD/WATCH/DEGRADED/CRITICAL
+    grade. Reads the *currently persisted* health-alert state; call
+    ``POST /health/check`` first to evaluate fresh telemetry.
+
+    This endpoint only computes and stores a score — it has no authority to
+    retrain, promote, or roll back any model version.
+    """
+    result = _composite_health_scorer.compute(model_version=model_version)
+    return {"success": True, "composite_health_score": result.to_dict()}
+
+
+@app.get("/health/composite/latest")
+def get_latest_composite_health_score(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the most recently persisted composite QDE Health Score."""
+    result = _composite_health_scorer.get_latest(model_version=model_version)
+    return {"success": True, "composite_health_score": result}
+
+
+@app.get("/health/composite/history")
+def list_composite_health_scores(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted composite QDE Health Scores, newest first, filterable
+    by model version and a created_at time window."""
+    results = _composite_health_scorer.list_scores(
+        model_version=model_version, since=since, until=until, limit=limit
+    )
+    return {"success": True, "total": len(results), "composite_health_scores": results}
 
 
 # ── Decision Quality Monitoring (S22B) ────────────────────────────────────────

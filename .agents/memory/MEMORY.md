@@ -41,3 +41,4 @@
 - [Sharpe ratio live/offline parity pitfalls](sharpe-parity-live-offline.md) — denominator (max of raw max, not abs-max), population vs sample std, and no n<2 short-circuit must all match exactly
 - [Feature health monitoring blind spots](feature-health-blind-spots.md) — intermittent-presence and whole-stream-stale-vs-wall-clock are missed by naive expected-vs-observed / window-relative staleness checks
 - [Scaffolding placeholder must stay unguarded](scaffolding-placeholder-fail-closed-tradeoff.md) — don't make execution/dispatch guards fail-closed on "no real model registered yet" states that are the documented pre-training baseline, or you break the legitimate default path
+- [Composite QDE health score design](composite-qde-health-score.md) — 13 drift dims → 5 disjoint categories; shadow-rejection degradation must hook ChampionChallengerTracker.evaluate_promotion, not the dead-code qde_shadow.evaluate_and_maybe_promote

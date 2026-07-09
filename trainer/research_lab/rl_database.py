@@ -417,6 +417,19 @@ CREATE TABLE IF NOT EXISTS regime_coverage_reports (
 CREATE INDEX IF NOT EXISTS idx_rcr_mv      ON regime_coverage_reports(model_version);
 CREATE INDEX IF NOT EXISTS idx_rcr_created ON regime_coverage_reports(created_at DESC);
 
+-- Composite QDE Health Score (S22B) — combines calibration, profitability,
+-- stability, robustness, and drift signals into one EXCELLENT..CRITICAL grade
+CREATE TABLE IF NOT EXISTS composite_health_scores (
+    score_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL DEFAULT '',
+    grade         TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_chs_mv      ON composite_health_scores(model_version);
+CREATE INDEX IF NOT EXISTS idx_chs_grade   ON composite_health_scores(grade);
+CREATE INDEX IF NOT EXISTS idx_chs_created ON composite_health_scores(created_at DESC);
+
 -- Model health drift alerts (S20)
 CREATE TABLE IF NOT EXISTS health_alerts (
     alert_id      TEXT PRIMARY KEY,
@@ -1460,6 +1473,65 @@ class ResearchLabDatabase:
         if model_version:
             sql += " AND model_version = ?"
             params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Composite QDE Health Score (S22B) ─────────────────────────────────────
+
+    def upsert_composite_health_score(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO composite_health_scores
+                (score_id, model_version, grade, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(score_id) DO UPDATE SET
+                model_version = excluded.model_version,
+                grade         = excluded.grade,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["score_id"],
+                record.get("model_version", ""),
+                record.get("grade", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_composite_health_score(self, score_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM composite_health_scores WHERE score_id = ?",
+            (score_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_composite_health_scores(
+        self,
+        model_version: str | None = None,
+        grade: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM composite_health_scores WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        if grade:
+            sql += " AND grade = ?"
+            params.append(grade)
+        if since is not None:
+            sql += " AND created_at >= ?"
+            params.append(since)
+        if until is not None:
+            sql += " AND created_at <= ?"
+            params.append(until)
         sql += " ORDER BY created_at DESC"
         if limit and limit > 0:
             sql += f" LIMIT {int(limit)}"
