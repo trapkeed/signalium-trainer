@@ -69,6 +69,20 @@ async function proxyPost(path: string, req: Request, res: Response): Promise<voi
   }
 }
 
+async function proxyDelete(path: string, req: Request, res: Response): Promise<void> {
+  try {
+    const upstream = await fetch(`${RL_BASE}${path}`, {
+      method: "DELETE",
+      headers: forwardToken(req),
+      body: JSON.stringify(req.body),
+    });
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (err) {
+    res.status(502).json({ success: false, error: String(err) });
+  }
+}
+
 // ── Health & Summary ──────────────────────────────────────────────────────────
 
 router.get("/admin/research/healthz", async (req, res) => {
@@ -622,6 +636,45 @@ router.get("/admin/research/reasoning-distribution", async (req: Request, res: R
     req,
     res,
   );
+});
+
+// ── S33 — Symbol Normalization Admin API ─────────────────────────────────────
+//
+// Broker-aware market data routing: manage broker symbol aliases and
+// enable/disable canonical instruments, plus expose normalization
+// diagnostics for the Signalium Admin Portal.
+
+router.post("/admin/research/symbols/aliases", async (req: Request, res: Response) => {
+  await proxyPost("/admin/symbols/aliases", req, res);
+});
+
+router.delete("/admin/research/symbols/aliases", async (req: Request, res: Response) => {
+  await proxyDelete("/admin/symbols/aliases", req, res);
+});
+
+router.get("/admin/research/symbols/aliases", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  if (req.query["canonical"]) p.set("canonical", String(req.query["canonical"]));
+  await proxyGet(`/admin/symbols/aliases${p.toString() ? "?" + p.toString() : ""}`, req, res);
+});
+
+router.post("/admin/research/symbols/disable", async (req: Request, res: Response) => {
+  await proxyPost("/admin/symbols/disable", req, res);
+});
+
+router.post("/admin/research/symbols/enable", async (req: Request, res: Response) => {
+  await proxyPost("/admin/symbols/enable", req, res);
+});
+
+router.get("/admin/research/symbols", async (req: Request, res: Response) => {
+  await proxyGet("/admin/symbols", req, res);
+});
+
+router.get("/admin/research/symbols/diagnostics", async (req: Request, res: Response) => {
+  const p = new URLSearchParams();
+  if (req.query["limit"]) p.set("limit", String(req.query["limit"]));
+  if (req.query["unresolved_only"]) p.set("unresolved_only", String(req.query["unresolved_only"]));
+  await proxyGet(`/admin/symbols/diagnostics${p.toString() ? "?" + p.toString() : ""}`, req, res);
 });
 
 export default router;

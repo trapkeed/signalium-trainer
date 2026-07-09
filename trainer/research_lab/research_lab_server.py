@@ -625,6 +625,19 @@ class FailGenerationJobRequest(BaseModel):
     error: str
 
 
+class AddSymbolAliasRequest(BaseModel):
+    raw: str
+    canonical: str
+
+
+class RemoveSymbolAliasRequest(BaseModel):
+    raw: str
+
+
+class SymbolActionRequest(BaseModel):
+    canonical: str
+
+
 class RecordFeatureRequest(BaseModel):
     name: str
     source: str
@@ -3190,3 +3203,64 @@ def trigger_auto_rollback(model_version: str) -> dict:
     if result is None:
         return {"success": True, "triggered": False, "reason": "deployment is healthy"}
     return {"success": True, "triggered": True, "result": result}
+
+
+# ── S33 — Symbol Normalization Admin API ──────────────────────────────────────
+#
+# Broker-aware market data routing (trainer/market_data/) needs an admin
+# surface so Signalium Admin can manage broker symbol aliases and enable/
+# disable instruments without a deploy. Backed by SymbolStore (own SQLite
+# DB, independent of the Research Lab DB) so state survives restarts.
+
+
+@app.post("/admin/symbols/aliases", dependencies=[Depends(_require_admin)])
+def add_symbol_alias(req: AddSymbolAliasRequest) -> dict:
+    """Register a broker-specific spelling that resolves to a canonical
+    symbol (e.g. ``EURUSD.pro`` -> ``EURUSD``)."""
+    try:
+        _symbol_normalizer.add_symbol_alias(req.raw, req.canonical)
+    except UnknownSymbolError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"success": True, "raw": req.raw.upper(), "canonical": req.canonical.upper()}
+
+
+@app.delete("/admin/symbols/aliases", dependencies=[Depends(_require_admin)])
+def remove_symbol_alias(req: RemoveSymbolAliasRequest) -> dict:
+    _symbol_normalizer.remove_alias(req.raw)
+    return {"success": True, "raw": req.raw.upper()}
+
+
+@app.get("/admin/symbols/aliases", dependencies=[Depends(_require_admin)])
+def list_symbol_aliases(canonical: str | None = None) -> dict:
+    return {"success": True, "aliases": _symbol_normalizer.list_symbol_aliases(canonical)}
+
+
+@app.post("/admin/symbols/disable", dependencies=[Depends(_require_admin)])
+def disable_symbol(req: SymbolActionRequest) -> dict:
+    _symbol_normalizer.disable_symbol(req.canonical)
+    return {"success": True, "canonical": req.canonical.upper(), "enabled": False}
+
+
+@app.post("/admin/symbols/enable", dependencies=[Depends(_require_admin)])
+def enable_symbol(req: SymbolActionRequest) -> dict:
+    _symbol_normalizer.enable_symbol(req.canonical)
+    return {"success": True, "canonical": req.canonical.upper(), "enabled": True}
+
+
+@app.get("/admin/symbols", dependencies=[Depends(_require_admin)])
+def list_symbols() -> dict:
+    return {"success": True, "symbols": _symbol_normalizer.list_symbols()}
+
+
+@app.get("/admin/symbols/diagnostics", dependencies=[Depends(_require_admin)])
+def symbol_diagnostics(limit: int = 200, unresolved_only: bool = False) -> dict:
+    """Normalization event log + summary stats for the Signalium Admin
+    diagnostics surface — what's being resolved, what's failing, and by
+    which matching strategy (exact / alias / structural / fuzzy)."""
+    return {
+        "success": True,
+        "symbols": _symbol_normalizer.list_symbols(),
+        "aliases": _symbol_normalizer.list_symbol_aliases(),
+        "stats": _symbol_store.event_stats(),
+        "recent_events": _symbol_store.recent_events(limit=limit, unresolved_only=unresolved_only),
+    }
