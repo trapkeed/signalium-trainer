@@ -127,6 +127,20 @@ CREATE TABLE IF NOT EXISTS tel_lifecycle (
 CREATE INDEX IF NOT EXISTS idx_tel_lce_mv  ON tel_lifecycle(model_version);
 CREATE INDEX IF NOT EXISTS idx_tel_lce_sym ON tel_lifecycle(symbol);
 CREATE INDEX IF NOT EXISTS idx_tel_lce_ts  ON tel_lifecycle(timestamp);
+
+-- Ninth stream (S25) — periodic inference-serving samples (system resource
+-- usage, latency percentiles, queue length, throughput) from Signalium's
+-- live inference host.
+CREATE TABLE IF NOT EXISTS tel_inference (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_inf_mv  ON tel_inference(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_inf_sym ON tel_inference(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_inf_ts  ON tel_inference(timestamp);
 """
 
 _SCHEMA = """
@@ -573,6 +587,23 @@ CREATE TABLE IF NOT EXISTS deployment_events (
 CREATE INDEX IF NOT EXISTS idx_devt_mv      ON deployment_events(model_version);
 CREATE INDEX IF NOT EXISTS idx_devt_type    ON deployment_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_devt_created ON deployment_events(created_at DESC);
+
+-- S25 — QDE Observability and Model Intelligence.
+-- One generic reports table shared by every new S25 monitor
+-- (inference/model-distribution/accuracy/autonomous-trading), following the
+-- same report_id/model_version/created_at/data_json shape as
+-- performance_reports etc. above, but disambiguated by report_type so we
+-- don't need one near-identical table per monitor.
+CREATE TABLE IF NOT EXISTS observability_reports (
+    report_id     TEXT PRIMARY KEY,
+    report_type   TEXT NOT NULL,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_obsr_type    ON observability_reports(report_type);
+CREATE INDEX IF NOT EXISTS idx_obsr_mv      ON observability_reports(model_version);
+CREATE INDEX IF NOT EXISTS idx_obsr_created ON observability_reports(created_at DESC);
 """
 
 
@@ -2360,6 +2391,7 @@ class ResearchLabDatabase:
         "tel_execution",
         "tel_counterfactuals",
         "tel_lifecycle",
+        "tel_inference",
     )
 
     def insert_telemetry_event(self, table: str, event_id: str, record: dict[str, Any]) -> None:
@@ -2420,12 +2452,66 @@ class ResearchLabDatabase:
         return [json.loads(r["data_json"]) for r in rows]
 
     def telemetry_stream_counts(self) -> dict[str, int]:
-        """Row counts for all eight telemetry streams."""
+        """Row counts for all nine telemetry streams."""
         result: dict[str, int] = {}
         for table in self._TELEMETRY_TABLES:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
             result[table] = int(row["n"]) if row else 0
         return result
+
+    # ── S25 Observability Reports (generic, shared by all S25 monitors) ──────
+
+    def upsert_observability_report(self, report_type: str, record: dict[str, Any]) -> None:
+        """Upsert one S25 observability report of a given ``report_type``.
+
+        ``report_type`` disambiguates the shared table (e.g. "inference",
+        "model_distribution", "accuracy", "autonomous_trading") — callers
+        must pass the exact same value to list/get.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO observability_reports
+                (report_id, report_type, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                report_type   = excluded.report_type,
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                report_type,
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_observability_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM observability_reports WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_observability_reports(
+        self,
+        report_type: str,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM observability_reports WHERE report_type = ?"
+        params: list[Any] = [report_type]
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
 
     # ── Model Deployments (S20 Task #13) ──────────────────────────────────────
 
@@ -2579,6 +2665,7 @@ class ResearchLabDatabase:
             "model_deployments", "deployment_events",
             "decision_quality_reports", "performance_reports",
             "feature_health_reports", "regime_coverage_reports",
+            "observability_reports",
         ]
         result: dict[str, int] = {}
         for table in tables:

@@ -42,6 +42,10 @@ class TelemetryStream(str, Enum):
     EXECUTION = "execution"
     COUNTERFACTUALS = "counterfactuals"
     LIFECYCLE = "lifecycle"
+    # S25 — ninth stream: live inference-serving telemetry (system resource
+    # usage + latency/throughput), reported periodically by Signalium's
+    # inference host rather than per-decision.
+    INFERENCE = "inference"
 
 
 class PositionAction(str, Enum):
@@ -656,6 +660,93 @@ class LifecycleEvent:
             "new_state": self.new_state,
             "trigger": self.trigger,
             "metadata": self.metadata,
+            "ingested_at": self.ingested_at,
+        }
+
+
+@dataclass
+class InferenceEvent:
+    """S25 — A periodic inference-serving telemetry sample from Signalium.
+
+    Unlike the other eight streams (which are per-decision/per-trade), this
+    is a point-in-time snapshot of the live inference host: how many
+    predictions it served in the sampling window, how long they took, and
+    how loaded the underlying process/hardware was. ``symbol`` is typically
+    empty/"ALL" since these samples describe the serving process, not a
+    single instrument.
+    """
+
+    event_id: str
+    model_version: str
+    symbol: str
+    timestamp: float
+
+    inference_count: int          # predictions served in this sample window
+    latency_ms_p50: float
+    latency_ms_p95: float
+    latency_ms_max: float
+    queue_length: int              # pending requests at sample time
+    throughput_per_s: float        # inference_count / window_s
+    cpu_pct: float                 # 0-100
+    memory_pct: float               # 0-100
+    gpu_pct: float | None           # 0-100, None if no GPU present
+    window_s: float                 # sampling window duration, seconds
+
+    ingested_at: float
+
+    @classmethod
+    def new(
+        cls,
+        model_version: str,
+        symbol: str,
+        timestamp: float,
+        inference_count: int,
+        latency_ms_p50: float = 0.0,
+        latency_ms_p95: float = 0.0,
+        latency_ms_max: float = 0.0,
+        queue_length: int = 0,
+        throughput_per_s: float = 0.0,
+        cpu_pct: float = 0.0,
+        memory_pct: float = 0.0,
+        gpu_pct: float | None = None,
+        window_s: float = 60.0,
+        event_id: str = "",
+    ) -> InferenceEvent:
+        return cls(
+            event_id=event_id or _event_id("inf"),
+            model_version=model_version,
+            symbol=symbol or "ALL",
+            timestamp=timestamp,
+            inference_count=inference_count,
+            latency_ms_p50=latency_ms_p50,
+            latency_ms_p95=latency_ms_p95,
+            latency_ms_max=latency_ms_max,
+            queue_length=queue_length,
+            throughput_per_s=throughput_per_s,
+            cpu_pct=cpu_pct,
+            memory_pct=memory_pct,
+            gpu_pct=gpu_pct,
+            window_s=window_s,
+            ingested_at=time.time(),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "stream": TelemetryStream.INFERENCE.value,
+            "model_version": self.model_version,
+            "symbol": self.symbol,
+            "timestamp": self.timestamp,
+            "inference_count": self.inference_count,
+            "latency_ms_p50": self.latency_ms_p50,
+            "latency_ms_p95": self.latency_ms_p95,
+            "latency_ms_max": self.latency_ms_max,
+            "queue_length": self.queue_length,
+            "throughput_per_s": self.throughput_per_s,
+            "cpu_pct": self.cpu_pct,
+            "memory_pct": self.memory_pct,
+            "gpu_pct": self.gpu_pct,
+            "window_s": self.window_s,
             "ingested_at": self.ingested_at,
         }
 

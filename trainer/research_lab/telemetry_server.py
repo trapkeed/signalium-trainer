@@ -138,6 +138,23 @@ class IngestLifecycleRequest(BaseModel):
     event_id: str = ""  # Idempotency key
 
 
+class IngestInferenceRequest(BaseModel):
+    model_version: str
+    symbol: str = ""
+    timestamp: float
+    inference_count: int
+    latency_ms_p50: float = 0.0
+    latency_ms_p95: float = 0.0
+    latency_ms_max: float = 0.0
+    queue_length: int = 0
+    throughput_per_s: float = 0.0
+    cpu_pct: float = 0.0
+    memory_pct: float = 0.0
+    gpu_pct: float | None = None
+    window_s: float = 60.0
+    event_id: str = ""  # Idempotency key
+
+
 # ── Router factory ─────────────────────────────────────────────────────────────
 
 
@@ -264,11 +281,26 @@ def make_telemetry_router(
         except Exception as exc:
             _err(str(exc))
 
+    # ── POST /telemetry/inference ─────────────────────────────────────────────
+
+    @router.post("/inference")
+    def ingest_inference(
+        req: IngestInferenceRequest, _: None = Depends(auth_dep)
+    ) -> dict:
+        """Ingest a periodic inference-serving telemetry sample (S25) from
+        Signalium's live inference host: prediction throughput/latency and
+        system resource usage (CPU/memory/GPU/queue length)."""
+        try:
+            event = warehouse.ingest_inference(**req.model_dump())
+            return _wrap(event.to_dict())
+        except Exception as exc:
+            _err(str(exc))
+
     # ── GET /telemetry/status ─────────────────────────────────────────────────
 
     @router.get("/status")
     def telemetry_status(_: None = Depends(auth_dep)) -> dict:
-        """Return row counts for all eight telemetry streams."""
+        """Return row counts for all nine telemetry streams."""
         counts = warehouse.stream_counts()
         total = sum(counts.values())
         return {"success": True, "stream_counts": counts, "total_events": total}

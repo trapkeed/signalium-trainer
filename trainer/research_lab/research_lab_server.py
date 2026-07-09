@@ -101,6 +101,14 @@ from trainer.research_lab.feature_health import FeatureHealthMonitor
 from trainer.research_lab.regime_coverage import RegimeCoverageMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
+from trainer.research_lab.qde_observability import (
+    AccuracyMonitor,
+    AutonomousTradingMonitor,
+    InferenceMonitor,
+    ModelDistributionMonitor,
+    QDEHealthDashboard,
+    ResearchMonitor,
+)
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
 from trainer.research_lab.experiment_creator import ExperimentCreator
 from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
@@ -127,6 +135,7 @@ from trainer.research_lab.sso import (
     StaleRequestTimestamp,
     TokenExpired,
     UnknownRole,
+    Visibility,
     validate_signalium_jwt,
 )
 from trainer.research_lab.telemetry_server import make_telemetry_router
@@ -172,6 +181,13 @@ _regime_coverage_monitor = RegimeCoverageMonitor(_db, _warehouse)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
 _session_mgr = SessionManager(_db)
 _audit = AuditLogger(_db)
+
+# S25 — QDE Observability and Model Intelligence.
+_inference_monitor = InferenceMonitor(_db, _warehouse)
+_model_distribution_monitor = ModelDistributionMonitor(_db, _warehouse)
+_accuracy_monitor = AccuracyMonitor(_db, _warehouse)
+_autonomous_trading_monitor = AutonomousTradingMonitor(_db, _warehouse)
+_research_monitor = ResearchMonitor(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
 
 
 def _parse_scheduler_poll_interval(raw: str | None, default: float = 3600.0) -> float:
@@ -259,6 +275,9 @@ _deployment_manager = DeploymentManager(
     # endpoints — without it, `DeploymentManager` silently skips the check
     # (see its docstring / `_enforce_signature_verification`).
     artifact_registry=_artifact_registry,
+)
+_qde_health_dashboard = QDEHealthDashboard(
+    _deployment_manager, _composite_health_scorer, _health_monitor, _rec_engine
 )
 _bearer = HTTPBearer(auto_error=False)
 
@@ -418,6 +437,32 @@ def require_capability(capability: Capability):
                 detail=(
                     f"Forbidden. Role {identity.role.value!r} does not have "
                     f"the {capability.value!r} capability."
+                ),
+            )
+        return identity
+
+    return _dependency
+
+
+def require_visibility(visibility: Visibility):
+    """Dependency factory enforcing a specific S24D/S25 dashboard visibility.
+
+    Mirrors ``require_capability`` exactly, but checks the read-only
+    ``Visibility`` set instead of a mutating ``Capability`` — this is the
+    gate for internal dashboards/reports (e.g. the S25 QDE Health
+    Dashboard) that several roles may *view* without being able to trigger
+    any research/deployment action.
+    """
+
+    def _dependency(
+        identity: SignaliumIdentity = Depends(_require_signalium_identity),
+    ) -> SignaliumIdentity:
+        if not identity.has_visibility(visibility):
+            raise HTTPException(
+                403,
+                detail=(
+                    f"Forbidden. Role {identity.role.value!r} does not have "
+                    f"the {visibility.value!r} visibility."
                 ),
             )
         return identity
@@ -2886,3 +2931,90 @@ def reasoning_distribution(
             }
         )
     return {"success": True, "n_events": len(events), "series": series}
+
+
+# ── S25 — QDE Observability and Model Intelligence ─────────────────────────────
+# Every route below is gated on Visibility.OBSERVABILITY_DASHBOARD (view-only:
+# SuperAdmin, Admin, Founder, QuantResearcher, MLResearcher, DeploymentApprover
+# — Auditor is excluded), not a Capability, since these are read-only
+# dashboards/reports rather than mutating research actions.
+
+_OBSERVABILITY_DEP = Depends(require_visibility(Visibility.OBSERVABILITY_DASHBOARD))
+
+
+@app.post("/observability/inference/compute", dependencies=[_OBSERVABILITY_DEP])
+def compute_inference_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+) -> dict:
+    """Compute and persist an inference-serving report (latency, throughput,
+    queue length, CPU/memory/GPU usage) from the ``tel_inference`` stream."""
+    report = _inference_monitor.compute_report(model_version=model_version, since=since, until=until)
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/observability/inference/latest", dependencies=[_OBSERVABILITY_DEP])
+def get_latest_inference_report(model_version: str | None = None) -> dict:
+    report = _inference_monitor.get_latest_report(model_version=model_version)
+    return {"success": True, "report": report}
+
+
+@app.get("/observability/model/distributions", dependencies=[_OBSERVABILITY_DEP])
+def get_model_distributions(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+) -> dict:
+    """Decision/confidence/symbol/regime/risk-signal/position-size/hold-
+    duration distributions for a model version, computed fresh from
+    telemetry (not persisted — this is a live view)."""
+    report = _model_distribution_monitor.compute_report(
+        model_version=model_version, since=since, until=until, persist=False
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/observability/accuracy", dependencies=[_OBSERVABILITY_DEP])
+def get_accuracy_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+) -> dict:
+    """Directional accuracy, expected-value accuracy, risk-estimation
+    accuracy, sizing quality, and portfolio efficiency for a model version."""
+    report = _accuracy_monitor.compute_report(
+        model_version=model_version, since=since, until=until, persist=False
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/observability/autonomous-trading", dependencies=[_OBSERVABILITY_DEP])
+def get_autonomous_trading_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+) -> dict:
+    """Intervention frequency, management-action stats, stop-adjustment/
+    scale-in frequency, average holding duration, and realized-vs-predicted
+    risk for a model version."""
+    report = _autonomous_trading_monitor.compute_report(
+        model_version=model_version, since=since, until=until, persist=False
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/observability/research-summary", dependencies=[_OBSERVABILITY_DEP])
+def get_research_summary() -> dict:
+    """Snapshot of active research activity: training/validation queue,
+    active experiments, shadow deployments, pending approvals, and pending
+    retraining recommendations."""
+    return {"success": True, "summary": _research_monitor.compute_summary()}
+
+
+@app.get("/qde/health-dashboard", dependencies=[_OBSERVABILITY_DEP])
+def get_qde_health_dashboard(model_version: str | None = None) -> dict:
+    """The single aggregated internal QDE Health Dashboard: version,
+    deployment status, composite health/drift/calibration scores, and
+    pending research recommendations."""
+    return {"success": True, "dashboard": _qde_health_dashboard.compute(model_version=model_version)}

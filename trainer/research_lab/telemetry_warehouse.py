@@ -26,6 +26,7 @@ from trainer.research_lab.telemetry_models import (
     CounterfactualEvent,
     DecisionEvent,
     ExecutionEvent,
+    InferenceEvent,
     LifecycleEvent,
     PositionEvent,
     ReasoningEvent,
@@ -109,6 +110,12 @@ class TelemetryWarehouse:
         logger.debug("Telemetry: ingested lifecycle {} ({}) for {}", event.event_id, event.kind, event.symbol)
         return event
 
+    def ingest_inference(self, **kwargs: Any) -> InferenceEvent:
+        event = InferenceEvent.new(**kwargs)
+        self._db.insert_telemetry_event("tel_inference", event.event_id, event.to_dict())
+        logger.debug("Telemetry: ingested inference sample {} for {}", event.event_id, event.model_version)
+        return event
+
     # ── Read ──────────────────────────────────────────────────────────────────
 
     def query_decisions(self, q: TelemetryQuery | None = None) -> list[dict[str, Any]]:
@@ -134,6 +141,9 @@ class TelemetryWarehouse:
 
     def query_lifecycle(self, q: TelemetryQuery | None = None) -> list[dict[str, Any]]:
         return self._db.query_telemetry("tel_lifecycle", q or TelemetryQuery())
+
+    def query_inference(self, q: TelemetryQuery | None = None) -> list[dict[str, Any]]:
+        return self._db.query_telemetry("tel_inference", q or TelemetryQuery())
 
     # ── Convenience reads for downstream systems ───────────────────────────────
 
@@ -164,5 +174,5 @@ class TelemetryWarehouse:
         return self.query_failures(TelemetryQuery(model_version=model_version, since=since))
 
     def stream_counts(self) -> dict[str, int]:
-        """Row counts for all eight telemetry tables."""
+        """Row counts for all nine telemetry tables."""
         return self._db.telemetry_stream_counts()

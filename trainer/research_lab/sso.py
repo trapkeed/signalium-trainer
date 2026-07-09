@@ -121,6 +121,14 @@ class Visibility(str, Enum):
     QDE_LIFECYCLE = "qde_lifecycle_visibility"
     DEPLOYMENT = "deployment_visibility"
     MODEL_GOVERNANCE = "model_governance_visibility"
+    # S25 — QDE Observability and Model Intelligence Health Dashboard.
+    # Internal-only surface (never exposed to retail/public callers). Granted
+    # to SuperAdmin/Admin (via frozenset(Visibility)), Founder, and the three
+    # research/deployment roles that need it to do their jobs day-to-day.
+    # Auditor is deliberately excluded — its role is read-only compliance
+    # review of research *records* (experiments/approvals/audit log), not
+    # live model-health telemetry.
+    OBSERVABILITY_DASHBOARD = "observability_dashboard_visibility"
 
 
 ROLE_CAPABILITIES: dict[Role, frozenset[Capability]] = {
@@ -153,7 +161,14 @@ ROLE_VISIBILITY: dict[Role, frozenset[Visibility]] = {
     Role.ADMIN: frozenset(Visibility),
     Role.FOUNDER: frozenset({
         Visibility.QDE_LIFECYCLE, Visibility.DEPLOYMENT, Visibility.MODEL_GOVERNANCE,
+        Visibility.OBSERVABILITY_DASHBOARD,
     }),
+    Role.QUANT_RESEARCHER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
+    Role.ML_RESEARCHER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
+    Role.DEPLOYMENT_APPROVER: frozenset({Visibility.OBSERVABILITY_DASHBOARD}),
+    # Role.AUDITOR intentionally has no entry → ROLE_VISIBILITY.get() returns
+    # frozenset() → has_visibility() is False for every Visibility, including
+    # OBSERVABILITY_DASHBOARD, per the S25 spec (Auditor excluded).
 }
 
 
