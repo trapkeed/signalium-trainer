@@ -340,6 +340,45 @@ CREATE INDEX IF NOT EXISTS idx_rr_status    ON retraining_recommendations(status
 CREATE INDEX IF NOT EXISTS idx_rr_dimension ON retraining_recommendations(trigger_dimension);
 CREATE INDEX IF NOT EXISTS idx_rr_created   ON retraining_recommendations(created_at DESC);
 
+-- Training Pipeline jobs (S20)
+CREATE TABLE IF NOT EXISTS pipeline_jobs (
+    job_id            TEXT PRIMARY KEY,
+    status            TEXT NOT NULL DEFAULT 'QUEUED',
+    experiment_id     TEXT NOT NULL DEFAULT '',
+    recommendation_id TEXT NOT NULL DEFAULT '',
+    requested_by      TEXT NOT NULL DEFAULT '',
+    created_at        REAL NOT NULL,
+    updated_at        REAL NOT NULL,
+    data_json         TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_pj_status            ON pipeline_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_pj_experiment_id     ON pipeline_jobs(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_pj_recommendation_id ON pipeline_jobs(recommendation_id);
+CREATE INDEX IF NOT EXISTS idx_pj_created           ON pipeline_jobs(created_at DESC);
+
+-- Human Approval Gate requests (S20)
+CREATE TABLE IF NOT EXISTS approval_requests (
+    request_id   TEXT PRIMARY KEY,
+    gate_type    TEXT NOT NULL,
+    resource_id  TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'PENDING',
+    requested_by TEXT NOT NULL DEFAULT '',
+    created_at   REAL NOT NULL,
+    expires_at   REAL NOT NULL,
+    updated_at   REAL NOT NULL,
+    data_json    TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_apr_gate_type   ON approval_requests(gate_type);
+CREATE INDEX IF NOT EXISTS idx_apr_resource_id ON approval_requests(resource_id);
+CREATE INDEX IF NOT EXISTS idx_apr_status      ON approval_requests(status);
+CREATE INDEX IF NOT EXISTS idx_apr_created     ON approval_requests(created_at DESC);
+-- Partial unique index: at most one PENDING request per (gate_type, resource_id).
+-- This enforces idempotency at the DB level, preventing duplicate open requests
+-- even under concurrent callers (SQLite serialises writes in WAL mode; the
+-- UNIQUE constraint is the last line of defence against races).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_apr_gate_resource_pending
+    ON approval_requests(gate_type, resource_id) WHERE status = 'PENDING';
+
 -- Research notes (standalone, addressable notes; not embedded in other records)
 CREATE TABLE IF NOT EXISTS research_notes (
     note_id            TEXT PRIMARY KEY,
@@ -1195,6 +1234,218 @@ class ResearchLabDatabase:
         rows = self._conn.execute(sql, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Training Pipeline Jobs (S20) ──────────────────────────────────────────
+
+    def upsert_pipeline_job(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO pipeline_jobs
+                (job_id, status, experiment_id, recommendation_id, requested_by,
+                 created_at, updated_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(job_id) DO UPDATE SET
+                status     = excluded.status,
+                updated_at = excluded.updated_at,
+                data_json  = excluded.data_json
+            """,
+            (
+                record["job_id"],
+                record.get("status", "QUEUED"),
+                record.get("experiment_id") or "",
+                record.get("recommendation_id") or "",
+                record.get("requested_by", ""),
+                record.get("created_at", 0.0),
+                record.get("updated_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_pipeline_job(self, job_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM pipeline_jobs WHERE job_id = ?", (job_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_pipeline_jobs(
+        self,
+        status: str | None = None,
+        experiment_id: str | None = None,
+        recommendation_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM pipeline_jobs WHERE 1=1"
+        params: list[Any] = []
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        if experiment_id:
+            sql += " AND experiment_id = ?"
+            params.append(experiment_id)
+        if recommendation_id:
+            sql += " AND recommendation_id = ?"
+            params.append(recommendation_id)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Human Approval Gates (S20) ────────────────────────────────────────────
+
+    def upsert_approval_request(self, record: dict[str, Any]) -> None:
+        """Upsert an approval request.
+
+        For new PENDING rows uses INSERT OR IGNORE so that a concurrent caller
+        racing to create the same (gate_type, resource_id) PENDING request is
+        silently discarded — the partial unique index `idx_apr_gate_resource_pending`
+        guarantees at most one open PENDING per (gate_type, resource_id).
+
+        For status transitions (PENDING→APPROVED/REJECTED/EXPIRED/CONSUMED) the
+        row already exists, so the INSERT hits ON CONFLICT(request_id) and updates
+        the scalar status + data_json in place. The partial index does not fire for
+        non-PENDING rows, so there is no conflict on the unique gate+resource index.
+        """
+        status = record.get("status", "PENDING")
+        params = (
+            record["request_id"],
+            record.get("gate_type", ""),
+            record.get("resource_id", ""),
+            status,
+            record.get("requested_by", ""),
+            record.get("created_at", 0.0),
+            record.get("expires_at", 0.0),
+            record.get("updated_at", 0.0),
+            self._j(record),
+        )
+        if status == "PENDING":
+            # INSERT OR IGNORE: if partial unique index fires (concurrent create),
+            # the row is silently dropped; the caller re-fetches the existing row.
+            self._conn.execute(
+                """
+                INSERT OR IGNORE INTO approval_requests
+                    (request_id, gate_type, resource_id, status, requested_by,
+                     created_at, expires_at, updated_at, data_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                params,
+            )
+        else:
+            # Status transition: update the existing row by request_id.
+            self._conn.execute(
+                """
+                INSERT INTO approval_requests
+                    (request_id, gate_type, resource_id, status, requested_by,
+                     created_at, expires_at, updated_at, data_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(request_id) DO UPDATE SET
+                    status     = excluded.status,
+                    updated_at = excluded.updated_at,
+                    data_json  = excluded.data_json
+                """,
+                params,
+            )
+        self._conn.commit()
+
+    def get_approval_request(self, request_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM approval_requests WHERE request_id = ?",
+            (request_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_approval_requests(
+        self,
+        gate_type: str | None = None,
+        resource_id: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM approval_requests WHERE 1=1"
+        params: list[Any] = []
+        if gate_type:
+            sql += " AND gate_type = ?"
+            params.append(gate_type)
+        if resource_id:
+            sql += " AND resource_id = ?"
+            params.append(resource_id)
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    def atomic_consume_approval(
+        self,
+        gate_type: str,
+        resource_id: str,
+        consumed_by: str,
+        consumed_at: float,
+    ) -> int:
+        """Atomically mark a single APPROVED request as CONSUMED.
+
+        Uses UPDATE WHERE status='APPROVED' + rowcount check to prevent
+        double-consume. Returns the number of rows updated (1 = success, 0 = blocked).
+        """
+        import json as _json
+        now = consumed_at
+        # We need to also update the data_json to reflect CONSUMED status.
+        # First, get the matching APPROVED row.
+        row = self._conn.execute(
+            """
+            SELECT request_id, data_json FROM approval_requests
+            WHERE gate_type = ? AND resource_id = ? AND status = 'APPROVED'
+            LIMIT 1
+            """,
+            (gate_type, resource_id),
+        ).fetchone()
+        if row is None:
+            return 0
+
+        # Build the updated data_json payload before touching the DB, so that
+        # if anything raises we have not committed a partial state.
+        data = _json.loads(row["data_json"])
+        data["status"] = "CONSUMED"
+        data["consumed_at"] = round(now, 3)
+        data["consumed_by"] = consumed_by
+        data["updated_at"] = round(now, 3)
+        data.setdefault("audit_log", []).append({
+            "event": "consumed",
+            "actor": consumed_by,
+            "timestamp": round(now, 3),
+            "reason": "Gated action executed",
+            "metadata": {},
+        })
+
+        # Single explicit transaction: update scalar status + JSON payload in
+        # one atomic block with a single COMMIT.  The WHERE status='APPROVED'
+        # clause is the optimistic lock; if another caller already consumed the
+        # row, rowcount returns 0 and we roll back.
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cursor = self._conn.execute(
+                """
+                UPDATE approval_requests
+                SET status = 'CONSUMED', updated_at = ?, data_json = ?
+                WHERE request_id = ? AND status = 'APPROVED'
+                """,
+                (now, self._j(data), row["request_id"]),
+            )
+            if cursor.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                return 0
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+        return 1
+
     # ── Retraining Recommendations (S20) ──────────────────────────────────────
 
     def upsert_retraining_recommendation(self, record: dict[str, Any]) -> None:
@@ -1354,7 +1605,8 @@ class ResearchLabDatabase:
             "benchmarks",
             "research_notes",
         ] + list(self._TELEMETRY_TABLES) + [
-            "failure_reports", "label_datasets", "retraining_recommendations"
+            "failure_reports", "label_datasets",
+            "retraining_recommendations", "approval_requests", "pipeline_jobs",
         ]
         result: dict[str, int] = {}
         for table in tables:

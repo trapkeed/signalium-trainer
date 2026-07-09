@@ -49,6 +49,10 @@ except ImportError as exc:
         "FastAPI and Pydantic are required. Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.research_lab.approval_gate import ApprovalGate
+from trainer.research_lab.approval_models import ApprovalAlreadyResolved, ApprovalGateType, DEFAULT_TTL_SECONDS
+from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
+from trainer.research_lab.pipeline_models import PipelineJobSpec
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
 from trainer.research_lab.experiment_creator import ExperimentCreator
 from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
@@ -92,6 +96,8 @@ _creator = ExperimentCreator(_db)
 _feature_pipeline = FeatureDiscoveryPipeline(_warehouse, _db)
 _label_engine = LabelDiscoveryEngine(_warehouse, _db)
 _rec_engine = RetrainingRecommendationEngine(_warehouse, _db, RecommendationConfig())
+_approval_gate = ApprovalGate(_db)
+_pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -340,6 +346,37 @@ class CreateNoteRequest(BaseModel):
     linked_entity_type: str = ""
     linked_entity_id: str = ""
     tags: list[str] = []
+
+
+# Pipeline request model (S20) — must be defined before route declarations
+class RunPipelineRequest(BaseModel):
+    experiment_id: str | None = None
+    recommendation_id: str | None = None
+    requested_by: str = "admin"
+    stages_to_run: list[str] = []
+    stage_configs: dict[str, Any] = {}
+    notes: str = ""
+
+
+# Human Approval Gate request models (S20) — must be defined before route declarations
+class CreateApprovalRequest(BaseModel):
+    gate_type: str
+    resource_id: str
+    resource_type: str = ""
+    requested_by: str = "admin"
+    action_summary: str = ""
+    requestor_context: dict[str, Any] = {}
+    ttl_seconds: float = DEFAULT_TTL_SECONDS
+
+
+class ApproveApprovalRequest(BaseModel):
+    approved_by: str = "admin"
+    reason: str = ""
+
+
+class RejectApprovalRequest(BaseModel):
+    rejected_by: str = "admin"
+    reason: str
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
@@ -1052,6 +1089,176 @@ def list_label_datasets(
         label_type=label_type, model_version=model_version, limit=limit
     )
     return {"success": True, "total": len(rows), "datasets": rows}
+
+
+# ── Training Pipeline (S20) ───────────────────────────────────────────────────
+
+
+@app.post("/pipeline/run")
+def run_pipeline(
+    req: RunPipelineRequest, _: None = Depends(_require_admin)
+) -> dict:
+    """Enqueue and run a training pipeline job.
+
+    Accepts an experiment_id, recommendation_id, or both.  Stages run in the
+    canonical order: DATASET_GENERATION → FEATURE_GENERATION → TRAINING →
+    VALIDATION → BACKTEST → CERTIFICATION → SHADOW_TEST.  Pass
+    ``stages_to_run`` to restrict execution to a subset (in canonical order).
+
+    The TRAINING stage requires an approved TRAINING_START gate for the job_id
+    via ``POST /approvals``.  Without it the job is returned with status FAILED
+    and the TRAINING stage result shows status BLOCKED.
+    """
+    try:
+        # Empty stages_to_run is valid: the controller interprets it as "all stages".
+        # PipelineJobSpec validates the presence of experiment_id/recommendation_id.
+        spec = PipelineJobSpec(
+            requested_by=req.requested_by,
+            experiment_id=req.experiment_id,
+            recommendation_id=req.recommendation_id,
+            stages_to_run=req.stages_to_run,  # [] → all stages (controller default)
+            stage_configs=req.stage_configs,
+            notes=req.notes,
+        )
+        # Validate stage names early so the caller gets a 400 before the job is
+        # created, rather than a silent no-op or a partially-run job.
+        from trainer.research_lab.pipeline_controller import ResearchLabPipelineController as _PCtrl
+        _PCtrl._resolve_stages(req.stages_to_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    job = _pipeline_ctrl.run_pipeline(spec)
+    return {"success": True, "job": job.to_dict()}
+
+
+@app.get("/pipeline/jobs")
+def list_pipeline_jobs(
+    status: str | None = None,
+    experiment_id: str | None = None,
+    recommendation_id: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List pipeline jobs with optional filtering.
+
+    Filter by ``status`` (QUEUED | RUNNING | COMPLETED | FAILED | CANCELLED),
+    ``experiment_id``, or ``recommendation_id``.  Results are ordered by
+    creation time descending.
+    """
+    rows = _pipeline_ctrl.list_jobs(
+        status=status,
+        experiment_id=experiment_id,
+        recommendation_id=recommendation_id,
+        limit=limit,
+    )
+    return {"success": True, "total": len(rows), "jobs": rows}
+
+
+@app.get("/pipeline/jobs/{job_id}")
+def get_pipeline_job(
+    job_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    """Fetch a specific pipeline job by ID, including full stage results and events."""
+    job = _pipeline_ctrl.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Pipeline job {job_id!r} not found")
+    return {"success": True, "job": job.to_dict()}
+
+
+# ── Human Approval Gates (S20) ────────────────────────────────────────────────
+
+
+@app.post("/approvals")
+def create_approval_request(
+    req: CreateApprovalRequest, _: None = Depends(_require_admin)
+) -> dict:
+    """Create an approval request for a gated Research Lab action.
+
+    Idempotent: a second call for the same gate_type + resource_id while a
+    PENDING request is still open returns the existing request.
+    """
+    try:
+        gate_type = ApprovalGateType(req.gate_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Unknown gate type: {req.gate_type!r}")
+    approval = _approval_gate.create_request(
+        gate_type=gate_type,
+        resource_id=req.resource_id,
+        resource_type=req.resource_type,
+        requested_by=req.requested_by,
+        action_summary=req.action_summary,
+        requestor_context=req.requestor_context,
+        ttl_seconds=req.ttl_seconds,
+    )
+    return {"success": True, "approval_request": approval.to_dict()}
+
+
+@app.get("/approvals")
+def list_approval_requests(
+    gate_type: str | None = None,
+    resource_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List approval requests. Stale PENDING requests are auto-expired before returning.
+
+    Filter by gate_type (EXPERIMENT_LAUNCH | TRAINING_START | PROMOTION | DEPLOYMENT | ROLLBACK),
+    resource_id, and/or status (PENDING | APPROVED | REJECTED | EXPIRED | CONSUMED).
+    """
+    rows = _approval_gate.list_requests(
+        gate_type=gate_type, resource_id=resource_id, status=status, limit=limit
+    )
+    return {"success": True, "total": len(rows), "approval_requests": rows}
+
+
+@app.get("/approvals/{request_id}")
+def get_approval_request(
+    request_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    """Fetch a specific approval request by ID."""
+    req = _approval_gate.get_request(request_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail=f"Approval request {request_id!r} not found")
+    return {"success": True, "approval_request": req.to_dict()}
+
+
+@app.post("/approvals/{request_id}/approve")
+def approve_approval_request(
+    request_id: str,
+    req: ApproveApprovalRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Admin approves a PENDING approval request (PENDING → APPROVED).
+
+    The approved request is available for atomic consumption by the gated action.
+    """
+    try:
+        approved = _approval_gate.approve(
+            request_id, approved_by=req.approved_by, reason=req.reason
+        )
+        return {"success": True, "approval_request": approved.to_dict()}
+    except (ValueError, ApprovalAlreadyResolved) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/approvals/{request_id}/reject")
+def reject_approval_request(
+    request_id: str,
+    req: RejectApprovalRequest,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Admin rejects a PENDING approval request (PENDING → REJECTED).
+
+    The gated action will be blocked when it next calls require_approval().
+    """
+    try:
+        rejected = _approval_gate.reject(
+            request_id, rejected_by=req.rejected_by, reason=req.reason
+        )
+        return {"success": True, "approval_request": rejected.to_dict()}
+    except (ValueError, ApprovalAlreadyResolved) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ── Retraining Recommendation Engine (S20) ────────────────────────────────────
