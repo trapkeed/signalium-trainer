@@ -1,7 +1,11 @@
 ---
-name: torch broken in this env; trainer.registry must stay lazy about ModelRegistry
-description: torch's shared lib is missing here, so any module that eagerly imports trainer.registry.registry.ModelRegistry (or trainer.models.base) at import time is unusable; trainer/registry/__init__.py exposes ModelRegistry lazily via module __getattr__ to prevent this.
+name: torch broken in this env (STALE — see update); trainer.registry must stay lazy about ModelRegistry
+description: An earlier session found torch's shared lib missing; a later session installed Python 3.12 fresh and found real torch (2.13) works fine. The lazy-import pattern in trainer/registry is still good practice regardless — it protects isolated test harnesses from accidental torch imports.
 ---
+
+UPDATE: a later session re-verified this and found `torch` 2.13 works correctly after installing Python 3.12 and rebuilding the `.pythonlibs` venv — the "torch is broken" claim below was specific to a stale/broken venv, not a fundamental environment limitation. `conftest.py` was subsequently fixed to only stub torch when a runtime check (`torch.tensor([0])`) actually fails, rather than unconditionally. Don't assume torch is broken here without checking first.
+
+Original note (may still apply to a differently-broken venv):
 
 `torch` cannot actually load in this environment
 (`libtorch_global_deps.so` is missing from the installed package), so

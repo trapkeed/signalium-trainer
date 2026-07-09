@@ -45,11 +45,16 @@ def _load(short_name: str):
     return sys.modules["trainer.cert." + short_name]
 
 
-# Pre-register package stub so sub-imports resolve correctly
+# Pre-register package stub so sub-imports resolve correctly.
+#
+# IMPORTANT: `trainer` is a real, importable package — never replace it with
+# a bare fake ModuleType here. A fake stub has no __path__, so once installed
+# in sys.modules it silently poisons every subsequent test in the same pytest
+# session that needs a genuine `trainer.<subpkg>` import (e.g. `trainer.research`),
+# producing confusing "cannot import name ... (unknown location)" errors far
+# from this file.
 if "trainer" not in sys.modules:
-    import types
-
-    sys.modules["trainer"] = types.ModuleType("trainer")
+    import trainer  # noqa: F401  (real package; populates sys.modules["trainer"])
 if "trainer.cert" not in sys.modules:
     import types
 

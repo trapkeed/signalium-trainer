@@ -71,11 +71,27 @@ sys.modules.setdefault("loguru", _loguru)
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# ── Bypass trainer.research's torch-dependent __init__.py ──────────────────
 
-_research_pkg = types.ModuleType("trainer.research")
-_research_pkg.__path__ = [str(ROOT / "trainer" / "research")]
-sys.modules.setdefault("trainer.research", _research_pkg)
+def _torch_is_broken() -> bool:
+    """Detect whether torch's native extension is actually unusable here.
+
+    Only bypass trainer.research's real package __init__ when torch is
+    genuinely broken. If a real, working torch is installed, importing
+    trainer.research normally works fine — and installing a bare stub
+    ModuleType in sys.modules["trainer.research"] here would otherwise
+    poison every later test in the same pytest session that needs the
+    real package (e.g. `from trainer.research import BenchmarkConditions`),
+    since a stub has no proper module contents.
+    """
+    if "torch" in sys.modules and not isinstance(sys.modules["torch"], types.ModuleType):
+        return True
+    try:
+        import torch as _t
+
+        _t.tensor([0])
+        return False
+    except Exception:
+        return True
 
 
 def _load_standalone(mod_key: str, path: Path):
@@ -86,10 +102,18 @@ def _load_standalone(mod_key: str, path: Path):
     return mod
 
 
-_retraining_advisor = _load_standalone(
-    "trainer.research.retraining_advisor",
-    ROOT / "trainer" / "research" / "retraining_advisor.py",
-)
+if _torch_is_broken():
+    # ── Bypass trainer.research's torch-dependent __init__.py ──────────────
+    _research_pkg = types.ModuleType("trainer.research")
+    _research_pkg.__path__ = [str(ROOT / "trainer" / "research")]
+    sys.modules.setdefault("trainer.research", _research_pkg)
+
+    _retraining_advisor = _load_standalone(
+        "trainer.research.retraining_advisor",
+        ROOT / "trainer" / "research" / "retraining_advisor.py",
+    )
+else:
+    from trainer.research import retraining_advisor as _retraining_advisor
 
 # trainer.memory / trainer.lifecycle / trainer.portfolio / trainer.research_lab
 # all import cleanly without torch in this environment, so normal imports

@@ -1,10 +1,10 @@
 ---
-name: Python 3.11/3.12 interpreter mismatch blocks package installs
-description: This environment's pyproject requires Python >=3.12 but the actual runtime is 3.11; both uv add and pip install --break-system-packages fail for new dependencies (e.g. PyJWT).
+name: Python 3.11/3.12 interpreter mismatch — resolved by installing 3.12
+description: pyproject.toml requires Python>=3.12; a stale note claimed installs were blocked, but installing python-3.12 via the language installer fully resolves it (real torch works too).
 ---
 
-`uv add <pkg>` and `pip install --break-system-packages <pkg>` both fail here because pyproject.toml declares `requires-python >= 3.12` while the actual interpreter running tests/the app is 3.11.14.
+A prior version of this note claimed `uv add`/`pip install` were permanently blocked by a 3.11-vs->=3.12 mismatch and recommended stdlib-only workarounds. That was environment-specific at the time, not a hard constraint: installing Python 3.12 via the language installer (and rebuilding `.pythonlibs`) resolves the mismatch cleanly — `uv run pytest` and the full dependency set (including a genuinely working `torch` 2.13 build) install and run fine afterward.
 
-**Why:** discovered while trying to add PyJWT for JWT verification — the installer refused to resolve/install against the mismatched interpreter constraint.
+**Why:** re-verified while fixing the test suite — the "torch is broken" and "3.12 can't be installed" notes were both stale; the real fix was just installing the correct interpreter version.
 
-**How to apply:** before reaching for a new Python dependency, check `python3 --version` vs `pyproject.toml`'s `requires-python`. If they conflict and you can't change the constraint, prefer implementing the needed functionality with stdlib (`hmac`, `hashlib`, `base64`, `json`) plus whatever's already installed (e.g. `cryptography` was available for RS256) rather than fighting the install. Don't re-attempt the same install a second way expecting a different result.
+**How to apply:** if pyproject declares a Python version newer than the active runtime, install that version first via the language installer rather than assuming it's blocked or reaching for stdlib workarounds.

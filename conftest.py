@@ -1,8 +1,13 @@
 """Root-level conftest.py — stubs missing optional heavy dependencies.
 
-torch's compiled extension (.so) is not available in this environment.
-Stubbing it here (before any other conftest is loaded) prevents ImportErrors
-in test modules that transitively import trainer code which imports torch.
+In some environments torch's compiled extension (.so) is unavailable, which
+breaks any import chain that transitively imports torch. When that happens,
+this stubs a minimal fake `torch` (and submodules) into sys.modules before
+any other conftest/test module runs, so those imports don't hard-fail.
+
+If a real, fully-functional torch is installed, we leave it alone — stubbing
+on top of a working torch install silently breaks anything (e.g. torchmetrics)
+that relies on real attributes (like `torch.dtype`) the stub doesn't define.
 """
 
 from __future__ import annotations
@@ -19,8 +24,29 @@ def _stub_module(name: str) -> types.ModuleType:
     return mod
 
 
-# Stub torch and its subpackages only if not already installed.
-if "torch" not in sys.modules:
+def _real_torch_is_usable() -> bool:
+    """Check whether a genuine, fully-functional torch install is present."""
+    if "torch" in sys.modules:
+        # Something already imported torch (real or otherwise) — trust it.
+        return True
+    try:
+        import torch as _t  # noqa: PLC0415
+
+        # Exercise the compiled extension; this is what actually fails when
+        # torch's .so is missing/broken (ImportError/AttributeError).
+        _t.tensor([0])
+        return True
+    except Exception:
+        # Remove any partially-imported torch modules so the stub below
+        # can install cleanly.
+        for mod_name in list(sys.modules):
+            if mod_name == "torch" or mod_name.startswith("torch."):
+                del sys.modules[mod_name]
+        return False
+
+
+# Stub torch and its subpackages only if a real torch isn't usable here.
+if not _real_torch_is_usable():
     _torch = _stub_module("torch")
 
     # Minimal tensor / dtype stubs
