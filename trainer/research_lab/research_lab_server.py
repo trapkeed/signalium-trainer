@@ -132,6 +132,8 @@ from trainer.research_lab.retraining_recommendation_engine import (
     RetrainingRecommendationEngine,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.market_data.symbol_store import SymbolStore
+from trainer.market_data.symbol_normalizer import SymbolNormalizer, UnknownSymbolError
 from trainer.research_lab.audit_log import AuditLogger
 from trainer.research_lab.session_manager import SessionManager
 from trainer.research_lab.sso import (
@@ -198,6 +200,12 @@ _model_distribution_monitor = ModelDistributionMonitor(_db, _warehouse)
 _accuracy_monitor = AccuracyMonitor(_db, _warehouse)
 _autonomous_trading_monitor = AutonomousTradingMonitor(_db, _warehouse)
 _research_monitor = ResearchMonitor(_db, approval_gate=_approval_gate, rec_engine=_rec_engine)
+
+# S33 — Broker-aware market data / symbol normalization admin surface.
+# Independent of the Research Lab DB (own SQLite store) — market data
+# normalization is shared infrastructure, not Research-Lab-owned.
+_symbol_store = SymbolStore(os.environ.get("SYMBOL_STORE_DB_PATH"))
+_symbol_normalizer = SymbolNormalizer(store=_symbol_store)
 
 
 def _parse_scheduler_poll_interval(raw: str | None, default: float = 3600.0) -> float:

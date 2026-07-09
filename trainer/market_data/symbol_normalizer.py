@@ -103,11 +103,26 @@ class UnknownSymbolError(Exception):
 
 
 class SymbolNormalizer:
-    def __init__(self, symbols: dict[str, str] | None = None) -> None:
+    def __init__(self, symbols: dict[str, str] | None = None, *, store: Any | None = None) -> None:
+        """``store``, if given, is a ``SymbolStore`` (see ``symbol_store.py``)
+        used to persist admin aliases/enable-state and normalization events
+        across process restarts. Optional so the normalizer stays usable as a
+        pure in-memory object (tests, offline tooling) without a database."""
         self._symbols: dict[str, str] = dict(symbols if symbols is not None else DEFAULT_SYMBOLS)
         self._enabled: dict[str, bool] = {s: True for s in self._symbols}
         self._admin_aliases: dict[str, str] = {}
         self._learned_aliases: dict[str, tuple[str, float]] = {}  # raw -> (canonical, learned_at)
+        self._store = store
+        if self._store is not None:
+            self._load_from_store()
+
+    def _load_from_store(self) -> None:
+        for alias in self._store.list_aliases():
+            if alias.canonical in self._symbols:
+                self._admin_aliases[alias.raw.upper()] = alias.canonical
+        for canonical, enabled in self._store.get_state().items():
+            if canonical in self._symbols:
+                self._enabled[canonical] = enabled
 
     # ── Admin symbol management ─────────────────────────────────────────────
 
@@ -117,10 +132,18 @@ class SymbolNormalizer:
         self._enabled[canonical] = enabled
 
     def enable_symbol(self, canonical: str) -> None:
-        self._enabled[canonical.upper()] = True
+        canonical = canonical.upper()
+        self._enabled[canonical] = True
+        if self._store is not None:
+            self._store.set_enabled(canonical, True)
+        logger.info(f"SymbolNormalizer: enabled {canonical!r}")
 
     def disable_symbol(self, canonical: str) -> None:
-        self._enabled[canonical.upper()] = False
+        canonical = canonical.upper()
+        self._enabled[canonical] = False
+        if self._store is not None:
+            self._store.set_enabled(canonical, False)
+        logger.info(f"SymbolNormalizer: disabled {canonical!r}")
 
     def is_enabled(self, canonical: str) -> bool:
         return self._enabled.get(canonical.upper(), False)
@@ -138,9 +161,31 @@ class SymbolNormalizer:
         if canonical not in self._symbols:
             raise UnknownSymbolError(f"Cannot alias to unregistered canonical symbol {canonical!r}")
         self._admin_aliases[raw.upper()] = canonical
+        if self._store is not None:
+            self._store.save_alias(raw.upper(), canonical, source="admin")
+        logger.info(f"SymbolNormalizer: added alias {raw!r} -> {canonical!r}")
+
+    # ``add_symbol_alias`` is the S33 admin-API name for the same operation
+    # as ``add_alias`` — kept as an alias method (not a duplicate
+    # implementation) so both the original API and the new admin endpoint
+    # naming resolve to one code path.
+    add_symbol_alias = add_alias
 
     def remove_alias(self, raw: str) -> None:
         self._admin_aliases.pop(raw.upper(), None)
+        if self._store is not None:
+            self._store.remove_alias(raw.upper())
+        logger.info(f"SymbolNormalizer: removed alias {raw!r}")
+
+    def list_symbol_aliases(self, canonical: str | None = None) -> list[dict[str, Any]]:
+        """All admin-registered aliases (optionally filtered to one canonical
+        symbol), for the admin API / diagnostics surface."""
+        canonical_u = canonical.upper() if canonical is not None else None
+        return [
+            {"raw": raw, "canonical": can, "source": "admin"}
+            for raw, can in sorted(self._admin_aliases.items())
+            if canonical_u is None or can == canonical_u
+        ]
 
     # ── Runtime learning ─────────────────────────────────────────────────────
 
@@ -163,6 +208,24 @@ class SymbolNormalizer:
         return s
 
     def normalize(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> NormalizationResult:
+        result = self._resolve(raw, broker=broker, fuzzy=fuzzy)
+        # Every normalization event is logged — both to the process logger
+        # (S33 requirement: "logging of normalization events") and, if a
+        # store is attached, persisted for the admin diagnostics surface.
+        if result.canonical is None:
+            logger.warning(
+                f"SymbolNormalizer: could not resolve raw symbol {raw!r} (broker={broker!r})"
+            )
+        else:
+            logger.debug(
+                f"SymbolNormalizer: resolved {raw!r} -> {result.canonical!r} "
+                f"via {result.matched_via!r} (broker={broker!r}, enabled={result.enabled})"
+            )
+        if self._store is not None:
+            self._store.log_event(raw, result.canonical, result.matched_via, result.enabled, broker=broker)
+        return result
+
+    def _resolve(self, raw: str, *, broker: str | None = None, fuzzy: bool = False) -> NormalizationResult:
         if not raw:
             return NormalizationResult(raw, None, "unresolved", enabled=False)
         upper = raw.upper()
