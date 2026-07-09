@@ -1,0 +1,504 @@
+# SIGNALIUM S20 — RESEARCH LAB INTEGRATION, CONTINUOUS MODEL EVOLUTION AND CONTROLLED RETRAINING
+
+Primary Repository:
+signalium-trainer
+
+Secondary Repository:
+signalium
+
+Objective:
+
+Transform the Research Lab into the institutional research department responsible for continuously improving the single QDE model throughout its lifecycle.
+
+The Research Lab does not trade.
+
+The Research Lab studies the trader.
+
+The QDE remains the sole decision maker.
+
+---
+
+1. TELEMETRY INGESTION API
+
+---
+
+Create ingestion endpoints for data arriving from Signalium.
+
+Examples:
+
+POST /telemetry/decisions
+
+POST /telemetry/trades
+
+POST /telemetry/positions
+
+POST /telemetry/failures
+
+POST /telemetry/reasoning
+
+POST /telemetry/execution
+
+POST /telemetry/counterfactuals
+
+POST /telemetry/lifecycle
+
+The trainer becomes the long-term institutional memory.
+
+---
+
+2. TELEMETRY WAREHOUSE
+
+---
+
+Persist incoming telemetry.
+
+Storage classes:
+
+decision history
+
+position history
+
+execution history
+
+reasoning history
+
+portfolio history
+
+market context history
+
+Store:
+
+model_version
+symbol
+market conditions
+trade result
+confidence evolution
+position actions
+
+Nothing is discarded.
+
+---
+
+3. FAILURE INVESTIGATION ENGINE
+
+---
+
+Automatically identify:
+
+high confidence losses
+
+unexpected reversals
+
+late exits
+
+premature exits
+
+failed scale-ins
+
+portfolio concentration failures
+
+Examples:
+
+"Gold trades entered above 0.90 confidence during NY lunch underperform."
+
+Create structured failure reports.
+
+---
+
+4. AUTOMATIC EXPERIMENT CREATION
+
+---
+
+Research Lab automatically creates experiments.
+
+Examples:
+
+Experiment:
+Reduce Gold confidence weighting during low liquidity periods.
+
+Experiment:
+Reduce size allocation during elevated spread environments.
+
+Experiment:
+Increase hold duration during trend acceleration.
+
+The lab continuously proposes hypotheses.
+
+---
+
+5. FEATURE DISCOVERY PIPELINE
+
+---
+
+Research Lab identifies candidate features.
+
+Examples:
+
+confidence slope
+
+session volatility ratio
+
+spread acceleration
+
+market compression index
+
+cross asset divergence score
+
+The QDE continuously gains new inputs.
+
+---
+
+6. LABEL DISCOVERY ENGINE
+
+---
+
+Automatically generate labels for:
+
+optimal stop distance
+
+optimal hold duration
+
+optimal position size
+
+optimal scale-in timing
+
+optimal partial close timing
+
+Labels are generated from hindsight analysis.
+
+---
+
+7. RETRAINING RECOMMENDATION ENGINE
+
+---
+
+Evaluate:
+
+Sharpe degradation
+
+confidence drift
+
+reasoning drift
+
+regime underperformance
+
+portfolio inefficiency
+
+Generate:
+
+RetrainingRecommendation objects.
+
+---
+
+8. HUMAN APPROVAL GATES
+
+---
+
+The system never retrains automatically.
+
+Admin approval required for:
+
+experiment launch
+
+training start
+
+promotion
+
+deployment
+
+rollback
+
+The Research Lab proposes.
+
+Admins approve.
+
+---
+
+9. TRAINING PIPELINE INTEGRATION
+
+---
+
+Research Lab can trigger:
+
+dataset generation
+
+feature generation
+
+training jobs
+
+validation jobs
+
+backtests
+
+certification runs
+
+shadow tests
+
+Everything becomes one workflow.
+
+---
+
+10. SHADOW TEST AUTOMATION
+
+---
+
+When candidate models exist:
+
+route market snapshots to:
+
+Champion model
+
+Candidate model
+
+Compare:
+
+direction accuracy
+
+risk quality
+
+sizing quality
+
+confidence quality
+
+hold quality
+
+No live trading impact.
+
+---
+
+11. CHAMPION VS CHALLENGER
+
+---
+
+Track:
+
+Sharpe
+
+Sortino
+
+Profit factor
+
+Drawdown
+
+Calibration
+
+Confidence reliability
+
+Promotion requires superiority across multiple dimensions.
+
+---
+
+12. MODEL HEALTH MONITORING
+
+---
+
+Monitor:
+
+feature drift
+
+confidence drift
+
+market drift
+
+data quality drift
+
+regime drift
+
+Detect degradation early.
+
+---
+
+13. DATASET VERSIONING
+
+---
+
+Every training run records:
+
+dataset version
+
+feature version
+
+code commit
+
+experiment id
+
+configuration hash
+
+artifact hash
+
+Full reproducibility required.
+
+---
+
+14. ARTIFACT MANAGEMENT
+
+---
+
+Automatically register:
+
+weights
+
+configs
+
+calibration artifacts
+
+export artifacts
+
+ONNX exports
+
+TorchScript exports
+
+Deployment manifests
+
+---
+
+15. DEPLOYMENT APPROVAL
+
+---
+
+Research Lab can approve:
+
+SHADOW
+
+CANDIDATE
+
+ACTIVE
+
+RETIRED
+
+Only one ACTIVE model may exist.
+
+---
+
+16. SIGNALIUM DEPLOYMENT API
+
+---
+
+After approval:
+
+signalium-trainer notifies signalium.
+
+Signalium downloads:
+
+weights
+
+manifest
+
+metadata
+
+version information
+
+Hot swap deployment.
+
+No downtime.
+
+---
+
+17. ROLLBACK CAPABILITY
+
+---
+
+If production degrades:
+
+restore previous ACTIVE version.
+
+Rollback must occur in seconds.
+
+---
+
+18. RESEARCH DASHBOARDS
+
+---
+
+Admin-only dashboards:
+
+best symbols
+
+worst symbols
+
+confidence calibration
+
+reasoning quality
+
+drift monitoring
+
+promotion history
+
+dataset lineage
+
+feature importance
+
+No user access.
+
+---
+
+19. RESEARCH LAB SECURITY
+
+---
+
+Only administrators may access:
+
+experiments
+
+datasets
+
+features
+
+training
+
+deployment
+
+promotion
+
+rollback
+
+No exceptions.
+
+---
+
+20. ARCHITECTURAL RULES
+
+---
+
+Signalium:
+
+collects and executes.
+
+Signalium Trainer:
+
+learns and improves.
+
+The Research Lab studies the trader.
+
+The QDE remains:
+
+the trader
+
+the strategist
+
+the risk manager
+
+the execution manager
+
+the portfolio manager
+
+the sole decision maker.
+
+No runtime rule engine may override the model.
+
+No secondary model may vote.
+
+No ensemble may return.
+
+One Model.
+
+One Brain.
+
+One Decision Maker.
+
+Implement production-grade code only.
+Avoid placeholders.
+Avoid mock implementations.
+Maintain auditability.
+Maintain reproducibility.
+Maintain institutional standards.
