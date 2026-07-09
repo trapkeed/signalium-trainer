@@ -37,3 +37,4 @@
 - [Regime label casing inconsistency](regime-label-casing.md) — live regime telemetry mixes casing; any regime-vocabulary/histogram comparison must normalize case or risks false drift/unseen alerts
 - [Duplicated math must stay parity-tested](duplicated-drift-math-parity.md) — when a module reimplements a metric (e.g. TV-distance) instead of importing across a dependency boundary, add a direct parity test against the original
 - [Execution-eligibility as a structural flag](execution-eligibility-structural-flag.md) — "only X can execute" needs a decision-object flag AND an independent identity re-check at the execution boundary; either alone is defeatable
+- [Sharpe ratio live/offline parity pitfalls](sharpe-parity-live-offline.md) — denominator (max of raw max, not abs-max), population vs sample std, and no n<2 short-circuit must all match exactly

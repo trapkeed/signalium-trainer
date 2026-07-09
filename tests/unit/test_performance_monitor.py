@@ -33,11 +33,33 @@ from trainer.research_lab.performance_monitor import (
     _max_drawdown,
     _profit_factor,
     _risk_adjusted_return,
+    _sharpe_ratio,
     check_performance_drift,
     performance_stats,
 )
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
+
+# `trainer.validation.trading` has no internal trainer dependencies (only
+# numpy), but importing it normally (`from trainer.validation.trading import
+# ...`) executes `trainer/validation/__init__.py`, which pulls in a
+# torch-dependent chain that's broken in this environment (see memory:
+# torch-broken-lazy-registry-import). Load the module file directly,
+# bypassing the package `__init__.py`, the same isolation pattern used for
+# `trainer.mie` (see memory: mie-test-isolation).
+import importlib.util as _importlib_util
+import sys as _sys
+from pathlib import Path as _Path
+
+_trading_path = _Path(__file__).resolve().parents[2] / "trainer" / "validation" / "trading.py"
+_trading_spec = _importlib_util.spec_from_file_location(
+    "trainer.validation.trading", _trading_path
+)
+_trading_mod = _importlib_util.module_from_spec(_trading_spec)
+_sys.modules["trainer.validation.trading"] = _trading_mod
+_trading_spec.loader.exec_module(_trading_mod)
+TradeResult = _trading_mod.TradeResult
+TradingMetricsEngine = _trading_mod.TradingMetricsEngine
 
 _NOW = time.time()
 
@@ -174,6 +196,89 @@ class TestRiskAdjustedReturn:
         # equity 10 -> 20 -> 10 -> 15; peak 20, trough 10 => dd=0.5; total_return=15
         rar = _risk_adjusted_return([10.0, 10.0, -10.0, 5.0])
         assert rar == pytest.approx(15.0 / 0.5)
+
+
+class TestSharpeRatio:
+    def test_matches_trading_metrics_engine_on_shared_data(self) -> None:
+        """`_sharpe_ratio` must be formula-identical to
+        `TradingMetricsEngine`'s Sharpe step — live and offline numbers
+        must agree on the same trade data."""
+        pnls = [15.0, -8.0, 15.0, 15.0, -8.0, 15.0, 15.0, -8.0, 15.0, 15.0]
+        live_sharpe = _sharpe_ratio(pnls, annualisation_factor=252.0, risk_free_rate=0.0)
+
+        trades = [
+            TradeResult(direction=1, pnl_pips=p, entry_price=1.0, stop_loss=0.9, take_profit=1.1)
+            for p in pnls
+        ]
+        engine = TradingMetricsEngine(annualisation_factor=252.0, risk_free_rate=0.0)
+        offline_metrics = engine.compute(trades)
+
+        assert live_sharpe == pytest.approx(offline_metrics.sharpe_ratio, rel=1e-6)
+
+    def test_matches_trading_metrics_engine_when_losses_dominate(self) -> None:
+        """Regression: `TradingMetricsEngine` normalizes by
+        `max(abs(pnls.max()), 1.0)` — the absolute value of the single
+        largest (most positive) pnl, NOT the largest-*magnitude* pnl. A
+        loss-dominated series (biggest loss bigger than any gain), combined
+        with a non-zero risk-free rate and non-default annualisation (so
+        the result is denominator-sensitive rather than scale-invariant),
+        is the case where `max(abs(p) for p in pnls)` would silently
+        diverge from the correct `max(abs(max(pnls)), 1.0)`."""
+        pnls = [3.0, -50.0, 3.0, -2.0, 3.0, -1.0, 3.0, -3.0]
+        live_sharpe = _sharpe_ratio(pnls, annualisation_factor=52.0, risk_free_rate=0.03)
+
+        trades = [
+            TradeResult(direction=1, pnl_pips=p, entry_price=1.0, stop_loss=0.9, take_profit=1.1)
+            for p in pnls
+        ]
+        engine = TradingMetricsEngine(annualisation_factor=52.0, risk_free_rate=0.03)
+        offline_metrics = engine.compute(trades)
+
+        assert live_sharpe == pytest.approx(offline_metrics.sharpe_ratio, rel=1e-6)
+        # Sanity: this case must actually be denominator-sensitive — the old
+        # (buggy) `max(abs(p) for p in pnls)` denominator would be 50.0,
+        # not `max(abs(max(pnls)), 1.0) == 3.0`, and produce a different
+        # number given the non-zero risk-free rate.
+        buggy_denom = max(abs(p) for p in pnls)
+        correct_denom = max(abs(max(pnls)), 1.0)
+        assert buggy_denom != correct_denom
+
+    def test_matches_trading_metrics_engine_all_losses(self) -> None:
+        """All-negative series: `pnls.max()` is itself negative, so the
+        denominator is `max(abs(negative_max), 1.0)` — still must match
+        the engine exactly, with a non-zero risk-free rate so the
+        comparison is denominator-sensitive."""
+        pnls = [-5.0, -20.0, -3.0, -8.0]
+        live_sharpe = _sharpe_ratio(pnls, annualisation_factor=52.0, risk_free_rate=0.03)
+
+        trades = [
+            TradeResult(direction=1, pnl_pips=p, entry_price=1.0, stop_loss=0.9, take_profit=1.1)
+            for p in pnls
+        ]
+        engine = TradingMetricsEngine(annualisation_factor=52.0, risk_free_rate=0.03)
+        offline_metrics = engine.compute(trades)
+
+        assert live_sharpe == pytest.approx(offline_metrics.sharpe_ratio, rel=1e-6)
+
+    def test_matches_trading_metrics_engine_single_trade(self) -> None:
+        """A single trade is not special-cased: population std of one
+        point is exactly 0.0, so both live and offline formulas fall
+        through to the same epsilon-stabilized large value — they must
+        still agree exactly rather than live returning an arbitrary 0.0."""
+        pnls = [10.0]
+        live_sharpe = _sharpe_ratio(pnls, annualisation_factor=252.0, risk_free_rate=0.0)
+
+        trades = [
+            TradeResult(direction=1, pnl_pips=p, entry_price=1.0, stop_loss=0.9, take_profit=1.1)
+            for p in pnls
+        ]
+        engine = TradingMetricsEngine(annualisation_factor=252.0, risk_free_rate=0.0)
+        offline_metrics = engine.compute(trades)
+
+        assert live_sharpe == pytest.approx(offline_metrics.sharpe_ratio, rel=1e-6)
+
+    def test_empty_is_zero(self) -> None:
+        assert _sharpe_ratio([]) == 0.0
 
 
 class TestPerformanceStats:
