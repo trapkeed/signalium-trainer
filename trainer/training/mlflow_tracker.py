@@ -64,8 +64,8 @@ class MLflowTracker:
         for key, value in flat_params.items():
             try:
                 mlflow.log_param(key, str(value)[:250])
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — one bad param must not abort the training run
+                logger.debug("MLflowTracker: log_param({}) failed: {!r}", key, exc)
 
         # Log GPU info
         gpu_info = get_gpu_info()

@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
+
 # ---------------------------------------------------------------------------
 # Model roles
 # ---------------------------------------------------------------------------
@@ -273,15 +275,15 @@ class IRSEBenchmarker:
             try:
                 c = self.compare(subject_id, against=ref_id)
                 comparisons.append(c.to_dict())
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — one bad comparison must not abort the whole report
+                logger.debug(f"IRSEBenchmarker: comparison {subject_id} vs {ref_id} failed: {exc!r}")
 
         champion_comparison: dict[str, Any] | None = None
         if self._champion_id and self._champion_id != subject_id:
             try:
                 champion_comparison = self.compare(subject_id, against=self._champion_id).to_dict()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — champion comparison is supplementary to the report
+                logger.debug(f"IRSEBenchmarker: champion comparison for {subject_id} failed: {exc!r}")
 
         return {
             "subject": subject.to_dict(),

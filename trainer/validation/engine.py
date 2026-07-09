@@ -604,5 +604,5 @@ class InstitutionalValidationEngine:
         if self._lb._path:
             try:
                 self._lb.save()
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001 — close() must not raise, but the failure must be visible
+                logger.warning(f"ValidationEngine.close: leaderboard save failed: {exc!r}")
