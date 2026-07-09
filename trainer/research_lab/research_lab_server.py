@@ -109,6 +109,16 @@ from trainer.research_lab.qde_observability import (
     QDEHealthDashboard,
     ResearchMonitor,
 )
+from trainer.research_lab.qde_resilience import (
+    ArtifactIntegrityVerifier,
+    DeploymentSafetyMonitor,
+    DisasterRecoveryManager,
+    InferenceQueueMonitor,
+    ResearchLabBackupManager,
+    ResilienceDashboard,
+    TrainingResilienceMonitor,
+    WorkerPoolManager,
+)
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
 from trainer.research_lab.experiment_creator import ExperimentCreator
 from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
@@ -278,6 +288,21 @@ _deployment_manager = DeploymentManager(
 )
 _qde_health_dashboard = QDEHealthDashboard(
     _deployment_manager, _composite_health_scorer, _health_monitor, _rec_engine
+)
+
+# ── S26 — QDE Scalability and Model Resilience ─────────────────────────────
+_worker_pool = WorkerPoolManager(_db)
+_queue_monitor = InferenceQueueMonitor(_db, _worker_pool)
+_artifact_integrity = ArtifactIntegrityVerifier(_db, _artifact_registry, deployment_manager=_deployment_manager)
+_backup_manager = ResearchLabBackupManager(_db)
+_training_resilience = TrainingResilienceMonitor(_db, _artifact_registry)
+_disaster_recovery = DisasterRecoveryManager(_db)
+_deployment_safety = DeploymentSafetyMonitor(
+    _deployment_manager, _composite_health_scorer, _artifact_integrity
+)
+_resilience_dashboard = ResilienceDashboard(
+    _worker_pool, _queue_monitor, _backup_manager, _training_resilience,
+    _disaster_recovery, _deployment_safety,
 )
 _bearer = HTTPBearer(auto_error=False)
 
@@ -3018,3 +3043,142 @@ def get_qde_health_dashboard(model_version: str | None = None) -> dict:
     deployment status, composite health/drift/calibration scores, and
     pending research recommendations."""
     return {"success": True, "dashboard": _qde_health_dashboard.compute(model_version=model_version)}
+
+
+# ── S26 — QDE Scalability and Model Resilience ─────────────────────────────
+# View-only routes are gated on Visibility.OBSERVABILITY_DASHBOARD (same six
+# roles as S25, Auditor excluded). Mutating routes (worker restart, backup
+# creation, snapshotting, auto-rollback triggering) are additionally gated
+# on Capability.RESILIENCE_OPERATIONS (SuperAdmin/Admin via UNRESTRICTED,
+# MLResearcher, DeploymentApprover).
+_RESILIENCE_OPS_DEP = Depends(require_capability(Capability.RESILIENCE_OPERATIONS))
+
+
+@app.get("/resilience/dashboard", dependencies=[_OBSERVABILITY_DEP])
+def get_resilience_dashboard(model_version: str | None = None) -> dict:
+    """Aggregated S26 view: worker pool health, queue saturation, latest
+    backup/disaster-recovery snapshot status, stale training jobs, and
+    current deployment health."""
+    return {"success": True, "dashboard": _resilience_dashboard.compute(model_version=model_version)}
+
+
+@app.get("/resilience/workers", dependencies=[_OBSERVABILITY_DEP])
+def list_resilience_workers(status: str | None = None) -> dict:
+    return {"success": True, "workers": _worker_pool.list_workers(status=status)}
+
+
+@app.post("/resilience/workers/register", dependencies=[_RESILIENCE_OPS_DEP])
+def register_resilience_worker(kind: str = "GPU", role: str = "ACTIVE", capacity: float = 1.0) -> dict:
+    record = _worker_pool.register_worker(kind=kind, role=role, capacity=capacity)
+    return {"success": True, "worker": record.to_dict()}
+
+
+@app.post("/resilience/workers/{worker_id}/heartbeat", dependencies=[_RESILIENCE_OPS_DEP])
+def heartbeat_resilience_worker(worker_id: str, current_load: float | None = None) -> dict:
+    _worker_pool.heartbeat(worker_id, current_load=current_load)
+    return {"success": True}
+
+
+@app.post("/resilience/workers/{worker_id}/restart", dependencies=[_RESILIENCE_OPS_DEP])
+def restart_resilience_worker(worker_id: str) -> dict:
+    return {"success": True, "worker": _worker_pool.restart_worker(worker_id)}
+
+
+@app.post("/resilience/supervision/run", dependencies=[_RESILIENCE_OPS_DEP])
+def run_resilience_supervision_cycle() -> dict:
+    """Runs one High-Availability supervision pass: marks dead workers,
+    restarts stale ones, and fails over dead ACTIVE workers to STANDBY."""
+    return {"success": True, "result": _worker_pool.run_supervision_cycle()}
+
+
+@app.get("/resilience/queue/report", dependencies=[_OBSERVABILITY_DEP])
+def get_resilience_queue_report(model_version: str | None = None, since: float | None = None, until: float | None = None) -> dict:
+    return {"success": True, "report": _queue_monitor.compute_report(model_version=model_version, since=since, until=until)}
+
+
+@app.get("/resilience/artifacts/{artifact_id}/verify", dependencies=[_OBSERVABILITY_DEP])
+def verify_resilience_artifact(artifact_id: str) -> dict:
+    return {"success": True, "result": _artifact_integrity.verify_artifact_checksum(artifact_id)}
+
+
+@app.get("/resilience/deployment/{model_version}/rollback-safety", dependencies=[_OBSERVABILITY_DEP])
+def get_rollback_safety(model_version: str) -> dict:
+    return {"success": True, "result": _artifact_integrity.check_rollback_safety(model_version)}
+
+
+@app.post("/resilience/backups/create", dependencies=[_RESILIENCE_OPS_DEP])
+def create_resilience_backup(reason: str = "manual") -> dict:
+    return {"success": True, "backup": _backup_manager.create_backup(reason=reason)}
+
+
+@app.post("/resilience/backups/{backup_id}/verify", dependencies=[_RESILIENCE_OPS_DEP])
+def verify_resilience_backup(backup_id: str) -> dict:
+    return {"success": True, "result": _backup_manager.verify_backup(backup_id)}
+
+
+@app.get("/resilience/backups", dependencies=[_OBSERVABILITY_DEP])
+def list_resilience_backups(limit: int = 50) -> dict:
+    return {"success": True, "backups": _backup_manager.list_backups(limit=limit)}
+
+
+@app.get("/resilience/recovery-procedures", dependencies=[_OBSERVABILITY_DEP])
+def get_resilience_recovery_procedures() -> dict:
+    return {"success": True, "procedures": ResearchLabBackupManager.recovery_procedures()}
+
+
+@app.post("/resilience/training/cleanup-stale-jobs", dependencies=[_RESILIENCE_OPS_DEP])
+def cleanup_stale_training_jobs(stale_after_s: float = 3600.0) -> dict:
+    return {"success": True, "result": _training_resilience.cleanup_failed_jobs(stale_after_s=stale_after_s)}
+
+
+@app.get("/resilience/training/corrupted-artifacts", dependencies=[_OBSERVABILITY_DEP])
+def get_corrupted_artifacts(model_version: str | None = None) -> dict:
+    return {"success": True, "corrupted": _training_resilience.detect_corrupted_artifacts(model_version=model_version)}
+
+
+@app.post("/resilience/disaster-recovery/snapshot", dependencies=[_RESILIENCE_OPS_DEP])
+def create_disaster_recovery_snapshot(
+    model_version: str = "",
+    dataset_version: str = "",
+    feature_version: str = "",
+    notes: str = "",
+) -> dict:
+    return {
+        "success": True,
+        "snapshot": _disaster_recovery.create_snapshot(
+            model_version=model_version, dataset_version=dataset_version,
+            feature_version=feature_version, notes=notes,
+        ),
+    }
+
+
+@app.get("/resilience/disaster-recovery/snapshots", dependencies=[_OBSERVABILITY_DEP])
+def list_disaster_recovery_snapshots(limit: int = 50) -> dict:
+    return {"success": True, "snapshots": _disaster_recovery.list_snapshots(limit=limit)}
+
+
+@app.get("/resilience/disaster-recovery/snapshots/{snapshot_id}/verify", dependencies=[_OBSERVABILITY_DEP])
+def verify_disaster_recovery_snapshot(snapshot_id: str) -> dict:
+    return {"success": True, "result": _disaster_recovery.verify_snapshot(snapshot_id)}
+
+
+@app.get("/resilience/deployment/health", dependencies=[_OBSERVABILITY_DEP])
+def get_deployment_safety_health(model_version: str | None = None) -> dict:
+    return {"success": True, "result": _deployment_safety.validate_deployment_health(model_version=model_version)}
+
+
+@app.get("/resilience/deployment/active-model/verify", dependencies=[_OBSERVABILITY_DEP])
+def verify_active_model() -> dict:
+    return {"success": True, "result": _deployment_safety.verify_active_model()}
+
+
+@app.post("/resilience/deployment/auto-rollback", dependencies=[_RESILIENCE_OPS_DEP])
+def trigger_auto_rollback(model_version: str) -> dict:
+    """Checks the given model_version's health and, if degraded below
+    threshold, raises a ROLLBACK ApprovalRequest to the latest RETIRED
+    version (still requires human approval to actually apply — see
+    DeploymentManager.apply_rollback)."""
+    result = _deployment_safety.maybe_auto_rollback(model_version)
+    if result is None:
+        return {"success": True, "triggered": False, "reason": "deployment is healthy"}
+    return {"success": True, "triggered": True, "result": result}

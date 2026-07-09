@@ -604,6 +604,29 @@ CREATE TABLE IF NOT EXISTS observability_reports (
 CREATE INDEX IF NOT EXISTS idx_obsr_type    ON observability_reports(report_type);
 CREATE INDEX IF NOT EXISTS idx_obsr_mv      ON observability_reports(model_version);
 CREATE INDEX IF NOT EXISTS idx_obsr_created ON observability_reports(created_at DESC);
+
+-- S26 — QDE Scalability and Model Resilience.
+CREATE TABLE IF NOT EXISTS resilience_workers (
+    worker_id     TEXT PRIMARY KEY,
+    status        TEXT NOT NULL,
+    updated_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_resw_status ON resilience_workers(status);
+
+CREATE TABLE IF NOT EXISTS resilience_backups (
+    backup_id     TEXT PRIMARY KEY,
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_resb_created ON resilience_backups(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS disaster_recovery_snapshots (
+    snapshot_id   TEXT PRIMARY KEY,
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_drs_created ON disaster_recovery_snapshots(created_at DESC);
 """
 
 
@@ -2511,6 +2534,94 @@ class ResearchLabDatabase:
         if limit and limit > 0:
             sql += f" LIMIT {int(limit)}"
         rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── S26 Resilience Workers ─────────────────────────────────────────────────
+
+    def upsert_resilience_worker(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO resilience_workers (worker_id, status, updated_at, data_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(worker_id) DO UPDATE SET
+                status     = excluded.status,
+                updated_at = excluded.updated_at,
+                data_json  = excluded.data_json
+            """,
+            (record["worker_id"], record["status"], record.get("updated_at", 0.0), self._j(record)),
+        )
+        self._conn.commit()
+
+    def get_resilience_worker(self, worker_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM resilience_workers WHERE worker_id = ?", (worker_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_resilience_workers(self, status: str | None = None) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM resilience_workers WHERE 1=1"
+        params: list[Any] = []
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " ORDER BY updated_at DESC"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── S26 Resilience Backups ─────────────────────────────────────────────────
+
+    def upsert_resilience_backup(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO resilience_backups (backup_id, created_at, data_json)
+            VALUES (?, ?, ?)
+            ON CONFLICT(backup_id) DO UPDATE SET
+                created_at = excluded.created_at,
+                data_json  = excluded.data_json
+            """,
+            (record["backup_id"], record.get("created_at", 0.0), self._j(record)),
+        )
+        self._conn.commit()
+
+    def get_resilience_backup(self, backup_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM resilience_backups WHERE backup_id = ?", (backup_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_resilience_backups(self, limit: int = 50) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM resilience_backups ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── S26 Disaster Recovery Snapshots ───────────────────────────────────────
+
+    def upsert_disaster_recovery_snapshot(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO disaster_recovery_snapshots (snapshot_id, created_at, data_json)
+            VALUES (?, ?, ?)
+            ON CONFLICT(snapshot_id) DO UPDATE SET
+                created_at = excluded.created_at,
+                data_json  = excluded.data_json
+            """,
+            (record["snapshot_id"], record.get("created_at", 0.0), self._j(record)),
+        )
+        self._conn.commit()
+
+    def get_disaster_recovery_snapshot(self, snapshot_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM disaster_recovery_snapshots WHERE snapshot_id = ?", (snapshot_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_disaster_recovery_snapshots(self, limit: int = 50) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM disaster_recovery_snapshots ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
     # ── Model Deployments (S20 Task #13) ──────────────────────────────────────

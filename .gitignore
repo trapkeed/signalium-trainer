@@ -91,6 +91,7 @@ mlartifacts/
 data/datasets/
 data/cache/
 data/raw/
+data/backups/
 *.parquet
 *.csv
 *.arrow

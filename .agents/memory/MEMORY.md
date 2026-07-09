@@ -48,5 +48,7 @@
 - [SSO identity layering pattern](sso-identity-layering-pattern.md) — retrofit JWT/role auth via thin wrapper + capability dependency factory to avoid touching ~90 endpoints; audit middleware must branch on status code and guard call_next, not just check identity presence
 - [Visibility vs Capability dependency split](visibility-vs-capability-gating.md) — read-only dashboards get their own require_visibility() factory + Visibility enum, separate from mutating-action Capability gating, so a role can view without being able to act
 - [Recommendation status is PROPOSED not PENDING](recommendation-status-not-pending.md) — RetrainingRecommendation lifecycle is PROPOSED/APPROVED/DISMISSED; any new aggregator filtering for "pending" recommendations must use PROPOSED or it silently always returns zero
+- [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
+- [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
 
 

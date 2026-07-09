@@ -111,6 +111,12 @@ class Capability(str, Enum):
     # has_capability() check to True (see has_capability()).
     UNRESTRICTED = "unrestricted"
 
+    # S26 — QDE Scalability and Model Resilience. Gates mutating resilience
+    # ops (worker restart, backup creation, disaster-recovery snapshotting,
+    # auto-rollback triggering) — granted to the roles that actually operate
+    # training/deployment infrastructure day-to-day, not to QuantResearcher.
+    RESILIENCE_OPERATIONS = "resilience_operations"
+
 
 # Visibility-only markers for Founder — these are informational (used by
 # read-oriented endpoints/UI to decide what to surface) and, like all read
@@ -147,11 +153,13 @@ ROLE_CAPABILITIES: dict[Role, frozenset[Capability]] = {
         Capability.VALIDATION,
         Capability.ARCHITECTURE_RESEARCH,
         Capability.RETRAINING_WORKFLOWS,
+        Capability.RESILIENCE_OPERATIONS,
     }),
     Role.DEPLOYMENT_APPROVER: frozenset({
         Capability.APPROVE_PROMOTIONS,
         Capability.APPROVE_DEPLOYMENTS,
         Capability.APPROVE_ROLLBACKS,
+        Capability.RESILIENCE_OPERATIONS,
     }),
     Role.AUDITOR: frozenset(),  # read-only, no mutation permissions
 }
