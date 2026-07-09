@@ -51,6 +51,8 @@
 - [Recommendation status is PROPOSED not PENDING](recommendation-status-not-pending.md) — RetrainingRecommendation lifecycle is PROPOSED/APPROVED/DISMISSED; any new aggregator filtering for "pending" recommendations must use PROPOSED or it silently always returns zero
 - [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
 - [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
+- [S30 readiness aggregators are pure rollups](s30-readiness-aggregators.md) — production-verification/startup-check/autonomous-readiness never re-derive checks; missing deps degrade to SKIPPED, not crash
+- [Kill switch vs pause vs freeze](operational-safety-switch-semantics.md) — kill switch severs inference for all models; pause targets one model version; freeze blocks stage transitions/rollback regardless of approval
 - [Shadow duration gate default](s27-shadow-duration-gate-default.md) — new mandatory-duration/lifecycle gates must default to off (0), not a real value, or they silently break existing PROMOTE-path tests
 - [S28 decision traceability design](s28-decision-traceability-design.md) — lineage resolver marks per-hop resolved:bool against real records; replay uses injected inference_fn to stay torch-independent; new admin features need explicit per-role Visibility grants
 - [S29 trainer security additions](s29-security-additions.md) — artifact encryption/secure-load, inference request signing+replay+rate-limit+abuse-detection, dataset write-once protection; ArtifactRecord.new() uses `extra` not `metadata`
