@@ -325,6 +325,19 @@ class ExecutionPlanner:
                 f"trainer.qde.qde_shadow.ShadowDispatcher."
             )
         if self._qde_registry is not None:
+            # Champion-identity re-check when this planner resolves its
+            # model via the live registry (rather than a directly-injected
+            # `decision_model`, e.g. tests). Deliberately does NOT fail
+            # closed on "no active version" or "empty model_version_id" —
+            # both are the legitimate, documented scaffolding state before
+            # any trained artifact has been registered for a version (see
+            # `HeuristicQDEDecisionModel`, which is explicitly the
+            # placeholder used in that case and reports `version_id=""`).
+            # Only a genuine *mismatch* between a present, non-empty
+            # `model_version_id` and the registry's active version — i.e. a
+            # decision that positively identifies itself as coming from a
+            # different (non-champion) version — is treated as a miswired
+            # pointer and refused.
             active_version = self._qde_registry.get_active()
             if (
                 active_version is not None

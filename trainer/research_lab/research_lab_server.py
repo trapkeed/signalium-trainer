@@ -1033,6 +1033,29 @@ def list_shadow_tests(
     )
 
 
+@app.get("/research/shadow-decisions")
+def list_shadow_decisions_by_version_pair(
+    champion_version: str | None = None,
+    challenger_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    limit: int = 500,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List individual shadow-decision comparisons (not just per-test
+    aggregates), queryable by champion/challenger version pair and a
+    recorded_at time window (S22B: shadow observation hardening)."""
+    return _respond(
+        _api.list_shadow_decisions_by_version_pair(
+            champion_version=champion_version,
+            challenger_version=challenger_version,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+    )
+
+
 # ── Research Notes ────────────────────────────────────────────────────────────
 
 

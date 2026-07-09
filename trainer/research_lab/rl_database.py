@@ -931,6 +931,48 @@ class ResearchLabDatabase:
         ).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    def list_shadow_decisions_by_version_pair(
+        self,
+        champion_version: str | None = None,
+        challenger_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """List individual shadow-decision comparisons across possibly many
+        shadow tests, filtered by champion/challenger version pair and a
+        ``recorded_at`` time window (S22B: per-decision shadow observation
+        queryability — ``shadow_tests`` already supported this for
+        aggregates; individual comparisons did not).
+
+        A `ShadowDecisionRecord` only carries `test_id`, not the
+        champion/challenger version pair directly, so this joins through
+        `shadow_tests` (which does carry both) rather than duplicating the
+        version pair onto every decision row.
+        """
+        query = (
+            "SELECT sd.data_json AS data_json FROM shadow_decisions sd "
+            "JOIN shadow_tests st ON st.test_id = sd.test_id WHERE 1=1"
+        )
+        params: list[Any] = []
+        if champion_version:
+            query += " AND st.champion_version = ?"
+            params.append(champion_version)
+        if challenger_version:
+            query += " AND st.challenger_version = ?"
+            params.append(challenger_version)
+        if since is not None:
+            query += " AND sd.recorded_at >= ?"
+            params.append(since)
+        if until is not None:
+            query += " AND sd.recorded_at <= ?"
+            params.append(until)
+        query += " ORDER BY sd.recorded_at DESC"
+        if limit and limit > 0:
+            query += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(query, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Deployments (Promotion Approvals) ──────────────────────────────────────
 
     def save_deployment(self, record: dict[str, Any]) -> None:

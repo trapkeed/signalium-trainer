@@ -814,6 +814,116 @@ class TestEvaluateAndMaybePromote(unittest.TestCase):
 # ════════════════════════════════════════════════════════════════════════════
 # QDELifecycleAPI — dispatch_shadow_decision / evaluate_shadow_promotion
 # ════════════════════════════════════════════════════════════════════════════
+class TestShadowDecisionQueryByVersionPairAndTimeWindow(unittest.TestCase):
+    """S22B: shadow observation metrics must be queryable per model version
+    pair (champion vs challenger) AND time window — not just at the
+    shadow_tests (aggregate) level, but also for individual
+    ShadowDecisionRecord comparisons."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self.db = ResearchLabDatabase(self._tmp.name)
+        self.api = ResearchLabAPI(db=self.db)
+
+    def tearDown(self) -> None:
+        import os
+
+        try:
+            os.unlink(self._tmp.name)
+        except OSError:
+            pass
+
+    def _make_test(self, test_id: str, champion: str, challenger: str) -> None:
+        self.db.upsert_shadow_test(
+            {
+                "test_id": test_id,
+                "champion_version": champion,
+                "challenger_version": challenger,
+                "status": "RUNNING",
+                "started_at": time.time(),
+            }
+        )
+
+    def test_filters_by_version_pair_across_multiple_tests(self) -> None:
+        self._make_test("t-a", "champ-1", "chall-1")
+        self._make_test("t-b", "champ-1", "chall-2")
+
+        self.api.record_shadow_decision(
+            test_id="t-a",
+            instrument="EURUSD",
+            champion_decision="ENTER",
+            challenger_decision="ENTER",
+            champion_confidence=0.6,
+            challenger_confidence=0.6,
+        )
+        self.api.record_shadow_decision(
+            test_id="t-b",
+            instrument="EURUSD",
+            champion_decision="ENTER",
+            challenger_decision="WAIT",
+            champion_confidence=0.6,
+            challenger_confidence=0.6,
+        )
+
+        resp = self.api.list_shadow_decisions_by_version_pair(
+            champion_version="champ-1", challenger_version="chall-1"
+        )
+        self.assertTrue(resp.success, resp.error)
+        decisions = resp.data["decisions"]
+        self.assertEqual(len(decisions), 1)
+        self.assertEqual(decisions[0]["test_id"], "t-a")
+
+    def test_filters_by_time_window(self) -> None:
+        self._make_test("t-a", "champ-1", "chall-1")
+        old_decision = ShadowDecisionRecord.new(
+            test_id="t-a",
+            instrument="EURUSD",
+            champion_decision_type="ENTER",
+            challenger_decision_type="ENTER",
+            champion_confidence=0.6,
+            challenger_confidence=0.6,
+        )
+        old_dict = old_decision.to_dict()
+        old_dict["recorded_at"] = time.time() - 10_000
+        self.db.save_shadow_decision(old_dict)
+
+        self.api.record_shadow_decision(
+            test_id="t-a",
+            instrument="EURUSD",
+            champion_decision="ENTER",
+            challenger_decision="ENTER",
+            champion_confidence=0.6,
+            challenger_confidence=0.6,
+        )
+
+        cutoff = time.time() - 100
+        resp = self.api.list_shadow_decisions_by_version_pair(
+            champion_version="champ-1", since=cutoff
+        )
+        self.assertTrue(resp.success, resp.error)
+        self.assertEqual(len(resp.data["decisions"]), 1)
+
+        resp_old = self.api.list_shadow_decisions_by_version_pair(
+            champion_version="champ-1", until=cutoff
+        )
+        self.assertEqual(len(resp_old.data["decisions"]), 1)
+        self.assertEqual(resp_old.data["decisions"][0]["record_id"], old_dict["record_id"])
+
+    def test_no_filters_returns_all(self) -> None:
+        self._make_test("t-a", "champ-1", "chall-1")
+        self.api.record_shadow_decision(
+            test_id="t-a",
+            instrument="EURUSD",
+            champion_decision="ENTER",
+            challenger_decision="ENTER",
+            champion_confidence=0.6,
+            challenger_confidence=0.6,
+        )
+        resp = self.api.list_shadow_decisions_by_version_pair()
+        self.assertEqual(resp.data["total"], 1)
+
+
 class TestQDELifecycleAPIShadowEndpoints(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)

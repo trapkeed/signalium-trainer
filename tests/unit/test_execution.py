@@ -1012,6 +1012,113 @@ class TestExecutionPlanner(unittest.TestCase):
         p = self.planner.plan(_fc(), decision_memory=memory)
         self.assertIsNotNone(p.decision)
 
+    # ── S22B: shadow/challenger decisions must never reach execution ────────
+
+    def test_shadow_flagged_decision_is_refused(self):
+        """A decision with is_shadow=True (as set by ShadowDispatcher on the
+        challenger side of a dual-dispatch comparison) must never be
+        executed — this is the structural guarantee the S22B shadow
+        observation hardening task requires, not just a convention."""
+
+        class _ShadowDecisionModel:
+            version_id = "challenger-v1"
+
+            def decide(self, inputs):
+                from trainer.qde.qde_inference import EntryAction, QDEDecision
+
+                return QDEDecision(
+                    instrument=inputs.forecast.instrument,
+                    direction=inputs.forecast.direction,
+                    entry_action=EntryAction.ENTER,
+                    position_size_lots=0.5,
+                    risk_allocation_pct=0.01,
+                    confidence=0.99,
+                    model_version_id=self.version_id,
+                    rationale="shadow decision leaked into execution path",
+                    is_shadow=True,
+                )
+
+        planner = _ep.ExecutionPlanner(decision_model=_ShadowDecisionModel())
+        with self.assertRaises(RuntimeError):
+            planner.plan(_fc())
+
+    def test_non_champion_model_version_is_refused_when_registry_present(self):
+        """Even if a decision isn't flagged is_shadow, a decision produced
+        by a model_version_id that doesn't match the QDERegistry's active
+        (champion) version must be refused — catches a miswired/stale
+        active-model pointer, which is_shadow alone cannot detect.
+
+        The planner only keeps a `qde_registry` reference when no explicit
+        `decision_model` override is supplied (see
+        `ExecutionPlanner.__init__`), so this test drives the mismatch
+        through the registry itself: register+activate a champion version,
+        then register a *different* decision model under that same active
+        version_id that (misconfiguration) reports a stale/foreign
+        `model_version_id` on its decisions.
+        """
+        import tempfile
+
+        from trainer.qde import qde_registry as qde_registry_mod
+        from trainer.qde.qde_models import QDEStage, QDEVersion
+        from trainer.qde.qde_registry import QDERegistry
+
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = QDERegistry(storage_path=f"{tmp}/qde_registry_test.json")
+            version = QDEVersion(
+                version_id="champion-v1",
+                version_number=1,
+                label="champion",
+                stage=QDEStage.REGISTERED,
+                created_at=0.0,
+                updated_at=0.0,
+            )
+            registry.register(version)
+            registry.set_active("champion-v1")
+            active = registry.get_active()
+            self.assertIsNotNone(active)
+            self.assertEqual(active.version_id, "champion-v1")
+
+            class _MiswiredModel:
+                version_id = "champion-v1"
+
+                def decide(self, inputs):
+                    from trainer.qde.qde_inference import EntryAction, QDEDecision
+
+                    return QDEDecision(
+                        instrument=inputs.forecast.instrument,
+                        direction=inputs.forecast.direction,
+                        entry_action=EntryAction.ENTER,
+                        position_size_lots=0.5,
+                        risk_allocation_pct=0.01,
+                        confidence=0.99,
+                        # Reports a foreign/stale version_id despite being
+                        # registered under the active champion's slot.
+                        model_version_id="stale-challenger-v9",
+                        rationale="non-champion decision leaked into execution path",
+                    )
+
+            # `register_decision_model` already writes the process-global
+            # `_DECISION_MODELS` map that `get_active_model()` reads from —
+            # no separate direct-patch is needed (that would be redundant
+            # and risked masking whether the guard fires for the right
+            # reason). The map is process-global and shared across tests,
+            # so snapshot and restore it to avoid cross-test pollution.
+            snapshot = dict(qde_registry_mod._DECISION_MODELS)
+            try:
+                registry.register_decision_model("champion-v1", _MiswiredModel())
+
+                planner = _ep.ExecutionPlanner(qde_registry=registry)
+                with self.assertRaises(RuntimeError) as ctx:
+                    planner.plan(_fc())
+                # Assert on the specific guard, not just "some RuntimeError"
+                # — this is what distinguishes it from the is_shadow guard
+                # exercised by the sibling test above.
+                self.assertIn("miswired or stale active-model pointer", str(ctx.exception))
+                self.assertIn("stale-challenger-v9", str(ctx.exception))
+            finally:
+                qde_registry_mod._DECISION_MODELS.clear()
+                qde_registry_mod._DECISION_MODELS.update(snapshot)
+
 
 # ════════════════════════════════════════════════════════════════════════════════
 # 14. execution_database

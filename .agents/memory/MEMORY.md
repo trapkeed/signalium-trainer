@@ -40,3 +40,4 @@
 - [Execution-eligibility as a structural flag](execution-eligibility-structural-flag.md) — "only X can execute" needs a decision-object flag AND an independent identity re-check at the execution boundary; either alone is defeatable
 - [Sharpe ratio live/offline parity pitfalls](sharpe-parity-live-offline.md) — denominator (max of raw max, not abs-max), population vs sample std, and no n<2 short-circuit must all match exactly
 - [Feature health monitoring blind spots](feature-health-blind-spots.md) — intermittent-presence and whole-stream-stale-vs-wall-clock are missed by naive expected-vs-observed / window-relative staleness checks
+- [Scaffolding placeholder must stay unguarded](scaffolding-placeholder-fail-closed-tradeoff.md) — don't make execution/dispatch guards fail-closed on "no real model registered yet" states that are the documented pre-training baseline, or you break the legitimate default path

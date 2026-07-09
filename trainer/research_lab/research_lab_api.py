@@ -730,6 +730,27 @@ class ResearchLabAPI:
         )
         return _ok("list_shadow_tests", {"shadow_tests": items, "total": len(items)})
 
+    def list_shadow_decisions_by_version_pair(
+        self,
+        champion_version: str | None = None,
+        challenger_version: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
+        limit: int = 500,
+    ) -> ApiResponse:
+        """List individual shadow-decision comparisons (not just test-level
+        aggregates), queryable by champion/challenger version pair and a
+        ``recorded_at`` time window (S22B: shadow observation hardening —
+        per-decision, not just per-test, queryability)."""
+        items = self._db.list_shadow_decisions_by_version_pair(
+            champion_version=champion_version,
+            challenger_version=challenger_version,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        return _ok("list_shadow_decisions_by_version_pair", {"decisions": items, "total": len(items)})
+
     # ── 6. Parameter Search ───────────────────────────────────────────────────
 
     def create_search(

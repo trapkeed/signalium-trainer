@@ -274,6 +274,13 @@ class TestAllEndpointCategoriesRequireAuth:
     def test_shadow_status(self, client):
         _assert_auth_required(client, "get", "/shadow/status")
 
+    # S22B: per-decision shadow observation queryability
+    def test_list_shadow_tests(self, client):
+        _assert_auth_required(client, "get", "/research/shadow-tests")
+
+    def test_list_shadow_decisions_by_version_pair(self, client):
+        _assert_auth_required(client, "get", "/research/shadow-decisions")
+
     # Health monitor
     def test_health_status(self, client):
         _assert_auth_required(client, "get", "/health/status")
