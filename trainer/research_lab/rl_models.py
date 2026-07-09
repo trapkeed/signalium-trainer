@@ -37,7 +37,11 @@ class ExperimentStatus(str, Enum):
 
 class DeploymentStatus(str, Enum):
     NOT_DEPLOYED = "NOT_DEPLOYED"
+    DRAFT = "DRAFT"
+    TRAINING = "TRAINING"
+    VALIDATING = "VALIDATING"
     SHADOW = "SHADOW"
+    CANDIDATE = "CANDIDATE"
     CANARY = "CANARY"
     ACTIVE = "ACTIVE"
     RETIRED = "RETIRED"

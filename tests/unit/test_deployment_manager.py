@@ -31,6 +31,7 @@ from trainer.research_lab.deployment_manager import (
     DeploymentManager,
     DeploymentRecord,
     _gate_type_for,
+    _is_valid_pre_shadow_transition,
 )
 from trainer.research_lab.approval_models import ApprovalGateType
 from trainer.research_lab.rl_database import ResearchLabDatabase
@@ -76,6 +77,13 @@ class TestTransitionValidation:
 
     def test_retired_to_shadow_is_promotion(self):
         assert _gate_type_for("RETIRED", "SHADOW") == ApprovalGateType.PROMOTION
+
+    def test_legacy_not_deployed_to_shadow_still_supported(self):
+        """S21A adds VALIDATING→SHADOW but must not remove the legacy direct path."""
+        assert _gate_type_for("NOT_DEPLOYED", "SHADOW") == ApprovalGateType.PROMOTION
+
+    def test_validating_to_shadow_is_promotion(self):
+        assert _gate_type_for("VALIDATING", "SHADOW") == ApprovalGateType.PROMOTION
 
     def test_active_to_shadow_is_invalid(self):
         with pytest.raises(ValueError, match="Invalid stage transition"):
@@ -172,6 +180,108 @@ class TestDeploymentEventsDB:
             db.insert_deployment_event(evt.to_dict())
         events = db.list_deployment_events(limit=3)
         assert len(events) == 3
+
+
+# ── S21A: pre-SHADOW lifecycle (DRAFT → TRAINING → VALIDATING) ─────────────────
+
+
+class TestPreShadowTransitionValidation:
+    def test_not_deployed_to_draft_is_valid(self):
+        assert _is_valid_pre_shadow_transition("NOT_DEPLOYED", "DRAFT")
+
+    def test_draft_to_training_is_valid(self):
+        assert _is_valid_pre_shadow_transition("DRAFT", "TRAINING")
+
+    def test_training_to_validating_is_valid(self):
+        assert _is_valid_pre_shadow_transition("TRAINING", "VALIDATING")
+
+    def test_draft_to_validating_skip_is_invalid(self):
+        assert not _is_valid_pre_shadow_transition("DRAFT", "VALIDATING")
+
+    def test_draft_to_active_is_invalid(self):
+        assert not _is_valid_pre_shadow_transition("DRAFT", "ACTIVE")
+
+    def test_validating_to_shadow_is_gated_not_pre_shadow(self):
+        # VALIDATING → SHADOW is a *gated* promotion, not an ungated pre-SHADOW step.
+        assert not _is_valid_pre_shadow_transition("VALIDATING", "SHADOW")
+        assert _gate_type_for("VALIDATING", "SHADOW") == ApprovalGateType.PROMOTION
+
+
+class TestAdvanceStage:
+    def test_advance_from_not_deployed_to_draft(self, db):
+        mgr = _manager(db)
+        result = mgr.advance_stage("v1.0", "DRAFT", "admin")
+        assert result["from_status"] == "NOT_DEPLOYED"
+        assert result["to_status"] == "DRAFT"
+        assert db.get_model_deployment("v1.0")["status"] == "DRAFT"
+
+    def test_full_pre_shadow_progression(self, db):
+        mgr = _manager(db)
+        mgr.advance_stage("v1.0", "DRAFT", "admin")
+        mgr.advance_stage("v1.0", "TRAINING", "admin")
+        mgr.advance_stage("v1.0", "VALIDATING", "admin")
+        assert db.get_model_deployment("v1.0")["status"] == "VALIDATING"
+
+    def test_skipping_a_stage_is_rejected(self, db):
+        mgr = _manager(db)
+        mgr.advance_stage("v1.0", "DRAFT", "admin")
+        with pytest.raises(ValueError, match="Invalid stage transition"):
+            mgr.advance_stage("v1.0", "VALIDATING", "admin")  # skips TRAINING
+
+    def test_illegal_jump_to_active_is_rejected(self, db):
+        mgr = _manager(db)
+        with pytest.raises(ValueError, match="Invalid stage transition"):
+            mgr.advance_stage("v1.0", "ACTIVE", "admin")
+
+    def test_no_approval_gate_required(self, db):
+        """Pre-SHADOW advancement works with no ApprovalGate configured."""
+        mgr = _manager(db, gate=None)
+        result = mgr.advance_stage("v1.0", "DRAFT", "admin")
+        assert result["to_status"] == "DRAFT"
+
+    def test_logs_stage_advanced_event(self, db):
+        mgr = _manager(db)
+        mgr.advance_stage("v1.0", "DRAFT", "admin")
+        events = db.list_deployment_events(model_version="v1.0", event_type="STAGE_ADVANCED")
+        assert len(events) == 1
+        assert events[0]["to_status"] == "DRAFT"
+
+    def test_full_lifecycle_draft_through_active_and_retired(self, db, gate):
+        """End-to-end: DRAFT → TRAINING → VALIDATING → SHADOW → CANDIDATE → ACTIVE,
+        then a second version retires the first."""
+        mgr = _manager(db, gate=gate, notifier=_fake_notifier)
+        mgr.advance_stage("v1.0", "DRAFT", "admin")
+        mgr.advance_stage("v1.0", "TRAINING", "admin")
+        mgr.advance_stage("v1.0", "VALIDATING", "admin")
+        assert db.get_model_deployment("v1.0")["status"] == "VALIDATING"
+
+        for target in ("SHADOW", "CANDIDATE", "ACTIVE"):
+            result = mgr.request_promotion("v1.0", target, "admin",
+                                            weights_url="https://cdn.example.com/v1.0.pt")
+            req_id = result["approval_request"]["request_id"]
+            mgr.apply_promotion(req_id, "admin")
+
+        assert db.get_model_deployment("v1.0")["status"] == "ACTIVE"
+
+        # Only one ACTIVE version may exist — promoting v2.0 to ACTIVE retires v1.0.
+        mgr.advance_stage("v2.0", "DRAFT", "admin")
+        mgr.advance_stage("v2.0", "TRAINING", "admin")
+        mgr.advance_stage("v2.0", "VALIDATING", "admin")
+        for target in ("SHADOW", "CANDIDATE", "ACTIVE"):
+            result = mgr.request_promotion("v2.0", target, "admin",
+                                            weights_url="https://cdn.example.com/v2.0.pt")
+            req_id = result["approval_request"]["request_id"]
+            mgr.apply_promotion(req_id, "admin")
+
+        assert db.get_model_deployment("v1.0")["status"] == "RETIRED"
+        assert db.get_model_deployment("v2.0")["status"] == "ACTIVE"
+        assert mgr.get_current()["model_version"] == "v2.0"
+
+        # Every stage transition — including the pre-SHADOW ones — is in the audit trail.
+        history = mgr.get_history()
+        event_types = {e["event_type"] for e in history}
+        assert "STAGE_ADVANCED" in event_types
+        assert "PROMOTED" in event_types
 
 
 # ── request_promotion ──────────────────────────────────────────────────────────
@@ -742,3 +852,52 @@ class TestServerEndpoints:
         event_types = {e["event_type"] for e in history["events"]}
         assert "PROMOTED" in event_types
         assert "ROLLED_BACK" in event_types
+
+    # ── advance-stage endpoint (S21A) ────────────────────────────────────────
+
+    def test_advance_stage_requires_auth(self, client):
+        resp = client.post("/deployment/advance-stage", json={
+            "model_version": "v1.0", "target_status": "DRAFT", "requested_by": "admin"
+        })
+        assert resp.status_code == 401
+
+    def test_advance_stage_happy_path(self, client):
+        resp = client.post("/deployment/advance-stage", json={
+            "model_version": "v1.0", "target_status": "DRAFT", "requested_by": "admin"
+        }, headers=self._HDR)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["stage_result"]["to_status"] == "DRAFT"
+
+    def test_advance_stage_falls_back_to_authenticated_admin_when_requested_by_empty(self, client):
+        resp = client.post("/deployment/advance-stage", json={
+            "model_version": "v1.0", "target_status": "DRAFT", "requested_by": ""
+        }, headers=self._HDR)
+        body = resp.json()
+        assert body["success"] is True
+        assert body["authenticated_as"] == "admin"
+
+    def test_advance_stage_invalid_transition_returns_error(self, client):
+        resp = client.post("/deployment/advance-stage", json={
+            "model_version": "v1.0", "target_status": "VALIDATING", "requested_by": "admin"
+        }, headers=self._HDR)
+        assert resp.status_code == 200
+        assert resp.json()["success"] is False
+
+    def test_advance_stage_then_promote_to_shadow(self, client):
+        for stage in ("DRAFT", "TRAINING", "VALIDATING"):
+            r = client.post("/deployment/advance-stage", json={
+                "model_version": "v1.0", "target_status": stage, "requested_by": "admin"
+            }, headers=self._HDR)
+            assert r.json()["success"] is True
+
+        promote = client.post("/deployment/promote", json={
+            "model_version": "v1.0", "target_status": "SHADOW", "requested_by": "admin"
+        }, headers=self._HDR)
+        assert promote.json()["success"] is True
+        req_id = promote.json()["promotion_request"]["approval_request"]["request_id"]
+        activate = client.post("/deployment/activate", json={
+            "request_id": req_id, "approved_by": "admin"
+        }, headers=self._HDR)
+        assert activate.json()["promotion_result"]["to_status"] == "SHADOW"

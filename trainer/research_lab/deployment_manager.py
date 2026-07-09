@@ -49,12 +49,26 @@ from trainer.research_lab.rl_database import ResearchLabDatabase
 #: Transitions not in this map are rejected.
 _VALID_TRANSITIONS: dict[tuple[str, str], ApprovalGateType] = {
     ("NOT_DEPLOYED", "SHADOW"):    ApprovalGateType.PROMOTION,
+    # S21A: a version that has gone through the full pre-SHADOW pipeline
+    # (DRAFT → TRAINING → VALIDATING) is also eligible to enter SHADOW.
+    ("VALIDATING",   "SHADOW"):   ApprovalGateType.PROMOTION,
     ("SHADOW",       "CANDIDATE"): ApprovalGateType.PROMOTION,
     ("CANDIDATE",   "ACTIVE"):    ApprovalGateType.DEPLOYMENT,
     # Re-promotion paths (e.g. after rollback the model sits at RETIRED)
     ("RETIRED",      "SHADOW"):   ApprovalGateType.PROMOTION,
     ("RETIRED",      "CANDIDATE"): ApprovalGateType.PROMOTION,
     ("RETIRED",      "ACTIVE"):   ApprovalGateType.DEPLOYMENT,
+}
+
+
+#: S21A pre-SHADOW pipeline stages: DRAFT → TRAINING → VALIDATING.
+#: These are automatic pipeline-progression transitions (a newly trained
+#: version moves through them without requiring a human ApprovalGate — the
+#: gated approval decision only starts at the SHADOW boundary and beyond).
+#: Not in ``_VALID_TRANSITIONS`` because they carry no ``ApprovalGateType``.
+_PRE_SHADOW_ORDER: list[str] = ["NOT_DEPLOYED", "DRAFT", "TRAINING", "VALIDATING"]
+_PRE_SHADOW_TRANSITIONS: set[tuple[str, str]] = {
+    (_PRE_SHADOW_ORDER[i], _PRE_SHADOW_ORDER[i + 1]) for i in range(len(_PRE_SHADOW_ORDER) - 1)
 }
 
 
@@ -66,6 +80,10 @@ def _gate_type_for(from_status: str, to_status: str) -> ApprovalGateType:
             f"Valid transitions: {list(_VALID_TRANSITIONS)}"
         )
     return _VALID_TRANSITIONS[key]
+
+
+def _is_valid_pre_shadow_transition(from_status: str, to_status: str) -> bool:
+    return (from_status, to_status) in _PRE_SHADOW_TRANSITIONS
 
 
 # ── Data classes ───────────────────────────────────────────────────────────────
@@ -398,6 +416,70 @@ class DeploymentManager:
             "approval_id": request_id,
             "signalium_notified": signalium_notified,
             "retired_previous_count": retired_count,
+            "event_id": evt.event_id,
+        }
+
+    # ── Pre-SHADOW pipeline progression (S21A) ────────────────────────────────
+
+    def advance_stage(
+        self,
+        model_version: str,
+        target_status: str,
+        actor: str,
+        notes: str = "",
+    ) -> dict[str, Any]:
+        """Advance a version through the pre-SHADOW pipeline stages.
+
+        Unlike ``request_promotion``/``apply_promotion``, this covers the
+        automatic DRAFT → TRAINING → VALIDATING progression a freshly trained
+        version goes through before it is ever eligible for SHADOW — no human
+        ``ApprovalGate`` is required for these internal pipeline stages.
+
+        Args:
+            model_version: QDE / model version string.
+            target_status: One of DRAFT, TRAINING, VALIDATING.
+            actor: Username or service advancing the stage.
+            notes: Optional notes for the audit trail.
+
+        Returns:
+            Dict with ``model_version``, ``from_status``, ``to_status``, ``event_id``.
+
+        Raises:
+            ValueError: If the transition is not a legal pre-SHADOW step.
+        """
+        current = self._db.get_model_deployment(model_version)
+        from_status = current["status"] if current else "NOT_DEPLOYED"
+
+        if not _is_valid_pre_shadow_transition(from_status, target_status):
+            raise ValueError(
+                f"Invalid stage transition: {from_status!r} → {target_status!r}. "
+                f"Valid pre-SHADOW transitions: {sorted(_PRE_SHADOW_TRANSITIONS)}"
+            )
+
+        rec = DeploymentRecord.from_dict(current) if current else DeploymentRecord(model_version)
+        rec.previous_status = from_status
+        rec.status = target_status
+        rec.updated_at = time.time()
+        self._db.upsert_model_deployment(rec.to_dict())
+
+        evt = DeploymentEvent(
+            model_version=model_version,
+            event_type="STAGE_ADVANCED",
+            from_status=from_status,
+            to_status=target_status,
+            actor=actor,
+            payload={"notes": notes},
+        )
+        self._db.insert_deployment_event(evt.to_dict())
+        logger.info(
+            f"DeploymentManager: {model_version!r} advanced "
+            f"{from_status!r} → {target_status!r} (actor={actor!r})"
+        )
+
+        return {
+            "model_version": model_version,
+            "from_status": from_status,
+            "to_status": target_status,
             "event_id": evt.event_id,
         }
 

@@ -1439,6 +1439,44 @@ class _DeploymentRollbackRequest(BaseModel):
     context: dict = {}
 
 
+class _DeploymentAdvanceStageRequest(BaseModel):
+    model_version: str
+    target_status: str
+    requested_by: str
+    notes: str = ""
+
+
+@app.post("/deployment/advance-stage")
+def deployment_advance_stage(
+    req: _DeploymentAdvanceStageRequest,
+    admin_id: str = Depends(_require_admin),
+) -> dict:
+    """Advance a version through the pre-SHADOW pipeline stages.
+
+    Valid transitions: ``NOT_DEPLOYED → DRAFT → TRAINING → VALIDATING``.
+    These are automatic pipeline-progression steps and do not require a
+    human ``ApprovalGate`` — unlike ``POST /deployment/promote``, which
+    governs the gated SHADOW/CANDIDATE/ACTIVE transitions.
+
+    Body fields:
+      - ``model_version`` — QDE / model version string
+      - ``target_status`` — DRAFT | TRAINING | VALIDATING
+      - ``requested_by`` — username or service advancing the stage
+      - ``notes`` — optional audit notes
+    """
+    actor = req.requested_by or admin_id
+    try:
+        result = _deployment_manager.advance_stage(
+            model_version=req.model_version,
+            target_status=req.target_status,
+            actor=actor,
+            notes=req.notes,
+        )
+        return {"success": True, "stage_result": result, "authenticated_as": admin_id}
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+
 @app.post("/deployment/promote")
 def deployment_request_promotion(
     req: _DeploymentPromoteRequest,
@@ -1447,7 +1485,9 @@ def deployment_request_promotion(
     """Create an ``ApprovalRequest`` for a model version stage transition.
 
     Valid transitions:
-      - ``NOT_DEPLOYED → SHADOW`` (PROMOTION gate)
+      - ``NOT_DEPLOYED → SHADOW`` (PROMOTION gate — legacy direct path, still supported)
+      - ``VALIDATING → SHADOW`` (PROMOTION gate — after the pre-SHADOW pipeline;
+        see ``POST /deployment/advance-stage`` for DRAFT/TRAINING/VALIDATING)
       - ``SHADOW → CANDIDATE`` (PROMOTION gate)
       - ``CANDIDATE → ACTIVE`` (DEPLOYMENT gate)
 
@@ -1600,7 +1640,7 @@ def deployment_get_history(
     Optional filters:
       - ``model_version`` — restrict to one model version
       - ``event_type`` — PROMOTED | RETIRED | ROLLED_BACK | SIGNALIUM_NOTIFIED |
-        PROMOTION_REQUESTED | ROLLBACK_REQUESTED
+        PROMOTION_REQUESTED | ROLLBACK_REQUESTED | STAGE_ADVANCED
       - ``limit`` — max records returned (default 100)
     """
     events = _deployment_manager.get_history(
