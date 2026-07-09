@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS shadow_tests (
     data_json          TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_shadow_tests_challenger ON shadow_tests(challenger_version);
+CREATE INDEX IF NOT EXISTS idx_shadow_tests_champion   ON shadow_tests(champion_version);
 CREATE INDEX IF NOT EXISTS idx_shadow_tests_status     ON shadow_tests(status);
 
 -- Shadow decisions (high-volume; one row per decision)
@@ -382,6 +383,39 @@ CREATE TABLE IF NOT EXISTS decision_quality_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_dqr_mv      ON decision_quality_reports(model_version);
 CREATE INDEX IF NOT EXISTS idx_dqr_created ON decision_quality_reports(created_at DESC);
+
+-- Autonomous performance reports — profit factor/Sharpe/drawdown/hit rate/
+-- risk-adjusted return/capital efficiency, broken down by symbol/regime/cohort (S22B)
+CREATE TABLE IF NOT EXISTS performance_reports (
+    report_id     TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_pr_mv      ON performance_reports(model_version);
+CREATE INDEX IF NOT EXISTS idx_pr_created ON performance_reports(created_at DESC);
+
+-- Feature health reports — missing/stale/corrupted/delayed per-feature
+-- detection from reasoning-event feature_values telemetry (S22B)
+CREATE TABLE IF NOT EXISTS feature_health_reports (
+    report_id     TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_fhr_mv      ON feature_health_reports(model_version);
+CREATE INDEX IF NOT EXISTS idx_fhr_created ON feature_health_reports(created_at DESC);
+
+-- Market regime coverage reports — unseen conditions/distribution
+-- shift/black swan detection (S22B)
+CREATE TABLE IF NOT EXISTS regime_coverage_reports (
+    report_id     TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_rcr_mv      ON regime_coverage_reports(model_version);
+CREATE INDEX IF NOT EXISTS idx_rcr_created ON regime_coverage_reports(created_at DESC);
 
 -- Model health drift alerts (S20)
 CREATE TABLE IF NOT EXISTS health_alerts (
@@ -839,16 +873,32 @@ class ResearchLabDatabase:
     def list_shadow_tests(
         self,
         challenger_version: str | None = None,
+        champion_version: str | None = None,
         status: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
     ) -> list[dict[str, Any]]:
+        """List shadow tests, optionally filtered by champion/challenger
+        version pair and a ``started_at`` time window (S22B: shadow
+        observation queryability — per model version pair and time window).
+        """
         query = "SELECT data_json FROM shadow_tests WHERE 1=1"
         params: list[Any] = []
         if challenger_version:
             query += " AND challenger_version = ?"
             params.append(challenger_version)
+        if champion_version:
+            query += " AND champion_version = ?"
+            params.append(champion_version)
         if status:
             query += " AND status = ?"
             params.append(status)
+        if since is not None:
+            query += " AND started_at >= ?"
+            params.append(since)
+        if until is not None:
+            query += " AND started_at <= ?"
+            params.append(until)
         query += " ORDER BY started_at DESC"
         rows = self._conn.execute(query, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
@@ -1409,6 +1459,141 @@ class ResearchLabDatabase:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         sql = "SELECT data_json FROM decision_quality_reports WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Performance Reports (S22B) ────────────────────────────────────────────
+
+    def upsert_performance_report(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO performance_reports
+                (report_id, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_performance_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM performance_reports WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_performance_reports(
+        self,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM performance_reports WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Feature Health Reports (S22B) ─────────────────────────────────────────
+
+    def upsert_feature_health_report(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO feature_health_reports
+                (report_id, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_feature_health_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM feature_health_reports WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_feature_health_reports(
+        self,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM feature_health_reports WHERE 1=1"
+        params: list[Any] = []
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    # ── Regime Coverage Reports (S22B) ────────────────────────────────────────
+
+    def upsert_regime_coverage_report(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO regime_coverage_reports
+                (report_id, model_version, created_at, data_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                model_version = excluded.model_version,
+                created_at    = excluded.created_at,
+                data_json     = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_regime_coverage_report(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM regime_coverage_reports WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_regime_coverage_reports(
+        self,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM regime_coverage_reports WHERE 1=1"
         params: list[Any] = []
         if model_version:
             sql += " AND model_version = ?"
@@ -2033,7 +2218,8 @@ class ResearchLabDatabase:
             "retraining_recommendations", "approval_requests", "pipeline_jobs",
             "training_runs", "artifacts", "health_alerts",
             "model_deployments", "deployment_events",
-            "decision_quality_reports",
+            "decision_quality_reports", "performance_reports",
+            "feature_health_reports", "regime_coverage_reports",
         ]
         result: dict[str, int] = {}
         for table in tables:

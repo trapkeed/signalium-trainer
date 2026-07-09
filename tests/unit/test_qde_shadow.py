@@ -421,6 +421,40 @@ class TestShadowTestRunConclude(unittest.TestCase):
         test.conclude()
         self.assertEqual(test.recommendation, ShadowTestRecommendation.EXTEND)
 
+    def test_disagreement_rate_and_avg_diffs_recorded(self):
+        """S22B: metric completeness — disagreement_rate, avg_confidence_diff,
+        and avg_latency_diff_ms must be computed and queryable on the
+        concluded summary, not just derivable per-decision."""
+        decisions = [
+            ShadowDecisionRecord.new(
+                test_id="t",
+                instrument="EURUSD",
+                champion_decision_type="ENTER",
+                challenger_decision_type="WAIT",  # disagreement
+                champion_confidence=0.5,
+                challenger_confidence=0.7,
+                latency_diff_ms=10.0,
+            ),
+            ShadowDecisionRecord.new(
+                test_id="t",
+                instrument="EURUSD",
+                champion_decision_type="ENTER",
+                challenger_decision_type="ENTER",  # agreement
+                champion_confidence=0.5,
+                challenger_confidence=0.9,
+                latency_diff_ms=30.0,
+            ),
+        ]
+        test = self._run_with_decisions(decisions, min_decisions=2)
+        test.conclude()
+        self.assertAlmostEqual(test.agreement_rate, 0.5, places=4)
+        self.assertAlmostEqual(test.disagreement_rate, 0.5, places=4)
+        self.assertAlmostEqual(test.avg_confidence_diff, 0.3, places=4)
+        self.assertAlmostEqual(test.avg_latency_diff_ms, 20.0, places=3)
+        d = test.to_dict()
+        for key in ("disagreement_rate", "avg_confidence_diff", "avg_latency_diff_ms"):
+            self.assertIn(key, d)
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # ShadowDispatcher — dual dispatch
@@ -564,6 +598,121 @@ class TestShadowDispatcher(unittest.TestCase):
             "record",
         ):
             self.assertIn(key, d)
+
+    def test_challenger_decision_is_marked_shadow_champion_is_not(self):
+        """S22B: structural guarantee — only the challenger side of a dual
+        dispatch is ever marked `is_shadow=True`; the champion decision must
+        never carry the flag, whatever model produced it."""
+        champion_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.6)
+        challenger_decision = _decision(entry_action=EntryAction.WAIT, confidence=0.5)
+        self.registry.register_decision_model(
+            "v-champ", _StubDecisionModel(champion_decision, version_id="v-champ")
+        )
+        self.registry.register_decision_model(
+            "v-chall", _StubDecisionModel(challenger_decision, version_id="v-chall")
+        )
+        dispatcher = ShadowDispatcher(self.registry)
+        result = dispatcher.dispatch(
+            test_id="shadow-1", challenger_version_id="v-chall", inputs=_build_input()
+        )
+        self.assertFalse(result.champion_decision.is_shadow)
+        self.assertTrue(result.challenger_decision.is_shadow)
+        self.assertTrue(result.to_dict()["challenger_decision"]["is_shadow"])
+        self.assertFalse(result.to_dict()["champion_decision"]["is_shadow"])
+
+    def test_execution_planner_refuses_shadow_marked_decision(self):
+        """S22B: `ExecutionPlanner.plan()` must raise, not silently trade,
+        if the resolved decision is somehow marked `is_shadow=True` — the
+        enforcement point downstream of dispatch."""
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        shadow_marked_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        shadow_marked_decision.is_shadow = True
+        planner = ExecutionPlanner(
+            decision_model=_StubDecisionModel(shadow_marked_decision, version_id="v-chall")
+        )
+        with self.assertRaises(RuntimeError):
+            planner.plan(_fc())
+
+    def test_execution_planner_executes_non_shadow_decision_normally(self):
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        champion_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        self.assertFalse(champion_decision.is_shadow)
+        planner = ExecutionPlanner(
+            decision_model=_StubDecisionModel(champion_decision, version_id="v-champ")
+        )
+        plan = planner.plan(_fc())
+        self.assertEqual(plan.decision.entry_action, EntryAction.ENTER)
+
+    def test_execution_planner_rejects_non_shadow_flagged_wrong_champion_via_registry(self):
+        """S22B: `is_shadow` alone can't catch a miswired active-model
+        pointer that produces an unflagged decision from a non-champion
+        version — only `ShadowDispatcher` ever sets `is_shadow`. When
+        `ExecutionPlanner` resolves its model via the live `QDERegistry`
+        (the real runtime path), it must independently re-verify the
+        decision's `model_version_id` against the registry's actual active
+        version and refuse execution on a mismatch, even if `is_shadow` is
+        left at its default `False`."""
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        wrong_version_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        wrong_version_decision.model_version_id = "v-chall"
+        self.assertFalse(wrong_version_decision.is_shadow)
+        self.registry.register_decision_model(
+            "v-champ", _StubDecisionModel(wrong_version_decision, version_id="v-chall")
+        )
+        planner = ExecutionPlanner(qde_registry=self.registry)
+        with self.assertRaises(RuntimeError):
+            planner.plan(_fc())
+
+    def test_execution_planner_no_false_positive_on_empty_model_version_id(self):
+        """Legacy decisions that never set `model_version_id` (empty string
+        default) must not be rejected by the champion-identity guard — the
+        check only applies when a version id is actually present to compare."""
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        legacy_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        self.assertEqual(legacy_decision.model_version_id, "")
+        self.registry.register_decision_model(
+            "v-champ", _StubDecisionModel(legacy_decision, version_id="v-champ")
+        )
+        planner = ExecutionPlanner(qde_registry=self.registry)
+        plan = planner.plan(_fc())
+        self.assertEqual(plan.decision.entry_action, EntryAction.ENTER)
+
+    def test_execution_planner_direct_injection_bypasses_champion_identity_check(self):
+        """Direct `decision_model` injection (tests, or a caller that
+        already resolved a model) intentionally has no `QDERegistry`
+        reference, so the champion-identity guard never runs for it — only
+        the `is_shadow` check applies on that path. A decision whose
+        model_version_id doesn't match any registry version must still
+        execute normally when injected this way."""
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        decision.model_version_id = "v-not-in-any-registry"
+        planner = ExecutionPlanner(
+            decision_model=_StubDecisionModel(decision, version_id="v-not-in-any-registry")
+        )
+        self.assertIsNone(planner._qde_registry)
+        plan = planner.plan(_fc())
+        self.assertEqual(plan.decision.entry_action, EntryAction.ENTER)
+
+    def test_execution_planner_executes_via_registry_when_versions_match(self):
+        """Companion to the mismatch test above: the champion-identity
+        check must not false-positive on the normal, correctly-wired path
+        where the decision's model_version_id matches the registry's
+        active version."""
+        from trainer.execution.execution_planner import ExecutionPlanner
+
+        champion_decision = _decision(entry_action=EntryAction.ENTER, confidence=0.9)
+        self.registry.register_decision_model(
+            "v-champ", _StubDecisionModel(champion_decision, version_id="v-champ")
+        )
+        planner = ExecutionPlanner(qde_registry=self.registry)
+        plan = planner.plan(_fc())
+        self.assertEqual(plan.decision.entry_action, EntryAction.ENTER)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -877,6 +1026,53 @@ class TestDualDispatchToPromotionEndToEnd(unittest.TestCase):
         self.assertTrue(promotion_resp.success, promotion_resp.error)
         self.assertEqual(promotion_resp.data["action"], "promoted")
         self.assertEqual(self.qde_api._registry.get_active().version_id, "v-chall")
+
+    def test_shadow_tests_queryable_by_version_pair_and_time_window(self):
+        """S22B: shadow observation results must be queryable via the
+        Research Lab by champion/challenger version pair and time window."""
+        t0 = time.time() - 1000
+        created_pair_a = self.rl_api.create_shadow_test(
+            name="pair-a",
+            challenger_version="v-chall",
+            champion_version="v-champ",
+            instruments=["EURUSD"],
+            min_decisions=1,
+        )
+        self.assertTrue(created_pair_a.success, created_pair_a.error)
+
+        created_pair_b = self.rl_api.create_shadow_test(
+            name="pair-b",
+            challenger_version="v-other-chall",
+            champion_version="v-other-champ",
+            instruments=["EURUSD"],
+            min_decisions=1,
+        )
+        self.assertTrue(created_pair_b.success, created_pair_b.error)
+
+        by_champion = self.rl_api.list_shadow_tests(champion_version="v-champ")
+        self.assertTrue(by_champion.success, by_champion.error)
+        ids = {t["test_id"] for t in by_champion.data["shadow_tests"]}
+        self.assertIn(created_pair_a.data["test_id"], ids)
+        self.assertNotIn(created_pair_b.data["test_id"], ids)
+
+        by_pair = self.rl_api.list_shadow_tests(
+            champion_version="v-champ", challenger_version="v-chall"
+        )
+        self.assertTrue(by_pair.success, by_pair.error)
+        self.assertEqual(
+            {t["test_id"] for t in by_pair.data["shadow_tests"]},
+            {created_pair_a.data["test_id"]},
+        )
+
+        # Time window: everything started_at >= t0 (both fall inside);
+        # nothing should match a window entirely in the future.
+        in_window = self.rl_api.list_shadow_tests(since=t0)
+        in_window_ids = {t["test_id"] for t in in_window.data["shadow_tests"]}
+        self.assertIn(created_pair_a.data["test_id"], in_window_ids)
+        self.assertIn(created_pair_b.data["test_id"], in_window_ids)
+
+        future_only = self.rl_api.list_shadow_tests(since=time.time() + 1000)
+        self.assertEqual(future_only.data["shadow_tests"], [])
 
 
 if __name__ == "__main__":

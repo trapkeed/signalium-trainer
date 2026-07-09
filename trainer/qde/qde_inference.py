@@ -240,6 +240,14 @@ class QDEDecision:
 
     decided_at: float = field(default_factory=time.time)
 
+    # S22B: hardening for shadow/challenger observation. Set True only by
+    # `trainer.qde.qde_shadow.ShadowDispatcher` on the challenger side of a
+    # dual-dispatch comparison — never on a champion decision. This is the
+    # single structural marker `ExecutionPlanner.plan()` checks (and raises
+    # on) to make "only the champion can ever reach live execution" an
+    # enforced invariant rather than a convention callers must remember.
+    is_shadow: bool = False
+
     @property
     def is_entry(self) -> bool:
         return self.entry_action == EntryAction.ENTER
@@ -263,6 +271,7 @@ class QDEDecision:
             "rationale": self.rationale,
             "heads": self.heads.to_dict() if self.heads else None,
             "decided_at": round(self.decided_at, 3),
+            "is_shadow": self.is_shadow,
         }
 
 

@@ -296,6 +296,50 @@ class ExecutionPlanner:
         model = self._resolve_decision_model()
         decision = model.decide(inference_input)
 
+        # S22B: structural (not conventional) guarantees that shadow/
+        # challenger decisions can never reach live execution. Two
+        # independent checks, since either alone can be defeated:
+        #
+        # 1. `is_shadow` — set by `ShadowDispatcher` on the challenger side
+        #    of a dual-dispatch comparison. Catches a challenger decision
+        #    that was explicitly produced via the shadow-testing path and
+        #    accidentally routed here.
+        # 2. Champion-identity — when this planner resolves its model via
+        #    the live `QDERegistry` (the real runtime path, not a
+        #    test/caller-injected `decision_model`), re-verify at decide
+        #    time that the model that actually produced `decision` is still
+        #    the registry's official active/champion version. This catches
+        #    a miswired or corrupted active-model pointer that would
+        #    otherwise silently produce a non-shadow-flagged decision from
+        #    a non-champion model — a case `is_shadow` alone cannot detect,
+        #    since only `ShadowDispatcher` ever sets that flag.
+        #
+        # Raising here (rather than silently skipping) surfaces any misuse
+        # immediately instead of producing a confusing partial/empty plan.
+        if decision.is_shadow:
+            raise RuntimeError(
+                f"ExecutionPlanner: refusing to execute a shadow/challenger "
+                f"decision (instrument={forecast.instrument!r}, "
+                f"model_version_id={decision.model_version_id!r}). Shadow "
+                f"decisions are observation-only — see "
+                f"trainer.qde.qde_shadow.ShadowDispatcher."
+            )
+        if self._qde_registry is not None:
+            active_version = self._qde_registry.get_active()
+            if (
+                active_version is not None
+                and decision.model_version_id
+                and decision.model_version_id != active_version.version_id
+            ):
+                raise RuntimeError(
+                    f"ExecutionPlanner: refusing to execute a decision from "
+                    f"model_version_id={decision.model_version_id!r} — the "
+                    f"registry's active/champion version is "
+                    f"{active_version.version_id!r}. This indicates a "
+                    f"miswired or stale active-model pointer; only the "
+                    f"champion model may ever reach live execution."
+                )
+
         # ── Execute the decision ─────────────────────────────────────────
         sizing = self._sizer.from_decision(forecast, decision, stop)
         management = self._manager.plan_from_decision(forecast, decision, sizing, stop, tp)

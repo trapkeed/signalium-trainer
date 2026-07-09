@@ -60,6 +60,9 @@ from trainer.research_lab.champion_challenger import (
 from trainer.research_lab.deployment_manager import DeploymentManager
 from trainer.research_lab.decision_quality import DecisionQualityTracker
 from trainer.research_lab.health_monitor import AlertSeverity, DriftDimension, HealthMonitorConfig, ResearchLabHealthMonitor
+from trainer.research_lab.performance_monitor import PerformanceMonitor
+from trainer.research_lab.feature_health import FeatureHealthMonitor
+from trainer.research_lab.regime_coverage import RegimeCoverageMonitor
 from trainer.research_lab.pipeline_controller import ResearchLabPipelineController
 from trainer.research_lab.pipeline_models import PipelineJobSpec
 from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
@@ -110,6 +113,9 @@ _pipeline_ctrl = ResearchLabPipelineController(_db, _approval_gate)
 _artifact_registry = ArtifactRegistry(_db)
 _health_monitor = ResearchLabHealthMonitor(_db, _warehouse, rec_engine=_rec_engine)
 _decision_quality_tracker = DecisionQualityTracker(_db, _warehouse)
+_performance_monitor = PerformanceMonitor(_db, _warehouse)
+_feature_health_monitor = FeatureHealthMonitor(_db, _warehouse)
+_regime_coverage_monitor = RegimeCoverageMonitor(_db, _warehouse)
 _cc_tracker = ChampionChallengerTracker(_db, approval_gate=_approval_gate)
 
 
@@ -1008,10 +1014,23 @@ def get_shadow_test(test_id: str, _: None = Depends(_require_admin)) -> dict:
 @app.get("/research/shadow-tests")
 def list_shadow_tests(
     challenger_version: str | None = None,
+    champion_version: str | None = None,
     status: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    return _respond(_api.list_shadow_tests(challenger_version=challenger_version, status=status))
+    """List shadow tests, queryable by champion/challenger version pair and
+    a started_at time window (S22B: shadow observation hardening)."""
+    return _respond(
+        _api.list_shadow_tests(
+            challenger_version=challenger_version,
+            champion_version=champion_version,
+            status=status,
+            since=since,
+            until=until,
+        )
+    )
 
 
 # ── Research Notes ────────────────────────────────────────────────────────────
@@ -1667,7 +1686,7 @@ def run_health_check(
     since: float | None = None,
     _: None = Depends(_require_admin),
 ) -> dict:
-    """Trigger an on-demand health check across all nine drift/health dimensions.
+    """Trigger an on-demand health check across all ten drift/health dimensions.
 
     Evaluates:
     - **Confidence drift** — mean output confidence shift baseline vs recent
@@ -1679,6 +1698,10 @@ def run_health_check(
     - **Uncertainty drift** — confidence dispersion (std) vs baseline
     - **Calibration drift** — rolling ECE-style confidence-vs-outcome gap
     - **Decision quality** — expectancy + confidence-outcome correlation drop
+    - **Performance** — profit factor/Sharpe/drawdown/hit rate drop
+    - **Feature health** — missing/stale/corrupted/delayed pipeline features
+    - **Unseen conditions** — live regimes outside the known/trained vocabulary
+    - **Black swan** — statistically extreme individual trade outcomes
 
     CRITICAL alerts automatically create a ``RetrainingRecommendation``
     (deduplicated against open recommendations for the same dimension).
@@ -1768,6 +1791,144 @@ def list_decision_quality_reports(
 ) -> dict:
     """List persisted decision-quality reports, newest first."""
     reports = _decision_quality_tracker.list_reports(model_version=model_version, limit=limit)
+    return {"success": True, "total": len(reports), "reports": reports}
+
+
+# ── Autonomous Performance Monitoring (S22B) ──────────────────────────────────
+
+
+@app.post("/performance/compute")
+def compute_performance_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Compute and persist a live autonomous-performance report.
+
+    Tracks profit factor, Sharpe ratio, max drawdown, hit rate,
+    risk-adjusted return, and capital efficiency, broken down by symbol,
+    regime, and user cohort, over trades matching the given filters.
+    Query params:
+        model_version: Restrict to a specific model version. ``None`` = all data.
+        since / until: Unix timestamp bounds on telemetry.
+    """
+    report = _performance_monitor.compute_report(
+        model_version=model_version, since=since, until=until
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/performance/latest")
+def get_latest_performance_report(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the most recently persisted performance report."""
+    report = _performance_monitor.get_latest_report(model_version=model_version)
+    return {"success": True, "report": report}
+
+
+@app.get("/performance/reports")
+def list_performance_reports(
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted performance reports, newest first."""
+    reports = _performance_monitor.list_reports(model_version=model_version, limit=limit)
+    return {"success": True, "total": len(reports), "reports": reports}
+
+
+# ── Feature Health Monitoring (S22B) ──────────────────────────────────────────
+
+
+@app.post("/feature-health/compute")
+def compute_feature_health_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Compute and persist a feature-health report.
+
+    Detects, per feature: missing values, staleness, corrupted/out-of-range
+    values, and delivery delay, over reasoning-event telemetry matching the
+    given filters.
+    Query params:
+        model_version: Restrict to a specific model version. ``None`` = all data.
+        since / until: Unix timestamp bounds on telemetry.
+    """
+    report = _feature_health_monitor.compute_report(
+        model_version=model_version, since=since, until=until
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/feature-health/latest")
+def get_latest_feature_health_report(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the most recently persisted feature-health report."""
+    report = _feature_health_monitor.get_latest_report(model_version=model_version)
+    return {"success": True, "report": report}
+
+
+@app.get("/feature-health/reports")
+def list_feature_health_reports(
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted feature-health reports, newest first."""
+    reports = _feature_health_monitor.list_reports(model_version=model_version, limit=limit)
+    return {"success": True, "total": len(reports), "reports": reports}
+
+
+# ── Market Regime Coverage Detection (S22B) ───────────────────────────────────
+
+
+@app.post("/regime-coverage/compute")
+def compute_regime_coverage_report(
+    model_version: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Compute and persist a regime-coverage report.
+
+    Detects, distinctly: unseen market conditions (regimes outside the
+    known/trained vocabulary), general regime-distribution shift, and
+    black-swan (statistically extreme) individual trade outcomes.
+    Query params:
+        model_version: Restrict to a specific model version. ``None`` = all data.
+        since / until: Unix timestamp bounds on telemetry.
+    """
+    report = _regime_coverage_monitor.compute_report(
+        model_version=model_version, since=since, until=until
+    )
+    return {"success": True, "report": report.to_dict()}
+
+
+@app.get("/regime-coverage/latest")
+def get_latest_regime_coverage_report(
+    model_version: str | None = None,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return the most recently persisted regime-coverage report."""
+    report = _regime_coverage_monitor.get_latest_report(model_version=model_version)
+    return {"success": True, "report": report}
+
+
+@app.get("/regime-coverage/reports")
+def list_regime_coverage_reports(
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """List persisted regime-coverage reports, newest first."""
+    reports = _regime_coverage_monitor.list_reports(model_version=model_version, limit=limit)
     return {"success": True, "total": len(reports), "reports": reports}
 
 

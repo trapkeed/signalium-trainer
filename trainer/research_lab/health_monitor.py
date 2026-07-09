@@ -1,6 +1,6 @@
 """S20/S22B — Research Lab Model Health Monitor.
 
-Continuously monitors model health across nine drift/health dimensions:
+Continuously monitors model health across thirteen drift/health dimensions:
 
   1. **Feature drift**       — input distribution shift (buy/sell/no_trade probs)
   2. **Confidence drift**    — output calibration shift (mean confidence delta)
@@ -13,6 +13,21 @@ Continuously monitors model health across nine drift/health dimensions:
   9. **Decision quality**    — expectancy + confidence-outcome correlation drop
      (see ``decision_quality.py`` for the full queryable report surface:
      expectancy broken down by regime/symbol/session/volatility state)
+  10. **Performance**        — profit factor/Sharpe/drawdown/hit rate drop
+     (see ``performance_monitor.py`` for the full queryable report surface:
+     performance broken down by symbol/regime/user cohort, plus
+     risk-adjusted return and capital efficiency)
+  11. **Feature health**     — missing/stale/corrupted/delayed pipeline features
+     (see ``feature_health.py`` for the full queryable report surface: a
+     per-feature breakdown of presence, staleness, corruption rate, and
+     delivery delay)
+  12. **Unseen conditions**  — live regimes outside the model's known/trained
+     regime vocabulary (distinct from ordinary MARKET distribution shift)
+  13. **Black swan**         — statistically extreme individual trade outcomes
+     (z-score vs. trailing baseline), distinct from both distribution shift
+     and per-regime win-rate degradation
+     (see ``regime_coverage.py`` for the full queryable report surface
+     covering all three regime-coverage conditions together)
 
 Each dimension emits a ``DriftAlert`` with severity WARNING or CRITICAL.
 CRITICAL alerts automatically create a ``RetrainingRecommendation`` (pending
@@ -43,6 +58,19 @@ from trainer.research_lab.decision_quality import (
     check_decision_quality_drift,
 )
 from trainer.research_lab.dimension_evaluators import _split_windows
+from trainer.research_lab.performance_monitor import (
+    PerformanceMonitorConfig,
+    check_performance_drift,
+)
+from trainer.research_lab.feature_health import (
+    FeatureHealthConfig,
+    check_feature_health,
+)
+from trainer.research_lab.regime_coverage import (
+    RegimeCoverageConfig,
+    check_black_swans,
+    check_unseen_conditions,
+)
 from trainer.research_lab.recommendation_models import (
     EvaluationDimension,
     EvaluationResult,
@@ -69,6 +97,10 @@ class DriftDimension(str, Enum):
     UNCERTAINTY = "UNCERTAINTY"
     CALIBRATION = "CALIBRATION"
     DECISION_QUALITY = "DECISION_QUALITY"
+    PERFORMANCE = "PERFORMANCE"
+    FEATURE_HEALTH = "FEATURE_HEALTH"
+    UNSEEN_CONDITION = "UNSEEN_CONDITION"
+    BLACK_SWAN = "BLACK_SWAN"
 
 
 class AlertSeverity(str, Enum):
@@ -92,6 +124,25 @@ _DIM_TO_EVAL: dict[DriftDimension, EvaluationDimension] = {
     # Decision quality (expectancy + confidence-outcome correlation) is an
     # economic-performance signal, same category as Sharpe degradation.
     DriftDimension.DECISION_QUALITY: EvaluationDimension.SHARPE_DEGRADATION,
+    # Autonomous performance (profit factor/Sharpe/drawdown/hit rate) is the
+    # same economic-performance category as Sharpe degradation.
+    DriftDimension.PERFORMANCE: EvaluationDimension.SHARPE_DEGRADATION,
+    # Feature-level pipeline health (missing/stale/corrupted/delayed inputs)
+    # is mapped to REASONING_DRIFT (bad inputs corrupt reasoning) rather than
+    # DATA_QUALITY's SHARPE_DEGRADATION, differentiating it from the coarse
+    # telemetry staleness/event-rate check. Note FEATURE also maps to
+    # REASONING_DRIFT, so coarse categories are NOT unique per dimension —
+    # the actual dedup-collision safety comes from `_maybe_create_recommendation`
+    # keying on the fine-grained `_health_dimension` evidence field (see memory:
+    # health-monitor-dedup-collision), not from coarse-category uniqueness.
+    DriftDimension.FEATURE_HEALTH: EvaluationDimension.REASONING_DRIFT,
+    # Unseen market conditions and black-swan moves are both regime-coverage
+    # signals, same coarse category as MARKET/REGIME (dedup safety comes
+    # from the fine-grained _health_dimension key, not coarse uniqueness —
+    # see the FEATURE_HEALTH comment above and memory:
+    # health-monitor-dedup-collision).
+    DriftDimension.UNSEEN_CONDITION: EvaluationDimension.REGIME_UNDERPERFORMANCE,
+    DriftDimension.BLACK_SWAN: EvaluationDimension.REGIME_UNDERPERFORMANCE,
 }
 
 
@@ -162,7 +213,7 @@ class DriftAlert:
 
 @dataclass
 class HealthMonitorConfig:
-    """Configurable thresholds for all nine drift/health dimensions.
+    """Configurable thresholds for all thirteen drift/health dimensions.
 
     All thresholds can be overridden without redeploying by passing a
     custom config instance to ``ResearchLabHealthMonitor``.
@@ -214,6 +265,36 @@ class HealthMonitorConfig:
     decision_quality_correlation_warning: float = 0.20  # absolute correlation drop
     decision_quality_correlation_critical: float = 0.40
 
+    # ── 10. Autonomous performance (profit factor/Sharpe/drawdown/hit rate) ────
+    performance_profit_factor_warning: float = 0.20
+    performance_profit_factor_critical: float = 0.45
+    performance_sharpe_warning: float = 0.30
+    performance_sharpe_critical: float = 0.60
+    performance_drawdown_increase_warning: float = 0.10
+    performance_drawdown_increase_critical: float = 0.25
+    performance_hit_rate_drop_warning: float = 0.10
+    performance_hit_rate_drop_critical: float = 0.20
+
+    # ── 11. Feature health (missing/stale/corrupted/delayed inputs) ───────────
+    feature_health_expected_features: list | None = None
+    feature_health_value_bounds: dict = field(default_factory=dict)
+    feature_health_staleness_warning_s: float = 3600.0
+    feature_health_staleness_critical_s: float = 21600.0
+    feature_health_delay_warning_s: float = 30.0
+    feature_health_delay_critical_s: float = 120.0
+    feature_health_corruption_rate_warning: float = 0.05
+    feature_health_corruption_rate_critical: float = 0.20
+
+    # ── 12. Regime coverage: unseen conditions + black swans ──────────────────
+    # (Distribution shift itself is already covered by dimension #3 MARKET;
+    # these two are the additional, distinctly-labeled conditions.)
+    regime_coverage_known_regimes: frozenset | None = None
+    unseen_condition_rate_warning: float = 0.05
+    unseen_condition_rate_critical: float = 0.20
+    black_swan_zscore_threshold: float = 4.0
+    black_swan_rate_warning: float = 0.02
+    black_swan_rate_critical: float = 0.08
+
 
 # ── Health Check Result ───────────────────────────────────────────────────────
 
@@ -247,7 +328,7 @@ class HealthCheckResult:
 
 
 class ResearchLabHealthMonitor:
-    """Orchestrates nine-dimension model health monitoring for the Research Lab.
+    """Orchestrates thirteen-dimension model health monitoring for the Research Lab.
 
     Args:
         db: ResearchLabDatabase for alert persistence and recommendation
@@ -277,7 +358,7 @@ class ResearchLabHealthMonitor:
         model_version: str | None = None,
         since: float | None = None,
     ) -> HealthCheckResult:
-        """Run all nine drift/health-dimension checks and persist any alerts.
+        """Run all thirteen drift/health-dimension checks and persist any alerts.
 
         Args:
             model_version: Restrict to a specific model version string.
@@ -294,6 +375,9 @@ class ResearchLabHealthMonitor:
         trades = sorted(
             self._wh.query_trades(q), key=lambda t: t.get("timestamp", 0)
         )
+        reasoning_events = sorted(
+            self._wh.query_reasoning(q), key=lambda e: e.get("timestamp", 0)
+        )
 
         alerts: list[DriftAlert] = []
         checked = []
@@ -308,6 +392,10 @@ class ResearchLabHealthMonitor:
             (DriftDimension.UNCERTAINTY.value, self._check_uncertainty, (decisions, mv)),
             (DriftDimension.CALIBRATION.value, self._check_calibration, (trades, mv)),
             (DriftDimension.DECISION_QUALITY.value, self._check_decision_quality, (trades, mv)),
+            (DriftDimension.PERFORMANCE.value, self._check_performance, (trades, mv)),
+            (DriftDimension.FEATURE_HEALTH.value, self._check_feature_health, (reasoning_events, mv)),
+            (DriftDimension.UNSEEN_CONDITION.value, self._check_unseen_condition, (decisions, mv)),
+            (DriftDimension.BLACK_SWAN.value, self._check_black_swan, (trades, mv)),
         ]:
             checked.append(name)
             try:
@@ -1018,6 +1106,206 @@ class ResearchLabHealthMonitor:
                 + ("Full retrain or expectancy-breakdown investigation recommended."
                    if result["severity"] == AlertSeverity.CRITICAL.value
                    else "Monitor expectancy and confidence-outcome trend.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Autonomous performance (profit factor/Sharpe/drawdown/hit rate) ──
+
+    def _check_performance(
+        self, trades: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect degradation in autonomous trading performance: a relative
+        drop in profit factor and/or Sharpe ratio, a rise in max drawdown,
+        or a drop in hit rate, comparing baseline vs recent trade windows.
+
+        Delegates the comparison to
+        ``performance_monitor.check_performance_drift`` (the same logic
+        backs the queryable ``PerformanceMonitor`` reports), so this method's
+        only job is translating that result into a ``DriftAlert`` and
+        slotting it into the existing alerting/recommendation path.
+        """
+        perf_cfg = PerformanceMonitorConfig(
+            baseline_window=self._cfg.baseline_window,
+            rolling_window=self._cfg.rolling_window,
+            min_samples=self._cfg.min_samples,
+            profit_factor_drift_warning=self._cfg.performance_profit_factor_warning,
+            profit_factor_drift_critical=self._cfg.performance_profit_factor_critical,
+            sharpe_drift_warning=self._cfg.performance_sharpe_warning,
+            sharpe_drift_critical=self._cfg.performance_sharpe_critical,
+            drawdown_increase_warning=self._cfg.performance_drawdown_increase_warning,
+            drawdown_increase_critical=self._cfg.performance_drawdown_increase_critical,
+            hit_rate_drop_warning=self._cfg.performance_hit_rate_drop_warning,
+            hit_rate_drop_critical=self._cfg.performance_hit_rate_drop_critical,
+        )
+        result = check_performance_drift(trades, perf_cfg, _split_windows)
+        if result is None:
+            return None
+
+        evidence = result["evidence"]
+        triggers = result["triggers"]
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.PERFORMANCE.value,
+            severity=result["severity"],
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=triggers,
+            evidence=evidence,
+            recommended_action=(
+                f"Autonomous performance has degraded ({', '.join(triggers)}): "
+                f"profit factor {evidence['baseline_profit_factor']:.3f} → "
+                f"{evidence['recent_profit_factor']:.3f}, "
+                f"Sharpe {evidence['baseline_sharpe_ratio']:.3f} → "
+                f"{evidence['recent_sharpe_ratio']:.3f}, "
+                f"max drawdown {evidence['baseline_max_drawdown']:.3f} → "
+                f"{evidence['recent_max_drawdown']:.3f}, "
+                f"hit rate {evidence['baseline_hit_rate']:.3f} → "
+                f"{evidence['recent_hit_rate']:.3f}. "
+                + ("Full retrain or risk-budget review recommended."
+                   if result["severity"] == AlertSeverity.CRITICAL.value
+                   else "Monitor performance trend across symbols/regimes/cohorts.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Feature health (missing/stale/corrupted/delayed inputs) ────
+
+    def _check_feature_health(
+        self, reasoning_events: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect missing, stale, corrupted, or delayed pipeline features.
+
+        Delegates to ``feature_health.check_feature_health`` (which also
+        backs the queryable ``FeatureHealthMonitor`` reports) for the
+        per-feature evaluation; this method only translates the result into
+        a ``DriftAlert`` and slots it into the existing alerting path.
+        """
+        cfg = FeatureHealthConfig(
+            expected_features=self._cfg.feature_health_expected_features,
+            value_bounds=self._cfg.feature_health_value_bounds,
+            staleness_warning_s=self._cfg.feature_health_staleness_warning_s,
+            staleness_critical_s=self._cfg.feature_health_staleness_critical_s,
+            delay_warning_s=self._cfg.feature_health_delay_warning_s,
+            delay_critical_s=self._cfg.feature_health_delay_critical_s,
+            corruption_rate_warning=self._cfg.feature_health_corruption_rate_warning,
+            corruption_rate_critical=self._cfg.feature_health_corruption_rate_critical,
+        )
+        result = check_feature_health(reasoning_events, cfg)
+        if result is None:
+            return None
+
+        evidence = result["evidence"]
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.FEATURE_HEALTH.value,
+            severity=result["severity"],
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=result["triggers"],
+            evidence=evidence,
+            recommended_action=(
+                f"Feature pipeline health degraded — "
+                f"missing: {evidence['missing_features'] or 'none'}, "
+                f"stale: {evidence['stale_features'] or 'none'}, "
+                f"corrupted: {evidence['corrupted_features'] or 'none'}, "
+                f"delayed: {evidence['delayed_features'] or 'none'}. "
+                + ("Investigate upstream feature pipeline immediately — inference "
+                   "quality is compromised."
+                   if result["severity"] == AlertSeverity.CRITICAL.value
+                   else "Monitor feature pipeline; verify upstream data sources.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Unseen market conditions ────────────────────────────────────
+
+    def _check_unseen_condition(
+        self, decisions: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect live regimes falling outside the model's known/trained
+        regime vocabulary — distinct from ordinary distribution shift
+        (dimension #3, MARKET): a regime can be entirely new even when the
+        *known* regimes' relative frequencies haven't shifted at all.
+
+        Delegates to ``regime_coverage.check_unseen_conditions`` (which
+        also backs the queryable ``RegimeCoverageMonitor`` reports).
+        """
+        cfg = RegimeCoverageConfig(
+            baseline_window=self._cfg.baseline_window,
+            rolling_window=self._cfg.rolling_window,
+            min_samples=self._cfg.min_samples,
+            known_regimes=self._cfg.regime_coverage_known_regimes,
+            unseen_condition_rate_warning=self._cfg.unseen_condition_rate_warning,
+            unseen_condition_rate_critical=self._cfg.unseen_condition_rate_critical,
+        )
+        result = check_unseen_conditions(decisions, cfg)
+        if result is None:
+            return None
+
+        evidence = result["evidence"]
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.UNSEEN_CONDITION.value,
+            severity=result["severity"],
+            model_version=model_version,
+            affected_symbols=[],
+            affected_features=list(evidence.get("unseen_regimes", {}).keys()),
+            evidence=evidence,
+            recommended_action=(
+                f"Unseen market conditions detected: {evidence.get('unseen_regimes', {})} "
+                f"({evidence.get('unseen_rate', 0) * 100:.1f}% of recent decisions). "
+                + ("Model is operating outside its trained envelope — "
+                   "urgent review of live conditions and retraining scope recommended."
+                   if result["severity"] == AlertSeverity.CRITICAL.value
+                   else "Monitor; consider expanding training data to cover these conditions.")
+            ),
+            created_at=time.time(),
+        )
+
+    # ── Dimension: Black swan detection ────────────────────────────────────────
+
+    def _check_black_swan(
+        self, trades: list[dict], model_version: str
+    ) -> DriftAlert | None:
+        """Detect statistically extreme individual trade outcomes (z-score
+        vs the trailing baseline window) — distinct from both ordinary
+        distribution shift and per-regime win-rate degradation: a single
+        black-swan move can occur inside an otherwise-stable, well-performing
+        regime distribution.
+
+        Delegates to ``regime_coverage.check_black_swans`` (which also
+        backs the queryable ``RegimeCoverageMonitor`` reports).
+        """
+        cfg = RegimeCoverageConfig(
+            baseline_window=self._cfg.baseline_window,
+            rolling_window=self._cfg.rolling_window,
+            min_samples=self._cfg.min_samples,
+            black_swan_zscore_threshold=self._cfg.black_swan_zscore_threshold,
+            black_swan_rate_warning=self._cfg.black_swan_rate_warning,
+            black_swan_rate_critical=self._cfg.black_swan_rate_critical,
+        )
+        result = check_black_swans(trades, cfg)
+        if result is None:
+            return None
+
+        evidence = result["evidence"]
+        return DriftAlert(
+            alert_id=f"hal-{uuid.uuid4().hex[:12]}",
+            dimension=DriftDimension.BLACK_SWAN.value,
+            severity=result["severity"],
+            model_version=model_version,
+            affected_symbols=[e.get("symbol") for e in evidence.get("black_swan_events", [])],
+            affected_features=[],
+            evidence=evidence,
+            recommended_action=(
+                f"Black swan move(s) detected: {len(evidence.get('black_swan_events', []))} "
+                f"extreme outcome(s) ({evidence.get('black_swan_rate', 0) * 100:.1f}% of recent trades, "
+                f"z-score threshold {cfg.black_swan_zscore_threshold}). "
+                + ("Review risk controls and position sizing immediately — "
+                   "tail risk exposure is elevated."
+                   if result["severity"] == AlertSeverity.CRITICAL.value
+                   else "Monitor; confirm risk budget accounts for this tail event.")
             ),
             created_at=time.time(),
         )

@@ -1069,6 +1069,9 @@ class ShadowTestRun:
     # Computed summary (populated on conclude)
     total_decisions: int = 0
     agreement_rate: float = 0.0
+    disagreement_rate: float = 0.0
+    avg_confidence_diff: float = 0.0
+    avg_latency_diff_ms: float = 0.0
     challenger_higher_confidence_rate: float = 0.0
     per_regime_agreement: dict[str, float] = field(default_factory=dict)
     per_instrument_agreement: dict[str, float] = field(default_factory=dict)
@@ -1120,6 +1123,9 @@ class ShadowTestRun:
 
         agreements = sum(1 for d in self.decisions if d.decisions_agree)
         self.agreement_rate = agreements / n
+        self.disagreement_rate = round(1.0 - self.agreement_rate, 4)
+        self.avg_confidence_diff = round(sum(d.confidence_diff for d in self.decisions) / n, 4)
+        self.avg_latency_diff_ms = round(sum(d.latency_diff_ms for d in self.decisions) / n, 3)
 
         higher_conf = sum(
             1 for d in self.decisions if d.challenger_confidence > d.champion_confidence
@@ -1171,6 +1177,9 @@ class ShadowTestRun:
             "notes": self.notes,
             "total_decisions": self.total_decisions,
             "agreement_rate": round(self.agreement_rate, 4),
+            "disagreement_rate": round(self.disagreement_rate, 4),
+            "avg_confidence_diff": round(self.avg_confidence_diff, 4),
+            "avg_latency_diff_ms": round(self.avg_latency_diff_ms, 3),
             "challenger_higher_confidence_rate": round(self.challenger_higher_confidence_rate, 4),
             "per_regime_agreement": self.per_regime_agreement,
             "per_instrument_agreement": self.per_instrument_agreement,

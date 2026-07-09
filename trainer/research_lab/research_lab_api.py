@@ -714,9 +714,20 @@ class ResearchLabAPI:
     def list_shadow_tests(
         self,
         challenger_version: str | None = None,
+        champion_version: str | None = None,
         status: str | None = None,
+        since: float | None = None,
+        until: float | None = None,
     ) -> ApiResponse:
-        items = self._db.list_shadow_tests(challenger_version=challenger_version, status=status)
+        """List shadow tests, queryable by champion/challenger version pair
+        and a ``started_at`` time window (S22B: shadow observation hardening)."""
+        items = self._db.list_shadow_tests(
+            challenger_version=challenger_version,
+            champion_version=champion_version,
+            status=status,
+            since=since,
+            until=until,
+        )
         return _ok("list_shadow_tests", {"shadow_tests": items, "total": len(items)})
 
     # ── 6. Parameter Search ───────────────────────────────────────────────────

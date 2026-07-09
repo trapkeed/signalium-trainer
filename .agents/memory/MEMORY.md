@@ -33,3 +33,7 @@
 - [Artifact signing enforcement wiring](artifact-signing-promotion-gate.md) — signature verification only runs when DeploymentManager gets a real ArtifactRegistry; grep all construction sites, don't assume opt-in default is safe
 - [Health monitor recommendation dedup collision](health-monitor-dedup-collision.md) — dimensions sharing one coarse EvaluationDimension must also dedupe on the fine-grained source, or one CRITICAL alert silently suppresses another
 - [Undefined-correlation drift blind spot](undefined-correlation-drift.md) — a metric becoming undefined (zero variance) between baseline/recent windows is itself degradation; treating "None vs None" as "no drift" hides real failures
+- [Drawdown peak must not floor at zero](drawdown-peak-zero-floor-bug.md) — pure-Python max-drawdown ports must seed peak from the first equity point, never floor at 0.0
+- [Regime label casing inconsistency](regime-label-casing.md) — live regime telemetry mixes casing; any regime-vocabulary/histogram comparison must normalize case or risks false drift/unseen alerts
+- [Duplicated math must stay parity-tested](duplicated-drift-math-parity.md) — when a module reimplements a metric (e.g. TV-distance) instead of importing across a dependency boundary, add a direct parity test against the original
+- [Execution-eligibility as a structural flag](execution-eligibility-structural-flag.md) — "only X can execute" needs a decision-object flag AND an independent identity re-check at the execution boundary; either alone is defeatable

@@ -21,7 +21,7 @@ import anything from `trainer.qde`.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 try:
@@ -107,6 +107,18 @@ class ShadowDispatcher:
         t0 = time.perf_counter()
         challenger_decision = challenger_model.decide(inputs)
         challenger_latency_ms = (time.perf_counter() - t0) * 1000.0
+        # Structural (not conventional) guarantee: mark the challenger side
+        # as observation-only. `ExecutionPlanner.plan()` refuses to execute
+        # any `QDEDecision` with `is_shadow=True`, so even if a caller
+        # mistakenly wires a challenger decision into the execution path
+        # downstream, it is rejected rather than silently traded.
+        #
+        # `dataclasses.replace` (rather than mutating `challenger_decision`
+        # in place) so this never risks flipping the flag on a decision
+        # instance a custom `QDEDecisionModel` implementation might reuse
+        # or share elsewhere — the champion side of this same dispatch, in
+        # particular, must never be affected by tagging the challenger.
+        challenger_decision = replace(challenger_decision, is_shadow=True)
 
         pnl_diff = expected_pnl_proxy(challenger_decision) - expected_pnl_proxy(champion_decision)
         latency_diff_ms = challenger_latency_ms - champion_latency_ms
