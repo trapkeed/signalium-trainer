@@ -311,6 +311,19 @@ CREATE INDEX IF NOT EXISTS idx_failure_reports_created  ON failure_reports(creat
 CREATE INDEX IF NOT EXISTS idx_failure_reports_severity ON failure_reports(severity_score DESC);
 CREATE INDEX IF NOT EXISTS idx_failure_reports_mv       ON failure_reports(model_version);
 
+-- Label datasets produced by LabelDiscoveryEngine (S20)
+CREATE TABLE IF NOT EXISTS label_datasets (
+    dataset_id    TEXT PRIMARY KEY,
+    label_type    TEXT NOT NULL,
+    model_version TEXT NOT NULL DEFAULT '',
+    created_at    REAL NOT NULL,
+    sample_count  INTEGER NOT NULL DEFAULT 0,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_label_datasets_label_type ON label_datasets(label_type);
+CREATE INDEX IF NOT EXISTS idx_label_datasets_mv        ON label_datasets(model_version);
+CREATE INDEX IF NOT EXISTS idx_label_datasets_created   ON label_datasets(created_at);
+
 -- Research notes (standalone, addressable notes; not embedded in other records)
 CREATE TABLE IF NOT EXISTS research_notes (
     note_id            TEXT PRIMARY KEY,
@@ -1057,6 +1070,56 @@ class ResearchLabDatabase:
         rows = self._conn.execute(query, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Label Datasets (S20 Label Discovery Engine) ───────────────────────────
+
+    def upsert_label_dataset(self, record: dict[str, Any]) -> None:
+        """Persist a LabelDataset produced by the LabelDiscoveryEngine."""
+        self._conn.execute(
+            """
+            INSERT INTO label_datasets
+                (dataset_id, label_type, model_version, created_at, sample_count, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(dataset_id) DO UPDATE SET
+                sample_count = excluded.sample_count,
+                data_json    = excluded.data_json
+            """,
+            (
+                record["dataset_id"],
+                record.get("label_type", ""),
+                record.get("model_version", ""),
+                record.get("created_at", 0.0),
+                record.get("sample_count", 0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_label_dataset(self, dataset_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM label_datasets WHERE dataset_id = ?", (dataset_id,)
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_label_datasets(
+        self,
+        label_type: str | None = None,
+        model_version: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM label_datasets WHERE 1=1"
+        params: list[Any] = []
+        if label_type:
+            sql += " AND label_type = ?"
+            params.append(label_type)
+        if model_version:
+            sql += " AND model_version = ?"
+            params.append(model_version)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
     # ── Failure Reports (S20 Investigation Engine) ────────────────────────────
 
     def upsert_failure_report(self, record: dict[str, Any]) -> None:
@@ -1215,7 +1278,7 @@ class ResearchLabDatabase:
             "features",
             "benchmarks",
             "research_notes",
-        ] + list(self._TELEMETRY_TABLES) + ["failure_reports"]
+        ] + list(self._TELEMETRY_TABLES) + ["failure_reports", "label_datasets"]
         result: dict[str, int] = {}
         for table in tables:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()

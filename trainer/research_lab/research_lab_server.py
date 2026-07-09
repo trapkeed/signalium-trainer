@@ -49,8 +49,12 @@ except ImportError as exc:
         "FastAPI and Pydantic are required. Install with: pip install fastapi uvicorn pydantic"
     ) from exc
 
+from trainer.research_lab.discovery_models import DiscoveryQuery, DiscoverySummary
+from trainer.research_lab.experiment_creator import ExperimentCreator
 from trainer.research_lab.failure_investigation_engine import FailureInvestigationEngine
+from trainer.research_lab.feature_discovery_pipeline import FeatureDiscoveryPipeline
 from trainer.research_lab.investigation_models import InvestigationConfig, InvestigationQuery
+from trainer.research_lab.label_discovery_engine import LabelDiscoveryEngine
 from trainer.research_lab.research_lab_api import ResearchLabAPI
 from trainer.research_lab.rl_database import ResearchLabDatabase
 from trainer.research_lab.telemetry_server import make_telemetry_router
@@ -80,6 +84,9 @@ _db = ResearchLabDatabase(_db_path)
 _api = ResearchLabAPI(db=_db)
 _warehouse = TelemetryWarehouse(_db)
 _engine = FailureInvestigationEngine(_warehouse, _db)
+_creator = ExperimentCreator(_db)
+_feature_pipeline = FeatureDiscoveryPipeline(_warehouse, _db)
+_label_engine = LabelDiscoveryEngine(_warehouse, _db)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -950,3 +957,93 @@ def get_failure_report(report_id: str, _: None = Depends(_require_admin)) -> dic
     if not row:
         raise HTTPException(status_code=404, detail=f"Report {report_id!r} not found")
     return {"success": True, "report": row}
+
+
+# ── Auto Discovery (S20) ──────────────────────────────────────────────────────
+
+
+class DiscoverRequest(BaseModel):
+    model_version: str | None = None
+    since: float | None = None
+    until: float | None = None
+    symbol: str | None = None
+    min_failure_severity: float = 0.3
+    max_proposed_per_run: int = 5
+    min_feature_samples: int = 5
+    min_label_samples: int = 3
+    limit_per_stream: int = 5000
+
+
+@app.post("/research/discover")
+def run_discovery(req: DiscoverRequest, _: None = Depends(_require_admin)) -> dict:
+    """Trigger all three S20 discovery pipelines in sequence:
+      1. ExperimentCreator — proposes experiments from failure reports
+      2. FeatureDiscoveryPipeline — discovers candidate feature signals
+      3. LabelDiscoveryEngine — generates hindsight label datasets
+
+    All results are persisted. Returns a DiscoverySummary.
+    """
+    try:
+        dq = DiscoveryQuery(
+            model_version=req.model_version,
+            since=req.since,
+            until=req.until,
+            symbol=req.symbol,
+            min_failure_severity=req.min_failure_severity,
+            max_proposed_per_run=req.max_proposed_per_run,
+            min_feature_samples=req.min_feature_samples,
+            min_label_samples=req.min_label_samples,
+            limit_per_stream=req.limit_per_stream,
+        )
+        summary = DiscoverySummary()
+        _creator.propose(dq, summary)
+        _feature_pipeline.discover(dq, summary)
+        _label_engine.discover(dq, summary)
+        return {"success": True, "summary": summary.to_dict()}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/research/proposed-experiments")
+def list_proposed_experiments(_: None = Depends(_require_admin)) -> dict:
+    """Return all auto-proposed experiments awaiting admin approval."""
+    rows = _creator.list_proposed()
+    return {"success": True, "total": len(rows), "experiments": rows}
+
+
+@app.post("/research/proposed-experiments/{experiment_id}/approve")
+def approve_proposed_experiment(
+    experiment_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    """Advance a PROPOSED experiment to PENDING (admin approval)."""
+    try:
+        _creator.approve(experiment_id)
+        return {"success": True, "experiment_id": experiment_id, "new_status": "PENDING"}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/research/proposed-experiments/{experiment_id}/reject")
+def reject_proposed_experiment(
+    experiment_id: str, _: None = Depends(_require_admin)
+) -> dict:
+    """Reject a PROPOSED experiment (admin decision)."""
+    try:
+        _creator.reject(experiment_id)
+        return {"success": True, "experiment_id": experiment_id, "new_status": "ARCHIVED"}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/research/label-datasets")
+def list_label_datasets(
+    label_type: str | None = None,
+    model_version: str | None = None,
+    limit: int = 50,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return persisted LabelDataset records sorted newest first."""
+    rows = _label_engine.list_datasets(
+        label_type=label_type, model_version=model_version, limit=limit
+    )
+    return {"success": True, "total": len(rows), "datasets": rows}

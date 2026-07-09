@@ -27,6 +27,7 @@ from typing import Any
 
 
 class ExperimentStatus(str, Enum):
+    PROPOSED = "PROPOSED"   # auto-generated, awaiting admin approval
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
@@ -379,6 +380,11 @@ class DiscoveredFeature:
     experiments: list[str] = field(default_factory=list)
     status: str = "CANDIDATE"  # CANDIDATE | ACCEPTED | REJECTED
     notes: str = ""
+    # S20 auto-discovery fields (optional for backward compatibility)
+    formula_description: str = ""
+    evidence_strength: float = 0.0      # [0, 1]
+    suggested_qde_role: str = ""        # e.g. "confidence_calibration_input"
+    sample_count: int = 0
 
     @classmethod
     def new(
@@ -387,6 +393,10 @@ class DiscoveredFeature:
         category: str,
         importance_score: float,
         notes: str = "",
+        formula_description: str = "",
+        evidence_strength: float = 0.0,
+        suggested_qde_role: str = "",
+        sample_count: int = 0,
     ) -> DiscoveredFeature:
         return cls(
             feature_id=f"feat-{str(uuid.uuid4())[:10]}",
@@ -395,6 +405,10 @@ class DiscoveredFeature:
             importance_score=importance_score,
             discovered_at=time.time(),
             notes=notes,
+            formula_description=formula_description,
+            evidence_strength=evidence_strength,
+            suggested_qde_role=suggested_qde_role,
+            sample_count=sample_count,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -407,6 +421,10 @@ class DiscoveredFeature:
             "experiments": self.experiments,
             "status": self.status,
             "notes": self.notes,
+            "formula_description": self.formula_description,
+            "evidence_strength": round(self.evidence_strength, 4),
+            "suggested_qde_role": self.suggested_qde_role,
+            "sample_count": self.sample_count,
         }
 
 
