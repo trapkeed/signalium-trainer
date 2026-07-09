@@ -32,6 +32,102 @@ except ImportError:
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
+_TELEMETRY_SCHEMA = """
+-- ── Telemetry Warehouse (S20) ─────────────────────────────────────────────────
+-- Eight append-only streams from Signalium. Nothing is ever deleted.
+-- All share: event_id (PK), model_version, symbol, timestamp, data_json.
+-- The scalar columns (model_version, symbol, timestamp) are extracted for fast
+-- range and filter queries; all other fields live in data_json.
+
+CREATE TABLE IF NOT EXISTS tel_decisions (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_dec_mv  ON tel_decisions(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_dec_sym ON tel_decisions(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_dec_ts  ON tel_decisions(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_trades (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_trd_mv  ON tel_trades(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_trd_sym ON tel_trades(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_trd_ts  ON tel_trades(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_positions (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_pos_mv  ON tel_positions(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_pos_sym ON tel_positions(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_pos_ts  ON tel_positions(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_failures (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_fail_mv  ON tel_failures(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_fail_sym ON tel_failures(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_fail_ts  ON tel_failures(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_reasoning (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_rsn_mv  ON tel_reasoning(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_rsn_sym ON tel_reasoning(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_rsn_ts  ON tel_reasoning(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_execution (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_exec_mv  ON tel_execution(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_exec_sym ON tel_execution(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_exec_ts  ON tel_execution(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_counterfactuals (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_cf_mv  ON tel_counterfactuals(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_cf_sym ON tel_counterfactuals(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_cf_ts  ON tel_counterfactuals(timestamp);
+
+CREATE TABLE IF NOT EXISTS tel_lifecycle (
+    event_id      TEXT PRIMARY KEY,
+    model_version TEXT NOT NULL,
+    symbol        TEXT NOT NULL,
+    timestamp     REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_tel_lce_mv  ON tel_lifecycle(model_version);
+CREATE INDEX IF NOT EXISTS idx_tel_lce_sym ON tel_lifecycle(symbol);
+CREATE INDEX IF NOT EXISTS idx_tel_lce_ts  ON tel_lifecycle(timestamp);
+"""
+
 _SCHEMA = """
 -- Experiments (tracking every training run)
 CREATE TABLE IF NOT EXISTS experiments (
@@ -248,6 +344,7 @@ class ResearchLabDatabase:
 
     def _init_schema(self) -> None:
         self._conn.executescript(_SCHEMA)
+        self._conn.executescript(_TELEMETRY_SCHEMA)
         self._conn.commit()
 
     def close(self) -> None:
@@ -946,6 +1043,84 @@ class ResearchLabDatabase:
         rows = self._conn.execute(query, params).fetchall()
         return [json.loads(r["data_json"]) for r in rows]
 
+    # ── Telemetry Warehouse (S20) ──────────────────────────────────────────────
+
+    _TELEMETRY_TABLES = (
+        "tel_decisions",
+        "tel_trades",
+        "tel_positions",
+        "tel_failures",
+        "tel_reasoning",
+        "tel_execution",
+        "tel_counterfactuals",
+        "tel_lifecycle",
+    )
+
+    def insert_telemetry_event(self, table: str, event_id: str, record: dict[str, Any]) -> None:
+        """Append a single telemetry event to the appropriate table.
+
+        Append-only: uses INSERT OR IGNORE so duplicate event_ids are silently
+        skipped (idempotent re-delivery from Signalium).
+        """
+        if table not in self._TELEMETRY_TABLES:
+            raise ValueError(f"Unknown telemetry table: {table!r}")
+        self._conn.execute(
+            f"""
+            INSERT OR IGNORE INTO {table}
+                (event_id, model_version, symbol, timestamp, data_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                event_id,
+                record.get("model_version", ""),
+                record.get("symbol", ""),
+                record.get("timestamp", 0.0),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def query_telemetry(self, table: str, q: Any) -> list[dict[str, Any]]:
+        """Typed read from a telemetry table with optional filters.
+
+        Args:
+            table: One of the _TELEMETRY_TABLES names.
+            q: TelemetryQuery dataclass (model_version, symbol, since, until, limit).
+
+        Returns:
+            List of event dicts, ordered by timestamp DESC.
+        """
+        if table not in self._TELEMETRY_TABLES:
+            raise ValueError(f"Unknown telemetry table: {table!r}")
+        sql = f"SELECT data_json FROM {table} WHERE 1=1"
+        params: list[Any] = []
+        if q.model_version:
+            sql += " AND model_version = ?"
+            params.append(q.model_version)
+        if q.symbol:
+            sql += " AND symbol = ?"
+            params.append(q.symbol)
+        if q.since is not None:
+            sql += " AND timestamp >= ?"
+            params.append(q.since)
+        if q.until is not None:
+            sql += " AND timestamp <= ?"
+            params.append(q.until)
+        sql += " ORDER BY timestamp DESC"
+        limit = getattr(q, "limit", 1000)
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        rows = self._conn.execute(sql, params).fetchall()
+        return [json.loads(r["data_json"]) for r in rows]
+
+    def telemetry_stream_counts(self) -> dict[str, int]:
+        """Row counts for all eight telemetry streams."""
+        result: dict[str, int] = {}
+        for table in self._TELEMETRY_TABLES:
+            row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()
+            result[table] = int(row["n"]) if row else 0
+        return result
+
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
@@ -967,7 +1142,7 @@ class ResearchLabDatabase:
             "features",
             "benchmarks",
             "research_notes",
-        ]
+        ] + list(self._TELEMETRY_TABLES)
         result: dict[str, int] = {}
         for table in tables:
             row = self._conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()

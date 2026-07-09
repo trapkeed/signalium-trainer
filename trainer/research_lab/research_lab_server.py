@@ -51,6 +51,8 @@ except ImportError as exc:
 
 from trainer.research_lab.research_lab_api import ResearchLabAPI
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.telemetry_server import make_telemetry_router
+from trainer.research_lab.telemetry_warehouse import TelemetryWarehouse
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -68,9 +70,13 @@ app = FastAPI(
 
 # No CORS middleware — internal server. All traffic arrives via the Express proxy.
 
+# ── Telemetry router (S20) ────────────────────────────────────────────────────
+# Mounted after the app and auth dep are both defined.
+
 _db_path = os.environ.get("RESEARCH_LAB_DB_PATH", "data/research_lab.db")
 _db = ResearchLabDatabase(_db_path)
 _api = ResearchLabAPI(db=_db)
+_warehouse = TelemetryWarehouse(_db)
 _bearer = HTTPBearer(auto_error=False)
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -95,6 +101,10 @@ def _require_admin(
     if not token or token != _CONFIGURED_TOKEN:
         raise HTTPException(403, detail="Forbidden. Invalid or missing admin token.")
 
+
+# Mount the telemetry router — _require_admin is now defined above.
+_telemetry_router = make_telemetry_router(_warehouse, _require_admin)
+app.include_router(_telemetry_router)
 
 # ── Request Models ─────────────────────────────────────────────────────────────
 
