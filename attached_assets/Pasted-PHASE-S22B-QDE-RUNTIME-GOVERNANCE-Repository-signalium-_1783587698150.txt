@@ -1,0 +1,148 @@
+PHASE S22B — QDE RUNTIME GOVERNANCE
+
+Repository:
+signalium-trainer
+
+OBJECTIVE
+
+Create institutional-grade runtime governance for the Signalium Quant Decision Engine.
+
+IMPLEMENT:
+
+1. MODEL HEALTH MONITORING
+
+Track:
+
+* confidence drift
+* prediction entropy
+* uncertainty drift
+* feature drift
+* label drift
+* regime drift
+* calibration drift
+
+---
+
+2. DECISION QUALITY MONITORING
+
+Track:
+
+* confidence versus realized outcome
+* expectancy by regime
+* expectancy by symbol
+* expectancy by session
+* expectancy by volatility state
+
+---
+
+3. AUTONOMOUS PERFORMANCE MONITORING
+
+Track:
+
+* profit factor
+* Sharpe ratio
+* drawdown
+* hit rate
+* risk adjusted return
+* capital efficiency
+
+For:
+
+* each symbol
+* each regime
+* each user cohort
+
+---
+
+4. LIVE MODEL DEGRADATION DETECTION
+
+Automatically detect:
+
+* deterioration in prediction quality
+* deteriorating calibration
+* abnormal confidence spikes
+* unstable behaviour
+
+Generate retraining recommendations.
+
+Never retrain automatically.
+
+Research Lab approval remains mandatory.
+
+---
+
+5. FEATURE HEALTH MONITORING
+
+Track:
+
+* missing features
+* stale features
+* corrupted features
+* delayed features
+
+---
+
+6. MARKET REGIME COVERAGE
+
+Detect:
+
+* unseen market conditions
+* distribution shifts
+* black swan conditions
+
+Generate warnings.
+
+---
+
+7. SHADOW MODEL OBSERVATION
+
+Continue running challenger models silently.
+
+Record:
+
+* agreement rate
+* disagreement rate
+* confidence differences
+* latency differences
+
+Only the champion model may trade live.
+
+---
+
+8. QDE HEALTH SCORE
+
+Create a composite score using:
+
+* calibration
+* profitability
+* stability
+* robustness
+* drift
+
+Output:
+
+EXCELLENT
+GOOD
+WATCH
+DEGRADED
+CRITICAL
+
+---
+
+9. RESEARCH LAB INTEGRATION
+
+All degradation findings must automatically create Research Lab review tasks.
+
+---
+
+10. HUMAN CONTROL PRINCIPLE
+
+The QDE may recommend retraining.
+
+The QDE may recommend promotion.
+
+The QDE may recommend rollback.
+
+The QDE may never execute these actions itself.
+
+Final authority remains with Research Lab administrators.
