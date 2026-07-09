@@ -627,6 +627,38 @@ CREATE TABLE IF NOT EXISTS disaster_recovery_snapshots (
     data_json     TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_drs_created ON disaster_recovery_snapshots(created_at DESC);
+
+-- S27 — Institutional Validation, Governance and Certification.
+-- Permanent, write-once certification report per QDE version, covering all
+-- five certification domains (Performance/Risk/Operational/Research/Market).
+-- Never updated in place: a re-certification of the same version inserts a
+-- new report_id, so the full certification history is always reconstructable.
+CREATE TABLE IF NOT EXISTS institutional_certifications (
+    report_id     TEXT PRIMARY KEY,
+    qde_version   TEXT NOT NULL,
+    decision      TEXT NOT NULL,
+    created_at    REAL NOT NULL,
+    data_json     TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_instcert_version ON institutional_certifications(qde_version);
+CREATE INDEX IF NOT EXISTS idx_instcert_created ON institutional_certifications(created_at DESC);
+
+-- S27 — multi-role deployment approval workflow. One row per deployment
+-- approval workflow (keyed by workflow_id), storing the structured list of
+-- reviewer decisions (role, reviewer, timestamp, notes, decision) as JSON.
+-- Mandatory roles (SuperAdmin + DeploymentApprover) must both be present
+-- and APPROVED before the workflow as a whole is considered approved.
+CREATE TABLE IF NOT EXISTS deployment_approval_workflows (
+    workflow_id     TEXT PRIMARY KEY,
+    qde_version     TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'PENDING',
+    created_at      REAL NOT NULL,
+    updated_at      REAL NOT NULL,
+    data_json       TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_depwf_version ON deployment_approval_workflows(qde_version);
+CREATE INDEX IF NOT EXISTS idx_depwf_status  ON deployment_approval_workflows(status);
+CREATE INDEX IF NOT EXISTS idx_depwf_created ON deployment_approval_workflows(created_at DESC);
 """
 
 
@@ -2748,6 +2780,116 @@ class ResearchLabDatabase:
             sql += f" LIMIT {int(limit)}"
         return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
 
+    # ── S27 Institutional Certification (permanent per-version record) ────────
+
+    def upsert_institutional_certification(self, record: dict[str, Any]) -> None:
+        """Write-once by convention: callers always pass a fresh ``report_id``
+        (see ``InstitutionalCertificationReport.certify``), so this never
+        actually overwrites an existing report — a re-certification of the
+        same QDE version inserts a new row instead of mutating history.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO institutional_certifications
+                (report_id, qde_version, decision, created_at, data_json)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET
+                qde_version = excluded.qde_version,
+                decision    = excluded.decision,
+                created_at  = excluded.created_at,
+                data_json   = excluded.data_json
+            """,
+            (
+                record["report_id"],
+                record.get("qde_version", ""),
+                record.get("decision", ""),
+                record.get("generated_at", time.time()),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_institutional_certification(self, report_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM institutional_certifications WHERE report_id = ?",
+            (report_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_institutional_certifications(
+        self,
+        qde_version: str | None = None,
+        decision: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM institutional_certifications WHERE 1=1"
+        params: list[Any] = []
+        if qde_version:
+            sql += " AND qde_version = ?"
+            params.append(qde_version)
+        if decision:
+            sql += " AND decision = ?"
+            params.append(decision)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
+    def latest_institutional_certification(self, qde_version: str) -> dict[str, Any] | None:
+        rows = self.list_institutional_certifications(qde_version=qde_version, limit=1)
+        return rows[0] if rows else None
+
+    # ── S27 Multi-role Deployment Approval Workflows ───────────────────────────
+
+    def upsert_deployment_approval_workflow(self, record: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO deployment_approval_workflows
+                (workflow_id, qde_version, status, created_at, updated_at, data_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(workflow_id) DO UPDATE SET
+                qde_version = excluded.qde_version,
+                status      = excluded.status,
+                updated_at  = excluded.updated_at,
+                data_json   = excluded.data_json
+            """,
+            (
+                record["workflow_id"],
+                record.get("qde_version", ""),
+                record.get("status", "PENDING"),
+                record.get("created_at", time.time()),
+                record.get("updated_at", time.time()),
+                self._j(record),
+            ),
+        )
+        self._conn.commit()
+
+    def get_deployment_approval_workflow(self, workflow_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT data_json FROM deployment_approval_workflows WHERE workflow_id = ?",
+            (workflow_id,),
+        ).fetchone()
+        return json.loads(row["data_json"]) if row else None
+
+    def list_deployment_approval_workflows(
+        self,
+        qde_version: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        sql = "SELECT data_json FROM deployment_approval_workflows WHERE 1=1"
+        params: list[Any] = []
+        if qde_version:
+            sql += " AND qde_version = ?"
+            params.append(qde_version)
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        sql += " ORDER BY created_at DESC"
+        if limit and limit > 0:
+            sql += f" LIMIT {int(limit)}"
+        return [json.loads(r["data_json"]) for r in self._conn.execute(sql, params).fetchall()]
+
     # ── Stats ──────────────────────────────────────────────────────────────────
 
     def stats(self) -> dict[str, int]:
@@ -2777,6 +2919,7 @@ class ResearchLabDatabase:
             "decision_quality_reports", "performance_reports",
             "feature_health_reports", "regime_coverage_reports",
             "observability_reports",
+            "institutional_certifications", "deployment_approval_workflows",
         ]
         result: dict[str, int] = {}
         for table in tables:

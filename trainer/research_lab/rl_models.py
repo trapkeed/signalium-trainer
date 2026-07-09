@@ -1063,6 +1063,17 @@ class ShadowTestRun:
     concluded_at: float | None = None
     notes: str = ""
 
+    # S27 — Institutional Validation, Governance and Certification: a
+    # mandatory minimum *observation duration*, distinct from `min_decisions`.
+    # A challenger that happens to see a burst of decision volume in a short
+    # window (e.g. a volatile hour) must still be observed across enough real
+    # wall-clock time/regimes before promotion is eligible — volume alone is
+    # not a substitute for time-in-market. Defaults to 0 (disabled) so
+    # existing volume-only shadow tests are unaffected unless a caller opts
+    # in with an explicit minimum (institutional deployments should pass one,
+    # e.g. 7 days — see `create_shadow_test`/`ShadowTestRun.new`).
+    min_duration_seconds: float = 0.0
+
     # Decision records (in-memory; DB adapter replaces this list in production)
     decisions: list[ShadowDecisionRecord] = field(default_factory=list)
 
@@ -1092,6 +1103,7 @@ class ShadowTestRun:
         instruments: list[str],
         min_decisions: int = 500,
         notes: str = "",
+        min_duration_seconds: float = 0.0,
     ) -> ShadowTestRun:
         return cls(
             test_id=f"shadow-{str(uuid.uuid4())[:10]}",
@@ -1103,6 +1115,7 @@ class ShadowTestRun:
             started_at=time.time(),
             min_decisions=min_decisions,
             notes=notes,
+            min_duration_seconds=min_duration_seconds,
         )
 
     def add_decision(self, record: ShadowDecisionRecord) -> None:
@@ -1120,6 +1133,10 @@ class ShadowTestRun:
         if n == 0:
             self.recommendation = ShadowTestRecommendation.INCONCLUSIVE
             return
+
+        # S27 — mandatory minimum observation duration, distinct from
+        # `min_decisions`. Used below as a hard gate on PROMOTE.
+        observed_duration = (self.concluded_at or time.time()) - self.started_at
 
         agreements = sum(1 for d in self.decisions if d.decisions_agree)
         self.agreement_rate = agreements / n
@@ -1154,10 +1171,22 @@ class ShadowTestRun:
         # Recommendation logic — driven primarily by the averaged promotion
         # score, with agreement rate as a guardrail so a high score built on
         # mostly-disagreeing decisions still can't slip through as PROMOTE.
+        #
+        # S27 — the minimum observation duration gate (checked above) is a
+        # hard block on PROMOTE specifically: a challenger that is otherwise
+        # performing badly can still be REJECTed early (no reason to keep
+        # observing a clear loser), but it can never be recommended for
+        # PROMOTE until it has cleared `min_duration_seconds` of real
+        # wall-clock observation, no matter how good its score looks.
+        duration_cleared = observed_duration >= self.min_duration_seconds
         if n < self.min_decisions:
             self.recommendation = ShadowTestRecommendation.EXTEND
         elif self.avg_promotion_score >= 0.70 and self.agreement_rate >= 0.60:
-            self.recommendation = ShadowTestRecommendation.PROMOTE
+            self.recommendation = (
+                ShadowTestRecommendation.PROMOTE
+                if duration_cleared
+                else ShadowTestRecommendation.EXTEND
+            )
         elif self.avg_promotion_score < 0.40 or self.agreement_rate < 0.40:
             self.recommendation = ShadowTestRecommendation.REJECT
         else:
@@ -1174,6 +1203,7 @@ class ShadowTestRun:
             "started_at": round(self.started_at, 3),
             "concluded_at": round(self.concluded_at, 3) if self.concluded_at else None,
             "min_decisions": self.min_decisions,
+            "min_duration_seconds": self.min_duration_seconds,
             "notes": self.notes,
             "total_decisions": self.total_decisions,
             "agreement_rate": round(self.agreement_rate, 4),

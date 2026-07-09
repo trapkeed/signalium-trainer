@@ -50,6 +50,10 @@ class QDERollbackManager:
         initiated_by: str = "system",
         notes: str = "",
         require_schema_match: bool = False,
+        triggering_metrics: dict[str, float] | None = None,
+        affected_datasets: list[str] | None = None,
+        affected_experiments: list[str] | None = None,
+        affected_symbols: list[str] | None = None,
     ) -> QDERollbackRecord:
         """Immediately roll back to a specific target version.
 
@@ -64,6 +68,15 @@ class QDERollbackManager:
                 ``docs/qde/phase_s2_deployment_contract.md``). Defaults to
                 False so legacy versions without a recorded schema (empty
                 string) remain rollback-eligible.
+            triggering_metrics: S27 — the metric values (e.g. drawdown,
+                Sharpe, error rate) that triggered or justified this
+                rollback, captured for the permanent audit/compliance trail.
+            affected_datasets: S27 — dataset IDs implicated by this rollback
+                (e.g. a dataset found to be corrupt/leaked).
+            affected_experiments: S27 — experiment IDs implicated by this
+                rollback.
+            affected_symbols: S27 — instrument symbols whose trading was
+                affected by the version being rolled back.
 
         Returns:
             A ``QDERollbackRecord`` capturing the operation.
@@ -116,6 +129,10 @@ class QDERollbackManager:
             reason=reason,
             initiated_by=initiated_by,
             notes=notes,
+            triggering_metrics=triggering_metrics,
+            affected_datasets=affected_datasets,
+            affected_experiments=affected_experiments,
+            affected_symbols=affected_symbols,
         )
         self._history.append(record)
         logger.warning(

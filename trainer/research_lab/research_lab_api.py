@@ -42,7 +42,13 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
+from trainer.cert.institutional_certification import InstitutionalCertificationReport
+from trainer.research_lab.deployment_approval import (
+    DeploymentApprovalWorkflow,
+    ReviewDecision,
+)
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.sso import Role
 from trainer.research_lab.rl_models import (
     DatasetGenerationJob,
     DatasetGenerationStatus,
@@ -572,6 +578,7 @@ class ResearchLabAPI:
         instruments: list[str] | None = None,
         min_decisions: int = 100,
         notes: str = "",
+        min_duration_seconds: float = 0.0,
     ) -> ApiResponse:
         try:
             test = ShadowTestRun.new(
@@ -581,6 +588,7 @@ class ResearchLabAPI:
                 instruments=instruments,
                 min_decisions=min_decisions,
                 notes=notes,
+                min_duration_seconds=min_duration_seconds,
             )
             self._db.upsert_shadow_test(test.to_dict())
             logger.info(
@@ -1460,3 +1468,160 @@ class ResearchLabAPI:
             linked_entity_id=linked_entity_id,
         )
         return _ok("list_notes", {"notes": items, "total": len(items)})
+
+    # ── 14. Institutional Certification (S27) ──────────────────────────────────
+
+    def create_institutional_certification(
+        self,
+        qde_version: str,
+        metrics: dict[str, float],
+        certified_by: str = "AUTOMATED",
+        notes: str = "",
+    ) -> ApiResponse:
+        """Run the five-domain (Performance/Risk/Operational/Research/Market)
+        institutional certification for a QDE version and persist the result
+        as a new, permanent report. Never overwrites a prior report for the
+        same version — each call creates a new report_id, preserving full
+        certification history.
+        """
+        try:
+            report = InstitutionalCertificationReport.certify(
+                qde_version=qde_version,
+                metrics=metrics,
+                certified_by=certified_by,
+                notes=notes,
+            )
+            self._db.upsert_institutional_certification(report.to_dict())
+            logger.info(
+                f"ResearchLab.create_institutional_certification: {report.report_id}"
+                f" version={qde_version} decision={report.decision.value}"
+            )
+            return _ok("create_institutional_certification", report.to_dict())
+        except Exception as exc:
+            return _err("create_institutional_certification", str(exc))
+
+    def get_institutional_certification(self, report_id: str) -> ApiResponse:
+        record = self._db.get_institutional_certification(report_id)
+        if not record:
+            return _err(
+                "get_institutional_certification", f"Report {report_id!r} not found"
+            )
+        return _ok("get_institutional_certification", record)
+
+    def list_institutional_certifications(
+        self,
+        qde_version: str | None = None,
+        decision: str | None = None,
+        limit: int = 100,
+    ) -> ApiResponse:
+        items = self._db.list_institutional_certifications(
+            qde_version=qde_version, decision=decision, limit=limit
+        )
+        return _ok(
+            "list_institutional_certifications", {"reports": items, "total": len(items)}
+        )
+
+    def get_latest_institutional_certification(self, qde_version: str) -> ApiResponse:
+        record = self._db.latest_institutional_certification(qde_version)
+        if not record:
+            return _err(
+                "get_latest_institutional_certification",
+                f"No certification found for version {qde_version!r}",
+            )
+        return _ok("get_latest_institutional_certification", record)
+
+    # ── 15. Multi-role Deployment Approval Workflow (S27) ───────────────────────
+
+    def create_deployment_approval_workflow(
+        self,
+        qde_version: str,
+        certification_report_id: str = "",
+        requested_by: str = "",
+        notes: str = "",
+    ) -> ApiResponse:
+        try:
+            workflow = DeploymentApprovalWorkflow.new(
+                qde_version=qde_version,
+                certification_report_id=certification_report_id,
+                requested_by=requested_by,
+                notes=notes,
+            )
+            self._db.upsert_deployment_approval_workflow(workflow.to_dict())
+            logger.info(
+                f"ResearchLab.create_deployment_approval_workflow: {workflow.workflow_id}"
+                f" version={qde_version}"
+            )
+            return _ok("create_deployment_approval_workflow", workflow.to_dict())
+        except Exception as exc:
+            return _err("create_deployment_approval_workflow", str(exc))
+
+    def submit_deployment_review(
+        self,
+        workflow_id: str,
+        reviewer: str,
+        role: str,
+        decision: str,
+        certification_result: str = "",
+        notes: str = "",
+    ) -> ApiResponse:
+        """Record one structured reviewer decision.
+
+        `role` must be a valid `sso.Role` value. SuperAdmin/Admin and
+        DeploymentApprover are the two mandatory approver roles; Founder,
+        QuantResearcher, and MLResearcher may add an optional review. The
+        workflow is APPROVED only once both mandatory roles have recorded
+        APPROVE; any REJECT — from any role — rejects the whole workflow.
+        """
+        try:
+            record = self._db.get_deployment_approval_workflow(workflow_id)
+            if not record:
+                return _err(
+                    "submit_deployment_review", f"Workflow {workflow_id!r} not found"
+                )
+            workflow = DeploymentApprovalWorkflow.from_dict(record)
+            try:
+                role_enum = Role(role)
+            except ValueError:
+                return _err("submit_deployment_review", f"Unknown role {role!r}")
+            try:
+                decision_enum = ReviewDecision(decision)
+            except ValueError:
+                return _err("submit_deployment_review", f"Unknown decision {decision!r}")
+
+            workflow.add_review(
+                reviewer=reviewer,
+                role=role_enum,
+                decision=decision_enum,
+                certification_result=certification_result,
+                notes=notes,
+            )
+            self._db.upsert_deployment_approval_workflow(workflow.to_dict())
+            logger.info(
+                f"ResearchLab.submit_deployment_review: {workflow_id} reviewer={reviewer!r}"
+                f" role={role_enum.value} decision={decision_enum.value}"
+                f" status={workflow.status.value}"
+            )
+            return _ok("submit_deployment_review", workflow.to_dict())
+        except Exception as exc:
+            return _err("submit_deployment_review", str(exc))
+
+    def get_deployment_approval_workflow(self, workflow_id: str) -> ApiResponse:
+        record = self._db.get_deployment_approval_workflow(workflow_id)
+        if not record:
+            return _err(
+                "get_deployment_approval_workflow", f"Workflow {workflow_id!r} not found"
+            )
+        return _ok("get_deployment_approval_workflow", record)
+
+    def list_deployment_approval_workflows(
+        self,
+        qde_version: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> ApiResponse:
+        items = self._db.list_deployment_approval_workflows(
+            qde_version=qde_version, status=status, limit=limit
+        )
+        return _ok(
+            "list_deployment_approval_workflows", {"workflows": items, "total": len(items)}
+        )

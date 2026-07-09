@@ -396,7 +396,14 @@ class QDEABTest:
 
 @dataclass
 class QDERollbackRecord:
-    """An immutable record of a rollback operation."""
+    """An immutable record of a rollback operation.
+
+    S27 — Institutional Validation, Governance and Certification extends this
+    record with the structured forensic context a governance/compliance
+    review needs to reconstruct *why* a rollback happened, not just *that* it
+    happened: the metrics that triggered it, and every dataset/experiment/
+    symbol/version the rollback decision touched.
+    """
 
     rollback_id: str
     from_version_id: str
@@ -406,6 +413,14 @@ class QDERollbackRecord:
     rolled_back_at: float
     notes: str = ""
 
+    # S27 — forensic/audit context. All default to empty so existing callers
+    # of `create()` (pre-S27) remain valid.
+    triggering_metrics: dict[str, float] = field(default_factory=dict)
+    affected_versions: list[str] = field(default_factory=list)
+    affected_datasets: list[str] = field(default_factory=list)
+    affected_experiments: list[str] = field(default_factory=list)
+    affected_symbols: list[str] = field(default_factory=list)
+
     @classmethod
     def create(
         cls,
@@ -414,7 +429,19 @@ class QDERollbackRecord:
         reason: str,
         initiated_by: str = "system",
         notes: str = "",
+        triggering_metrics: dict[str, float] | None = None,
+        affected_versions: list[str] | None = None,
+        affected_datasets: list[str] | None = None,
+        affected_experiments: list[str] | None = None,
+        affected_symbols: list[str] | None = None,
     ) -> QDERollbackRecord:
+        # `affected_versions` always includes at least the two versions the
+        # rollback moved between, even if the caller passes nothing — a
+        # rollback event that can't answer "which versions were touched"
+        # would defeat the point of this field.
+        versions = list(dict.fromkeys(
+            [from_version_id, to_version_id] + (affected_versions or [])
+        ))
         return cls(
             rollback_id=str(uuid.uuid4())[:12],
             from_version_id=from_version_id,
@@ -423,6 +450,11 @@ class QDERollbackRecord:
             initiated_by=initiated_by,
             rolled_back_at=time.time(),
             notes=notes,
+            triggering_metrics=dict(triggering_metrics or {}),
+            affected_versions=versions,
+            affected_datasets=list(affected_datasets or []),
+            affected_experiments=list(affected_experiments or []),
+            affected_symbols=list(affected_symbols or []),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -435,6 +467,11 @@ class QDERollbackRecord:
             "rolled_back_at": round(self.rolled_back_at, 3),
             "rolled_back_at_iso": datetime.fromtimestamp(self.rolled_back_at, tz=UTC).isoformat(),
             "notes": self.notes,
+            "triggering_metrics": {k: round(v, 6) for k, v in self.triggering_metrics.items()},
+            "affected_versions": self.affected_versions,
+            "affected_datasets": self.affected_datasets,
+            "affected_experiments": self.affected_experiments,
+            "affected_symbols": self.affected_symbols,
         }
 
 
