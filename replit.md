@@ -31,6 +31,8 @@ pytest tests/
 | `SIGNALIUM_TOKEN`     | Signalium Bearer token (alternative to API key)  |
 | `MLFLOW_TRACKING_URI` | MLflow server URI (optional, for experiment tracking) |
 | `SESSION_SECRET`      | Session secret (already configured in Replit secrets) |
+| `ARTIFACT_SIGNING_PRIVATE_KEY` | Ed25519 private key (PEM) used to sign exported artifacts/manifests. Set as a Replit secret; without it, exports are unsigned and promotion to SHADOW/CANDIDATE/ACTIVE is blocked. |
+| `ARTIFACT_SIGNING_PUBLIC_KEY`  | Ed25519 public key (PEM) used to verify signatures at promotion time. Not sensitive, but env-based so verifiers don't need the private key. |
 
 ## Stack
 

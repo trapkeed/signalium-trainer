@@ -30,11 +30,15 @@ from trainer.research_lab.deployment_manager import (
     DeploymentEvent,
     DeploymentManager,
     DeploymentRecord,
+    PromotionBlockedError,
     _gate_type_for,
     _is_valid_pre_shadow_transition,
 )
 from trainer.research_lab.approval_models import ApprovalGateType
+from trainer.research_lab.artifact_registry import ArtifactRegistry
+from trainer.research_lab.artifact_store import ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.signing import ArtifactSigner
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
@@ -650,16 +654,39 @@ class TestServerEndpoints:
     _HDR = {"Authorization": "Bearer dm-test-token"}
 
     @pytest.fixture()
-    def client(self, tmp_path: Path):
+    def client(self, tmp_path: Path, monkeypatch):
         import os
         os.environ["RESEARCH_LAB_ADMIN_TOKEN"] = "dm-test-token"
         os.environ["RESEARCH_LAB_DB_PATH"] = str(tmp_path / "server_dm.db")
+        os.environ["ARTIFACT_STORE_ROOT"] = str(tmp_path / "artifact_store")
+        priv, pub = ArtifactSigner.generate_keypair()
+        monkeypatch.setenv("ARTIFACT_SIGNING_PRIVATE_KEY", priv)
+        monkeypatch.setenv("ARTIFACT_SIGNING_PUBLIC_KEY", pub)
         for mod_name in list(sys.modules):
             if "research_lab_server" in mod_name:
                 del sys.modules[mod_name]
         import trainer.research_lab.research_lab_server as srv_mod
         from starlette.testclient import TestClient
         return TestClient(srv_mod.app)
+
+    @staticmethod
+    def _export_signed_artifacts(client, model_version: str) -> None:
+        """Export + register a signed artifact set for *model_version* against
+        the same ArtifactRegistry the running server instance uses, so
+        signature-gated promotion endpoints have something valid to verify."""
+        import trainer.research_lab.research_lab_server as srv_mod
+        from trainer.exporters.pipeline import QDEExportPipeline
+
+        weights = srv_mod._artifact_registry.store.root.parent / f"src_{model_version}.pt"
+        weights.parent.mkdir(parents=True, exist_ok=True)
+        weights.write_bytes(f"fake-weights-{model_version}".encode())
+        pipeline = QDEExportPipeline(artifact_registry=srv_mod._artifact_registry)
+        pipeline.export_version(
+            model_version=model_version,
+            output_dir=srv_mod._artifact_registry.store.root,
+            weights_path=weights,
+            export_formats=(),
+        )
 
     # Auth enforcement
 
@@ -719,6 +746,7 @@ class TestServerEndpoints:
         assert body["success"] is False
 
     def test_promote_then_activate(self, client):
+        self._export_signed_artifacts(client, "v1.0")
         # 1. Request promotion to SHADOW
         r1 = client.post("/deployment/promote", json={
             "model_version": "v1.0",
@@ -743,6 +771,7 @@ class TestServerEndpoints:
         assert resp.json()["active"] is None
 
     def test_current_after_activate(self, client):
+        self._export_signed_artifacts(client, "v1.0")
         # Get to CANDIDATE first
         r1 = client.post("/deployment/promote", json={
             "model_version": "v1.0", "target_status": "SHADOW", "requested_by": "admin"
@@ -808,6 +837,9 @@ class TestServerEndpoints:
 
     def test_full_promote_rollback_cycle(self, client):
         """Full cycle: NOT_DEPLOYED → SHADOW → CANDIDATE → ACTIVE → rollback."""
+        self._export_signed_artifacts(client, "v1.0")
+        self._export_signed_artifacts(client, "v2.0")
+
         def _promote(mv, ts):
             r = client.post("/deployment/promote", json={
                 "model_version": mv, "target_status": ts, "requested_by": "admin",
@@ -886,6 +918,7 @@ class TestServerEndpoints:
         assert resp.json()["success"] is False
 
     def test_advance_stage_then_promote_to_shadow(self, client):
+        self._export_signed_artifacts(client, "v1.0")
         for stage in ("DRAFT", "TRAINING", "VALIDATING"):
             r = client.post("/deployment/advance-stage", json={
                 "model_version": "v1.0", "target_status": stage, "requested_by": "admin"
@@ -901,3 +934,144 @@ class TestServerEndpoints:
             "request_id": req_id, "approved_by": "admin"
         }, headers=self._HDR)
         assert activate.json()["promotion_result"]["to_status"] == "SHADOW"
+
+
+# ── S21A: signature verification before promotion ───────────────────────────────
+
+
+class TestSignatureGatedPromotion:
+    """Promotion into SHADOW/CANDIDATE/ACTIVE (and rollback to ACTIVE) must
+    verify every registered artifact's signature first."""
+
+    @pytest.fixture()
+    def signer(self) -> ArtifactSigner:
+        priv, pub = ArtifactSigner.generate_keypair()
+        return ArtifactSigner(private_key_pem=priv, public_key_pem=pub)
+
+    @pytest.fixture()
+    def registry(self, tmp_path: Path) -> ArtifactRegistry:
+        reg_db = ResearchLabDatabase(str(tmp_path / "registry.db"))
+        return ArtifactRegistry(reg_db, store=ArtifactStore(root=tmp_path / "artifact_store"))
+
+    def _export_signed(self, registry: ArtifactRegistry, signer: ArtifactSigner, model_version: str):
+        from trainer.exporters.pipeline import QDEExportPipeline
+
+        weights = registry.store.root.parent / "src_weights.pt"
+        weights.parent.mkdir(parents=True, exist_ok=True)
+        weights.write_bytes(b"fake-weights-for-signing-test")
+        pipeline = QDEExportPipeline(artifact_registry=registry, signer=signer)
+        return pipeline.export_version(
+            model_version=model_version,
+            output_dir=registry.store.root,
+            weights_path=weights,
+            export_formats=(),
+        )
+
+    def _promote(self, db, gate, model_version, target, registry=None, signer=None):
+        mgr = DeploymentManager(
+            db,
+            approval_gate=gate,
+            signalium_notifier=_fake_notifier,
+            artifact_registry=registry,
+            signer=signer,
+        )
+        result = mgr.request_promotion(model_version, target, "admin")
+        req_id = result["approval_request"]["request_id"]
+        return mgr, req_id
+
+    def test_promotion_succeeds_with_valid_signatures(self, db, gate, registry, signer):
+        self._export_signed(registry, signer, "v1.0")
+        mgr, req_id = self._promote(db, gate, "v1.0", "SHADOW", registry=registry, signer=signer)
+        result = mgr.apply_promotion(req_id, "admin")
+        assert result["to_status"] == "SHADOW"
+
+    def test_promotion_blocked_without_registry_artifacts(self, db, gate, registry, signer):
+        """No artifacts registered at all for this version -> blocked."""
+        mgr, req_id = self._promote(db, gate, "v-missing", "SHADOW", registry=registry, signer=signer)
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_promotion(req_id, "admin")
+
+    def test_promotion_blocked_when_unsigned(self, db, gate, registry):
+        """Artifacts exported without a signing key configured are unsigned
+        and must block promotion."""
+        unsigned_signer = ArtifactSigner(private_key_pem="", public_key_pem="")
+        self._export_signed(registry, unsigned_signer, "v1.0")
+        verify_signer = ArtifactSigner.generate_keypair()
+        verifier = ArtifactSigner(public_key_pem=verify_signer[1])
+        mgr, req_id = self._promote(db, gate, "v1.0", "SHADOW", registry=registry, signer=verifier)
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_promotion(req_id, "admin")
+
+    def test_promotion_blocked_on_tampered_artifact(self, db, gate, registry, signer):
+        result = self._export_signed(registry, signer, "v1.0")
+        weights_entry = next(f for f in result["files"] if f["name"] == "weights.pt")
+        Path(weights_entry["path"]).chmod(0o644)
+        Path(weights_entry["path"]).write_bytes(b"TAMPERED-BYTES")
+
+        mgr, req_id = self._promote(db, gate, "v1.0", "SHADOW", registry=registry, signer=signer)
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_promotion(req_id, "admin")
+
+    def test_promotion_blocked_records_audit_event(self, db, gate, registry, signer):
+        mgr, req_id = self._promote(db, gate, "v-missing", "SHADOW", registry=registry, signer=signer)
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_promotion(req_id, "admin")
+        events = db.list_deployment_events(
+            model_version="v-missing", event_type="SIGNATURE_VERIFICATION_FAILED"
+        )
+        assert len(events) == 1
+        assert events[0]["to_status"] == "SHADOW"
+
+    def test_blocked_promotion_does_not_consume_approval(self, db, gate, registry, signer):
+        """A blocked promotion must not burn the approval request — it should
+        remain retryable once the artifacts are fixed/re-exported."""
+        mgr, req_id = self._promote(db, gate, "v-missing", "SHADOW", registry=registry, signer=signer)
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_promotion(req_id, "admin")
+        req = gate.get_request(req_id)
+        assert req.status == "PENDING"
+
+    def test_promotion_without_registry_is_not_gated(self, db, gate, signer):
+        """Backward compatibility: no ArtifactRegistry configured -> signature
+        enforcement is skipped entirely (existing non-artifact-integrated
+        deployments keep working)."""
+        mgr, req_id = self._promote(db, gate, "v1.0", "SHADOW", registry=None, signer=signer)
+        result = mgr.apply_promotion(req_id, "admin")
+        assert result["to_status"] == "SHADOW"
+
+    def test_pre_shadow_advance_stage_is_not_signature_gated(self, db, registry, signer):
+        """DRAFT/TRAINING/VALIDATING have no artifacts yet and must not be
+        blocked by signature enforcement."""
+        mgr = DeploymentManager(db, artifact_registry=registry, signer=signer)
+        result = mgr.advance_stage("v1.0", "DRAFT", "admin")
+        assert result["to_status"] == "DRAFT"
+
+    def test_verify_artifact_signatures_reports_each_result(self, db, registry, signer):
+        self._export_signed(registry, signer, "v1.0")
+        mgr = DeploymentManager(db, artifact_registry=registry, signer=signer)
+        results = mgr.verify_artifact_signatures("v1.0")
+        assert results
+        assert all(r.verified for r in results)
+
+    def test_rollback_to_active_is_signature_gated(self, db, gate, registry, signer):
+        self._export_signed(registry, signer, "v1.0")
+        db.upsert_model_deployment(DeploymentRecord("v1.0", status="RETIRED").to_dict())
+        mgr = DeploymentManager(
+            db, approval_gate=gate, signalium_notifier=_fake_notifier,
+            artifact_registry=registry, signer=signer,
+        )
+        result = mgr.request_rollback("v1.0", reason="bad metrics", requested_by="admin")
+        req_id = result["approval_request"]["request_id"]
+        apply_result = mgr.apply_rollback(req_id, "admin")
+        assert apply_result["to_status"] == "ACTIVE"
+
+    def test_rollback_blocked_when_artifacts_missing(self, db, gate, registry, signer):
+        db.upsert_model_deployment(DeploymentRecord("v1.0", status="RETIRED").to_dict())
+        mgr = DeploymentManager(
+            db, approval_gate=gate, signalium_notifier=_fake_notifier,
+            artifact_registry=registry, signer=signer,
+        )
+        result = mgr.request_rollback("v1.0", reason="bad metrics", requested_by="admin")
+        req_id = result["approval_request"]["request_id"]
+        with pytest.raises(PromotionBlockedError):
+            mgr.apply_rollback(req_id, "admin")

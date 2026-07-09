@@ -1,0 +1,13 @@
+Looking in indexes: http://package-firewall.replit.local/pypi/simple/
+Collecting cryptography
+  Downloading http://package-firewall.replit.local/pypi/packages/a9/3c/f3ad17eecc1a57b0ba236dc01f90e783c51f4a2f35f64777cc4f47a184b2/cryptography-49.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)
+Collecting cffi>=2.0.0 (from cryptography)
+  Downloading http://package-firewall.replit.local/pypi/packages/fb/d2/4398416cd699b35167947c6e22aca52c47e69ad5695073c9f1f2c52e04aa/cffi-2.1.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography)
+  Downloading http://package-firewall.replit.local/pypi/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+Downloading http://package-firewall.replit.local/pypi/packages/a9/3c/f3ad17eecc1a57b0ba236dc01f90e783c51f4a2f35f64777cc4f47a184b2/cryptography-49.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 75.1 MB/s eta 0:00:00
+Downloading http://package-firewall.replit.local/pypi/packages/fb/d2/4398416cd699b35167947c6e22aca52c47e69ad5695073c9f1f2c52e04aa/cffi-2.1.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (217 kB)
+Downloading http://package-firewall.replit.local/pypi/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl (48 kB)
+Installing collected packages: pycparser, cffi, cryptography
+Successfully installed cffi-2.1.0 cryptography-49.0.0 pycparser-3.0

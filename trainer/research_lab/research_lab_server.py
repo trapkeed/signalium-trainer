@@ -139,6 +139,11 @@ _deployment_manager = DeploymentManager(
     _db,
     approval_gate=_approval_gate,
     signalium_notifier=_build_signalium_notifier(),
+    # S21A: wiring the live ArtifactRegistry here is what makes signature
+    # verification actually enforced on this server's promotion/rollback
+    # endpoints — without it, `DeploymentManager` silently skips the check
+    # (see its docstring / `_enforce_signature_verification`).
+    artifact_registry=_artifact_registry,
 )
 _bearer = HTTPBearer(auto_error=False)
 

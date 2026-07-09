@@ -30,3 +30,4 @@
 - [Research Lab admin auth contract](research-lab-admin-auth-contract.md) — missing token→401, wrong token→403; single shared token can't distinguish admins in audit records
 - [pnpm-workspace artifacts glob](pnpm-workspace-artifacts-glob.md) — createArtifact can place a package under artifacts/ without pnpm-workspace.yaml listing that glob; check it or `pnpm --filter` silently reports "no projects matched"
 - [Immutable artifact store design](immutable-artifact-store-design.md) — write-once via os.O_CREAT|O_EXCL, not check-then-write; writers must route through the registry's own store, not a locally-constructed one
+- [Artifact signing enforcement wiring](artifact-signing-promotion-gate.md) — signature verification only runs when DeploymentManager gets a real ArtifactRegistry; grep all construction sites, don't assume opt-in default is safe

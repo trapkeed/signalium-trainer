@@ -41,6 +41,7 @@ except ImportError:
 
 from trainer.research_lab.approval_models import ApprovalGateType
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.signing import ArtifactSigner, SignatureResult, SigningKeyError
 
 
 # ── Valid stage transition map ─────────────────────────────────────────────────
@@ -59,6 +60,15 @@ _VALID_TRANSITIONS: dict[tuple[str, str], ApprovalGateType] = {
     ("RETIRED",      "CANDIDATE"): ApprovalGateType.PROMOTION,
     ("RETIRED",      "ACTIVE"):   ApprovalGateType.DEPLOYMENT,
 }
+
+
+#: S21A: target statuses that require every artifact + the manifest for the
+#: model version to carry a valid signature before the transition may proceed.
+_SIGNATURE_GATED_STATUSES: set[str] = {"SHADOW", "CANDIDATE", "ACTIVE"}
+
+
+class PromotionBlockedError(Exception):
+    """Raised when a promotion is blocked by a failed signature verification."""
 
 
 #: S21A pre-SHADOW pipeline stages: DRAFT → TRAINING → VALIDATING.
@@ -196,10 +206,19 @@ class DeploymentManager:
         db: ResearchLabDatabase,
         approval_gate: Any | None = None,
         signalium_notifier: Callable[[dict], dict] | None = None,
+        artifact_registry: Any | None = None,
+        signer: ArtifactSigner | None = None,
     ) -> None:
         self._db = db
         self._gate = approval_gate
         self._notifier = signalium_notifier
+        # S21A: when an ArtifactRegistry is supplied, every promotion into
+        # SHADOW/CANDIDATE/ACTIVE verifies each artifact's signature before
+        # the transition is allowed to proceed. Without a registry, signature
+        # enforcement is skipped (e.g. deployments not yet integrated with
+        # the artifact pipeline) — this mirrors `signalium_notifier=None`.
+        self._registry = artifact_registry
+        self._signer = signer or ArtifactSigner()
 
     # ── Promotion flow ─────────────────────────────────────────────────────────
 
@@ -337,6 +356,18 @@ class DeploymentManager:
                 f"Unexpected resource_id format {resource_id!r} — expected 'version:status'"
             )
         model_version, target_status = parts[0], parts[1]
+
+        # S21A: verify artifact/manifest signatures BEFORE touching the
+        # approval gate — a blocked promotion must not burn the approval
+        # (which would force a whole new approval cycle just to retry after
+        # fixing/re-exporting the artifacts).
+        if target_status in _SIGNATURE_GATED_STATUSES:
+            self._enforce_signature_verification(
+                model_version=model_version,
+                target_status=target_status,
+                actor=approved_by,
+                approval_id=request_id,
+            )
 
         # Step 1: Approve (PENDING → APPROVED)
         self._gate.approve(request_id, approved_by=approved_by, reason=notes)
@@ -584,6 +615,16 @@ class DeploymentManager:
 
         model_version = gate_req.resource_id
 
+        # S21A: verify signatures for the restored version BEFORE consuming
+        # the ROLLBACK approval — restoring to ACTIVE is a promotion in all
+        # but name and must be held to the same signing bar.
+        self._enforce_signature_verification(
+            model_version=model_version,
+            target_status="ACTIVE",
+            actor=approved_by,
+            approval_id=request_id,
+        )
+
         # Approve (PENDING → APPROVED) then atomically consume (APPROVED → CONSUMED)
         self._gate.approve(request_id, approved_by=approved_by, reason="Rollback approved")
         self._gate.require_approval(
@@ -687,6 +728,118 @@ class DeploymentManager:
     def get_deployment_state(self, model_version: str) -> dict[str, Any] | None:
         """Return the current deployment state for a specific model version."""
         return self._db.get_model_deployment(model_version)
+
+    # ── Signature verification (S21A) ───────────────────────────────────────
+
+    def _enforce_signature_verification(
+        self,
+        model_version: str,
+        target_status: str,
+        actor: str,
+        approval_id: str,
+    ) -> None:
+        """Verify every artifact/manifest for *model_version*, raising and
+        auditing a ``SIGNATURE_VERIFICATION_FAILED`` event if any is missing
+        or invalid.
+
+        No-op when no ``ArtifactRegistry`` was supplied to this manager.
+        """
+        if self._registry is None:
+            return
+
+        results = self.verify_artifact_signatures(model_version)
+        failures = [r for r in results if not r.verified]
+
+        if not results:
+            failures = [
+                SignatureResult(
+                    name="<no artifacts registered>",
+                    verified=False,
+                    reason=f"No registered artifacts found for model_version {model_version!r}",
+                )
+            ]
+
+        if failures:
+            evt = DeploymentEvent(
+                model_version=model_version,
+                event_type="SIGNATURE_VERIFICATION_FAILED",
+                from_status="",
+                to_status=target_status,
+                actor=actor,
+                approval_id=approval_id,
+                payload={"failures": [f.to_dict() for f in failures]},
+            )
+            self._db.insert_deployment_event(evt.to_dict())
+            reasons = "; ".join(f"{f.name}: {f.reason}" for f in failures)
+            logger.error(
+                f"DeploymentManager: promotion of {model_version!r} to "
+                f"{target_status!r} BLOCKED — signature verification failed: {reasons}"
+            )
+            raise PromotionBlockedError(
+                f"Promotion of {model_version!r} to {target_status!r} blocked — "
+                f"signature verification failed for: {reasons}"
+            )
+
+    def verify_artifact_signatures(self, model_version: str) -> list[SignatureResult]:
+        """Verify the integrity hash + signature of every registered artifact
+        for *model_version*.
+
+        Returns:
+            One ``SignatureResult`` per registered artifact (empty list if
+            none are registered, or if no ``ArtifactRegistry`` is configured).
+        """
+        if self._registry is None:
+            return []
+
+        results: list[SignatureResult] = []
+        artifacts = self._registry.list_artifacts(model_version=model_version, limit=10_000)
+        for art in artifacts:
+            results.append(self._verify_one_artifact(art))
+        return results
+
+    def _verify_one_artifact(self, art: dict[str, Any]) -> SignatureResult:
+        name = art.get("name", art.get("artifact_id", "<unknown>"))
+        path_str = art.get("path", "")
+        if not path_str:
+            return SignatureResult(name=name, verified=False, reason="no stored path on record")
+
+        from pathlib import Path
+
+        path = Path(path_str)
+        if not path.exists():
+            return SignatureResult(name=name, verified=False, reason=f"artifact file missing: {path}")
+
+        data = path.read_bytes()
+
+        # Integrity: the file's live bytes must still match the hash recorded
+        # at registration time.
+        import hashlib
+
+        actual_hash = hashlib.sha256(data).hexdigest()
+        expected_hash = art.get("artifact_hash", "")
+        if actual_hash != expected_hash:
+            return SignatureResult(
+                name=name, verified=False, reason="artifact hash mismatch — file has been modified"
+            )
+
+        sig_path = Path(f"{path_str}.sig")
+        if not sig_path.exists():
+            return SignatureResult(name=name, verified=False, reason="missing signature file")
+
+        signature_hex = sig_path.read_text(encoding="utf-8").strip()
+        if not self._signer.can_verify:
+            return SignatureResult(
+                name=name,
+                verified=False,
+                reason="no verification public key configured (ARTIFACT_SIGNING_PUBLIC_KEY)",
+            )
+        try:
+            ok = self._signer.verify(data, signature_hex)
+        except SigningKeyError as exc:
+            return SignatureResult(name=name, verified=False, reason=str(exc))
+        if not ok:
+            return SignatureResult(name=name, verified=False, reason="invalid signature")
+        return SignatureResult(name=name, verified=True)
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 

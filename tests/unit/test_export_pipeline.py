@@ -21,6 +21,7 @@ from trainer.exporters.pipeline import (
 from trainer.research_lab.artifact_registry import ArtifactRegistry
 from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
 from trainer.research_lab.rl_database import ResearchLabDatabase
+from trainer.research_lab.signing import ArtifactSigner
 
 
 @pytest.fixture()
@@ -314,3 +315,84 @@ class TestExportVersionRegistry:
             export_formats=(),
         )
         assert result["artifacts"] == {}
+
+
+class TestExportVersionSigning:
+    """S21A — artifacts and the manifest are signed at export time."""
+
+    @pytest.fixture()
+    def signer(self) -> ArtifactSigner:
+        priv, pub = ArtifactSigner.generate_keypair()
+        return ArtifactSigner(private_key_pem=priv, public_key_pem=pub)
+
+    def test_every_file_gets_a_signature_when_key_configured(
+        self, tmp_path: Path, pre_existing_weights: Path, signer: ArtifactSigner
+    ) -> None:
+        pipeline = QDEExportPipeline(signer=signer)
+        result = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        for entry in result["files"]:
+            assert entry["signature"], f"{entry['name']} was not signed"
+            assert entry["signature_algorithm"] == "ed25519"
+            sig_path = Path(entry["signature_path"])
+            assert sig_path.exists()
+            assert sig_path.read_text().strip() == entry["signature"]
+
+    def test_signature_verifies_against_file_bytes(
+        self, tmp_path: Path, pre_existing_weights: Path, signer: ArtifactSigner
+    ) -> None:
+        pipeline = QDEExportPipeline(signer=signer)
+        result = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        for entry in result["files"]:
+            data = Path(entry["path"]).read_bytes()
+            assert signer.verify(data, entry["signature"]) is True
+
+    def test_tampered_artifact_fails_verification(
+        self, tmp_path: Path, pre_existing_weights: Path, signer: ArtifactSigner
+    ) -> None:
+        pipeline = QDEExportPipeline(signer=signer)
+        result = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        config_entry = next(f for f in result["files"] if f["name"] == "config.json")
+        tampered = b'{"tampered": true}'
+        assert signer.verify(tampered, config_entry["signature"]) is False
+
+    def test_manifest_records_signed_true_when_key_configured(
+        self, tmp_path: Path, pre_existing_weights: Path, signer: ArtifactSigner
+    ) -> None:
+        pipeline = QDEExportPipeline(signer=signer)
+        result = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        assert result["manifest"]["signing"]["signed"] is True
+
+    def test_no_signing_key_leaves_files_unsigned_but_does_not_fail_export(
+        self, tmp_path: Path, pre_existing_weights: Path
+    ) -> None:
+        pipeline = QDEExportPipeline(signer=ArtifactSigner(private_key_pem="", public_key_pem=""))
+        result = pipeline.export_version(
+            model_version="v1",
+            output_dir=tmp_path,
+            weights_path=pre_existing_weights,
+            export_formats=(),
+        )
+        assert result["manifest"]["signing"]["signed"] is False
+        for entry in result["files"]:
+            assert entry["signature"] == ""
+            assert entry["signature_path"] == ""

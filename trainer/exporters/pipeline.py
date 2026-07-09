@@ -55,6 +55,7 @@ except ImportError:  # pragma: no cover
 from trainer.research_lab.artifact_models import ArtifactRecord, ArtifactType
 from trainer.research_lab.artifact_registry import DuplicateArtifactError
 from trainer.research_lab.artifact_store import ArtifactImmutabilityError, ArtifactStore
+from trainer.research_lab.signing import ArtifactSigner, SigningKeyError
 
 #: Canonical file names written by the pipeline (relative to the per-version
 #: export directory).
@@ -130,8 +131,18 @@ class QDEExportPipeline:
             nothing is registered.
     """
 
-    def __init__(self, artifact_registry: Any | None = None) -> None:
+    def __init__(
+        self,
+        artifact_registry: Any | None = None,
+        signer: ArtifactSigner | None = None,
+    ) -> None:
         self._registry = artifact_registry
+        # S21A: sign every exported artifact + the manifest at export time.
+        # A missing private key does not fail the export (see
+        # `trainer.research_lab.signing` module docstring) — it produces
+        # unsigned files, which `DeploymentManager` will then correctly
+        # refuse to promote.
+        self._signer = signer or ArtifactSigner()
 
     # ── Public entrypoint ───────────────────────────────────────────────────
 
@@ -269,13 +280,14 @@ class QDEExportPipeline:
         # collisions against real config artifacts. See `_register()`.
         exported.append((metadata_path, None, "metadata"))
 
-        # ── Checksums for every exported file ───────────────────────────
+        # ── Checksums + signatures for every exported file ──────────────
         files: list[dict[str, Any]] = []
         primary_hash = ""
         for path, artifact_type, tag in exported:
             sha256 = _sha256_file(path)
             if tag == "weights":
                 primary_hash = sha256
+            signature, sig_path = self._sign_file(store, model_version, path)
             files.append(
                 {
                     "name": path.name,
@@ -284,6 +296,9 @@ class QDEExportPipeline:
                     "tag": tag,
                     "size_bytes": path.stat().st_size,
                     "sha256": sha256,
+                    "signature": signature,
+                    "signature_path": str(sig_path) if sig_path else "",
+                    "signature_algorithm": "ed25519" if signature else "",
                 }
             )
 
@@ -302,6 +317,10 @@ class QDEExportPipeline:
             "supported_tasks": supported_tasks or [],
             "export_formats": list(export_formats),
             "framework_version": _framework_version(),
+            "signing": {
+                "algorithm": "ed25519",
+                "signed": self._signer.can_sign,
+            },
             # Snapshot, not a live reference: `files` is appended to below
             # (adding the manifest's own entry) *after* this dict is
             # serialised to disk, so the manifest never lists itself.
@@ -321,6 +340,7 @@ class QDEExportPipeline:
         # guaranteed to match the real on-disk bytes exactly.
         manifest_path = store.write_text(model_version, MANIFEST_FILENAME, json.dumps(manifest, indent=2, default=str))
         manifest_sha256 = _sha256_file(manifest_path)
+        manifest_signature, manifest_sig_path = self._sign_file(store, model_version, manifest_path)
         files.append(
             {
                 "name": manifest_path.name,
@@ -329,6 +349,9 @@ class QDEExportPipeline:
                 "tag": "manifest",
                 "size_bytes": manifest_path.stat().st_size,
                 "sha256": manifest_sha256,
+                "signature": manifest_signature,
+                "signature_path": str(manifest_sig_path) if manifest_sig_path else "",
+                "signature_algorithm": "ed25519" if manifest_signature else "",
             }
         )
 
@@ -367,6 +390,33 @@ class QDEExportPipeline:
             "files": files,
             "artifacts": artifacts,
         }
+
+    # ── Signing ──────────────────────────────────────────────────────────────
+
+    def _sign_file(
+        self, store: ArtifactStore, model_version: str, path: Path
+    ) -> tuple[str, Path | None]:
+        """Sign *path*'s bytes and write ``<filename>.sig`` alongside it.
+
+        Returns ``("", None)`` (no hard failure) when no signing key is
+        configured — see the `trainer.research_lab.signing` module docstring
+        for why this is intentionally non-fatal at export time.
+        """
+        if not self._signer.can_sign:
+            logger.warning(
+                "QDEExportPipeline: no signing key configured (set {}) — "
+                "{!r} will be exported UNSIGNED and blocked from promotion.",
+                "ARTIFACT_SIGNING_PRIVATE_KEY",
+                path.name,
+            )
+            return "", None
+        try:
+            signature = self._signer.sign(path.read_bytes())
+        except SigningKeyError as exc:
+            logger.error("QDEExportPipeline: signing failed for {!r}: {}", path.name, exc)
+            return "", None
+        sig_path = store.write_text(model_version, f"{path.name}.sig", signature)
+        return signature, sig_path
 
     # ── Export steps (torch is imported lazily) ─────────────────────────────
 
