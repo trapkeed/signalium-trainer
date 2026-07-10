@@ -42,17 +42,22 @@ from trainer.qde.brain.brain_models import (
     SymbolPersonality,
     WorkingMemoryItem,
 )
+from trainer.qde.brain.brain_state_manager import BrainStateManager, SymbolTickOutcome
 from trainer.qde.brain.brain_types import (
     BeliefDirection,
     HypothesisStatus,
     NarrativeTone,
     TrendMaturity,
 )
+from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.persistence import QDEBrainDatabase
 
 __all__ = [
     "QDEBrain",
     "QDEBrainDatabase",
+    "BrainStateManager",
+    "SymbolTickOutcome",
+    "InternalStateStore",
     "BrainState",
     "BrainThought",
     "WorkingMemoryItem",
