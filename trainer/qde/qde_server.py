@@ -18,6 +18,13 @@ import os
 from typing import Any
 
 try:
+    from loguru import logger
+except ImportError:
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+try:
     from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
@@ -29,9 +36,11 @@ except ImportError as exc:
 
 from trainer.lifecycle.lifecycle_models import MarketContext, PositionMetrics
 from trainer.portfolio.portfolio_scorer import PortfolioMetrics
+from trainer.qde.brain.brain_api import QDEBrainAPI
 from trainer.qde.qde_api import QDELifecycleAPI
 from trainer.qde.qde_observer_api import QDEObserverAPI
-from trainer.qde.qde_observer_models import SymbolObservationInput
+from trainer.qde.qde_observer_models import ObservationResult, SymbolObservationInput
+from trainer.qde.qde_observer_types import ObserverEvent, ObserverState
 from trainer.qde.qde_outputs import Direction, QDEOutputHeads
 from trainer.qde.qde_position_manager import (
     REVIEW_INTERVAL_SECONDS,
@@ -62,6 +71,8 @@ _api = QDELifecycleAPI(
 _position_manager = QDEPositionManager()
 
 _observer_api = QDEObserverAPI(db_path=os.environ.get("QDE_OBSERVER_DB_PATH"))
+
+_brain_api = QDEBrainAPI(db_path=os.environ.get("QDE_BRAIN_DB_PATH"))
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -455,7 +466,33 @@ def observe_symbol(instrument: str, req: ObservationRequest) -> dict:
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    return _respond(_observer_api.observe(inp))
+    result = _observer_api.observe(inp)
+
+    # QDE's internal market consciousness (Phase Brain) is fed every tick
+    # that reaches the observer, independent of user-connection or
+    # autonomous-trading state — see `trainer/qde/brain/brain.py`.
+    observation_result = None
+    if result.success:
+        try:
+            observation_result = ObservationResult(
+                instrument=result.data["instrument"],
+                state=ObserverState(result.data["state"]),
+                previous_state=ObserverState(result.data["previous_state"]),
+                transitioned=result.data["transitioned"],
+                event=ObserverEvent(result.data["event"]),
+                readiness_score=result.data["readiness_score"],
+                confidence=result.data["confidence"],
+                reasoning=result.data["reasoning"],
+                dwell_seconds=result.data["dwell_seconds"],
+                cooldown_remaining_s=result.data["cooldown_remaining_s"],
+                guard_tripped=result.data["guard_tripped"],
+                unix_ts=result.data["unix_ts"],
+            )
+        except (KeyError, ValueError) as exc:  # noqa: BLE001
+            logger.warning(f"qde_server: could not reconstruct ObservationResult for brain: {exc}")
+    _brain_api.on_market_update(inp, observation_result=observation_result)
+
+    return _respond(result)
 
 
 @app.get("/qde/observer/{instrument}/state")
@@ -481,6 +518,71 @@ def observer_summary() -> dict:
 @app.get("/qde/observer/{instrument}/telemetry")
 def observer_telemetry(instrument: str) -> dict:
     return _respond(_observer_api.telemetry(instrument))
+
+
+# ── Brain (internal market consciousness) Endpoints ────────────────────────────
+
+
+@app.get("/qde/brain/{instrument}/thought")
+def brain_thought(instrument: str) -> dict:
+    return _respond(_brain_api.get_thought(instrument))
+
+
+@app.get("/qde/brain/{instrument}/state")
+def brain_state(instrument: str) -> dict:
+    return _respond(_brain_api.get_state(instrument))
+
+
+@app.get("/qde/brain/states")
+def brain_states() -> dict:
+    return _respond(_brain_api.list_states())
+
+
+@app.post("/qde/brain/attention/reallocate")
+def brain_reallocate_attention() -> dict:
+    return _respond(_brain_api.reallocate_attention())
+
+
+class BrainExperienceRequest(BaseModel):
+    kind: str
+    description: str
+    outcome_quality: float
+    regime: str = ""
+    tags: list[str] = []
+
+
+@app.post("/qde/brain/{instrument}/experience")
+def brain_record_experience(instrument: str, req: BrainExperienceRequest) -> dict:
+    return _respond(
+        _brain_api.record_experience(
+            instrument,
+            req.kind,
+            req.description,
+            req.outcome_quality,
+            regime=req.regime,
+            tags=req.tags,
+        )
+    )
+
+
+@app.get("/qde/brain/{instrument}/experience")
+def brain_experience_history(instrument: str, limit: int = 200) -> dict:
+    return _respond(_brain_api.experience_history(instrument, limit=limit))
+
+
+class BrainReflectRequest(BaseModel):
+    force: bool = False
+
+
+@app.post("/qde/brain/{instrument}/reflect")
+def brain_reflect(instrument: str, req: BrainReflectRequest | None = None) -> dict:
+    force = req.force if req is not None else False
+    return _respond(_brain_api.reflect(instrument, force=force))
+
+
+@app.get("/qde/brain/{instrument}/reflections")
+def brain_reflection_history(instrument: str, limit: int = 200) -> dict:
+    return _respond(_brain_api.reflection_history(instrument, limit=limit))
 
 
 @app.get("/qde/observer/telemetry")

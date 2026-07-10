@@ -195,6 +195,15 @@ class QDEInferenceInput:
     stop_price_hint: float = 0.0
     take_profit_hint: float = 0.0
 
+    # Optional narrative/hypothesis/belief context from `trainer.qde.brain`
+    # (QDE's internal market consciousness). Additive and empty by default
+    # so existing callers/tests that construct `QDEInferenceInput` directly
+    # are unaffected; a `QDEDecisionModel` may use it to let inference be a
+    # consequence of accumulated internal reasoning rather than only this
+    # tick's isolated snapshot. See `trainer.qde.brain.brain.QDEBrain
+    # .to_memory_context`.
+    brain_context: dict = field(default_factory=dict)
+
     def to_dict(self) -> dict:
         return {
             "forecast": self.forecast.to_dict(),
@@ -206,6 +215,7 @@ class QDEInferenceInput:
             "entry_price_hint": round(self.entry_price_hint, 5),
             "stop_price_hint": round(self.stop_price_hint, 5),
             "take_profit_hint": round(self.take_profit_hint, 5),
+            "brain_context": self.brain_context,
         }
 
 
