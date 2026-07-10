@@ -14,6 +14,7 @@ import math
 import time
 import uuid
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from trainer.qde.brain.brain_types import (
     BeliefDirection,
@@ -22,6 +23,9 @@ from trainer.qde.brain.brain_types import (
     TrendMaturity,
     is_terminal_hypothesis_status,
 )
+
+if TYPE_CHECKING:
+    from trainer.qde.brain.opportunity_tracker import Opportunity
 
 BRAIN_SCHEMA_VERSION = "brain_v1"
 
@@ -425,6 +429,7 @@ class BrainState:
     working_memory: list[WorkingMemoryItem] = field(default_factory=list)
     long_term_memory: list[LongTermMemoryEntry] = field(default_factory=list)
     hypotheses: dict[str, Hypothesis] = field(default_factory=dict)
+    opportunities: dict[str, "Opportunity"] = field(default_factory=dict)
     narrative: MarketNarrative | None = None
     belief: MarketBelief | None = None
     personality: SymbolPersonality = field(default_factory=SymbolPersonality)
@@ -451,6 +456,7 @@ class BrainState:
             "working_memory": [i.to_dict() for i in self.working_memory],
             "long_term_memory": [e.to_dict() for e in self.long_term_memory],
             "hypotheses": {k: h.to_dict() for k, h in self.hypotheses.items()},
+            "opportunities": {k: o.to_dict() for k, o in self.opportunities.items()},
             "narrative": self.narrative.to_dict() if self.narrative else None,
             "belief": self.belief.to_dict() if self.belief else None,
             "personality": self.personality.to_dict(),

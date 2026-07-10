@@ -1,4 +1,5 @@
 - [MIE test isolation pattern](mie-test-isolation.md) — spec_from_file_location requires sys.modules pre-registration + try/except loguru fallback
+- [Setup queue opportunity lifecycle](setup-queue-opportunity-lifecycle.md) — WATCHING/ARMED/CONFIRMING/READY/EXECUTING/COOLDOWN is a 3rd distinct lifecycle vocabulary, not a rename of ObserverState/HypothesisMaturity
 - [Brain continuous-ingestion driver](qde-brain-continuous-ingestion.md) — unified poller pulls MarketDataRouter→MIE engines→Observer→Brain per enabled symbol; it's a callable driver, not a scheduler owner
 - [Hypothesis maturity vs narrative status](hypothesis-maturity-vs-narrative-status.md) — execution-facing maturity (OBSERVING..EXECUTABLE) is a pure projection over the existing narrative Hypothesis, never a second storage model
 - [Dynamic attention layering](qde-attention-layering.md) — new multi-signal attention engine delegates cross-symbol normalization to the existing lightweight AttentionAllocator instead of reimplementing it; gates reflect() as the "expensive reasoning" step

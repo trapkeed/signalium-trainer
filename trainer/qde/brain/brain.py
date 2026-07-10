@@ -446,6 +446,8 @@ def _state_from_dict(raw: dict) -> BrainState:
         WorkingMemoryItem,
     )
     from trainer.qde.brain.brain_types import HypothesisStatus
+    from trainer.qde.brain.opportunity_tracker import Opportunity
+    from trainer.qde.brain.setup_lifecycle import SetupState
 
     instrument = raw["instrument"]
 
@@ -493,6 +495,24 @@ def _state_from_dict(raw: dict) -> BrainState:
             created_at=h["created_at"],
             last_updated_at=h["last_updated_at"],
             reinforcement_count=h["reinforcement_count"],
+        )
+
+    opportunities = {}
+    for oid, o in raw.get("opportunities", {}).items():
+        opportunities[oid] = Opportunity(
+            opportunity_id=o["opportunity_id"],
+            instrument=o["instrument"],
+            hypothesis_id=o["hypothesis_id"],
+            direction=BeliefDirection(o["direction"]),
+            state=SetupState(o["state"]),
+            previous_state=SetupState(o["previous_state"]),
+            confirmation_ticks=o["confirmation_ticks"],
+            narrative_snapshot=o.get("narrative_snapshot", ""),
+            last_reason=o.get("last_reason", ""),
+            transition_history=o.get("transition_history", []),
+            created_at=o["created_at"],
+            state_entered_at=o["state_entered_at"],
+            last_updated_at=o["last_updated_at"],
         )
 
     narrative = None
@@ -552,6 +572,7 @@ def _state_from_dict(raw: dict) -> BrainState:
         working_memory=working_memory,
         long_term_memory=long_term_memory,
         hypotheses=hypotheses,
+        opportunities=opportunities,
         narrative=narrative,
         belief=belief,
         personality=personality,

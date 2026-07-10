@@ -73,7 +73,17 @@ from trainer.qde.brain.hypothesis_lifecycle import (
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
+from trainer.qde.brain.opportunity_tracker import Opportunity, OpportunityTracker
 from trainer.qde.brain.persistence import QDEBrainDatabase
+from trainer.qde.brain.setup_lifecycle import (
+    DEFAULT_SETUP_THRESHOLDS,
+    SetupEvidence,
+    SetupState,
+    SetupThresholds,
+    is_valid_transition,
+    next_state,
+)
+from trainer.qde.brain.setup_queue import SetupQueue
 from trainer.qde.brain.uncertainty_engine import (
     UncertaintyLevel,
     UncertaintyScore,
@@ -96,6 +106,15 @@ __all__ = [
     "AttentionWeights",
     "OpportunitySignals",
     "scan",
+    "Opportunity",
+    "OpportunityTracker",
+    "SetupQueue",
+    "SetupState",
+    "SetupEvidence",
+    "SetupThresholds",
+    "DEFAULT_SETUP_THRESHOLDS",
+    "is_valid_transition",
+    "next_state",
     "HypothesisEngine",
     "HypothesisRegistry",
     "HypothesisView",
