@@ -1,0 +1,104 @@
+SIGNALIUM-TRAINER — VPS DEPLOYMENT GUIDE
+Update: Metacognition + Self-Awareness engines (QDEBrain.evaluate_self)
+Commit: 57a6778d3ecfe950afc8f3b8088df9ecebe0e7f0
+CI status: GREEN (run 29112301381)
+
+This guide assumes you already have the app running on your VPS and
+just need to deploy this update.
+
+------------------------------------------------------------
+1. SSH INTO YOUR VPS
+------------------------------------------------------------
+ssh youruser@your-vps-ip
+
+------------------------------------------------------------
+2. BACK UP YOUR DATABASE (recommended before any deploy)
+------------------------------------------------------------
+cd /path/to/signalium-trainer
+mkdir -p backups
+cp data/qde_brain.db backups/qde_brain_$(date +%Y%m%d_%H%M%S).db 2>/dev/null || true
+# Repeat for any other SQLite files under data/ you care about.
+
+------------------------------------------------------------
+3. PULL THE LATEST CODE
+------------------------------------------------------------
+git fetch origin
+git checkout main
+git pull origin main
+
+You should land on commit 57a6778d (or later).
+
+------------------------------------------------------------
+4. INSTALL / UPDATE DEPENDENCIES
+------------------------------------------------------------
+This update did not add new dependencies, but it's safe to sync:
+
+  pip install -r requirements.txt      # or: uv sync
+  pnpm install                         # only if you have a Node/pnpm component
+
+------------------------------------------------------------
+5. APPLY THE DATABASE MIGRATION
+------------------------------------------------------------
+The new metacognition/self-awareness engines read and write three
+tables (brain_state, brain_reflections, brain_experiences). The app
+already creates these automatically on startup (CREATE TABLE IF NOT
+EXISTS), so this step is optional — but running it explicitly lets you
+confirm the schema before restarting the service:
+
+  sqlite3 data/qde_brain.db < migrations/0001_qde_brain_tables.sql
+
+This migration is idempotent — safe to run multiple times, and safe to
+run even if the tables already exist.
+
+If you run the trainer against a different DB path, point sqlite3 at
+that file instead (check your QDE brain database configuration /
+environment variable for the actual path in use).
+
+------------------------------------------------------------
+6. RESTART YOUR SERVICES
+------------------------------------------------------------
+Pick whichever matches how you run the app:
+
+  systemd:
+    sudo systemctl restart signalium-trainer
+    sudo systemctl status signalium-trainer
+
+  Docker / docker-compose:
+    docker compose pull        # if using prebuilt images
+    docker compose build       # if building locally
+    docker compose up -d
+    docker compose logs -f --tail=100
+
+  PM2 / supervisor:
+    pm2 restart signalium-trainer
+    pm2 logs signalium-trainer --lines 100
+
+------------------------------------------------------------
+7. VERIFY THE DEPLOY
+------------------------------------------------------------
+- Hit your health-check endpoint:
+    curl -s http://localhost:<port>/health
+
+- Tail logs briefly to confirm clean startup with no import errors,
+  especially around trainer/qde/brain/ (metacognition_engine.py,
+  self_awareness_engine.py) and QDEBrain.evaluate_self().
+
+- Confirm the new tables exist:
+    sqlite3 data/qde_brain.db ".tables"
+    (expect to see: brain_state, brain_reflections, brain_experiences)
+
+------------------------------------------------------------
+ROLLBACK (if something goes wrong)
+------------------------------------------------------------
+git checkout e1c52cd2f4c...   # previous known-good commit
+# restart services as in step 6
+# restore DB backup from step 2 if needed:
+cp backups/qde_brain_<timestamp>.db data/qde_brain.db
+
+------------------------------------------------------------
+NOTES
+------------------------------------------------------------
+- This update only touched test files (JWT clock-skew flakiness fix)
+  plus the metacognition/self-awareness feature from the prior commit —
+  no breaking changes to existing tables or APIs.
+- No environment variables or secrets were added by this update.
