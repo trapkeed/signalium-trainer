@@ -55,6 +55,7 @@
 - [Recommendation status is PROPOSED not PENDING](recommendation-status-not-pending.md) — RetrainingRecommendation lifecycle is PROPOSED/APPROVED/DISMISSED; any new aggregator filtering for "pending" recommendations must use PROPOSED or it silently always returns zero
 - [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
 - [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
+- [QDE debate engine / thesis split](qde-debate-thesis-split.md) — bull/bear theses reproject existing Hypothesis evidence rather than duplicating it; DebateEngine.clears_for_execution is consult-only, not auto-wired
 - [QDE behavioral personality vs. coarse SymbolPersonality](qde-behavioral-personality-split.md) — two distinct per-symbol personality models coexist on BrainState; know which one to extend
 - [Broker-aware market data router design](market-data-router-design.md) — MarketDataRouter/ProviderPriority/SymbolStore layer on ProviderManager/SymbolNormalizer, never reimplement failover/matching
 - [S32 platform trust/capabilities/RunPod jobs](s32-platform-trust-capabilities-runpod.md) — origin-trust middleware, consolidated capability API, RunPod job lifecycle manager, symbol/reconciler gap-fills

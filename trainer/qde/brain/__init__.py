@@ -64,6 +64,7 @@ from trainer.qde.brain.conviction_engine import (
     compute_conviction,
     is_trade_worthy,
 )
+from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateEngine, DebateVerdict
 from trainer.qde.brain.hypothesis_engine import HypothesisEngine
 from trainer.qde.brain.hypothesis_lifecycle import (
     HypothesisMaturity,
@@ -93,6 +94,7 @@ from trainer.qde.brain.setup_lifecycle import (
 )
 from trainer.qde.brain.setup_queue import SetupQueue
 from trainer.qde.brain.symbol_personality_engine import SymbolPersonalityEngine
+from trainer.qde.brain.thesis_manager import MAX_EVIDENCE_ITEMS, Thesis, ThesisManager
 from trainer.qde.brain.uncertainty_engine import (
     UncertaintyLevel,
     UncertaintyScore,
@@ -167,4 +169,10 @@ __all__ = [
     "setup_requirement_overrides",
     "expected_holding_duration_seconds",
     "SymbolPersonalityEngine",
+    "Thesis",
+    "ThesisManager",
+    "MAX_EVIDENCE_ITEMS",
+    "DebateEngine",
+    "DebateVerdict",
+    "DEFAULT_DOMINANCE_MARGIN",
 ]

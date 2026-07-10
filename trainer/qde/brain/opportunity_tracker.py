@@ -29,6 +29,7 @@ from trainer.qde.brain.setup_lifecycle import (
     SetupThresholds,
     next_state,
 )
+from trainer.qde.brain.thesis_manager import Thesis
 
 MAX_TRANSITION_HISTORY = 20
 
@@ -52,6 +53,12 @@ class Opportunity:
     created_at: float = field(default_factory=time.time)
     state_entered_at: float = field(default_factory=time.time)
     last_updated_at: float = field(default_factory=time.time)
+    # The competing bull/bear arguments for this opportunity — see
+    # `thesis_manager.ThesisManager.sync`, which keeps these up to date.
+    # Every opportunity carries both, regardless of which direction its
+    # tracked hypothesis favors, so the debate always has two sides.
+    bull_thesis: Thesis = field(default_factory=lambda: Thesis(side=BeliefDirection.BULLISH))
+    bear_thesis: Thesis = field(default_factory=lambda: Thesis(side=BeliefDirection.BEARISH))
 
     def dwell_seconds(self, now: float | None = None) -> float:
         now = now if now is not None else time.time()
@@ -78,6 +85,8 @@ class Opportunity:
             "created_at": round(self.created_at, 3),
             "state_entered_at": round(self.state_entered_at, 3),
             "last_updated_at": round(self.last_updated_at, 3),
+            "bull_thesis": self.bull_thesis.to_dict(),
+            "bear_thesis": self.bear_thesis.to_dict(),
         }
 
 
@@ -243,4 +252,4 @@ class OpportunityTracker:
         return None
 
 
-__all__ = ["Opportunity", "OpportunityTracker"]
+__all__ = ["Opportunity", "OpportunityTracker", "Thesis"]

@@ -52,6 +52,7 @@ from trainer.qde.qde_observer_models import ObservationResult, SymbolObservation
 if TYPE_CHECKING:
     from trainer.memory.decision_memory import DecisionMemory
     from trainer.memory.knowledge_base import KnowledgeBase
+    from trainer.qde.brain.thesis_manager import Thesis
     from trainer.qde.qde_inference import QDEInferenceInput
 
 REFLECTION_MIN_INTERVAL_SECONDS = 3600.0  # don't re-reflect more than hourly per symbol
@@ -435,6 +436,22 @@ class QDEBrain:
             self._db.upsert_state(state.to_dict())
 
 
+def _thesis_from_dict(raw: dict | None, default_side: "BeliefDirection") -> "Thesis":
+    from trainer.qde.brain.thesis_manager import Thesis
+
+    if not raw:
+        return Thesis(side=default_side)
+    return Thesis(
+        side=BeliefDirection(raw.get("side", default_side.value)),
+        argument=raw.get("argument", ""),
+        supporting_evidence=raw.get("supporting_evidence", []),
+        conflicting_evidence=raw.get("conflicting_evidence", []),
+        confidence=raw.get("confidence", 0.5),
+        historical_support=raw.get("historical_support", 0.5),
+        updated_at=raw.get("updated_at", time.time()),
+    )
+
+
 def _state_from_dict(raw: dict) -> BrainState:
     """Reconstruct a `BrainState` from its persisted `to_dict()` form."""
     from trainer.qde.brain.brain_models import (
@@ -513,6 +530,8 @@ def _state_from_dict(raw: dict) -> BrainState:
             created_at=o["created_at"],
             state_entered_at=o["state_entered_at"],
             last_updated_at=o["last_updated_at"],
+            bull_thesis=_thesis_from_dict(o.get("bull_thesis"), BeliefDirection.BULLISH),
+            bear_thesis=_thesis_from_dict(o.get("bear_thesis"), BeliefDirection.BEARISH),
         )
 
     narrative = None
