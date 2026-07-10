@@ -129,16 +129,21 @@ class SetupMemoryEngine:
         if confidence is not None:
             record.state_confidence = max(0.0, min(1.0, confidence))
         self._store.upsert(record)
+        # Always append to the audit trail, even for same-state confidence
+        # updates (strengthen/weaken) — this is what lets confidence
+        # stability be derived later (e.g. Opportunity Quality Scoring's
+        # confidence_stability sub-score) instead of only seeing full
+        # state transitions.
+        self._store.append_transition(
+            record.symbol,
+            record.timeframe,
+            from_state,
+            to_state,
+            reason,
+            record.state_confidence,
+            now,
+        )
         if from_state != to_state:
-            self._store.append_transition(
-                record.symbol,
-                record.timeframe,
-                from_state,
-                to_state,
-                reason,
-                record.state_confidence,
-                now,
-            )
             logger.info(
                 "setup_memory: {} {} -> {} ({})",
                 record.key(),
