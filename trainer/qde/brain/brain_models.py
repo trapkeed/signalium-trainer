@@ -425,6 +425,56 @@ class ExperienceRecord:
         }
 
 
+@dataclass
+class CalibrationProfile:
+    """Learned biases correcting systematic over/under-statement by the
+    conviction and uncertainty engines, and by raw model confidence, for
+    one symbol — accumulated from post-trade lessons rather than tracked
+    fields on `ConvictionScore`/`UncertaintyScore` themselves (those stay
+    pure/stateless; this is the durable, cross-session correction layer
+    consumers may add to their raw readings).
+
+    All biases are small signed nudges, not replacements: a positive
+    `conviction_bias` means observed conviction has been running low
+    relative to how trades actually resolved (surprises undershooting
+    expectations less than conviction implied), and should be nudged up;
+    negative means conviction has been overstated. Same convention for
+    `uncertainty_bias` and `confidence_bias`.
+    """
+
+    instrument: str = ""
+    conviction_bias: float = 0.0
+    uncertainty_bias: float = 0.0
+    confidence_bias: float = 0.0
+    sample_count: int = 0
+    created_at: float = field(default_factory=time.time)
+    last_updated_at: float = field(default_factory=time.time)
+
+    def nudge(self, field_name: str, delta: float, alpha: float = 0.1) -> None:
+        """EMA-nudge one of the three bias fields toward `delta` (a single
+        observation's implied correction), clamped to +/-0.5 so a run of
+        surprises can't runaway-dominate the underlying computed score.
+        """
+        if field_name not in ("conviction_bias", "uncertainty_bias", "confidence_bias"):
+            raise ValueError(f"unknown calibration field: {field_name}")
+        prior = getattr(self, field_name)
+        updated = (1 - alpha) * prior + alpha * delta
+        setattr(self, field_name, max(-0.5, min(0.5, updated)))
+        self.sample_count += 1
+        self.last_updated_at = time.time()
+
+    def to_dict(self) -> dict:
+        return {
+            "instrument": self.instrument,
+            "conviction_bias": round(self.conviction_bias, 4),
+            "uncertainty_bias": round(self.uncertainty_bias, 4),
+            "confidence_bias": round(self.confidence_bias, 4),
+            "sample_count": self.sample_count,
+            "created_at": round(self.created_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
+        }
+
+
 # ── Aggregate per-symbol state ────────────────────────────────────────────
 
 
@@ -446,6 +496,7 @@ class BrainState:
     belief: MarketBelief | None = None
     personality: SymbolPersonality = field(default_factory=SymbolPersonality)
     behavioral_profile: PersonalityProfile = field(default_factory=PersonalityProfile)
+    calibration: CalibrationProfile = field(default_factory=CalibrationProfile)
     attention: AttentionAllocation = field(default_factory=AttentionAllocation)
     tick_count: int = 0
     created_at: float = field(default_factory=time.time)
@@ -474,6 +525,7 @@ class BrainState:
             "belief": self.belief.to_dict() if self.belief else None,
             "personality": self.personality.to_dict(),
             "behavioral_profile": self.behavioral_profile.to_dict(),
+            "calibration": self.calibration.to_dict(),
             "attention": self.attention.to_dict(),
             "tick_count": self.tick_count,
             "created_at": round(self.created_at, 3),

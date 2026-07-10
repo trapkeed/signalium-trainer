@@ -55,6 +55,7 @@
 - [Recommendation status is PROPOSED not PENDING](recommendation-status-not-pending.md) — RetrainingRecommendation lifecycle is PROPOSED/APPROVED/DISMISSED; any new aggregator filtering for "pending" recommendations must use PROPOSED or it silently always returns zero
 - [S26 resilience reuses S21A signatures](qde-resilience-signature-reuse.md) — new artifact-safety checks must call DeploymentManager.verify_artifact_signatures(), never re-derive .sig verification
 - [Resilience checks must fail closed](resilience-checks-fail-closed.md) — "unverifiable" is a soft signal for dashboards but must block binary safety/rollback gates
+- [QDE post-trade reflection/surprise/lesson pipeline](qde-post-trade-reflection-lessons.md) — per-trade TradeReflectionEngine is distinct from periodic ReflectionEngine; calibration bias lives on BrainState, not the pure conviction/uncertainty engines
 - [QDE debate engine / thesis split](qde-debate-thesis-split.md) — bull/bear theses reproject existing Hypothesis evidence rather than duplicating it; DebateEngine.clears_for_execution is consult-only, not auto-wired
 - [QDE forgetting engine / memory decay split](qde-forgetting-decay-split.md) — regime_last_seen + Hypothesis.formed_regime were the genuine gaps; ForgettingEngine.forget() is consult/apply, not auto-wired into on_market_update
 - [QDE behavioral personality vs. coarse SymbolPersonality](qde-behavioral-personality-split.md) — two distinct per-symbol personality models coexist on BrainState; know which one to extend

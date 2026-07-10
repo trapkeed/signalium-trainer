@@ -40,6 +40,7 @@ from trainer.qde.brain.brain_models import (
     AttentionAllocation,
     BrainState,
     BrainThought,
+    CalibrationProfile,
     ExperienceRecord,
     Hypothesis,
     LongTermMemoryEntry,
@@ -75,6 +76,7 @@ from trainer.qde.brain.hypothesis_lifecycle import (
 )
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
+from trainer.qde.brain.lesson_extractor import LessonApplication, LessonExtractor
 from trainer.qde.brain.memory_decay_engine import (
     DEFAULT_CONTEXT_MISMATCH_DECAY_PER_SECOND,
     DEFAULT_RECENCY_HALF_LIFE_SECONDS,
@@ -95,6 +97,7 @@ from trainer.qde.brain.personality_profiles import (
     risk_appetite_multiplier,
     setup_requirement_overrides,
 )
+from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,
     SetupEvidence,
@@ -104,6 +107,12 @@ from trainer.qde.brain.setup_lifecycle import (
     next_state,
 )
 from trainer.qde.brain.setup_queue import SetupQueue
+from trainer.qde.brain.surprise_engine import (
+    SurpriseAssessment,
+    SurpriseLevel,
+    SurpriseSignals,
+    compute_surprise,
+)
 from trainer.qde.brain.symbol_personality_engine import SymbolPersonalityEngine
 from trainer.qde.brain.thesis_manager import MAX_EVIDENCE_ITEMS, Thesis, ThesisManager
 from trainer.qde.brain.uncertainty_engine import (
@@ -196,4 +205,13 @@ __all__ = [
     "DEFAULT_CONTEXT_MISMATCH_DECAY_PER_SECOND",
     "DEFAULT_REGIME_DECAY_PER_SECOND",
     "REGIME_NEUTRAL_QUALITY",
+    "CalibrationProfile",
+    "TradeReflection",
+    "TradeReflectionEngine",
+    "SurpriseAssessment",
+    "SurpriseLevel",
+    "SurpriseSignals",
+    "compute_surprise",
+    "LessonApplication",
+    "LessonExtractor",
 ]

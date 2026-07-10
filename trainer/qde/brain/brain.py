@@ -41,16 +41,19 @@ from trainer.qde.brain.brain_models import (
 from trainer.qde.brain.brain_types import BeliefDirection, NarrativeTone, TrendMaturity
 from trainer.qde.brain.conviction_engine import compute_conviction
 from trainer.qde.brain.hypotheses import HypothesisTracker
+from trainer.qde.brain.lesson_extractor import LessonApplication, LessonExtractor
 from trainer.qde.brain.long_term_memory import LongTermMemory
 from trainer.qde.brain.narratives import NarrativeEngine
 from trainer.qde.brain.persistence import QDEBrainDatabase
 from trainer.qde.brain.reflection import ReflectionEngine
+from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
 from trainer.qde.brain.uncertainty_engine import compute_uncertainty
 from trainer.qde.brain.working_memory import WorkingMemory
 from trainer.qde.qde_observer_models import ObservationResult, SymbolObservationInput
 
 if TYPE_CHECKING:
     from trainer.memory.decision_memory import DecisionMemory
+    from trainer.memory.decision_models import DecisionRecord
     from trainer.memory.knowledge_base import KnowledgeBase
     from trainer.qde.brain.thesis_manager import Thesis
     from trainer.qde.qde_inference import QDEInferenceInput
@@ -74,6 +77,10 @@ class QDEBrain:
         self._narratives = NarrativeEngine()
         self._attention = AttentionAllocator()
         self._reflection = ReflectionEngine()
+        self._trade_reflection = TradeReflectionEngine()
+        self._lesson_extractor = LessonExtractor(
+            long_term_memory=self._long_term_memory, working_memory=self._working_memory
+        )
         self._last_reflected_at: dict[str, float] = {}
         if self._db is not None:
             self._restore_from_db()
@@ -331,6 +338,32 @@ class QDEBrain:
             self._db.log_reflection(entry.to_dict())
         return entry
 
+    def reflect_on_trade(
+        self,
+        record: "DecisionRecord",
+        regime: str = "",
+    ) -> tuple[TradeReflection, LessonApplication] | None:
+        """Run the post-trade analysis pipeline the QDE performs after
+        every completed trade: assumptions, reasoning quality, ignored
+        evidence, false evidence, and surprise magnitude
+        (`TradeReflectionEngine`), then fold the findings into symbol
+        personalities, conviction/uncertainty calibration, and future
+        hypotheses (`LessonExtractor`).
+
+        Returns `None` if `record` has no recorded outcome yet.
+        """
+        reflection = self._trade_reflection.reflect_on_trade(record)
+        if reflection is None:
+            return None
+
+        state = self.get_state(record.instrument)
+        application = self._lesson_extractor.apply(state, reflection, regime=regime)
+
+        if self._db is not None:
+            self._db.upsert_state(state.to_dict())
+
+        return reflection, application
+
     # ── Inference integration ─────────────────────────────────────────────
 
     def to_memory_context(self, instrument: str) -> dict:
@@ -456,6 +489,7 @@ def _state_from_dict(raw: dict) -> BrainState:
     """Reconstruct a `BrainState` from its persisted `to_dict()` form."""
     from trainer.qde.brain.brain_models import (
         AttentionAllocation,
+        CalibrationProfile,
         Hypothesis,
         LongTermMemoryEntry,
         MarketNarrative,
@@ -605,6 +639,17 @@ def _state_from_dict(raw: dict) -> BrainState:
         last_updated_at=bp.get("last_updated_at", time.time()),
     )
 
+    c = raw.get("calibration", {})
+    calibration = CalibrationProfile(
+        instrument=c.get("instrument", instrument),
+        conviction_bias=c.get("conviction_bias", 0.0),
+        uncertainty_bias=c.get("uncertainty_bias", 0.0),
+        confidence_bias=c.get("confidence_bias", 0.0),
+        sample_count=c.get("sample_count", 0),
+        created_at=c.get("created_at", time.time()),
+        last_updated_at=c.get("last_updated_at", time.time()),
+    )
+
     return BrainState(
         instrument=instrument,
         working_memory=working_memory,
@@ -615,6 +660,7 @@ def _state_from_dict(raw: dict) -> BrainState:
         belief=belief,
         personality=personality,
         behavioral_profile=behavioral_profile,
+        calibration=calibration,
         attention=attention,
         tick_count=raw.get("tick_count", 0),
         created_at=raw.get("created_at", time.time()),
