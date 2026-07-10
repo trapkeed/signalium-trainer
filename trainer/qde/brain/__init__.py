@@ -28,6 +28,12 @@ independent of whether a user is connected or autonomous trading is
 enabled, so QDE's internal state advances even when nobody is watching.
 """
 
+from trainer.qde.brain.attention_allocator import (
+    AttentionScore,
+    AttentionScoreAllocator,
+    AttentionWeights,
+)
+from trainer.qde.brain.attention_engine import AttentionEngine
 from trainer.qde.brain.brain import QDEBrain
 from trainer.qde.brain.brain_models import (
     AttentionAllocation,
@@ -58,6 +64,7 @@ from trainer.qde.brain.hypothesis_lifecycle import (
 )
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
+from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
 from trainer.qde.brain.persistence import QDEBrainDatabase
 
 __all__ = [
@@ -66,6 +73,12 @@ __all__ = [
     "BrainStateManager",
     "SymbolTickOutcome",
     "InternalStateStore",
+    "AttentionEngine",
+    "AttentionScoreAllocator",
+    "AttentionScore",
+    "AttentionWeights",
+    "OpportunitySignals",
+    "scan",
     "HypothesisEngine",
     "HypothesisRegistry",
     "HypothesisView",
