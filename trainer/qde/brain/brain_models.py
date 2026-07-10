@@ -479,6 +479,8 @@ class BrainThought:
     reasoning: str = ""
     tick_count: int = 0
     unix_ts: float = field(default_factory=time.time)
+    uncertainty: dict | None = None
+    dominant_conviction: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -492,5 +494,7 @@ class BrainThought:
             "personality_traits": {k: round(v, 4) for k, v in self.personality_traits.items()},
             "reasoning": self.reasoning,
             "tick_count": self.tick_count,
+            "uncertainty": self.uncertainty,
+            "dominant_conviction": self.dominant_conviction,
             "unix_ts": round(self.unix_ts, 3),
         }

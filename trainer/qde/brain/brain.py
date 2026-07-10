@@ -39,11 +39,13 @@ from trainer.qde.brain.brain_models import (
     ReflectionEntry,
 )
 from trainer.qde.brain.brain_types import BeliefDirection, NarrativeTone, TrendMaturity
+from trainer.qde.brain.conviction_engine import compute_conviction
 from trainer.qde.brain.hypotheses import HypothesisTracker
 from trainer.qde.brain.long_term_memory import LongTermMemory
 from trainer.qde.brain.narratives import NarrativeEngine
 from trainer.qde.brain.persistence import QDEBrainDatabase
 from trainer.qde.brain.reflection import ReflectionEngine
+from trainer.qde.brain.uncertainty_engine import compute_uncertainty
 from trainer.qde.brain.working_memory import WorkingMemory
 from trainer.qde.qde_observer_models import ObservationResult, SymbolObservationInput
 
@@ -182,7 +184,13 @@ class QDEBrain:
         if self._db is not None:
             self._db.upsert_state(state.to_dict())
 
-        return self._synthesize_thought(state, now)
+        return self._synthesize_thought(
+            state,
+            now,
+            news_risk=inp.market.news_risk,
+            trend_valid=inp.market.trend_valid,
+            microstructure_quality=inp.microstructure_quality,
+        )
 
     def _update_hypotheses(
         self,
@@ -332,6 +340,28 @@ class QDEBrain:
         state = self.get_state(instrument)
         return self._synthesize_thought(state, time.time()).to_dict()
 
+    def uncertainty_and_conviction(
+        self,
+        instrument: str,
+        news_risk: float = 0.0,
+        trend_valid: bool = True,
+        microstructure_quality: float = 0.5,
+    ) -> BrainThought:
+        """Full-fidelity thought synthesis using richer per-tick signals
+        (news risk, trend validity, microstructure quality) that aren't
+        stored on the narrative itself — for callers (e.g. `qde_inference`)
+        that have this tick's `SymbolObservationInput` on hand and want a
+        sharper uncertainty reading than `to_memory_context` alone provides.
+        """
+        state = self.get_state(instrument)
+        return self._synthesize_thought(
+            state,
+            time.time(),
+            news_risk=news_risk,
+            trend_valid=trend_valid,
+            microstructure_quality=microstructure_quality,
+        )
+
     def enrich_inference_input(
         self, inp: "QDEInferenceInput", instrument: str
     ) -> "QDEInferenceInput":
@@ -341,9 +371,30 @@ class QDEBrain:
         inp.brain_context = self.to_memory_context(instrument)
         return inp
 
-    def _synthesize_thought(self, state: BrainState, now: float) -> BrainThought:
+    def _synthesize_thought(
+        self,
+        state: BrainState,
+        now: float,
+        news_risk: float = 0.0,
+        trend_valid: bool = True,
+        microstructure_quality: float = 0.5,
+    ) -> BrainThought:
         active = self._hypotheses.active(state.hypotheses)
         narrative = state.narrative
+        uncertainty = compute_uncertainty(
+            instrument=state.instrument,
+            news_risk=news_risk,
+            volatility_state=narrative.volatility_state if narrative else "NORMAL",
+            liquidity_state=narrative.liquidity_state if narrative else "NORMAL",
+            trend_valid=trend_valid,
+            microstructure_quality=microstructure_quality,
+            active_hypotheses=active,
+            now=now,
+        )
+        dominant_conviction = None
+        if active:
+            strongest = max(active, key=lambda h: h.confidence)
+            dominant_conviction = compute_conviction(strongest, now=now).to_dict()
         return BrainThought(
             instrument=state.instrument,
             narrative_summary=narrative.summary if narrative else "",
@@ -353,6 +404,8 @@ class QDEBrain:
             dominant_belief=state.belief.to_dict() if state.belief else None,
             attention_weight=state.attention.weight,
             personality_traits=dict(state.personality.traits),
+            uncertainty=uncertainty.to_dict(),
+            dominant_conviction=dominant_conviction,
             reasoning=self._explain(state, active),
             tick_count=state.tick_count,
             unix_ts=now,

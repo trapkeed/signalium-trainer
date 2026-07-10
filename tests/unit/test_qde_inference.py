@@ -297,6 +297,22 @@ class TestHeuristicQDEDecisionModel(unittest.TestCase):
         decision = model.decide(_build_input(forecast=_fc(confidence=0.9, news_risk=0.0)))
         self.assertEqual(decision.model_version_id, "v-42")
 
+    def test_high_brain_uncertainty_forces_no_trade_despite_high_confidence(self):
+        inp = _build_input(forecast=_fc(confidence=0.95, news_risk=0.0))
+        inp.brain_context = {"uncertainty": {"composite": 0.9}}
+        decision = self.model.decide(inp)
+        self.assertEqual(decision.entry_action, EntryAction.REJECT)
+
+    def test_absent_brain_context_is_fully_backward_compatible(self):
+        decision = self.model.decide(_build_input(forecast=_fc(confidence=0.9, news_risk=0.0)))
+        self.assertEqual(decision.entry_action, EntryAction.ENTER)
+
+    def test_moderate_brain_uncertainty_dampens_but_does_not_force_reject(self):
+        inp = _build_input(forecast=_fc(confidence=0.95, news_risk=0.0))
+        inp.brain_context = {"uncertainty": {"composite": 0.3}}
+        decision = self.model.decide(inp)
+        self.assertLess(decision.confidence, 0.95)
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # QDERegistry.get_active_model / register_decision_model

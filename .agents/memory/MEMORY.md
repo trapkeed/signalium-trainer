@@ -62,5 +62,6 @@
 - [Shadow duration gate default](s27-shadow-duration-gate-default.md) — new mandatory-duration/lifecycle gates must default to off (0), not a real value, or they silently break existing PROMOTE-path tests
 - [S28 decision traceability design](s28-decision-traceability-design.md) — lineage resolver marks per-hop resolved:bool against real records; replay uses injected inference_fn to stay torch-independent; new admin features need explicit per-role Visibility grants
 - [S29 trainer security additions](s29-security-additions.md) — artifact encryption/secure-load, inference request signing+replay+rate-limit+abuse-detection, dataset write-once protection; ArtifactRecord.new() uses `extra` not `metadata`
+- [Confidence vs conviction vs uncertainty](conviction-uncertainty-distinction.md) — brain_context was a previously-inert seam now read by qde_inference; uncertainty>=0.75 hard-rejects trades
 
 

@@ -297,15 +297,26 @@ def derive_decision_fields(
     heads: QDEOutputHeads,
     has_position: bool,
     free_margin_pct: float,
+    market_uncertainty: float = 0.0,
 ) -> tuple[EntryAction, ExitAction, ScaleAction, list[ManagementAction]]:
     """Translate raw output heads into the legacy execution-facing fields.
 
     Kept deliberately simple and threshold-based (not a strategy) so it can
     be swapped for a learned mapping later without changing the heads
     themselves or any downstream consumer.
+
+    `market_uncertainty` (0-1, default 0.0 for full backward compatibility)
+    is the Brain's composite market-ambiguity reading (see
+    `brain.uncertainty_engine`). It is not folded into any head — heads stay
+    a pure signal vector — it only gates entry here: above the
+    "does not understand the market" threshold, NO_TRADE (`REJECT`) is
+    forced regardless of confidence/urgency, since a hypothesis formed in
+    conditions QDE cannot currently interpret should never be trusted.
     """
     if not has_position:
-        if free_margin_pct < 0.05:
+        if market_uncertainty >= 0.75:
+            entry_action = EntryAction.REJECT
+        elif free_margin_pct < 0.05:
             entry_action = EntryAction.REJECT
         elif heads.entry_urgency >= 0.55 and heads.confidence >= 0.55:
             entry_action = EntryAction.ENTER
@@ -375,6 +386,18 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         heads = self._compute_heads(inputs)
         return self._decision_from_heads(heads, inputs)
 
+    @staticmethod
+    def _market_uncertainty(inputs: QDEInferenceInput) -> float:
+        """Composite market-ambiguity reading from `QDEBrain.brain_context`
+        (see `brain.uncertainty_engine`), if the caller wired one in via
+        `QDEBrain.enrich_inference_input`. Defaults to 0.0 (fully
+        backward-compatible) when no Brain context is attached.
+        """
+        if not inputs.brain_context:
+            return 0.0
+        uncertainty = inputs.brain_context.get("uncertainty") or {}
+        return _clamp01(float(uncertainty.get("composite", 0.0)))
+
     def _compute_heads(self, inputs: QDEInferenceInput) -> QDEOutputHeads:
         """Produce the 10-head signal vector for this instrument.
 
@@ -389,6 +412,7 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         if inputs.memory.recent_win_rate is not None:
             conviction = (conviction * 0.7) + (inputs.memory.recent_win_rate * 0.3)
         conviction *= 1.0 - _clamp01(inputs.market.news_risk)
+        conviction *= 1.0 - 0.6 * self._market_uncertainty(inputs)
         conviction = _clamp01(conviction)
 
         has_position = inputs.position.lots > 1e-9
@@ -431,7 +455,10 @@ class HeuristicQDEDecisionModel(QDEDecisionModel):
         has_position = inputs.position.lots > 1e-9
 
         entry_action, exit_action, scale_action, management = derive_decision_fields(
-            heads, has_position, inputs.account.free_margin_pct
+            heads,
+            has_position,
+            inputs.account.free_margin_pct,
+            market_uncertainty=self._market_uncertainty(inputs),
         )
 
         rationale = (

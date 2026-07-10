@@ -30,6 +30,16 @@ What this module *adds* that did not exist before:
     per-tick signal as tradeable, without this module ever placing an
     order itself (that boundary stays exactly where it already is, at
     `qde_inference.derive_decision_fields`).
+  * `conviction_for()` / `trade_worthy_hypotheses()` — layers
+    `conviction_engine`'s confidence-vs-conviction distinction and
+    `uncertainty_engine`'s market-ambiguity gate on top of the maturity
+    progression above, so a hypothesis can also become trade-worthy
+    through sustained conviction alone (not only through the
+    confidence-driven `EXECUTABLE` path), and so a symbol currently in a
+    high-uncertainty environment yields no trade-worthy hypotheses at
+    all — NO_TRADE is preferred whenever the QDE does not currently
+    understand the market, regardless of any single hypothesis's
+    confidence or conviction.
 """
 
 from __future__ import annotations
@@ -46,6 +56,11 @@ except ImportError:
 
 from trainer.qde.brain.brain_models import BrainState, Hypothesis
 from trainer.qde.brain.brain_types import BeliefDirection
+from trainer.qde.brain.conviction_engine import (
+    ConvictionScore,
+    compute_conviction,
+    is_trade_worthy,
+)
 from trainer.qde.brain.hypotheses import HypothesisTracker
 from trainer.qde.brain.hypothesis_lifecycle import (
     DEFAULT_MATURITY_THRESHOLDS,
@@ -54,6 +69,11 @@ from trainer.qde.brain.hypothesis_lifecycle import (
     compute_maturity,
 )
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
+from trainer.qde.brain.uncertainty_engine import (
+    UncertaintyScore,
+    compute_uncertainty,
+    prefers_no_trade,
+)
 from trainer.qde.brain.working_memory import WorkingMemory
 
 if TYPE_CHECKING:
@@ -230,6 +250,89 @@ class HypothesisEngine:
         if not views:
             return None
         return views[0].hypothesis.direction
+
+    def conviction_for(self, hypothesis_id: str) -> ConvictionScore | None:
+        """Confidence-vs-conviction reading for one hypothesis — see
+        `conviction_engine` for the distinction. Never re-derives
+        confidence; only adds an independent conviction axis.
+        """
+        located = self._locate(hypothesis_id)
+        if located is None:
+            return None
+        _, state = located
+        hyp = state.hypotheses.get(hypothesis_id)
+        if hyp is None:
+            return None
+        return compute_conviction(hyp, thresholds=self._thresholds)
+
+    def uncertainty_for(
+        self,
+        symbol: str,
+        news_risk: float = 0.0,
+        microstructure_quality: float = 0.5,
+        trend_valid: bool = True,
+    ) -> UncertaintyScore:
+        """Current market-ambiguity reading for `symbol`, combining the
+        Brain's own narrative context (volatility/liquidity/regime state,
+        active hypotheses) with any richer per-tick signals the caller
+        has available (news risk, microstructure quality, trend
+        validity) that aren't stored on the narrative itself.
+        """
+        state = self._brain.get_state(symbol)
+        narrative = state.narrative
+        volatility_state = narrative.volatility_state if narrative else "NORMAL"
+        liquidity_state = narrative.liquidity_state if narrative else "NORMAL"
+        active = state.active_hypotheses()
+        return compute_uncertainty(
+            instrument=symbol,
+            news_risk=news_risk,
+            volatility_state=volatility_state,
+            liquidity_state=liquidity_state,
+            trend_valid=trend_valid,
+            microstructure_quality=microstructure_quality,
+            active_hypotheses=active,
+        )
+
+    def trade_worthy_hypotheses(
+        self,
+        symbol: str,
+        min_conviction: float = 0.6,
+        min_confidence: float = 0.4,
+        uncertainty_threshold: float = 0.55,
+        news_risk: float = 0.0,
+        microstructure_quality: float = 0.5,
+        trend_valid: bool = True,
+    ) -> list[HypothesisView]:
+        """Hypotheses worth acting on right now, folding in both
+        conviction (so a well-reinforced but lower-confidence setup can
+        still qualify — the low-confidence/high-conviction case) and
+        market uncertainty (so a high-ambiguity market yields nothing at
+        all, however strong any individual hypothesis looks — the
+        "QDE does not understand the market" case explicitly prefers
+        NO_TRADE over acting on any hypothesis).
+
+        Additive to `executable_hypotheses()` / `mature_direction()`,
+        which remain unchanged for existing callers relying on the pure
+        maturity-progression semantics.
+        """
+        uncertainty = self.uncertainty_for(
+            symbol,
+            news_risk=news_risk,
+            microstructure_quality=microstructure_quality,
+            trend_valid=trend_valid,
+        )
+        if prefers_no_trade(uncertainty, threshold=uncertainty_threshold):
+            logger.debug(
+                "trade_worthy_hypotheses({}): suppressed, {}", symbol, uncertainty.explanation
+            )
+            return []
+
+        worthy = []
+        for view in self.registry.active(symbol):
+            score = compute_conviction(view.hypothesis, thresholds=self._thresholds)
+            if is_trade_worthy(score, min_conviction=min_conviction, min_confidence=min_confidence):
+                worthy.append(view)
+        return sorted(worthy, key=lambda v: v.hypothesis.confidence, reverse=True)
 
     # ── Internals ─────────────────────────────────────────────────────────
 

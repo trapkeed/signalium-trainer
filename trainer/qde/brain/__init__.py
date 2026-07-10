@@ -55,6 +55,14 @@ from trainer.qde.brain.brain_types import (
     NarrativeTone,
     TrendMaturity,
 )
+from trainer.qde.brain.conviction_engine import (
+    ConvictionComponents,
+    ConvictionProfile,
+    ConvictionScore,
+    classify_profile,
+    compute_conviction,
+    is_trade_worthy,
+)
 from trainer.qde.brain.hypothesis_engine import HypothesisEngine
 from trainer.qde.brain.hypothesis_lifecycle import (
     HypothesisMaturity,
@@ -66,6 +74,15 @@ from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, Hypothesis
 from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
 from trainer.qde.brain.persistence import QDEBrainDatabase
+from trainer.qde.brain.uncertainty_engine import (
+    UncertaintyLevel,
+    UncertaintyScore,
+    UncertaintySignals,
+    classify_level,
+    compute_uncertainty,
+    does_not_understand_market,
+    prefers_no_trade,
+)
 
 __all__ = [
     "QDEBrain",
@@ -101,4 +118,17 @@ __all__ = [
     "NarrativeTone",
     "BeliefDirection",
     "TrendMaturity",
+    "ConvictionProfile",
+    "ConvictionComponents",
+    "ConvictionScore",
+    "classify_profile",
+    "compute_conviction",
+    "is_trade_worthy",
+    "UncertaintyLevel",
+    "UncertaintySignals",
+    "UncertaintyScore",
+    "classify_level",
+    "compute_uncertainty",
+    "prefers_no_trade",
+    "does_not_understand_market",
 ]
