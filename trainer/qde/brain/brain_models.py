@@ -139,6 +139,10 @@ class SymbolPersonality:
     instrument: str = ""
     traits: dict[str, float] = field(default_factory=dict)
     regime_outcome_quality: dict[str, float] = field(default_factory=dict)  # regime -> avg quality
+    # regime -> last time it was observed as the *current* regime. Not used by
+    # `update_regime_quality` itself — `memory_decay_engine.regime_decay` reads
+    # and maintains this to know how obsolete a regime's learned quality is.
+    regime_last_seen: dict[str, float] = field(default_factory=dict)
     sample_count: int = 0
     created_at: float = field(default_factory=time.time)
     last_updated_at: float = field(default_factory=time.time)
@@ -162,6 +166,7 @@ class SymbolPersonality:
             "regime_outcome_quality": {
                 k: round(v, 4) for k, v in self.regime_outcome_quality.items()
             },
+            "regime_last_seen": {k: round(v, 3) for k, v in self.regime_last_seen.items()},
             "sample_count": self.sample_count,
             "created_at": round(self.created_at, 3),
             "last_updated_at": round(self.last_updated_at, 3),
@@ -193,6 +198,11 @@ class Hypothesis:
     last_updated_at: float = field(default_factory=time.time)
     reinforcement_count: int = 0
     max_age_seconds: float = DEFAULT_HYPOTHESIS_MAX_AGE_SECONDS
+    # Market regime in effect when this hypothesis was formed (from
+    # `MarketNarrative.market_regime`, if known at the time). Not read by
+    # anything in this module — `memory_decay_engine.context_decay` uses it
+    # to gradually fade confidence once the current regime no longer matches.
+    formed_regime: str = ""
 
     def reinforce(self, evidence: str, boost: float = 0.15, now: float | None = None) -> None:
         self.supporting_evidence.append(evidence)
@@ -246,6 +256,7 @@ class Hypothesis:
             "created_at": round(self.created_at, 3),
             "last_updated_at": round(self.last_updated_at, 3),
             "reinforcement_count": self.reinforcement_count,
+            "formed_regime": self.formed_regime,
         }
 
 

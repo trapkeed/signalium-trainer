@@ -31,6 +31,7 @@ class HypothesisTracker:
         direction: BeliefDirection,
         confidence: float = 0.3,
         now: float | None = None,
+        formed_regime: str = "",
     ) -> Hypothesis:
         """Form a new hypothesis, unless an equivalent one (same thesis
         text, still non-terminal) is already active — in which case that
@@ -50,6 +51,7 @@ class HypothesisTracker:
             confidence=confidence,
             created_at=now,
             last_updated_at=now,
+            formed_regime=formed_regime,
         )
         hypotheses[hyp.hypothesis_id] = hyp
 

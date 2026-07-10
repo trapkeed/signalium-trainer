@@ -512,6 +512,7 @@ def _state_from_dict(raw: dict) -> BrainState:
             created_at=h["created_at"],
             last_updated_at=h["last_updated_at"],
             reinforcement_count=h["reinforcement_count"],
+            formed_regime=h.get("formed_regime", ""),
         )
 
     opportunities = {}
@@ -572,6 +573,7 @@ def _state_from_dict(raw: dict) -> BrainState:
         instrument=p.get("instrument", instrument),
         traits=p.get("traits", {}),
         regime_outcome_quality=p.get("regime_outcome_quality", {}),
+        regime_last_seen=p.get("regime_last_seen", {}),
         sample_count=p.get("sample_count", 0),
         created_at=p.get("created_at", time.time()),
         last_updated_at=p.get("last_updated_at", time.time()),

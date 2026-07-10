@@ -128,7 +128,16 @@ class HypothesisEngine:
         """
         now = now if now is not None else time.time()
         state = self._brain.get_state(symbol)
-        hyp = self._tracker.form(state.hypotheses, symbol, thesis, direction, confidence, now=now)
+        formed_regime = state.narrative.market_regime if state.narrative else ""
+        hyp = self._tracker.form(
+            state.hypotheses,
+            symbol,
+            thesis,
+            direction,
+            confidence,
+            now=now,
+            formed_regime=formed_regime,
+        )
         if evidence:
             self._tracker.reinforce(state.hypotheses, hyp.hypothesis_id, evidence)
         self._log_memory(symbol, hyp, "HYPOTHESIS_CREATED", now)

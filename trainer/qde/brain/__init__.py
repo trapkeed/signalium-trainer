@@ -65,6 +65,7 @@ from trainer.qde.brain.conviction_engine import (
     is_trade_worthy,
 )
 from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateEngine, DebateVerdict
+from trainer.qde.brain.forgetting_engine import ForgettingEngine, ForgettingReport
 from trainer.qde.brain.hypothesis_engine import HypothesisEngine
 from trainer.qde.brain.hypothesis_lifecycle import (
     HypothesisMaturity,
@@ -74,6 +75,16 @@ from trainer.qde.brain.hypothesis_lifecycle import (
 )
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
+from trainer.qde.brain.memory_decay_engine import (
+    DEFAULT_CONTEXT_MISMATCH_DECAY_PER_SECOND,
+    DEFAULT_RECENCY_HALF_LIFE_SECONDS,
+    DEFAULT_REGIME_DECAY_PER_SECOND,
+    REGIME_NEUTRAL_QUALITY,
+    context_decay,
+    recency_weight,
+    regime_decay,
+    relevance_weight,
+)
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
 from trainer.qde.brain.opportunity_tracker import Opportunity, OpportunityTracker
 from trainer.qde.brain.persistence import QDEBrainDatabase
@@ -175,4 +186,14 @@ __all__ = [
     "DebateEngine",
     "DebateVerdict",
     "DEFAULT_DOMINANCE_MARGIN",
+    "ForgettingEngine",
+    "ForgettingReport",
+    "recency_weight",
+    "relevance_weight",
+    "context_decay",
+    "regime_decay",
+    "DEFAULT_RECENCY_HALF_LIFE_SECONDS",
+    "DEFAULT_CONTEXT_MISMATCH_DECAY_PER_SECOND",
+    "DEFAULT_REGIME_DECAY_PER_SECOND",
+    "REGIME_NEUTRAL_QUALITY",
 ]
