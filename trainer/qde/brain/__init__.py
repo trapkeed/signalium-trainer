@@ -87,6 +87,7 @@ from trainer.qde.brain.memory_decay_engine import (
     regime_decay,
     relevance_weight,
 )
+from trainer.qde.brain.metacognition_engine import MetacognitionEngine, MetacognitiveAssessment
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
 from trainer.qde.brain.opportunity_tracker import Opportunity, OpportunityTracker
 from trainer.qde.brain.persistence import QDEBrainDatabase
@@ -98,6 +99,7 @@ from trainer.qde.brain.personality_profiles import (
     setup_requirement_overrides,
 )
 from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
+from trainer.qde.brain.self_awareness_engine import SelfAwarenessEngine, SelfAwarenessState
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,
     SetupEvidence,
@@ -214,4 +216,8 @@ __all__ = [
     "compute_surprise",
     "LessonApplication",
     "LessonExtractor",
+    "MetacognitionEngine",
+    "MetacognitiveAssessment",
+    "SelfAwarenessEngine",
+    "SelfAwarenessState",
 ]

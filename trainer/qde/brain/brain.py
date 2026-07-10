@@ -43,10 +43,12 @@ from trainer.qde.brain.conviction_engine import compute_conviction
 from trainer.qde.brain.hypotheses import HypothesisTracker
 from trainer.qde.brain.lesson_extractor import LessonApplication, LessonExtractor
 from trainer.qde.brain.long_term_memory import LongTermMemory
+from trainer.qde.brain.metacognition_engine import MetacognitionEngine, MetacognitiveAssessment
 from trainer.qde.brain.narratives import NarrativeEngine
 from trainer.qde.brain.persistence import QDEBrainDatabase
 from trainer.qde.brain.reflection import ReflectionEngine
 from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
+from trainer.qde.brain.self_awareness_engine import SelfAwarenessEngine, SelfAwarenessState
 from trainer.qde.brain.uncertainty_engine import compute_uncertainty
 from trainer.qde.brain.working_memory import WorkingMemory
 from trainer.qde.qde_observer_models import ObservationResult, SymbolObservationInput
@@ -81,6 +83,8 @@ class QDEBrain:
         self._lesson_extractor = LessonExtractor(
             long_term_memory=self._long_term_memory, working_memory=self._working_memory
         )
+        self._metacognition = MetacognitionEngine()
+        self._self_awareness = SelfAwarenessEngine()
         self._last_reflected_at: dict[str, float] = {}
         if self._db is not None:
             self._restore_from_db()
@@ -363,6 +367,41 @@ class QDEBrain:
             self._db.upsert_state(state.to_dict())
 
         return reflection, application
+
+    def evaluate_self(
+        self,
+        instrument: str,
+        decision_memory: "DecisionMemory | None" = None,
+        current_regime: str = "",
+    ) -> tuple[MetacognitiveAssessment, SelfAwarenessState]:
+        """Continuously evaluate QDE's own recent performance, confidence
+        calibration, overconfidence, and regime/symbol weakness for one
+        symbol (`MetacognitionEngine`), then use that assessment to update
+        the symbol's bounded, slowly-tracking behavioral adjustments —
+        aggression, risk appetite, trade frequency, and evidence
+        requirements (`SelfAwarenessEngine`).
+
+        Cheap enough to call on every tick (or on a fast periodic cadence);
+        unlike `reflect()` it is not rate-limited, since it only aggregates
+        already-computed decision history rather than doing any expensive
+        synthesis. Persists the updated state if backed by a database.
+        """
+        state = self.get_state(instrument)
+        assessment = self._metacognition.assess(
+            instrument,
+            decision_memory=decision_memory,
+            personality=state.personality,
+            calibration=state.calibration,
+        )
+        state.self_awareness = self._self_awareness.adjust(
+            state.self_awareness, assessment, current_regime=current_regime
+        )
+        state.last_updated_at = time.time()
+
+        if self._db is not None:
+            self._db.upsert_state(state.to_dict())
+
+        return assessment, state.self_awareness
 
     # ── Inference integration ─────────────────────────────────────────────
 
@@ -650,6 +689,11 @@ def _state_from_dict(raw: dict) -> BrainState:
         last_updated_at=c.get("last_updated_at", time.time()),
     )
 
+    sa = raw.get("self_awareness", {})
+    self_awareness = SelfAwarenessState.from_dict(
+        {**sa, "instrument": sa.get("instrument", instrument)}
+    )
+
     return BrainState(
         instrument=instrument,
         working_memory=working_memory,
@@ -661,6 +705,7 @@ def _state_from_dict(raw: dict) -> BrainState:
         personality=personality,
         behavioral_profile=behavioral_profile,
         calibration=calibration,
+        self_awareness=self_awareness,
         attention=attention,
         tick_count=raw.get("tick_count", 0),
         created_at=raw.get("created_at", time.time()),

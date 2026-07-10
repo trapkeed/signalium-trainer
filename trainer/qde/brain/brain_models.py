@@ -24,9 +24,15 @@ from trainer.qde.brain.brain_types import (
     is_terminal_hypothesis_status,
 )
 from trainer.qde.brain.personality_profiles import PersonalityProfile
+from trainer.qde.brain.self_awareness_engine import SelfAwarenessState
 
 if TYPE_CHECKING:
     from trainer.qde.brain.opportunity_tracker import Opportunity
+
+
+def _default_self_awareness() -> SelfAwarenessState:
+    return SelfAwarenessState()
+
 
 BRAIN_SCHEMA_VERSION = "brain_v1"
 
@@ -497,6 +503,7 @@ class BrainState:
     personality: SymbolPersonality = field(default_factory=SymbolPersonality)
     behavioral_profile: PersonalityProfile = field(default_factory=PersonalityProfile)
     calibration: CalibrationProfile = field(default_factory=CalibrationProfile)
+    self_awareness: "SelfAwarenessState" = field(default_factory=lambda: _default_self_awareness())
     attention: AttentionAllocation = field(default_factory=AttentionAllocation)
     tick_count: int = 0
     created_at: float = field(default_factory=time.time)
@@ -526,6 +533,7 @@ class BrainState:
             "personality": self.personality.to_dict(),
             "behavioral_profile": self.behavioral_profile.to_dict(),
             "calibration": self.calibration.to_dict(),
+            "self_awareness": self.self_awareness.to_dict(),
             "attention": self.attention.to_dict(),
             "tick_count": self.tick_count,
             "created_at": round(self.created_at, 3),

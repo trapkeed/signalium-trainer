@@ -70,3 +70,4 @@
 - [Confidence vs conviction vs uncertainty](conviction-uncertainty-distinction.md) — brain_context was a previously-inert seam now read by qde_inference; uncertainty>=0.75 hard-rejects trades
 
 
+- [Metacognition/self-awareness caution vs expansion](qde-metacognition-self-awareness.md) — caution's neutral point is 0, not 0.5; expansion needs a separate positive-performance signal, not just low caution
