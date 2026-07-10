@@ -1,5 +1,6 @@
 - [MIE test isolation pattern](mie-test-isolation.md) — spec_from_file_location requires sys.modules pre-registration + try/except loguru fallback
 - [Brain continuous-ingestion driver](qde-brain-continuous-ingestion.md) — unified poller pulls MarketDataRouter→MIE engines→Observer→Brain per enabled symbol; it's a callable driver, not a scheduler owner
+- [Hypothesis maturity vs narrative status](hypothesis-maturity-vs-narrative-status.md) — execution-facing maturity (OBSERVING..EXECUTABLE) is a pure projection over the existing narrative Hypothesis, never a second storage model
 - [Test-stub sys.modules poisoning](test-stub-sys-modules-poisoning.md) — unconditional sys.modules fakes in test files leak globally, breaking unrelated full-suite runs; gate stubs behind a real runtime check
 - [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks
 - [Cert operational scoring](cert-operational-scoring.md) — non-mandatory op failures → WARNING (weight 55), not FAIL; mandatory op failures → weight 0; test assertions must account for this

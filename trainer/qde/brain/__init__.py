@@ -49,6 +49,14 @@ from trainer.qde.brain.brain_types import (
     NarrativeTone,
     TrendMaturity,
 )
+from trainer.qde.brain.hypothesis_engine import HypothesisEngine
+from trainer.qde.brain.hypothesis_lifecycle import (
+    HypothesisMaturity,
+    MaturityThresholds,
+    compute_maturity,
+    is_terminal_maturity,
+)
+from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.persistence import QDEBrainDatabase
 
@@ -58,6 +66,13 @@ __all__ = [
     "BrainStateManager",
     "SymbolTickOutcome",
     "InternalStateStore",
+    "HypothesisEngine",
+    "HypothesisRegistry",
+    "HypothesisView",
+    "HypothesisMaturity",
+    "MaturityThresholds",
+    "compute_maturity",
+    "is_terminal_maturity",
     "BrainState",
     "BrainThought",
     "WorkingMemoryItem",
