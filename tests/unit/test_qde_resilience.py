@@ -568,22 +568,36 @@ class TestDeploymentSafetyMonitor:
 
 
 class TestResilienceServerEndpoints:
-    _SUPERADMIN_HDR = {
-        "Authorization": "Bearer test-res-token",
-        "X-Signalium-Token": make_signalium_jwt(role="SuperAdmin"),
-    }
-    _AUDITOR_HDR = {
-        "Authorization": "Bearer test-res-token",
-        "X-Signalium-Token": make_signalium_jwt(role="Auditor"),
-    }
-    _QUANT_RESEARCHER_HDR = {
-        "Authorization": "Bearer test-res-token",
-        "X-Signalium-Token": make_signalium_jwt(role="QuantResearcher"),
-    }
-    _ML_RESEARCHER_HDR = {
-        "Authorization": "Bearer test-res-token",
-        "X-Signalium-Token": make_signalium_jwt(role="MLResearcher"),
-    }
+    # Minted fresh on each access (not class-level constants) since the
+    # JWT's `iat` is checked against a clock-skew window and would go stale
+    # if computed once at class-definition/import time.
+    @property
+    def _SUPERADMIN_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-res-token",
+            "X-Signalium-Token": make_signalium_jwt(role="SuperAdmin"),
+        }
+
+    @property
+    def _AUDITOR_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-res-token",
+            "X-Signalium-Token": make_signalium_jwt(role="Auditor"),
+        }
+
+    @property
+    def _QUANT_RESEARCHER_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-res-token",
+            "X-Signalium-Token": make_signalium_jwt(role="QuantResearcher"),
+        }
+
+    @property
+    def _ML_RESEARCHER_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-res-token",
+            "X-Signalium-Token": make_signalium_jwt(role="MLResearcher"),
+        }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):

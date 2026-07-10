@@ -772,10 +772,15 @@ class TestGetComparison:
 
 
 class TestServerEndpoints:
-    _HDR = {
-        "Authorization": "Bearer cc-test-token",
-        "X-Signalium-Token": make_signalium_jwt(),
-    }
+    @property
+    def _HDR(self) -> dict:
+        # Minted fresh on each access (not a class-level constant) since the
+        # JWT's `iat` is checked against a clock-skew window and would go
+        # stale if computed once at class-definition/import time.
+        return {
+            "Authorization": "Bearer cc-test-token",
+            "X-Signalium-Token": make_signalium_jwt(),
+        }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):

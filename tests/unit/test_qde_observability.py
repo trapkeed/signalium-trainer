@@ -332,14 +332,22 @@ class TestQDEHealthDashboard:
 
 
 class TestObservabilityServerEndpoints:
-    _SUPERADMIN_HDR = {
-        "Authorization": "Bearer test-obs-token",
-        "X-Signalium-Token": make_signalium_jwt(role="SuperAdmin"),
-    }
-    _AUDITOR_HDR = {
-        "Authorization": "Bearer test-obs-token",
-        "X-Signalium-Token": make_signalium_jwt(role="Auditor"),
-    }
+    # Minted fresh on each access (not class-level constants) since the
+    # JWT's `iat` is checked against a clock-skew window and would go stale
+    # if computed once at class-definition/import time.
+    @property
+    def _SUPERADMIN_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-obs-token",
+            "X-Signalium-Token": make_signalium_jwt(role="SuperAdmin"),
+        }
+
+    @property
+    def _AUDITOR_HDR(self) -> dict:
+        return {
+            "Authorization": "Bearer test-obs-token",
+            "X-Signalium-Token": make_signalium_jwt(role="Auditor"),
+        }
 
     @pytest.fixture()
     def client(self, tmp_path: Path):

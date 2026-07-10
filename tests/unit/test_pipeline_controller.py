@@ -658,10 +658,15 @@ class TestPipelineServerEndpoints:
 
         return TestClient(srv_mod.app)
 
-    _HDR = {
-        "Authorization": "Bearer test-pipeline-token",
-        "X-Signalium-Token": make_signalium_jwt(),
-    }
+    @property
+    def _HDR(self) -> dict:
+        # Minted fresh on each access (not a class-level constant) since the
+        # JWT's `iat` is checked against a clock-skew window and would go
+        # stale if computed once at class-definition/import time.
+        return {
+            "Authorization": "Bearer test-pipeline-token",
+            "X-Signalium-Token": make_signalium_jwt(),
+        }
 
     def test_run_pipeline_basic(self, client) -> None:
         resp = client.post(

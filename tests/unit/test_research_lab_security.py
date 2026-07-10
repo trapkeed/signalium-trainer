@@ -36,14 +36,27 @@ from tests.unit._sso_test_utils import DEFAULT_TEST_JWT_SECRET, make_signalium_j
 _VALID_TOKEN = "rl-security-test-token-valid"
 _WRONG_TOKEN = "rl-security-test-token-WRONG"
 
-_AUTH = {
-    "Authorization": f"Bearer {_VALID_TOKEN}",
-    "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
-}
-_WRONG_AUTH = {
-    "Authorization": f"Bearer {_WRONG_TOKEN}",
-    "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
-}
+
+def _AUTH():
+    """Fresh valid-auth headers minted at call time.
+
+    Must not be a module-level constant: the JWT's ``iat`` is checked
+    against a clock-skew window, and a token minted once at import/collection
+    time can go stale by the time later tests in a long suite run, causing
+    spurious 401s unrelated to the auth logic under test.
+    """
+    return {
+        "Authorization": f"Bearer {_VALID_TOKEN}",
+        "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
+    }
+
+
+def _WRONG_AUTH():
+    """Fresh wrong-auth headers minted at call time (see `_AUTH` docstring)."""
+    return {
+        "Authorization": f"Bearer {_WRONG_TOKEN}",
+        "X-Signalium-Token": make_signalium_jwt(sub="security-test-admin"),
+    }
 
 
 @pytest.fixture(scope="module")
@@ -108,14 +121,14 @@ def _assert_auth_required(client, method: str, path: str, body: dict | None = No
     )
 
     # Wrong token → 403
-    resp_wrong = fn(path, headers=_WRONG_AUTH, **kwargs)
+    resp_wrong = fn(path, headers=_WRONG_AUTH(), **kwargs)
     assert resp_wrong.status_code == 403, (
         f"[{method.upper()} {path}] expected 403 for wrong token, "
         f"got {resp_wrong.status_code}: {resp_wrong.text[:200]}"
     )
 
     # Valid token → not a 401/403
-    resp_valid = fn(path, headers=_AUTH, **kwargs)
+    resp_valid = fn(path, headers=_AUTH(), **kwargs)
     assert resp_valid.status_code not in (401, 403), (
         f"[{method.upper()} {path}] expected success with valid auth, "
         f"got {resp_valid.status_code}: {resp_valid.text[:200]}"
@@ -170,24 +183,24 @@ class TestWrongTokenIs403:
     """A presented-but-invalid bearer token must return 403, not 401."""
 
     def test_health_endpoint(self, client):
-        assert client.get("/research/healthz", headers=_WRONG_AUTH).status_code == 403
+        assert client.get("/research/healthz", headers=_WRONG_AUTH()).status_code == 403
 
     def test_deployment_current(self, client):
-        assert client.get("/deployment/current", headers=_WRONG_AUTH).status_code == 403
+        assert client.get("/deployment/current", headers=_WRONG_AUTH()).status_code == 403
 
     def test_approvals_list(self, client):
-        assert client.get("/approvals", headers=_WRONG_AUTH).status_code == 403
+        assert client.get("/approvals", headers=_WRONG_AUTH()).status_code == 403
 
     def test_pipeline_jobs(self, client):
-        assert client.get("/pipeline/jobs", headers=_WRONG_AUTH).status_code == 403
+        assert client.get("/pipeline/jobs", headers=_WRONG_AUTH()).status_code == 403
 
     def test_telemetry_status(self, client):
-        assert client.get("/telemetry/status", headers=_WRONG_AUTH).status_code == 403
+        assert client.get("/telemetry/status", headers=_WRONG_AUTH()).status_code == 403
 
     def test_post_deployment_promote(self, client):
         resp = client.post(
             "/deployment/promote",
-            headers=_WRONG_AUTH,
+            headers=_WRONG_AUTH(),
             json={"model_version": "v1.0", "target_status": "SHADOW", "requested_by": "x"},
         )
         assert resp.status_code == 403
@@ -195,7 +208,7 @@ class TestWrongTokenIs403:
     def test_post_approvals(self, client):
         resp = client.post(
             "/approvals",
-            headers=_WRONG_AUTH,
+            headers=_WRONG_AUTH(),
             json={
                 "gate_type": "TRAINING_START",
                 "resource_id": "exp-001",
@@ -211,47 +224,47 @@ class TestValidTokenAccepted:
     """Valid admin token must not be rejected with a 401 or 403."""
 
     def test_health_endpoint(self, client):
-        resp = client.get("/research/healthz", headers=_AUTH)
+        resp = client.get("/research/healthz", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_system_summary(self, client):
-        resp = client.get("/research/summary", headers=_AUTH)
+        resp = client.get("/research/summary", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_deployment_current(self, client):
-        resp = client.get("/deployment/current", headers=_AUTH)
+        resp = client.get("/deployment/current", headers=_AUTH())
         assert resp.status_code == 200
 
     def test_deployment_history(self, client):
-        resp = client.get("/deployment/history", headers=_AUTH)
+        resp = client.get("/deployment/history", headers=_AUTH())
         assert resp.status_code == 200
 
     def test_approvals_list(self, client):
-        resp = client.get("/approvals", headers=_AUTH)
+        resp = client.get("/approvals", headers=_AUTH())
         assert resp.status_code == 200
 
     def test_pipeline_jobs(self, client):
-        resp = client.get("/pipeline/jobs", headers=_AUTH)
+        resp = client.get("/pipeline/jobs", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_telemetry_status(self, client):
-        resp = client.get("/telemetry/status", headers=_AUTH)
+        resp = client.get("/telemetry/status", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_artifacts(self, client):
-        resp = client.get("/artifacts", headers=_AUTH)
+        resp = client.get("/artifacts", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_shadow_status(self, client):
-        resp = client.get("/shadow/status", headers=_AUTH)
+        resp = client.get("/shadow/status", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_health_status(self, client):
-        resp = client.get("/health/status", headers=_AUTH)
+        resp = client.get("/health/status", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_health_alerts(self, client):
-        resp = client.get("/health/alerts", headers=_AUTH)
+        resp = client.get("/health/alerts", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
 
@@ -381,7 +394,7 @@ class TestAdminIdentityInAuditRecords:
         # Create an approval request first
         create_resp = client.post(
             "/approvals",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={
                 "gate_type": "TRAINING_START",
                 "resource_id": "exp-identity-001",
@@ -396,7 +409,7 @@ class TestAdminIdentityInAuditRecords:
         # Approve it
         approve_resp = client.post(
             f"/approvals/{req_id}/approve",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={"approved_by": "", "reason": "identity test"},
         )
         assert approve_resp.status_code == 200
@@ -411,7 +424,7 @@ class TestAdminIdentityInAuditRecords:
         """Rejecting a request must return authenticated_as matching RESEARCH_LAB_ADMIN_ID."""
         create_resp = client.post(
             "/approvals",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={
                 "gate_type": "DEPLOYMENT",
                 "resource_id": "exp-identity-reject-001",
@@ -425,7 +438,7 @@ class TestAdminIdentityInAuditRecords:
 
         reject_resp = client.post(
             f"/approvals/{req_id}/reject",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={"rejected_by": "", "reason": "identity reject test"},
         )
         assert reject_resp.status_code == 200
@@ -439,7 +452,7 @@ class TestAdminIdentityInAuditRecords:
         # Create a promotion request
         promo = client.post(
             "/deployment/promote",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={
                 "model_version": "v-identity-1.0",
                 "target_status": "SHADOW",
@@ -451,7 +464,7 @@ class TestAdminIdentityInAuditRecords:
 
         activate = client.post(
             "/deployment/activate",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={
                 "request_id": req_id,
                 "approved_by": "",  # intentionally empty — should fall back to auth identity
@@ -468,7 +481,7 @@ class TestAdminIdentityInAuditRecords:
         """When approved_by is explicitly provided in the body, it is used as-is."""
         create_resp = client.post(
             "/approvals",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={
                 "gate_type": "PROMOTION",
                 "resource_id": "exp-override-001",
@@ -482,7 +495,7 @@ class TestAdminIdentityInAuditRecords:
 
         approve_resp = client.post(
             f"/approvals/{req_id}/approve",
-            headers=_AUTH,
+            headers=_AUTH(),
             json={"approved_by": "jane-doe", "reason": "explicit override"},
         )
         assert approve_resp.status_code == 200
@@ -512,8 +525,8 @@ class TestTelemetryRouterAuth:
 
     def test_status_endpoint_requires_auth(self, client):
         assert client.get("/telemetry/status").status_code == 401
-        assert client.get("/telemetry/status", headers=_WRONG_AUTH).status_code == 403
-        resp = client.get("/telemetry/status", headers=_AUTH)
+        assert client.get("/telemetry/status", headers=_WRONG_AUTH()).status_code == 403
+        resp = client.get("/telemetry/status", headers=_AUTH())
         assert resp.status_code not in (401, 403)
 
     def test_all_ingestion_endpoints_require_auth(self, client):
@@ -533,7 +546,7 @@ class TestTelemetryRouterAuth:
             assert (
                 resp_missing.status_code == 401
             ), f"{endpoint}: expected 401 for missing auth, got {resp_missing.status_code}"
-            resp_wrong = client.post(endpoint, headers=_WRONG_AUTH, json=body)
+            resp_wrong = client.post(endpoint, headers=_WRONG_AUTH(), json=body)
             assert (
                 resp_wrong.status_code == 403
             ), f"{endpoint}: expected 403 for wrong token, got {resp_wrong.status_code}"
@@ -574,7 +587,7 @@ class TestAppLevelRouterDependency:
             "/telemetry/status",
         ]
         for ep in endpoints:
-            resp = client.get(ep, headers=_WRONG_AUTH)
+            resp = client.get(ep, headers=_WRONG_AUTH())
             assert (
                 resp.status_code == 403
             ), f"Expected 403 for {ep} with wrong auth, got {resp.status_code}"
