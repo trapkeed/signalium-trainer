@@ -23,6 +23,7 @@ from trainer.qde.brain.brain_types import (
     TrendMaturity,
     is_terminal_hypothesis_status,
 )
+from trainer.qde.brain.personality_profiles import PersonalityProfile
 
 if TYPE_CHECKING:
     from trainer.qde.brain.opportunity_tracker import Opportunity
@@ -433,6 +434,7 @@ class BrainState:
     narrative: MarketNarrative | None = None
     belief: MarketBelief | None = None
     personality: SymbolPersonality = field(default_factory=SymbolPersonality)
+    behavioral_profile: PersonalityProfile = field(default_factory=PersonalityProfile)
     attention: AttentionAllocation = field(default_factory=AttentionAllocation)
     tick_count: int = 0
     created_at: float = field(default_factory=time.time)
@@ -460,6 +462,7 @@ class BrainState:
             "narrative": self.narrative.to_dict() if self.narrative else None,
             "belief": self.belief.to_dict() if self.belief else None,
             "personality": self.personality.to_dict(),
+            "behavioral_profile": self.behavioral_profile.to_dict(),
             "attention": self.attention.to_dict(),
             "tick_count": self.tick_count,
             "created_at": round(self.created_at, 3),

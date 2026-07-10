@@ -567,6 +567,23 @@ def _state_from_dict(raw: dict) -> BrainState:
         updated_at=a.get("updated_at", time.time()),
     )
 
+    from trainer.qde.brain.personality_profiles import PersonalityProfile
+
+    bp = raw.get("behavioral_profile", {})
+    behavioral_profile = PersonalityProfile(
+        instrument=bp.get("instrument", instrument),
+        trend_persistence=bp.get("trend_persistence", 0.5),
+        avg_pullback_depth=bp.get("avg_pullback_depth", 0.5),
+        volatility_clustering=bp.get("volatility_clustering", 0.5),
+        liquidity_sweep_frequency=bp.get("liquidity_sweep_frequency", 0.3),
+        news_sensitivity=bp.get("news_sensitivity", 0.5),
+        reversal_tendency=bp.get("reversal_tendency", 0.4),
+        session_affinity=bp.get("session_affinity", {}),
+        sample_count=bp.get("sample_count", 0),
+        created_at=bp.get("created_at", time.time()),
+        last_updated_at=bp.get("last_updated_at", time.time()),
+    )
+
     return BrainState(
         instrument=instrument,
         working_memory=working_memory,
@@ -576,6 +593,7 @@ def _state_from_dict(raw: dict) -> BrainState:
         narrative=narrative,
         belief=belief,
         personality=personality,
+        behavioral_profile=behavioral_profile,
         attention=attention,
         tick_count=raw.get("tick_count", 0),
         created_at=raw.get("created_at", time.time()),

@@ -34,6 +34,7 @@ from trainer.qde.brain.attention_allocator import (
     AttentionWeights,
 )
 from trainer.qde.brain.attention_engine import AttentionEngine
+from trainer.qde.brain.behavioral_memory import BehavioralMemory, BehavioralObservation
 from trainer.qde.brain.brain import QDEBrain
 from trainer.qde.brain.brain_models import (
     AttentionAllocation,
@@ -75,6 +76,13 @@ from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals, scan
 from trainer.qde.brain.opportunity_tracker import Opportunity, OpportunityTracker
 from trainer.qde.brain.persistence import QDEBrainDatabase
+from trainer.qde.brain.personality_profiles import (
+    PersonalityProfile,
+    confidence_adjustment,
+    expected_holding_duration_seconds,
+    risk_appetite_multiplier,
+    setup_requirement_overrides,
+)
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,
     SetupEvidence,
@@ -84,6 +92,7 @@ from trainer.qde.brain.setup_lifecycle import (
     next_state,
 )
 from trainer.qde.brain.setup_queue import SetupQueue
+from trainer.qde.brain.symbol_personality_engine import SymbolPersonalityEngine
 from trainer.qde.brain.uncertainty_engine import (
     UncertaintyLevel,
     UncertaintyScore,
@@ -150,4 +159,12 @@ __all__ = [
     "compute_uncertainty",
     "prefers_no_trade",
     "does_not_understand_market",
+    "BehavioralMemory",
+    "BehavioralObservation",
+    "PersonalityProfile",
+    "confidence_adjustment",
+    "risk_appetite_multiplier",
+    "setup_requirement_overrides",
+    "expected_holding_duration_seconds",
+    "SymbolPersonalityEngine",
 ]
