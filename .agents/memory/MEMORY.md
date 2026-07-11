@@ -6,6 +6,7 @@
 - [C10 Attention Engine design](c10-attention-engine.md) — attention.py renamed attention_base.py (package shadows file); C10 API adds tiers/resources/memory additively on top of engine; 4 new signals only score when extended_context supplied
 - [C11 Opportunity Engine design](c11-opportunity-engine.md) — log-utility scoring in opportunity_score.py; OpportunityInput extended with 4 new fields; prob_success is a direct multiplier (not geometric weight) to enforce certainty-over-size
 - [C12 Thesis Aging design](c12-thesis-aging.md) — exponential decay per OpportunityClass half-life; ThesisAgingState companion wraps Hypothesis without modifying brain_models; last_confirmation_at is the decay clock origin (not last_updated_at)
+- [C13 Patience Engine design](c13-patience-engine.md) — NO_ACTION reward, 7 WaitReasons, adaptive quality threshold, SkippedOpportunity lifecycle; discipline<0.40 AND miss_rate>0.50 net to +0.010 (both adjustments fire)
 - [Test-stub sys.modules poisoning](test-stub-sys-modules-poisoning.md) — unconditional sys.modules fakes in test files leak globally, breaking unrelated full-suite runs; gate stubs behind a real runtime check
 - [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks
 - [Cert operational scoring](cert-operational-scoring.md) — non-mandatory op failures → WARNING (weight 55), not FAIL; mandatory op failures → weight 0; test assertions must account for this
