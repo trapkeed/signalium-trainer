@@ -18,6 +18,18 @@ Each narrative carries supporting + conflicting evidence, confidence,
 maturity, regime context, session context, and age — and evolves
 incrementally on every tick rather than being rebuilt from scratch.
 
+Phase C3 additions
+-------------------
+  narrative_probability.py      — normalized probability distribution over
+                                   all 7 kinds (the "0.64 / 0.23 / 0.13" view)
+  narrative_outcome_tracker.py  — records and scores narrative outcomes over time
+  narrative_calibrator.py       — adjusts narrative confidence from outcome history
+  narrative_memory_bridge.py    — connects narrative layer to C2 episodic/semantic
+                                   memory (recall + portfolio influence)
+  narrative_api.py              — public façade:
+                                   generate_narrative() / store_narrative() /
+                                   evaluate_narrative()
+
 Integration with the rest of the QDE
 --------------------------------------
 Module                  Integration point
@@ -28,17 +40,8 @@ qde_inference.py        `MarketNarrativeEngine.narrative_context`
 attention_engine.py     `MarketNarrativeEngine.opportunity_rank_signal`
 brain.py                `MarketNarrativeEngine.on_market_update` (alongside
                         `QDEBrain.on_market_update`, same tick cadence)
-
-Public surface
---------------
-The five modules in this package are intentionally kept separate so each
-concern can be imported, tested, and extended independently:
-
-  narrative_store.py            — data model + stateless CRUD
-  narrative_builder.py          — pure detection (new narratives)
-  narrative_evolution.py        — pure incremental update (existing narratives)
-  narrative_conflict_detector.py — conflict detection + coherence scoring
-  market_narrative_engine.py    — top-level orchestrator + integration points
+brain.py (C3)           `NarrativeAPI.generate_narrative` (preferred entry
+                        point when memory recall + calibration are needed)
 """
 
 from trainer.qde.brain.narrative.market_narrative_engine import (
@@ -46,12 +49,35 @@ from trainer.qde.brain.narrative.market_narrative_engine import (
     MarketNarrativeEngine,
     NarrativeUpdateResult,
 )
+from trainer.qde.brain.narrative.narrative_api import (
+    NarrativeAPI,
+    NarrativeGenerationResult,
+)
 from trainer.qde.brain.narrative.narrative_builder import NarrativeBuilder, NarrativeSeed
+from trainer.qde.brain.narrative.narrative_calibrator import (
+    CalibrationResult,
+    NarrativeCalibrator,
+)
 from trainer.qde.brain.narrative.narrative_conflict_detector import (
     NarrativeConflict,
     NarrativeConflictDetector,
 )
 from trainer.qde.brain.narrative.narrative_evolution import NarrativeEvolution
+from trainer.qde.brain.narrative.narrative_memory_bridge import (
+    NarrativeMemoryBridge,
+    NarrativeMemoryContext,
+    NarrativePortfolioContext,
+)
+from trainer.qde.brain.narrative.narrative_outcome_tracker import (
+    NarrativeOutcomeRecord,
+    NarrativeOutcomeTracker,
+    NarrativeQualityScore,
+)
+from trainer.qde.brain.narrative.narrative_probability import (
+    NarrativeProbability,
+    NarrativeProbabilityDistribution,
+    NarrativeProbabilityEngine,
+)
 from trainer.qde.brain.narrative.narrative_store import (
     MAX_EVIDENCE_ITEMS,
     NarrativeKind,
@@ -62,7 +88,8 @@ from trainer.qde.brain.narrative.narrative_store import (
 )
 
 __all__ = [
-    # Engine (primary entry point)
+    # ── Existing (Phase C3-agnostic) ──────────────────────────────────────
+    # Engine (primary entry point — full tick update)
     "MarketNarrativeEngine",
     "NarrativeUpdateResult",
     # Integration-point output types
@@ -82,4 +109,23 @@ __all__ = [
     # Conflict detection
     "NarrativeConflict",
     "NarrativeConflictDetector",
+    # ── Phase C3 additions ────────────────────────────────────────────────
+    # Public API façade (generate / store / evaluate)
+    "NarrativeAPI",
+    "NarrativeGenerationResult",
+    # Probability distribution
+    "NarrativeProbability",
+    "NarrativeProbabilityDistribution",
+    "NarrativeProbabilityEngine",
+    # Outcome tracking
+    "NarrativeOutcomeRecord",
+    "NarrativeOutcomeTracker",
+    "NarrativeQualityScore",
+    # Calibration
+    "CalibrationResult",
+    "NarrativeCalibrator",
+    # Memory bridge (C2 ↔ C3)
+    "NarrativeMemoryBridge",
+    "NarrativeMemoryContext",
+    "NarrativePortfolioContext",
 ]

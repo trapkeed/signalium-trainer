@@ -78,3 +78,4 @@
 - [Projection package design](projection-package-design.md) — conditions→outcome learning; 4 integration signals; cache key must include conditions vector, not just instrument
 - [Exposure package design](exposure-package-design.md) — hidden portfolio concentration (currency/sector/correlation/regional); currency direction bug: use sign*norm_w not sign*abs(norm_w); structural saturation weights before-state 0.65 vs marginal 0.35
 - [C2 cognitive memory layer](c2-cognitive-memory-layer.md) — 3 new packages under trainer/qde/brain/; existing WorkingMemory/LongTermMemory untouched; transition_statistics() added to TransitionMemory in-place
+- [C3 narrative enhancements](c3-narrative-enhancements.md) — 5 new files under narrative/; probability distribution stored full-precision (round only in to_dict()); NarrativeAPI is the C3 façade
