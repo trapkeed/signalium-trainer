@@ -69,6 +69,7 @@
 - [S29 trainer security additions](s29-security-additions.md) — artifact encryption/secure-load, inference request signing+replay+rate-limit+abuse-detection, dataset write-once protection; ArtifactRecord.new() uses `extra` not `metadata`
 - [Confidence vs conviction vs uncertainty](conviction-uncertainty-distinction.md) — brain_context was a previously-inert seam now read by qde_inference; uncertainty>=0.75 hard-rejects trades
 - [C6 decision engine design](c6-decision-engine-design.md) — hold_horizon=0 valid for new hyp; conviction is structural not raw confidence; debate_store needs real OC/IE objects not dicts; grep for QDEDecision must skip docstrings
+- [C8 QDE Command Protocol](c8-protocol-design.md) — trainer/protocol/ is the QDE→EA boundary; payload always plain dict; position_id mandatory for CLOSE/PARTIAL_CLOSE/MOVE_SL/MOVE_TP/ADD; str(StrEnum) changed in Python 3.11+
 
 
 - [Metacognition/self-awareness caution vs expansion](qde-metacognition-self-awareness.md) — caution's neutral point is 0, not 0.5; expansion needs a separate positive-performance signal, not just low caution
