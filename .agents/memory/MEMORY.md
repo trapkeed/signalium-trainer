@@ -73,3 +73,4 @@
 - [Metacognition/self-awareness caution vs expansion](qde-metacognition-self-awareness.md) — caution's neutral point is 0, not 0.5; expansion needs a separate positive-performance signal, not just low caution
 - [Structural vs flow liquidity split](structural-vs-flow-liquidity.md) — mie/liquidity_intelligence = flow liquidity (volume/spread quality); brain/liquidity/ = structural liquidity (price levels); never conflate
 - [Period-extreme dedup scope bug](period-extreme-dedup-scope.md) — period extremes must only dedup against already-in-map levels, not against each other within the same scan pass
+- [Regime transition forecasting design](regime-transition-forecasting.md) — cosine-sim over feature vectors; infer_target priority order matters; 6 targets distinct from 16 MIE regimes
