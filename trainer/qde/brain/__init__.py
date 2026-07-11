@@ -128,6 +128,24 @@ from trainer.qde.brain.semantic import (
     SemanticMemory,
     SemanticRecallResult,
 )
+from trainer.qde.brain.hypothesis import (
+    HypothesisAPI,
+    HypothesisGenerationResult,
+    HypothesisSet,
+    HypothesisScenario,
+    ProbabilitySnapshot,
+    make_hypothesis_set,
+    HypothesisProbabilityEngine,
+    ProbabilityUpdateResult,
+    HypothesisFailureTracker,
+    HypothesisFailureRecord,
+    FailureMode,
+    HypothesisLineage,
+    LineageNode,
+    ResolutionState,
+    HypothesisMemoryBridge,
+    HypothesisMemoryContext,
+)
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,
     SetupEvidence,

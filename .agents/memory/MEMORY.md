@@ -79,3 +79,4 @@
 - [Exposure package design](exposure-package-design.md) — hidden portfolio concentration (currency/sector/correlation/regional); currency direction bug: use sign*norm_w not sign*abs(norm_w); structural saturation weights before-state 0.65 vs marginal 0.35
 - [C2 cognitive memory layer](c2-cognitive-memory-layer.md) — 3 new packages under trainer/qde/brain/; existing WorkingMemory/LongTermMemory untouched; transition_statistics() added to TransitionMemory in-place
 - [C3 narrative enhancements](c3-narrative-enhancements.md) — 5 new files under narrative/; probability distribution stored full-precision (round only in to_dict()); NarrativeAPI is the C3 façade
+- [C4 hypothesis set design](c4-hypothesis-set-design.md) — HypothesisAPI wraps engine (never reimplements); weaken auto-invalidates at ≤0.15 confidence; invalidate_hypothesis handles already-terminal hypotheses gracefully (records failure, returns True)
