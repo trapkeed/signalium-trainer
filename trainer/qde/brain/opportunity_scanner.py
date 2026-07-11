@@ -41,14 +41,33 @@ _SESSION_QUALITY_BUCKETS = (0.75, 0.45)  # prime / moderate / thin boundaries
 class OpportunitySignals:
     """Raw, unweighted 0-1 strength for each attention-worthy condition
     observed on one tick for one symbol.
+
+    The first six fields are produced by ``scan()`` from a plain
+    ``SymbolObservationInput``.  The four additional C10 fields
+    (``volume_anomaly``, ``key_level_proximity``, ``spread_change``,
+    ``failed_move``) default to 0.0 and are populated by
+    ``trainer.qde.brain.attention.signal_enricher.enrich_signals()``
+    when the caller supplies an ``ExtendedSignalContext`` with spread,
+    volume, and key-level data.  Backward-compatible: all existing code
+    that constructs ``OpportunitySignals`` with keyword arguments and
+    omits the four new fields continues to work unchanged.
     """
 
+    # ── Original six signals ─────────────────────────────────────────────────
     hypothesis_activity: float = 0.0
     volatility_expansion: float = 0.0
     liquidity_event: float = 0.0
     news_impact: float = 0.0
     unusual_behavior: float = 0.0
     session_transition: float = 0.0
+
+    # ── C10: four new attention factors ──────────────────────────────────────
+    # Populated by signal_enricher.enrich_signals(); remain 0.0 when the
+    # caller does not supply an ExtendedSignalContext.
+    volume_anomaly: float = 0.0       # unusual volume vs recent baseline
+    key_level_proximity: float = 0.0  # price closeness to a structural level
+    spread_change: float = 0.0        # spread widening/narrowing signal
+    failed_move: float = 0.0          # recent failed breakout or rejection
 
     def to_dict(self) -> dict:
         return {
@@ -58,6 +77,11 @@ class OpportunitySignals:
             "news_impact": round(self.news_impact, 4),
             "unusual_behavior": round(self.unusual_behavior, 4),
             "session_transition": round(self.session_transition, 4),
+            # C10 factors
+            "volume_anomaly": round(self.volume_anomaly, 4),
+            "key_level_proximity": round(self.key_level_proximity, 4),
+            "spread_change": round(self.spread_change, 4),
+            "failed_move": round(self.failed_move, 4),
         }
 
     def max_signal(self) -> float:
@@ -68,6 +92,10 @@ class OpportunitySignals:
             self.news_impact,
             self.unusual_behavior,
             self.session_transition,
+            self.volume_anomaly,
+            self.key_level_proximity,
+            self.spread_change,
+            self.failed_move,
         )
 
 

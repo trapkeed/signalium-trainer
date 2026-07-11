@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
-from trainer.qde.brain.attention import AttentionAllocator
+from trainer.qde.brain.attention_base import AttentionAllocator
 from trainer.qde.brain.brain_models import AttentionAllocation
 from trainer.qde.brain.opportunity_scanner import OpportunitySignals
 
@@ -32,15 +32,34 @@ DEFAULT_DECAY_PER_SECOND = 0.0015
 @dataclass(frozen=True)
 class AttentionWeights:
     """Relative importance of each opportunity signal in the composite
-    score. Defaults sum to 1.0 but are not required to.
+    score.
+
+    The first six weights (defaults sum to 1.0) cover the original signals
+    produced by ``opportunity_scanner.scan()``.  The four new C10 weights
+    cover the additional signals produced by
+    ``signal_enricher.enrich_signals()``; they default to 0.0 so that the
+    composite score is unchanged for callers that never supply an
+    ``ExtendedSignalContext`` (backward-compatible).
+
+    When the C10 weights are non-zero, they add on top of the original six
+    and may push the raw composite above 1.0 for a tick where many factors
+    converge — the composite is clamped to 1.0 in ``AttentionScoreAllocator
+    .update()`` via ``min(1.0, ...)``.
     """
 
+    # Original six weights
     hypothesis_activity: float = 0.25
     volatility_expansion: float = 0.20
     liquidity_event: float = 0.15
     news_impact: float = 0.15
     unusual_behavior: float = 0.15
     session_transition: float = 0.10
+
+    # C10: four new weights (default 0.0 = backward-compatible)
+    volume_anomaly: float = 0.0
+    key_level_proximity: float = 0.0
+    spread_change: float = 0.0
+    failed_move: float = 0.0
 
     def score(self, signals: OpportunitySignals) -> float:
         return max(
@@ -50,8 +69,31 @@ class AttentionWeights:
             + self.liquidity_event * signals.liquidity_event
             + self.news_impact * signals.news_impact
             + self.unusual_behavior * signals.unusual_behavior
-            + self.session_transition * signals.session_transition,
+            + self.session_transition * signals.session_transition
+            + self.volume_anomaly * signals.volume_anomaly
+            + self.key_level_proximity * signals.key_level_proximity
+            + self.spread_change * signals.spread_change
+            + self.failed_move * signals.failed_move,
         )
+
+
+#: C10-tuned default weights that activate the four new signals.
+#: These shift weight slightly from the original six to keep the
+#: total budget reasonable while giving meaningful signal contribution
+#: from the new factors when context is available.
+C10_WEIGHTS = AttentionWeights(
+    hypothesis_activity=0.20,
+    volatility_expansion=0.15,
+    liquidity_event=0.12,
+    news_impact=0.10,
+    unusual_behavior=0.10,
+    session_transition=0.08,
+    # C10 additions
+    volume_anomaly=0.10,
+    key_level_proximity=0.08,
+    spread_change=0.05,
+    failed_move=0.02,
+)
 
 
 DEFAULT_WEIGHTS = AttentionWeights()

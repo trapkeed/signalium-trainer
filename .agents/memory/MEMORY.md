@@ -3,6 +3,7 @@
 - [Brain continuous-ingestion driver](qde-brain-continuous-ingestion.md) — unified poller pulls MarketDataRouter→MIE engines→Observer→Brain per enabled symbol; it's a callable driver, not a scheduler owner
 - [Hypothesis maturity vs narrative status](hypothesis-maturity-vs-narrative-status.md) — execution-facing maturity (OBSERVING..EXECUTABLE) is a pure projection over the existing narrative Hypothesis, never a second storage model
 - [Dynamic attention layering](qde-attention-layering.md) — new multi-signal attention engine delegates cross-symbol normalization to the existing lightweight AttentionAllocator instead of reimplementing it; gates reflect() as the "expensive reasoning" step
+- [C10 Attention Engine design](c10-attention-engine.md) — attention.py renamed attention_base.py (package shadows file); C10 API adds tiers/resources/memory additively on top of engine; 4 new signals only score when extended_context supplied
 - [Test-stub sys.modules poisoning](test-stub-sys-modules-poisoning.md) — unconditional sys.modules fakes in test files leak globally, breaking unrelated full-suite runs; gate stubs behind a real runtime check
 - [Absolute vol detection](absolute-vol-detection.md) — when current/baseline returns have same pattern, vol_ratio≈1; always add atr_vol_ratio checks
 - [Cert operational scoring](cert-operational-scoring.md) — non-mandatory op failures → WARNING (weight 55), not FAIL; mandatory op failures → weight 0; test assertions must account for this

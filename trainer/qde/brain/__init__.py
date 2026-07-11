@@ -32,8 +32,27 @@ from trainer.qde.brain.attention_allocator import (
     AttentionScore,
     AttentionScoreAllocator,
     AttentionWeights,
+    C10_WEIGHTS,
 )
 from trainer.qde.brain.attention_engine import AttentionEngine
+from trainer.qde.brain.attention import (  # new attention/ subpackage (C10)
+    AttentionAPI,
+    AttentionEvolutionRecord,
+    AttentionMemory,
+    AttentionSnapshot,
+    AttentionTier,
+    ExtendedSignalContext,
+    RankedSymbol,
+    ResourceBudget,
+    SignalEnricher,
+    TIER_RESOURCES,
+    TIER_THRESHOLDS,
+    enrich_signals,
+    tier_from_composite,
+    allocate_resources,
+    calculate_attention,
+    rank_symbols,
+)
 from trainer.qde.brain.behavioral_memory import BehavioralMemory, BehavioralObservation
 from trainer.qde.brain.brain import QDEBrain
 from trainer.qde.brain.brain_models import (
@@ -210,7 +229,25 @@ __all__ = [
     "AttentionScoreAllocator",
     "AttentionScore",
     "AttentionWeights",
+    "C10_WEIGHTS",
     "OpportunitySignals",
+    # ── C10: Attention Engine (tiers, resources, memory, API) ─────────────
+    "AttentionAPI",
+    "AttentionEvolutionRecord",
+    "AttentionMemory",
+    "AttentionSnapshot",
+    "AttentionTier",
+    "ExtendedSignalContext",
+    "RankedSymbol",
+    "ResourceBudget",
+    "SignalEnricher",
+    "TIER_RESOURCES",
+    "TIER_THRESHOLDS",
+    "enrich_signals",
+    "tier_from_composite",
+    "allocate_resources",
+    "calculate_attention",
+    "rank_symbols",
     "scan",
     "Opportunity",
     "OpportunityTracker",

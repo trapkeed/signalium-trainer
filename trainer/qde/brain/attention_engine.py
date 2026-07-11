@@ -102,6 +102,11 @@ class AttentionEngine:
                 news_impact=signals.news_impact,
                 unusual_behavior=signals.unusual_behavior,
                 session_transition=signals.session_transition,
+                # C10 factors — preserved from caller-supplied enriched signals
+                volume_anomaly=signals.volume_anomaly,
+                key_level_proximity=signals.key_level_proximity,
+                spread_change=signals.spread_change,
+                failed_move=signals.failed_move,
             )
 
         score = self._allocator.update(instrument, signals, now=now)

@@ -30,7 +30,7 @@ except ImportError:
 
     logger = logging.getLogger(__name__)
 
-from trainer.qde.brain.attention import AttentionAllocator
+from trainer.qde.brain.attention_base import AttentionAllocator
 from trainer.qde.brain.brain_models import (
     BrainState,
     BrainThought,
