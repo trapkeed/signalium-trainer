@@ -1,0 +1,478 @@
+
+================================================================================
+SIGNALIUM PLATFORM <-> TRAINER INTEGRATION CONTRACT
+================================================================================
+
+Platform URL : https://signaliumai.com
+Trainer URL  : https://trainer.signaliumai.com
+
+You are signalium-trainer. This document defines the complete contract between
+you and the Signalium platform. Implement every endpoint and follow every auth
+rule exactly — the platform has no fallback for malformed responses.
+
+================================================================================
+1. AUTHENTICATION — EVERY INBOUND REQUEST
+================================================================================
+
+Every HTTP request from the platform carries:
+
+  Authorization: Bearer <JWT>
+  X-Signalium-Service-Id: signalium-platform
+  X-Signalium-Request-Id: <uuid>
+  X-Signalium-Nonce: <32-char hex>
+  X-Signalium-Timestamp: <ISO-8601>
+
+Verify the JWT on every request:
+  - Algorithm  : ES256 (P-256 keypair)
+  - Issuer     : signalium
+  - Audience   : signalium-trainer
+  - Subject    : signalium-platform-service
+  - Scope      : must include "trainer.inference"
+  - TTL        : 5 minutes — do not cache beyond exp
+
+Fetch the public JWKS (no auth required) from:
+  GET https://signaliumai.com/api/sso/jwks
+
+Cache keys by kid. Re-fetch on unknown kid to handle rotation. Reject any
+request whose JWT does not verify against the current JWKS.
+
+  401 — missing / invalid / expired token
+  403 — valid token but wrong audience or missing scope
+
+================================================================================
+2. HEALTH CHECK
+================================================================================
+
+  GET https://trainer.signaliumai.com/health
+
+Response 200:
+  { "status": "ok" }
+
+The platform probes this endpoint to check reachability. A non-2xx causes it
+to show "Trainer unreachable" in the ops dashboard and fall back to local
+heuristics for all inference.
+
+================================================================================
+3. PLATFORM CONFIGURATION
+================================================================================
+
+The platform resolves your URL in this priority order:
+  1. Admin Managed Secrets vault key : trainer.url
+     -> set to https://trainer.signaliumai.com
+  2. Environment variable            : QDE_TRAINER_URL
+
+Both the inference gateway and the research lab use the SAME base URL. There
+is no separate host for research vs inference.
+
+================================================================================
+4. INFERENCE GATEWAY
+================================================================================
+
+The platform calls these on every EA telemetry tick (~30 s per open position).
+All are POST. All return the same response shape.
+
+IMPORTANT: symbol is always CANONICAL (e.g. XAUUSD, EURUSD, US30). The
+platform normalises broker-specific variants (XAUUSD_i, EURUSDm, DJ30,
+US30.cash, etc.) before calling you. You will never receive raw broker symbols.
+
+--------------------------------------------------------------------------------
+4a. Standard Inference
+--------------------------------------------------------------------------------
+
+  POST https://trainer.signaliumai.com/qde/inference
+
+Request body:
+  {
+    "type": "inference",
+    "symbol": "XAUUSD",
+    "userId": "a1b2c3d4-...",
+    "telemetry": {
+      "balance": 10250.50,
+      "equity": 10190.20,
+      "margin": 320.00,
+      "freeMargin": 9870.20,
+      "openPositions": 1,
+      "floatingPnl": -60.30,
+      "entryPrice": 2385.10,
+      "currentPrice": 2381.50,
+      "spread": 0.35,
+      "swap": -1.20,
+      "commission": -0.80,
+      "drawdown": 2.10,
+      "tradeAgeSeconds": 1800
+    },
+    "targetModelVersion": "v3.2.1"
+  }
+
+  telemetry may be null.
+  targetModelVersion may be null.
+
+--------------------------------------------------------------------------------
+4b. Position Review
+--------------------------------------------------------------------------------
+
+  POST https://trainer.signaliumai.com/qde/review-position
+
+Request body:
+  {
+    "type": "review-position",
+    "symbol": "XAUUSD",
+    "userId": "a1b2c3d4-...",
+    "positionContext": {
+      "entryPrice": 2385.10,
+      "currentPrice": 2381.50,
+      "profit": -36.00,
+      "drawdown": 2.10,
+      "duration": 1800,
+      "spread": 0.35,
+      "slippage": 0.04,
+      "swap": -1.20,
+      "commission": -0.40
+    },
+    "targetModelVersion": null
+  }
+
+--------------------------------------------------------------------------------
+4c. Manual Analysis
+--------------------------------------------------------------------------------
+
+  POST https://trainer.signaliumai.com/qde/manual-analysis
+
+Request body:
+  {
+    "type": "manual-analysis",
+    "symbol": "EURUSD",
+    "userId": "a1b2c3d4-...",
+    "timeframe": "H1",
+    "notes": "Possible double bottom forming near 1.0850",
+    "telemetry": { ... },
+    "targetModelVersion": null
+  }
+
+  telemetry follows the same shape as 4a, or null.
+
+--------------------------------------------------------------------------------
+4d. Portfolio Review
+--------------------------------------------------------------------------------
+
+  POST https://trainer.signaliumai.com/qde/portfolio-review
+
+Request body:
+  {
+    "type": "portfolio-review",
+    "userId": "a1b2c3d4-...",
+    "positions": [
+      {
+        "symbol": "XAUUSD",
+        "balance": 10250.50,
+        "equity": 10190.20,
+        "openPositions": 1,
+        "floatingPnl": -60.30,
+        "drawdown": 2.10,
+        "entryPrice": 2385.10,
+        "currentPrice": 2381.50
+      }
+    ],
+    "targetModelVersion": null
+  }
+
+--------------------------------------------------------------------------------
+4e. Reasoning / Narrative
+--------------------------------------------------------------------------------
+
+  POST https://trainer.signaliumai.com/qde/reasoning
+
+Request body:
+  {
+    "type": "reasoning",
+    "symbol": "XAUUSD",
+    "userId": "a1b2c3d4-...",
+    "question": "Why is this position still underwater after 45 minutes?",
+    "opportunityContext": {
+      "state": "open",
+      "direction": "LONG",
+      "confidence": 0.72,
+      "reasoning": "Trend continuation signal on H4"
+    },
+    "targetModelVersion": null
+  }
+
+  question may be null.
+  opportunityContext may be null.
+
+--------------------------------------------------------------------------------
+4f. Unified Inference Response (all five endpoints)
+--------------------------------------------------------------------------------
+
+  {
+    "direction": "LONG",
+    "confidence": 0.78,
+    "risk_signal": "MEDIUM",
+    "size_signal": "NORMAL",
+    "entry_urgency": "PENDING",
+    "exit_horizon": "INTRADAY",
+    "reasoning": "Gold is holding support at 2380 with declining sell volume...",
+    "warnings": [],
+    "model_version": "v3.2.1",
+    "latency_ms": 142,
+    "positions": []
+  }
+
+Field constraints:
+
+  Field           Type      Required  Allowed values
+  --------------- --------- --------- -----------------------------------------
+  reasoning       string    YES       Non-empty. Platform rejects the response
+                                      and falls back to heuristics if missing.
+  direction       string    no        "LONG" | "SHORT" | "NEUTRAL"
+  confidence      number    no        0.0 – 1.0
+  risk_signal     string    no        "LOW" | "MEDIUM" | "HIGH" | "EXTREME"
+  size_signal     string    no        "MINIMAL" | "NORMAL" | "AGGRESSIVE"
+  entry_urgency   string    no        "IMMEDIATE" | "PENDING" | "CONDITIONAL"
+  exit_horizon    string    no        "SCALP" | "INTRADAY" | "SWING" | "HOLD"
+  warnings        string[]  no        Any array of human-readable strings
+  model_version   string    no        Arbitrary version identifier
+  positions       array     no        Portfolio-review only (see below)
+
+positions[] entries (portfolio-review only):
+  {
+    "symbol": "XAUUSD",
+    "action": "TRAIL",
+    "reasoning": "Position trending well with room to run",
+    "confidence": 0.78
+  }
+
+Action enum (used in positions[].action and the legacy direct path):
+  HOLD | ADD | REDUCE | TRAIL | BREAKEVEN | LOCK_PROFIT | CLOSE
+
+--------------------------------------------------------------------------------
+4g. Legacy Direct-Inference Path (also supported)
+--------------------------------------------------------------------------------
+
+The platform circuit-breaker may POST a raw TelemetrySnapshot directly to
+your base URL (no sub-path). Accept and respond with the simplified shape.
+
+  POST https://trainer.signaliumai.com/
+
+Request body (raw TelemetrySnapshot):
+  {
+    "balance": 10250.50,
+    "equity": 10190.20,
+    "margin": 320.00,
+    "freeMargin": 9870.20,
+    "openPositions": 1,
+    "floatingPnl": -60.30,
+    "entryPrice": 2385.10,
+    "currentPrice": 2381.50,
+    "spread": 0.35,
+    "swap": -1.20,
+    "commission": -0.80,
+    "drawdown": 2.10,
+    "tradeAgeSeconds": 1800
+  }
+
+Response:
+  { "action": "TRAIL", "reasoning": "Position trending above entry with low drawdown." }
+
+================================================================================
+5. RESEARCH LAB — ML LIFECYCLE MANAGEMENT
+================================================================================
+
+All endpoints at https://trainer.signaliumai.com. Same JWT auth as inference.
+
+The platform NEVER fabricates responses from these endpoints. If you are
+unreachable, the UI shows "unavailable" — there is no fallback. Hard timeout
+on the platform side is 15 s.
+
+The shape of objects within arrays is yours to define — the platform proxies
+them to the UI without transformation. Keep field names stable across versions.
+
+  Method  Path                                          Query          Response key
+  ------- --------------------------------------------- -------------- ----------------
+  GET     /experiments                                  limit, status  experiments[]
+  POST    /experiments                                  —              experiment{}
+  GET     /experiments/:id                              —              experiment{}
+  GET     /experiments/:id/lineage                      —              lineage{}
+  GET     /experiments/:id/history                      —              history[]
+  GET     /training/runs                                limit, status  runs[]
+  POST    /training/runs                                —              run{}
+  GET     /training/runs/:id                            —              run{}
+  POST    /training/runs/:id/stop                       —              { "ok": true }
+           body: { "reason": "..." }
+  GET     /training/resource-usage                      —              usage{}
+  GET     /validation/reports                           limit          reports[]
+  GET     /validation/reports/:id                       —              report{}
+  GET     /validation/drift                             —              drift{}
+  GET     /validation/robustness                        limit          tests[]
+  GET     /shadow-testing/deployments                   status         deployments[]
+  POST    /shadow-testing/deployments                   —              deployment{}
+  GET     /shadow-testing/deployments/:id/comparison    —              comparison{}
+  GET     /shadow-testing/deployments/:id/agreement     —              agreement{}
+  GET     /shadow-testing/deployments/:id/regimes       —              regimes[]
+  GET     /deployment-candidates                        status         candidates[]
+  POST    /deployment-candidates                        —              candidate{}
+  GET     /deployment-candidates/:id                    —              candidate{}
+  POST    /deployment-candidates/:id/approve            —              { "ok": true }
+           body: { "actorUserId": "..." }
+  POST    /deployment-candidates/:id/rollback           —              { "ok": true }
+           body: { "actorUserId": "...", "reason": "..." }
+  GET     /deployment-candidates/history                limit          history[]
+  GET     /research-intelligence/features               limit          features[]
+  GET     /research-intelligence/failure-investigations limit          investigations[]
+  GET     /research-intelligence/self-evaluations       limit          findings[]
+  GET     /research-intelligence/retraining-            limit          recommendations[]
+          recommendations
+  GET     /genealogy/:modelVersion                      —              genealogy{}
+  GET     /genealogy/tree                               root           tree{}
+  GET     /genealogy/:modelVersion/artifacts            —              artifacts[]
+  GET     /datasets                                     limit          datasets[]
+  GET     /datasets/:id                                 —              dataset{}
+  GET     /memory                                       limit          entries[]
+  GET     /reflections                                  limit          reflections[]
+  GET     /research-reports                             limit          reports[]
+  GET     /research-reports/:id                         —              report{}
+  GET     /models/active                                —              models[]
+
+================================================================================
+6. EA COMMUNICATION — FULL DATA FLOW (YOUR AWARENESS ONLY)
+================================================================================
+
+You never speak directly to EAs. The platform mediates everything. This
+section shows the full data path so you understand what reaches you and why.
+
+EAs connect to the platform at:
+  wss://signaliumai.com/ws/ea?apiKey=<key>&hardwareId=<mt5-terminal-id>
+  or HTTP fallback: POST https://signaliumai.com/api/qde/telemetry
+
+What the EA sends every ~30 s per open position:
+  {
+    "type": "telemetry",
+    "requestId": "<uuid>",
+    "data": {
+      "symbol": "XAUUSD_i",        <- broker symbol (raw, NOT canonical)
+      "balance": 10250.50,
+      "equity": 10190.20,
+      "margin": 320.00,
+      "freeMargin": 9870.20,
+      "openPositions": 1,
+      "floatingPnl": -60.30,
+      "entryPrice": 2385.10,
+      "currentPrice": 2381.50,
+      "spread": 0.35,
+      "swap": -1.20,
+      "commission": -0.80,
+      "drawdown": 2.10,
+      "tradeAgeSeconds": 1800
+    }
+  }
+
+  The platform normalises XAUUSD_i -> XAUUSD before it reaches you.
+
+What the platform sends back to the EA (derived from your inference response):
+  {
+    "type": "action",
+    "actionId": 123,
+    "sequenceNum": 7,
+    "data": {
+      "action": "TRAIL",
+      "reasoning": "Position trending well...",
+      "symbol": "XAUUSD",
+      "telemetryId": 456
+    }
+  }
+
+  sequenceNum is per-EA monotonically increasing. Commands not delivered over
+  WebSocket are queued and flushed on reconnect, or polled by the EA via:
+  GET https://signaliumai.com/api/qde/actions/pending
+
+EA also sends on connect and after any broker-side change:
+  {
+    "type": "position_sync",
+    "data": [
+      {
+        "brokerTicketId": "12345678",
+        "symbol": "XAUUSD_i",
+        "side": "buy",
+        "lots": 0.10,
+        "entryPrice": 2385.10,
+        "currentPrice": 2381.50,
+        "floatingPnl": -36.00,
+        "swap": -1.20,
+        "commission": -0.40,
+        "tradeAgeSeconds": 1800,
+        "openedAt": "2026-07-11T06:00:00Z",
+        "mt5Magic": 20240101,
+        "mt5Comment": "SignaliumEA"
+      }
+    ]
+  }
+
+  {
+    "type": "broker_state",
+    "data": {
+      "connectionStatus": "connected",
+      "brokerType": "MT5",
+      "brokerServer": "MetaQuotes-Demo",
+      "accountNumber": "12345",
+      "accountCurrency": "USD",
+      "accountBalance": 10250.50,
+      "accountEquity": 10190.20,
+      "accountLeverage": 100,
+      "pingMs": 45,
+      "tradeAllowed": true,
+      "expertEnabled": true
+    }
+  }
+
+  { "type": "ack", "actionId": 123 }
+
+  {
+    "type": "confirm",
+    "actionId": 123,
+    "data": {
+      "success": true,
+      "brokerTicketId": "12345678",
+      "executionDelayMs": 312,
+      "actualPrice": 2381.40,
+      "actualLots": 0.10,
+      "slippage": 0.04
+    }
+  }
+
+All of this is handled internally by the platform. You only need to respond
+correctly to the inference endpoints in section 4.
+
+================================================================================
+7. PERFORMANCE REQUIREMENTS
+================================================================================
+
+  Endpoint group              Hard timeout  Circuit breaker
+  --------------------------- ------------- --------------------------------------
+  /health                     5 s           No
+  /qde/* (inference)          5 s           Yes — 4 consecutive failures trip it;
+                                            60 s reset. After tripping, ALL
+                                            inference falls back to local
+                                            heuristics for the reset duration.
+  Research lab (/experiments, 15 s          No — non-2xx surfaces as
+  /training/*, etc.)                        "unavailable" in the UI.
+
+Design for high availability on the /qde/* paths. Keep p99 inference latency
+well under 5 s.
+
+================================================================================
+8. ERROR CONVENTIONS
+================================================================================
+
+Always return Content-Type: application/json.
+
+  Status  Situation                              Body
+  ------- -------------------------------------- --------------------------------
+  401     Missing / invalid / expired JWT        { "error": "Unauthorized" }
+  403     Wrong audience or missing scope        { "error": "Forbidden" }
+  400     Missing required field                 { "error": "<description>" }
+  404     Resource not found                     { "error": "Not found" }
+  500     Internal trainer error                 { "error": "<description>" }
+
+================================================================================
+END OF DOCUMENT
+================================================================================
