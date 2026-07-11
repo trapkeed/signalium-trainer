@@ -1,0 +1,55 @@
+root@server1:/opt/signalium-trainer# pnpm install --no-frozen-lockfile
+REBUILD=1 bash deploy/scripts/restart.sh
+Scope: all 8 workspace projects
+
+╭───────────────────────────────────────────────────────────────────╮
+│                                                                   │
+│                Update available! 9.15.9 → 11.11.0.                │
+│   Changelog: https://github.com/pnpm/pnpm/releases/tag/v11.11.0   │
+│            Run "corepack use pnpm@11.11.0" to update.             │
+│                                                                   │
+╰───────────────────────────────────────────────────────────────────╯
+
+artifacts/research-dashboard             |  WARN  deprecated recharts@2.15.4
+ WARN  2 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5
+Packages: +2 -1
+++-
+Progress: resolved 656, reused 443, downloaded 74, added 2, done
+ WARN  Failed to create bin at /opt/signalium-trainer/apps/trainer-api/node_modules/.bin/vite. ENOENT: no such file or directory, open '/opt/signalium-trainer/node_modules/.pnpm/vite@7.3.6_@types+node@25.9.4_jiti@2.7.0_lightningcss@1.32.0_tsx@4.22.4_yaml@2.9.0/node_modules/vite/bin/vite.js'
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_…
+└─ Done in 42ms
+
+devDependencies: skipped because NODE_ENV is set to production
+
+ WARN  Issues with peer dependencies found
+apps/trainer-api
+└─┬ esbuild-plugin-pino 2.3.3
+  └── ✕ unmet peer esbuild@">=0.25.0 <=0.25.8": found 0.27.3
+
+Done in 5.8s using pnpm v9.15.9
+[INFO]  Rebuilding trainer-api before restart...
+
+> @workspace/trainer-api@0.0.0 build /opt/signalium-trainer/apps/trainer-api
+> node ./build.mjs
+
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'esbuild' imported from /opt/signalium-trainer/apps/trainer-api/build.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+/opt/signalium-trainer/apps/trainer-api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/trainer-api@0.0.0 build: `node ./build.mjs`
+Exit status 1
+root@server1:/opt/signalium-trainer#
