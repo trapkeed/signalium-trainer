@@ -14,6 +14,7 @@
 import { Router, type IRouter } from "express";
 import { platformAuth } from "../middlewares/platform_auth.js";
 import inferenceRouter from "./inference.js";
+import platformResearchRouter from "./platform_research.js";
 
 const platformRouter: IRouter = Router();
 
@@ -24,6 +25,11 @@ platformRouter.use(platformAuth);
 // POST /qde/review-position, POST /qde/portfolio-review
 platformRouter.use(inferenceRouter);
 
-// Research Lab contract routes are added by task #12.
+// Research Lab & Dataset contract routes:
+// GET|POST /experiments, GET|POST /training/runs,
+// POST /shadow-testing/deployments,
+// POST /deployment-candidates/:id/approve,
+// GET /genealogy/tree, GET /datasets
+platformRouter.use(platformResearchRouter);
 
 export default platformRouter;

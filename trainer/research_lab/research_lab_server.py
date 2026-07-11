@@ -3455,3 +3455,46 @@ def symbol_diagnostics(limit: int = 200, unresolved_only: bool = False) -> dict:
         "stats": _symbol_store.event_stats(),
         "recent_events": _symbol_store.recent_events(limit=limit, unresolved_only=unresolved_only),
     }
+
+
+# ── Platform-Facing Genealogy Endpoint ────────────────────────────────────────
+# The Signalium Platform calls GET /genealogy/tree to display the model version
+# lineage on its ops dashboard. This endpoint aggregates existing training-run
+# and artifact records into a tree — no new data is introduced.
+
+
+@app.get("/genealogy/tree")
+def genealogy_tree(
+    limit: int = 100,
+    _: None = Depends(_require_admin),
+) -> dict:
+    """Return a model version lineage tree built from training run records.
+
+    Each experiment node lists all training runs under it; each run lists
+    its registered artifacts. The response uses only data already stored in
+    the artifact registry — no new tables or data models are required.
+    """
+    runs = _artifact_registry.list_training_runs(limit=limit)
+    experiments: dict[str, dict] = {}
+    for run in runs:
+        run_dict: dict = run if isinstance(run, dict) else run.to_dict()
+        exp_id: str = run_dict.get("experiment_id", "unknown")
+        run_id: str = run_dict.get("run_id", "")
+        try:
+            arts = _artifact_registry.artifacts_for_run(run_id)
+            run_dict = {**run_dict, "artifacts": arts}
+        except Exception:
+            run_dict = {**run_dict, "artifacts": []}
+        if exp_id not in experiments:
+            experiments[exp_id] = {"experiment_id": exp_id, "runs": []}
+        experiments[exp_id]["runs"].append(run_dict)
+
+    nodes = list(experiments.values())
+    return {
+        "success": True,
+        "data": {
+            "nodes": nodes,
+            "total_experiments": len(nodes),
+            "total_runs": sum(len(e["runs"]) for e in nodes),
+        },
+    }
