@@ -100,6 +100,34 @@ from trainer.qde.brain.personality_profiles import (
 )
 from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
 from trainer.qde.brain.self_awareness_engine import SelfAwarenessEngine, SelfAwarenessState
+from trainer.qde.brain.memory import (
+    WorkingMemoryStore,
+    TIMEFRAME_CANDLE_LIMITS,
+    CandleRecord,
+    VolatilityPoint,
+    LiquidityEvent,
+    TrendState,
+    FailedBreakout,
+    SessionTransition,
+    SpreadPoint,
+    CorrelationShift,
+)
+from trainer.qde.brain.episodic import (
+    Episode,
+    EpisodeFeatures,
+    EpisodeOutcome,
+    EpisodePortfolioState,
+    EpisodicIndex,
+    EpisodicMemory,
+    SimilarEpisode,
+)
+from trainer.qde.brain.semantic import (
+    ConceptKind,
+    ConceptSeed,
+    MarketConcept,
+    SemanticMemory,
+    SemanticRecallResult,
+)
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,
     SetupEvidence,
@@ -220,4 +248,30 @@ __all__ = [
     "MetacognitiveAssessment",
     "SelfAwarenessEngine",
     "SelfAwarenessState",
+    # ── Cognitive memory layer (Phase C2) ─────────────────────────────────
+    # memory: timeframe-aware structured working memory store
+    "WorkingMemoryStore",
+    "TIMEFRAME_CANDLE_LIMITS",
+    "CandleRecord",
+    "VolatilityPoint",
+    "LiquidityEvent",
+    "TrendState",
+    "FailedBreakout",
+    "SessionTransition",
+    "SpreadPoint",
+    "CorrelationShift",
+    # episodic: complete market experience records
+    "Episode",
+    "EpisodeFeatures",
+    "EpisodeOutcome",
+    "EpisodePortfolioState",
+    "EpisodicIndex",
+    "EpisodicMemory",
+    "SimilarEpisode",
+    # semantic: learned market concepts
+    "ConceptKind",
+    "ConceptSeed",
+    "MarketConcept",
+    "SemanticMemory",
+    "SemanticRecallResult",
 ]

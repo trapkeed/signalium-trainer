@@ -399,3 +399,108 @@ class TransitionMemory:
         self._transitions[instrument] = [
             TransitionRecord.from_dict(r) for r in data.get("transitions", [])
         ]
+
+    # ── Transition statistics ──────────────────────────────────────────────
+
+    def transition_statistics(
+        self,
+        instrument:      str,
+        recency_lambda:  float = 1.0 / 30.0,   # decay rate: e^(-λ×age_days)
+        now:             float | None = None,
+    ) -> dict:
+        """Return transition probability estimates for ``instrument``.
+
+        Computes three complementary views over the stored
+        ``TransitionRecord`` history:
+
+        ``target_counts``
+            Raw count of confirmed transitions per ``TransitionTarget``.
+
+        ``target_probabilities``
+            Uniform-weighted probability over the six targets: each
+            target's count divided by the total number of transitions.
+            Uniform prior (1/6) when no data.
+
+        ``target_probabilities_weighted``
+            Recency-weighted probability.  Each record contributes weight
+            ``e^(−λ × age_days)`` rather than 1, so recent transitions
+            influence the distribution more than old ones.  λ is set by
+            ``recency_lambda`` (default: e-fold every 30 days).
+
+        ``from_regime_probs``
+            Conditional probability table: ``from_regime → {target: prob}``.
+            "Given the market is currently in regime X, what transition is
+            most likely?"  Each row is normalized independently.
+
+        ``total_transitions``
+            Total confirmed transition records for ``instrument``.
+
+        ``instruments_available``
+            List of instruments for which transition data exists.
+        """
+        import math as _math
+        now = now if now is not None else __import__("time").time()
+
+        records = self.transitions(instrument)
+
+        # ── Raw counts ────────────────────────────────────────────────────
+        target_counts: dict[str, int] = {t.value: 0 for t in TransitionTarget}
+        weighted_sums: dict[str, float] = {t.value: 0.0 for t in TransitionTarget}
+        total_weight = 0.0
+
+        # from_regime → target → count
+        from_regime_counts: dict[str, dict[str, int]] = {}
+
+        for rec in records:
+            tv  = rec.target.value
+            age = max(0.0, now - rec.transition_at) / 86400.0   # age in days
+            w   = _math.exp(-recency_lambda * age)
+
+            target_counts[tv] += 1
+            weighted_sums[tv] += w
+            total_weight       += w
+
+            fr = rec.from_regime or "UNKNOWN"
+            if fr not in from_regime_counts:
+                from_regime_counts[fr] = {t.value: 0 for t in TransitionTarget}
+            from_regime_counts[fr][tv] += 1
+
+        total = len(records)
+
+        # ── Uniform probabilities ─────────────────────────────────────────
+        n_targets = len(TransitionTarget)
+        if total > 0:
+            target_probs = {
+                tv: round(count / total, 4)
+                for tv, count in target_counts.items()
+            }
+        else:
+            target_probs = {t.value: round(1.0 / n_targets, 4) for t in TransitionTarget}
+
+        # ── Recency-weighted probabilities ────────────────────────────────
+        if total_weight > 1e-12:
+            target_probs_weighted = {
+                tv: round(ws / total_weight, 4)
+                for tv, ws in weighted_sums.items()
+            }
+        else:
+            target_probs_weighted = {t.value: round(1.0 / n_targets, 4) for t in TransitionTarget}
+
+        # ── Conditional from-regime probabilities ─────────────────────────
+        from_regime_probs: dict[str, dict[str, float]] = {}
+        for fr, counts in from_regime_counts.items():
+            row_total = sum(counts.values())
+            if row_total > 0:
+                from_regime_probs[fr] = {
+                    tv: round(c / row_total, 4) for tv, c in counts.items()
+                }
+
+        return {
+            "instrument":              instrument,
+            "total_transitions":       total,
+            "target_counts":           target_counts,
+            "target_probabilities":    target_probs,
+            "target_probabilities_weighted": target_probs_weighted,
+            "from_regime_probs":       from_regime_probs,
+            "instruments_available":   list(self._transitions.keys()),
+        }
