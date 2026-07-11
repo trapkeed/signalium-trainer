@@ -1,0 +1,187 @@
+Signalium Platform — Trainer Integration Brief
+
+Platform base URL: https://signaliumai.com
+Trainer base URL: https://trainer.signaliumai.com
+All platform routes below are prefixed with /api/
+
+
+1. AUTHENTICATION
+
+Calls the trainer receives from Signalium (platform -> trainer)
+
+Every request carries an Authorization: Bearer header with a signed JWT.
+
+The JWT is ES256, short-lived (default 5 minutes), with:
+  iss: signalium
+  aud: signalium-trainer
+  sub: the platform's internal service identity
+
+Verify the token by fetching the platform's public keys:
+
+  GET https://signaliumai.com/api/sso/jwks
+
+This endpoint is public -- no auth required. Cache the JWKS and refresh on key-ID miss.
+If you prefer a network verification call instead of local JWT parsing:
+
+  POST https://signaliumai.com/api/sso/verify
+  Body: { "token": "<jwt>", "audience": "signalium-trainer" }
+
+If the optional legacy key is also configured, the platform additionally sends
+X-Api-Key: <trainer.api_key vault value>. Accept it but do not require it --
+the JWT is the primary auth mechanism.
+
+
+Calls the trainer makes to Signalium (trainer -> platform)
+
+Every inbound call to the platform must carry an API key issued from Admin -> API Keys
+on the platform:
+
+  X-Api-Key: <key issued to the trainer>
+
+All inbound routes require this header and return 401 without it.
+
+
+2. ENDPOINTS THE TRAINER MUST EXPOSE
+
+The platform calls these on https://trainer.signaliumai.com. All require the
+Authorization: Bearer JWT described above.
+
+GET  /health
+  Reachability probe. Return { "status": "ok" } with HTTP 200 when healthy.
+  Used by the platform's circuit breaker and ops dashboard.
+
+POST /
+  Primary QDE decision request. Receives a telemetry snapshot; returns
+  { "action": "...", "reasoning": "..." }. Action must be one of:
+  HOLD, ADD, REDUCE, TRAIL, BREAKEVEN, LOCK_PROFIT, CLOSE.
+  Reasoning is free text logged for audit purposes.
+
+POST /qde/inference
+  Market direction/signal request.
+
+POST /qde/review-position
+  Single open position assessment.
+
+POST /qde/portfolio-review
+  Batch portfolio review.
+
+GET  /experiments
+  List Research Lab experiments.
+
+POST /experiments
+  Create a Research Lab experiment.
+
+GET  /training/runs
+  List model training runs.
+
+POST /training/runs
+  Start a training run.
+
+POST /shadow-testing/deployments
+  Launch a shadow/canary deployment.
+
+POST /deployment-candidates/:id/approve
+  Atomically activate a trained model candidate.
+
+GET  /genealogy/tree
+  Model lineage/version history.
+
+GET  /datasets
+  Browse available training datasets.
+
+
+3. ENDPOINTS THE TRAINER CALLS ON THE PLATFORM
+
+Base: https://signaliumai.com/api/
+All require X-Api-Key header except /sso/jwks and /sso/verify.
+
+GET  /sso/jwks
+  Public. Fetch the platform's JWKS to verify incoming JWTs.
+
+POST /sso/verify
+  Public. Network-based JWT verification alternative.
+
+POST /operational/telemetry
+  Ingest a live account/EA telemetry snapshot.
+
+POST /operational/ticks
+  Continuous per-symbol tick stream.
+
+POST /operational/heartbeat
+  EA/runtime heartbeat ping.
+
+POST /operational/execution-quality
+  Trade execution quality metrics.
+
+POST /symbols/discovery
+  Submit new symbol/broker mappings for admin review.
+
+
+4. PAYLOAD SHAPES
+
+Telemetry payload (POST /operational/telemetry):
+
+  {
+    "symbol": "XAUUSD",
+    "balance": 10000.00,
+    "equity": 9850.00,
+    "margin": 500.00,
+    "freeMargin": 9350.00,
+    "openPositions": 2,
+    "floatingPnl": -150.00,
+    "entryPrice": 1925.50,
+    "currentPrice": 1920.10,
+    "spread": 0.30,
+    "drawdown": 1.5,
+    "tradeAgeSeconds": 3600,
+    "bucketType": "speculative"
+  }
+
+bucketType is optional ("core", "growth", or "speculative"). When present, the platform
+applies per-bucket risk limits instead of whole-account limits for the QDE gate.
+
+
+QDE decision request payload (POST / on the trainer):
+
+  Same telemetry fields as above (without bucketType).
+
+Expected QDE response:
+
+  {
+    "action": "HOLD",
+    "reasoning": "Volatility elevated; waiting for consolidation."
+  }
+
+
+5. ERROR AND FAIL-CLOSED BEHAVIOUR
+
+If the trainer's /health returns non-200 or times out for N consecutive calls
+(configured via trainer.circuit_breaker_threshold on the platform), the platform opens
+its circuit breaker and stops sending QDE requests until the cooldown period
+(trainer.circuit_breaker_reset_ms) expires.
+
+If the trainer returns non-200 to a QDE decision request, the platform records
+action: null for that telemetry frame -- no command is issued to the EA. The platform
+does not fall back to a default action.
+
+The platform never retries a QDE decision request with a side effect. Only safe probes
+(/health) are retried automatically.
+
+
+6. FIRST-CONNECTION CHECKLIST
+
+1. The platform admin sets trainer.url = https://trainer.signaliumai.com in
+   Admin -> Secrets Vault.
+
+2. The platform admin issues a dedicated API key for the trainer (Admin -> API Keys)
+   and sends it to the trainer team to configure as their outbound X-Api-Key header.
+
+3. The trainer fetches GET https://signaliumai.com/api/sso/jwks and confirms a valid
+   JWKS document is returned. This must succeed before any JWT the platform sends
+   will verify on the trainer's side.
+
+4. The platform ops dashboard (Admin -> Platform Health) shows trainer reachability
+   as green once /health returns 200.
+
+5. A test telemetry frame is posted via POST https://signaliumai.com/api/qde/telemetry.
+   Platform logs confirm a trainer decision was received and an action was recorded.
