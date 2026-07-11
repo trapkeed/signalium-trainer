@@ -94,6 +94,15 @@ from trainer.qde.brain.opportunity.capital_priority_engine import (
     CapitalPriorityEngine,
 )
 
+# ── C11: expected-utility scoring, classification, and ranking ────────────────
+from trainer.qde.brain.opportunity.opportunity_score import (
+    OpportunityClass,
+    OpportunityScore,
+    classify_opportunity,
+    score_opportunity,
+    rank_opportunities,
+)
+
 __all__ = [
     # input bag
     "OpportunityInput",
@@ -107,4 +116,10 @@ __all__ = [
     "PriorityTier",
     "CapitalAllocation",
     "CapitalPriorityEngine",
+    # ── C11 ──────────────────────────────────────────────────────────────────
+    "OpportunityClass",
+    "OpportunityScore",
+    "classify_opportunity",
+    "score_opportunity",
+    "rank_opportunities",
 ]

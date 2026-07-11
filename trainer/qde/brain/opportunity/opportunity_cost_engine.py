@@ -124,6 +124,17 @@ class OpportunityInput:
     # ── Attention — from AttentionScoreAllocator ────────────────────────
     attention_weight: float = 0.0   # normalized cross-symbol weight
 
+    # ── Execution friction — C11 additions ─────────────────────────────
+    # These four fields are optional (all default to neutral values) so
+    # existing callers that do not yet populate them continue to work
+    # unchanged.  Callers that have execution-engine context should
+    # populate them from ``SlippagePredictor`` / ``FillProbabilityEngine``
+    # and the MIE liquidity signal.
+    spread_cost_atr:       float = 0.0   # gross spread expressed in ATR units
+    slippage_estimate_atr: float = 0.0   # estimated execution slippage in ATR
+    liquidity_quality:     float = 0.5   # 0-1, from MIE/liquidity layer
+    portfolio_interaction: float = 0.0   # −1 = concentrating, +1 = diversifying
+
     # ── Position context ────────────────────────────────────────────────
     has_open_position:  bool  = False
     confirmation_ticks: int   = 0
@@ -161,6 +172,11 @@ class OpportunityInput:
             "proj_position_size_modifier":  round(self.proj_position_size_modifier, 4),
             "proj_risk_appetite_modifier":  round(self.proj_risk_appetite_modifier, 4),
             "attention_weight":           round(self.attention_weight, 4),
+            # C11 execution-friction fields
+            "spread_cost_atr":            round(self.spread_cost_atr, 4),
+            "slippage_estimate_atr":      round(self.slippage_estimate_atr, 4),
+            "liquidity_quality":          round(self.liquidity_quality, 4),
+            "portfolio_interaction":      round(self.portfolio_interaction, 4),
             "has_open_position":          self.has_open_position,
             "confirmation_ticks":         self.confirmation_ticks,
             "state_dwell_seconds":        round(self.state_dwell_seconds, 1),
