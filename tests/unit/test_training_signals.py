@@ -60,7 +60,7 @@ class TestOutcomePath(unittest.TestCase):
     def test_short_direction_excursions_are_mirrored(self):
         entry = 1.5000
         bars = [_bar(1, entry, 1.5010, 1.4950, 1.4960)]
-        path = TradeOutcomePath(instrument="X", direction=-1, entry_price=entry, future_bars=bars)
+        path = TradeOutcomePath(instrument="EURUSD", direction=-1, entry_price=entry, future_bars=bars)
         self.assertAlmostEqual(path.favorable_excursion(bars[0]), entry - 1.4950, places=5)
         self.assertAlmostEqual(path.adverse_excursion(bars[0]), 1.5010 - entry, places=5)
 
@@ -107,7 +107,7 @@ class TestHindsightTakeProfitLabeler(unittest.TestCase):
     def test_never_favorable_gives_zero_distance(self):
         entry = 1.0
         bars = [_bar(1, entry, entry, entry - 0.01, entry - 0.005)]
-        path = TradeOutcomePath(instrument="X", direction=1, entry_price=entry, future_bars=bars)
+        path = TradeOutcomePath(instrument="EURUSD", direction=1, entry_price=entry, future_bars=bars)
         label = self.labeler.label(path)
         self.assertEqual(label.optimal_target_distance, 0.0)
 
@@ -131,7 +131,7 @@ class TestHindsightPositionSizeLabeler(unittest.TestCase):
         # midpoint but below the asymptotic ceiling of 1.0.
         entry = 1.0
         bars = [_bar(1, entry, entry + 0.01, entry, entry + 0.01)]
-        path = TradeOutcomePath(instrument="X", direction=1, entry_price=entry, future_bars=bars)
+        path = TradeOutcomePath(instrument="EURUSD", direction=1, entry_price=entry, future_bars=bars)
         label = self.labeler.label(path)
         self.assertGreater(label.size_signal_label, 0.85)
         self.assertLess(label.size_signal_label, 1.0)
@@ -148,7 +148,7 @@ class TestHindsightAllocationLabeler(unittest.TestCase):
         self.assertGreater(label.optimal_weights["EURUSD"], label.optimal_weights["GBPUSD"])
 
     def test_all_losers_gives_all_zero_weights(self):
-        label = self.labeler.label([_losing_long_path("A"), _losing_long_path("B")])
+        label = self.labeler.label([_losing_long_path("AUDUSD"), _losing_long_path("NZDUSD")])
         self.assertTrue(all(w == 0.0 for w in label.optimal_weights.values()))
 
     def test_empty_input_returns_empty_label(self):
@@ -171,7 +171,7 @@ class TestHindsightLifecycleLabeler(unittest.TestCase):
     def test_never_favorable_goes_straight_to_stopped(self):
         entry = 1.0
         bars = [_bar(1, entry, entry, entry - 0.01, entry - 0.005)]
-        path = TradeOutcomePath(instrument="X", direction=1, entry_price=entry, future_bars=bars)
+        path = TradeOutcomePath(instrument="EURUSD", direction=1, entry_price=entry, future_bars=bars)
         label = self.labeler.label(path)
         states = [t.state for t in label.transitions]
         self.assertEqual(states, [LifecycleState.ACTIVE, LifecycleState.STOPPED])
