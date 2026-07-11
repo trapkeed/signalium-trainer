@@ -27,8 +27,23 @@ PNPM="$(command -v pnpm 2>/dev/null || true)"
 # ---------------------------------------------------------------------------
 if [[ "${REBUILD:-0}" == "1" ]]; then
   [[ -z "$PNPM" ]] && error "pnpm not found — required for REBUILD=1."
-  info "Rebuilding trainer-api before restart..."
+
+  # Restore devDependencies so build tools (esbuild, vite) are available.
+  # NODE_ENV= overrides any production env var that would cause pnpm to skip them.
+  # --no-frozen-lockfile avoids failures when the lockfile was generated on a
+  # different pnpm version than what is installed on the server.
+  info "Installing dependencies (including devDeps for build)..."
+  NODE_ENV= "$PNPM" install --no-frozen-lockfile
+
+  info "Rebuilding trainer-api..."
   "$PNPM" --filter @workspace/trainer-api run build
+
+  info "Rebuilding research-dashboard..."
+  "$PNPM" --filter @workspace/research-dashboard run build
+
+  # Re-prune to production-only modules now that the builds are done.
+  info "Pruning devDependencies..."
+  "$PNPM" install --prod --ignore-scripts
 fi
 
 # ---------------------------------------------------------------------------

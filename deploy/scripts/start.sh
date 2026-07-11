@@ -52,7 +52,11 @@ fi
 # Install dependencies (production + devDependencies needed for build)
 # ---------------------------------------------------------------------------
 info "Installing dependencies..."
-"$PNPM" install --frozen-lockfile
+# NODE_ENV= ensures devDependencies (esbuild, vite) are not skipped even if
+# the shell already has NODE_ENV=production set.
+# --no-frozen-lockfile avoids failures when pnpm version differs from the
+# machine that last regenerated the lockfile.
+NODE_ENV= "$PNPM" install --no-frozen-lockfile
 
 # ---------------------------------------------------------------------------
 # Build
@@ -60,11 +64,14 @@ info "Installing dependencies..."
 info "Building trainer-api..."
 "$PNPM" --filter @workspace/trainer-api run build
 
+info "Building research-dashboard..."
+"$PNPM" --filter @workspace/research-dashboard run build
+
 # ---------------------------------------------------------------------------
 # Prune dev dependencies (production-only node_modules)
 # ---------------------------------------------------------------------------
 info "Pruning dev dependencies..."
-"$PNPM" install --prod --frozen-lockfile --ignore-scripts
+"$PNPM" install --prod --ignore-scripts
 
 # ---------------------------------------------------------------------------
 # Start via PM2
