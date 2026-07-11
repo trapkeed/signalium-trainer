@@ -49,6 +49,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_types import BeliefDirection
@@ -61,24 +62,27 @@ try:
         EpisodeFeatures,
         EpisodeOutcome,
         EpisodePortfolioState,
-        EpisodicMemory,
     )
+
     _HAS_EPISODIC = True
 except ImportError:
     _HAS_EPISODIC = False
 
 try:
-    from trainer.qde.brain.semantic.semantic_memory import MarketConcept, SemanticMemory
+    from trainer.qde.brain.semantic.semantic_memory import (  # noqa: F401
+        SemanticMemory,
+    )
+
     _HAS_SEMANTIC = True
 except ImportError:
     _HAS_SEMANTIC = False
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-_RECALL_K           = 20      # episodes to retrieve
-_RECENCY_LAMBDA     = 1.0 / 14.0
-_MAX_CONFIDENCE_ADJ = 0.12    # cap on confidence adjustment (±)
-_MIN_EPISODES_FOR_ADJ = 4     # minimum resolved episodes before adjusting
+_RECALL_K = 20  # episodes to retrieve
+_RECENCY_LAMBDA = 1.0 / 14.0
+_MAX_CONFIDENCE_ADJ = 0.12  # cap on confidence adjustment (±)
+_MIN_EPISODES_FOR_ADJ = 4  # minimum resolved episodes before adjusting
 
 
 # ── Output types ──────────────────────────────────────────────────────────────
@@ -111,35 +115,36 @@ class HypothesisMemoryContext:
         (if provided).  Higher = more failures recorded for this direction.
     """
 
-    similar_episode_count:  int                      = 0
-    win_rate_by_direction:  dict[str, float | None]  = field(
+    similar_episode_count: int = 0
+    win_rate_by_direction: dict[str, float | None] = field(
         default_factory=lambda: {d.value: None for d in BeliefDirection}
     )
-    confidence_adj_by_direction: dict[str, float]    = field(
+    confidence_adj_by_direction: dict[str, float] = field(
         default_factory=lambda: {d.value: 0.0 for d in BeliefDirection}
     )
-    relevant_concept:       object | None            = None
-    concept_similarity:     float                    = 0.0
-    failure_bias:           dict[str, float]         = field(
+    relevant_concept: object | None = None
+    concept_similarity: float = 0.0
+    failure_bias: dict[str, float] = field(
         default_factory=lambda: {d.value: 0.0 for d in BeliefDirection}
     )
 
     def to_dict(self) -> dict:
         return {
-            "similar_episode_count":    self.similar_episode_count,
-            "win_rate_by_direction":    {
+            "similar_episode_count": self.similar_episode_count,
+            "win_rate_by_direction": {
                 k: round(v, 4) if v is not None else None
                 for k, v in self.win_rate_by_direction.items()
             },
             "confidence_adj_by_direction": {
                 k: round(v, 4) for k, v in self.confidence_adj_by_direction.items()
             },
-            "concept_similarity":       round(self.concept_similarity, 4),
+            "concept_similarity": round(self.concept_similarity, 4),
             "concept_id": (
                 getattr(self.relevant_concept, "concept_id", None)
-                if self.relevant_concept else None
+                if self.relevant_concept
+                else None
             ),
-            "failure_bias":             {k: round(v, 2) for k, v in self.failure_bias.items()},
+            "failure_bias": {k: round(v, 2) for k, v in self.failure_bias.items()},
         }
 
 
@@ -170,31 +175,31 @@ class HypothesisMemoryBridge:
 
     def __init__(
         self,
-        episodic_memory:  object | None = None,   # EpisodicMemory | None
-        semantic_memory:  object | None = None,   # SemanticMemory | None
-        failure_tracker:  object | None = None,   # HypothesisFailureTracker | None
-        recall_k:         int           = _RECALL_K,
-        recency_lambda:   float         = _RECENCY_LAMBDA,
-        max_conf_adj:     float         = _MAX_CONFIDENCE_ADJ,
-        min_episodes:     int           = _MIN_EPISODES_FOR_ADJ,
+        episodic_memory: object | None = None,  # EpisodicMemory | None
+        semantic_memory: object | None = None,  # SemanticMemory | None
+        failure_tracker: object | None = None,  # HypothesisFailureTracker | None
+        recall_k: int = _RECALL_K,
+        recency_lambda: float = _RECENCY_LAMBDA,
+        max_conf_adj: float = _MAX_CONFIDENCE_ADJ,
+        min_episodes: int = _MIN_EPISODES_FOR_ADJ,
     ) -> None:
-        self._episodic  = episodic_memory
-        self._semantic  = semantic_memory
-        self._failure   = failure_tracker
-        self._k         = recall_k
-        self._lambda    = recency_lambda
-        self._max_adj   = max_conf_adj
-        self._min_eps   = min_episodes
+        self._episodic = episodic_memory
+        self._semantic = semantic_memory
+        self._failure = failure_tracker
+        self._k = recall_k
+        self._lambda = recency_lambda
+        self._max_adj = max_conf_adj
+        self._min_eps = min_episodes
 
     # ── Primary recall entry point ────────────────────────────────────────
 
     def recall_context(
         self,
-        instrument:         str,
-        features:           dict,
-        session:            str          = "",
-        market_regime:      str          = "",
-        now:                float | None = None,
+        instrument: str,
+        features: dict,
+        session: str = "",
+        market_regime: str = "",
+        now: float | None = None,
     ) -> HypothesisMemoryContext:
         """Recall context from all available memory sources.
 
@@ -232,8 +237,8 @@ class HypothesisMemoryBridge:
 
     def enrich_seeds(
         self,
-        seeds:   list[HypothesisSeed],
-        ctx:     HypothesisMemoryContext,
+        seeds: list[HypothesisSeed],
+        ctx: HypothesisMemoryContext,
     ) -> list[HypothesisSeed]:
         """Return a new list of seeds with confidence adjusted by memory context.
 
@@ -246,6 +251,7 @@ class HypothesisMemoryBridge:
         seeds whose direction matches the concept's dominant win_rate direction.
         """
         import copy
+
         result: list[HypothesisSeed] = []
         for seed in seeds:
             adj = ctx.confidence_adj_by_direction.get(seed.direction.value, 0.0)
@@ -256,9 +262,9 @@ class HypothesisMemoryBridge:
                 if wr > 0.60:
                     adj += (ctx.concept_similarity - 0.70) * 0.15
 
-            adj        = max(-self._max_adj, min(self._max_adj, adj))
-            new_conf   = max(0.05, min(0.95, seed.confidence + adj))
-            new_seed   = copy.copy(seed)
+            adj = max(-self._max_adj, min(self._max_adj, adj))
+            new_conf = max(0.05, min(0.95, seed.confidence + adj))
+            new_seed = copy.copy(seed)
             new_seed.confidence = new_conf
             result.append(new_seed)
 
@@ -268,19 +274,19 @@ class HypothesisMemoryBridge:
 
     def store_hypothesis_episode(
         self,
-        hypothesis_id:     str,
-        instrument:        str,
-        thesis:            str,
-        direction:         BeliefDirection,
-        features:          dict,
-        action:            str                = "NO_TRADE",
-        confidence:        float              = 0.0,
-        outcome_correct:   bool               = False,
-        reward_atr:        float              = 0.0,
-        resolved:          bool               = False,
-        regime_context:    str                = "",
-        session_context:   str                = "",
-        now:               float | None       = None,
+        hypothesis_id: str,
+        instrument: str,
+        thesis: str,
+        direction: BeliefDirection,
+        features: dict,
+        action: str = "NO_TRADE",
+        confidence: float = 0.0,
+        outcome_correct: bool = False,
+        reward_atr: float = 0.0,
+        resolved: bool = False,
+        regime_context: str = "",
+        session_context: str = "",
+        now: float | None = None,
     ) -> str:
         """Write a hypothesis resolution as an episode to episodic memory.
 
@@ -307,7 +313,7 @@ class HypothesisMemoryBridge:
                 timestamp=now,
                 features=feat,
                 portfolio=EpisodePortfolioState(),  # type: ignore[name-defined]
-                active_hypotheses=[hypothesis_id],
+                active_hypotheses=[hypothesis_id],  # type: ignore[list-item]
                 action=action.upper(),
                 confidence=confidence,
                 outcome=outcome,
@@ -330,14 +336,14 @@ class HypothesisMemoryBridge:
 
     def _recall_episodic(
         self,
-        ctx:        HypothesisMemoryContext,
+        ctx: HypothesisMemoryContext,
         instrument: str,
-        features:   dict,
-        session:    str,
-        now:        float,
+        features: dict,
+        session: str,
+        now: float,
     ) -> HypothesisMemoryContext:
         try:
-            feat    = EpisodeFeatures.from_dict(features)  # type: ignore[name-defined]
+            feat = EpisodeFeatures.from_dict(features)  # type: ignore[name-defined]
             similar = self._episodic.retrieve_similar(  # type: ignore[union-attr]
                 features=feat,
                 instrument=instrument,
@@ -366,7 +372,7 @@ class HypothesisMemoryBridge:
         for d in BeliefDirection:
             corrects = dir_corrects[d.value]
             if len(corrects) >= self._min_eps:
-                wr  = sum(corrects) / len(corrects)
+                wr = sum(corrects) / len(corrects)
                 ctx.win_rate_by_direction[d.value] = round(wr, 4)
                 # Adjustment: centre at 0.5 → ±max_adj
                 raw_adj = (wr - 0.5) * self._max_adj * 2.0
@@ -380,23 +386,23 @@ class HypothesisMemoryBridge:
 
     def _recall_semantic(
         self,
-        ctx:      HypothesisMemoryContext,
+        ctx: HypothesisMemoryContext,
         features: dict,
     ) -> HypothesisMemoryContext:
         try:
             feat_vec = [
-                features.get("volatility",       0.5),
+                features.get("volatility", 0.5),
                 (features.get("momentum", 0.0) + 1.0) / 2.0,
-                features.get("trend_strength",   0.0),
+                features.get("trend_strength", 0.0),
                 features.get("range_compression", 0.0),
-                features.get("absorption",       0.0),
-                features.get("volume_balance",   0.5),
-                features.get("session_quality",  0.8),
-                features.get("microstructure",   0.8),
-                features.get("regime_numeric",   0.5),
-                features.get("hypothesis_conf",  0.0),
+                features.get("absorption", 0.0),
+                features.get("volume_balance", 0.5),
+                features.get("session_quality", 0.8),
+                features.get("microstructure", 0.8),
+                features.get("regime_numeric", 0.5),
+                features.get("hypothesis_conf", 0.0),
                 features.get("attention_weight", 0.5),
-                features.get("spread_norm",      0.5),
+                features.get("spread_norm", 0.5),
             ]
             results = self._semantic.recall(  # type: ignore[union-attr]
                 feature_vec=feat_vec,
@@ -409,14 +415,14 @@ class HypothesisMemoryBridge:
 
         if results:
             best = results[0]
-            ctx.relevant_concept    = best.concept
-            ctx.concept_similarity  = best.similarity
+            ctx.relevant_concept = best.concept
+            ctx.concept_similarity = best.similarity
 
         return ctx
 
     def _recall_failure_bias(
         self,
-        ctx:        HypothesisMemoryContext,
+        ctx: HypothesisMemoryContext,
         instrument: str,
     ) -> HypothesisMemoryContext:
         """Add failure-count bias from the failure tracker."""
@@ -432,7 +438,7 @@ def _action_to_direction(action: str) -> BeliefDirection:
     """Map episode action to BeliefDirection for win-rate bucketing."""
     a = action.upper()
     if a in ("ENTER", "SCALE_IN", "HOLD"):
-        return BeliefDirection.BULLISH    # proxy: entering = bullish conviction
+        return BeliefDirection.BULLISH  # proxy: entering = bullish conviction
     if a in ("EXIT", "SCALE_OUT"):
         return BeliefDirection.BEARISH
     return BeliefDirection.NEUTRAL

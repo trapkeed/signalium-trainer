@@ -51,18 +51,19 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.episodic.episodic_memory import Episode
 
 # ── Hyper-parameters ──────────────────────────────────────────────────────────
 
-_DEFAULT_MAX_CONCEPTS     = 200    # total across all instruments
-_DEFAULT_CREATION_SIM     = 0.80   # below this → candidate for new concept
-_DEFAULT_MIN_MEMBERS      = 3      # minimum before a concept is published
-_DEFAULT_CENTROID_ALPHA   = 0.10   # EMA alpha for centroid update
-_DEFAULT_CONCEPT_DEPTH    = 10_000 # maximum member episode IDs tracked per concept
-_OUTCOME_WIN_ALPHA        = 0.15   # EMA for win_rate / avg_reward update
+_DEFAULT_MAX_CONCEPTS = 200  # total across all instruments
+_DEFAULT_CREATION_SIM = 0.80  # below this → candidate for new concept
+_DEFAULT_MIN_MEMBERS = 3  # minimum before a concept is published
+_DEFAULT_CENTROID_ALPHA = 0.10  # EMA alpha for centroid update
+_DEFAULT_CONCEPT_DEPTH = 10_000  # maximum member episode IDs tracked per concept
+_OUTCOME_WIN_ALPHA = 0.15  # EMA for win_rate / avg_reward update
 
 
 # ── ConceptKind ───────────────────────────────────────────────────────────────
@@ -82,19 +83,19 @@ class ConceptKind(str, Enum):
       range_compression, absorption)
     """
 
-    BREAKOUT_AFTER_COMPRESSION    = "BREAKOUT_AFTER_COMPRESSION"
-    FAILED_LIQUIDITY_SWEEP        = "FAILED_LIQUIDITY_SWEEP"
-    TREND_CONTINUATION_PULLBACK   = "TREND_CONTINUATION_PULLBACK"
+    BREAKOUT_AFTER_COMPRESSION = "BREAKOUT_AFTER_COMPRESSION"
+    FAILED_LIQUIDITY_SWEEP = "FAILED_LIQUIDITY_SWEEP"
+    TREND_CONTINUATION_PULLBACK = "TREND_CONTINUATION_PULLBACK"
     MEAN_REVERSION_AFTER_EXPANSION = "MEAN_REVERSION_AFTER_EXPANSION"
-    ACCUMULATION_BREAKOUT         = "ACCUMULATION_BREAKOUT"
-    DISTRIBUTION_REVERSAL         = "DISTRIBUTION_REVERSAL"
-    STOP_HUNT_REVERSAL            = "STOP_HUNT_REVERSAL"
-    RANGE_FADE                    = "RANGE_FADE"
-    VOLATILITY_CONTRACTION        = "VOLATILITY_CONTRACTION"
-    VOLATILITY_EXPANSION          = "VOLATILITY_EXPANSION"
-    SESSION_OPEN_MOMENTUM         = "SESSION_OPEN_MOMENTUM"
-    NEWS_SPIKE_FADE               = "NEWS_SPIKE_FADE"
-    UNKNOWN                       = "UNKNOWN"
+    ACCUMULATION_BREAKOUT = "ACCUMULATION_BREAKOUT"
+    DISTRIBUTION_REVERSAL = "DISTRIBUTION_REVERSAL"
+    STOP_HUNT_REVERSAL = "STOP_HUNT_REVERSAL"
+    RANGE_FADE = "RANGE_FADE"
+    VOLATILITY_CONTRACTION = "VOLATILITY_CONTRACTION"
+    VOLATILITY_EXPANSION = "VOLATILITY_EXPANSION"
+    SESSION_OPEN_MOMENTUM = "SESSION_OPEN_MOMENTUM"
+    NEWS_SPIKE_FADE = "NEWS_SPIKE_FADE"
+    UNKNOWN = "UNKNOWN"
 
 
 # ── ConceptSeed ───────────────────────────────────────────────────────────────
@@ -113,8 +114,8 @@ class ConceptSeed:
     accumulate.
     """
 
-    kind:        ConceptKind = ConceptKind.UNKNOWN
-    description: str         = ""
+    kind: ConceptKind = ConceptKind.UNKNOWN
+    description: str = ""
 
 
 # ── MarketConcept ─────────────────────────────────────────────────────────────
@@ -139,56 +140,51 @@ class MarketConcept:
     ``kind``             — inferred or caller-supplied concept label.
     """
 
-    concept_id:       str          = field(
-        default_factory=lambda: str(uuid.uuid4())[:12]
-    )
-    instrument:       str          = ""   # "" = cross-instrument
-    kind:             ConceptKind  = ConceptKind.UNKNOWN
-    description:      str          = ""
-    centroid:         list[float]  = field(default_factory=lambda: [0.5] * 12)
-    member_ids:       list[str]    = field(default_factory=list)
-    member_count:     int          = 0
-    occurrence_count: int          = 0
-    win_rate:         float        = 0.5
-    avg_reward_atr:   float        = 0.0
-    published:        bool         = False
-    created_at:       float        = field(default_factory=time.time)
-    last_updated_at:  float        = field(default_factory=time.time)
+    concept_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""  # "" = cross-instrument
+    kind: ConceptKind = ConceptKind.UNKNOWN
+    description: str = ""
+    centroid: list[float] = field(default_factory=lambda: [0.5] * 12)
+    member_ids: list[str] = field(default_factory=list)
+    member_count: int = 0
+    occurrence_count: int = 0
+    win_rate: float = 0.5
+    avg_reward_atr: float = 0.0
+    published: bool = False
+    created_at: float = field(default_factory=time.time)
+    last_updated_at: float = field(default_factory=time.time)
 
-    def update_centroid(
-        self, vec: list[float], alpha: float = _DEFAULT_CENTROID_ALPHA
-    ) -> None:
+    def update_centroid(self, vec: list[float], alpha: float = _DEFAULT_CENTROID_ALPHA) -> None:
         """EMA-update the centroid toward ``vec``."""
         if len(vec) != len(self.centroid):
             return
-        self.centroid = [
-            (1.0 - alpha) * c + alpha * v
-            for c, v in zip(self.centroid, vec)
-        ]
+        self.centroid = [(1.0 - alpha) * c + alpha * v for c, v in zip(self.centroid, vec)]
         self.last_updated_at = time.time()
 
     def update_outcome(self, direction_correct: bool, reward_atr: float) -> None:
         """EMA-update win rate and average reward with one new outcome."""
-        self.win_rate       = (1 - _OUTCOME_WIN_ALPHA) * self.win_rate + \
-                               _OUTCOME_WIN_ALPHA * (1.0 if direction_correct else 0.0)
-        self.avg_reward_atr = (1 - _OUTCOME_WIN_ALPHA) * self.avg_reward_atr + \
-                               _OUTCOME_WIN_ALPHA * reward_atr
+        self.win_rate = (1 - _OUTCOME_WIN_ALPHA) * self.win_rate + _OUTCOME_WIN_ALPHA * (
+            1.0 if direction_correct else 0.0
+        )
+        self.avg_reward_atr = (
+            1 - _OUTCOME_WIN_ALPHA
+        ) * self.avg_reward_atr + _OUTCOME_WIN_ALPHA * reward_atr
 
     def to_dict(self) -> dict:
         return {
-            "concept_id":       self.concept_id,
-            "instrument":       self.instrument,
-            "kind":             self.kind.value,
-            "description":      self.description,
-            "centroid":         [round(v, 6) for v in self.centroid],
-            "member_ids":       self.member_ids[-50:],   # keep last 50 in snapshot
-            "member_count":     self.member_count,
+            "concept_id": self.concept_id,
+            "instrument": self.instrument,
+            "kind": self.kind.value,
+            "description": self.description,
+            "centroid": [round(v, 6) for v in self.centroid],
+            "member_ids": self.member_ids[-50:],  # keep last 50 in snapshot
+            "member_count": self.member_count,
             "occurrence_count": self.occurrence_count,
-            "win_rate":         round(self.win_rate, 4),
-            "avg_reward_atr":   round(self.avg_reward_atr, 6),
-            "published":        self.published,
-            "created_at":       round(self.created_at, 3),
-            "last_updated_at":  round(self.last_updated_at, 3),
+            "win_rate": round(self.win_rate, 4),
+            "avg_reward_atr": round(self.avg_reward_atr, 6),
+            "published": self.published,
+            "created_at": round(self.created_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
         }
 
     @classmethod
@@ -222,20 +218,20 @@ class SemanticRecallResult:
     ``confidence``      — adjusted confidence: ``win_rate × similarity``.
     """
 
-    similarity:  float
-    concept:     MarketConcept
-    confidence:  float
+    similarity: float
+    concept: MarketConcept
+    confidence: float
 
     def to_dict(self) -> dict:
         return {
-            "concept_id":     self.concept.concept_id,
-            "kind":           self.concept.kind.value,
-            "similarity":     round(self.similarity, 4),
-            "confidence":     round(self.confidence, 4),
-            "win_rate":       round(self.concept.win_rate, 4),
+            "concept_id": self.concept.concept_id,
+            "kind": self.concept.kind.value,
+            "similarity": round(self.similarity, 4),
+            "confidence": round(self.confidence, 4),
+            "win_rate": round(self.concept.win_rate, 4),
             "avg_reward_atr": round(self.concept.avg_reward_atr, 6),
-            "member_count":   self.concept.member_count,
-            "published":      self.concept.published,
+            "member_count": self.concept.member_count,
+            "published": self.concept.published,
         }
 
 
@@ -266,17 +262,17 @@ class SemanticMemory:
 
     def __init__(
         self,
-        max_concepts:       int   = _DEFAULT_MAX_CONCEPTS,
+        max_concepts: int = _DEFAULT_MAX_CONCEPTS,
         creation_threshold: float = _DEFAULT_CREATION_SIM,
-        min_members:        int   = _DEFAULT_MIN_MEMBERS,
-        centroid_alpha:     float = _DEFAULT_CENTROID_ALPHA,
-        concept_depth:      int   = _DEFAULT_CONCEPT_DEPTH,
+        min_members: int = _DEFAULT_MIN_MEMBERS,
+        centroid_alpha: float = _DEFAULT_CENTROID_ALPHA,
+        concept_depth: int = _DEFAULT_CONCEPT_DEPTH,
     ) -> None:
-        self._max_concepts      = max_concepts
+        self._max_concepts = max_concepts
         self._creation_threshold = creation_threshold
-        self._min_members       = min_members
-        self._alpha             = centroid_alpha
-        self._depth             = concept_depth
+        self._min_members = min_members
+        self._alpha = centroid_alpha
+        self._depth = concept_depth
 
         # concept_id → MarketConcept
         self._concepts: dict[str, MarketConcept] = {}
@@ -289,8 +285,8 @@ class SemanticMemory:
     def write_memory(
         self,
         episode: Episode,
-        seed:    ConceptSeed | None = None,
-        now:     float | None = None,
+        seed: ConceptSeed | None = None,
+        now: float | None = None,
     ) -> MarketConcept | None:
         """Ingest one episode into the semantic store.
 
@@ -328,11 +324,11 @@ class SemanticMemory:
 
     def recall(
         self,
-        feature_vec:     list[float],
-        instrument:      str  = "",
-        n:               int  = 10,
-        published_only:  bool = True,
-        min_win_rate:    float = 0.0,
+        feature_vec: list[float],
+        instrument: str = "",
+        n: int = 10,
+        published_only: bool = True,
+        min_win_rate: float = 0.0,
     ) -> list[SemanticRecallResult]:
         """Retrieve the N most similar published concepts.
 
@@ -350,10 +346,7 @@ class SemanticMemory:
         if published_only:
             candidates = [c for c in candidates if c.published]
         if instrument:
-            candidates = [
-                c for c in candidates
-                if not c.instrument or c.instrument == instrument
-            ]
+            candidates = [c for c in candidates if not c.instrument or c.instrument == instrument]
         if min_win_rate > 0.0:
             candidates = [c for c in candidates if c.win_rate >= min_win_rate]
 
@@ -367,17 +360,19 @@ class SemanticMemory:
         results: list[SemanticRecallResult] = []
         for sim, concept in scored[:n]:
             concept.occurrence_count += 1
-            results.append(SemanticRecallResult(
-                similarity=round(sim, 4),
-                concept=concept,
-                confidence=round(sim * concept.win_rate, 4),
-            ))
+            results.append(
+                SemanticRecallResult(
+                    similarity=round(sim, 4),
+                    concept=concept,
+                    confidence=round(sim * concept.win_rate, 4),
+                )
+            )
         return results
 
     def concepts(
         self,
         published_only: bool = True,
-        instrument:     str  = "",
+        instrument: str = "",
     ) -> list[MarketConcept]:
         """Return all concepts, optionally filtered."""
         cs = list(self._concepts.values())
@@ -396,7 +391,7 @@ class SemanticMemory:
 
     def to_snapshot(self) -> dict:
         return {
-            "concepts":  [c.to_dict() for c in self._concepts.values()],
+            "concepts": [c.to_dict() for c in self._concepts.values()],
             "pending_count": len(self._pending),  # pending vecs are ephemeral
         }
 
@@ -414,7 +409,7 @@ class SemanticMemory:
 
     def _find_best(
         self,
-        vec:        list[float],
+        vec: list[float],
         instrument: str,
     ) -> tuple[MarketConcept | None, float]:
         """Find the most similar existing concept for ``instrument``.
@@ -422,7 +417,7 @@ class SemanticMemory:
         Cross-instrument concepts (``concept.instrument == ""``) are always
         considered; per-instrument concepts only match their own instrument.
         """
-        best_sim    = -1.0
+        best_sim = -1.0
         best_c: MarketConcept | None = None
 
         for c in self._concepts.values():
@@ -431,28 +426,28 @@ class SemanticMemory:
             sim = _cosine_sim(vec, c.centroid)
             if sim > best_sim:
                 best_sim = sim
-                best_c   = c
+                best_c = c
 
         return best_c, best_sim
 
     def _assign(
         self,
-        concept:  MarketConcept,
-        episode:  Episode,
-        vec:      list[float],
-        seed:     ConceptSeed | None,
-        now:      float,
+        concept: MarketConcept,
+        episode: Episode,
+        vec: list[float],
+        seed: ConceptSeed | None,
+        now: float,
     ) -> None:
         """Assign ``episode`` to ``concept`` and update its state."""
         concept.update_centroid(vec, self._alpha)
-        concept.member_count     += 1
+        concept.member_count += 1
         concept.occurrence_count += 1
-        concept.last_updated_at   = now
+        concept.last_updated_at = now
 
         # Track member IDs (bounded)
         concept.member_ids.append(episode.episode_id)
         if len(concept.member_ids) > self._depth:
-            concept.member_ids = concept.member_ids[-self._depth:]
+            concept.member_ids = concept.member_ids[-self._depth :]
 
         # Update outcome statistics if available
         if episode.outcome.resolved:
@@ -473,7 +468,7 @@ class SemanticMemory:
 
         # Apply seed label if concept is still UNKNOWN
         if seed and concept.kind == ConceptKind.UNKNOWN:
-            concept.kind        = seed.kind
+            concept.kind = seed.kind
             concept.description = seed.description
 
         # Propagate concept_id to episode
@@ -481,10 +476,10 @@ class SemanticMemory:
 
     def _try_form_concept(
         self,
-        vec:        list[float],
+        vec: list[float],
         instrument: str,
-        seed:       ConceptSeed | None,
-        now:        float,
+        seed: ConceptSeed | None,
+        now: float,
     ) -> MarketConcept | None:
         """Try to form a new concept from pending episodes near ``vec``.
 
@@ -518,11 +513,8 @@ class SemanticMemory:
             return None
 
         # Compute mean centroid
-        n      = len(similar_pending)
-        centroid = [
-            sum(v[i] for v in similar_pending) / n
-            for i in range(len(vec))
-        ]
+        n = len(similar_pending)
+        centroid = [sum(v[i] for v in similar_pending) / n for i in range(len(vec))]
 
         concept = MarketConcept(
             instrument=instrument,
@@ -533,7 +525,7 @@ class SemanticMemory:
             last_updated_at=now,
         )
         self._concepts[concept.concept_id] = concept
-        self._pending = remaining   # remove consumed pending vecs
+        self._pending = remaining  # remove consumed pending vecs
 
         logger.debug(
             f"[Semantic] new concept {concept.concept_id} "
@@ -562,26 +554,26 @@ def _infer_concept_kind(concept: MarketConcept) -> ConceptKind:
         return ConceptKind.UNKNOWN
 
     c = concept.centroid
-    volatility        = c[0]
-    momentum_norm     = c[1]   # 0=bearish, 0.5=neutral, 1=bullish
-    trend_strength    = c[2]
+    volatility = c[0]
+    momentum_norm = c[1]  # 0=bearish, 0.5=neutral, 1=bullish
+    trend_strength = c[2]
     range_compression = c[3]
-    absorption        = c[4]
-    volume_balance    = c[5]   # >0.5=buy dominant
-    win               = concept.win_rate
-    avg_rw            = concept.avg_reward_atr
+    absorption = c[4]
+    volume_balance = c[5]  # >0.5=buy dominant
+    win = concept.win_rate
+    avg_rw = concept.avg_reward_atr
 
     # Signals for key patterns — threshold-free (uses relative magnitude)
-    high_compression  = range_compression > 0.55
-    high_absorption   = absorption > 0.50
-    high_trend        = trend_strength > 0.55
-    high_volatility   = volatility > 0.65
-    low_volatility    = volatility < 0.35
-    bullish_momentum  = momentum_norm > 0.60
-    bearish_momentum  = momentum_norm < 0.40
-    buy_dominant      = volume_balance > 0.60
-    sell_dominant     = volume_balance < 0.40
-    profitable        = avg_rw > 0.0 and win > 0.5
+    high_compression = range_compression > 0.55
+    high_absorption = absorption > 0.50
+    high_trend = trend_strength > 0.55
+    high_volatility = volatility > 0.65
+    low_volatility = volatility < 0.35
+    bullish_momentum = momentum_norm > 0.60
+    bearish_momentum = momentum_norm < 0.40
+    buy_dominant = volume_balance > 0.60
+    sell_dominant = volume_balance < 0.40
+    profitable = avg_rw > 0.0 and win > 0.5
 
     if high_compression and profitable:
         if high_absorption:
@@ -623,9 +615,9 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     """Cosine similarity ∈ [−1, 1].  Returns 0.0 for zero vectors."""
     if len(a) != len(b):
         return 0.0
-    dot  = sum(x * y for x, y in zip(a, b))
-    na   = math.sqrt(sum(x * x for x in a))
-    nb   = math.sqrt(sum(x * x for x in b))
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))

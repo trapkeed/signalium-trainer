@@ -46,11 +46,10 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
-from trainer.qde.brain.narrative.narrative_store import NarrativeKind, NarrativeMaturity, SymbolNarrative
 from trainer.qde.brain.narrative.continuity.continuity_types import (
-    HORIZON_ORDER,
     _INCOMPATIBLE_PAIRS,
     LineageEntry,
     LineageEventType,
@@ -60,6 +59,11 @@ from trainer.qde.brain.narrative.continuity.continuity_types import (
     SessionSnapshot,
     StoryNode,
     StoryStrength,
+)
+from trainer.qde.brain.narrative.narrative_store import (
+    NarrativeKind,
+    NarrativeMaturity,
+    SymbolNarrative,
 )
 
 if TYPE_CHECKING:
@@ -74,7 +78,7 @@ def _node_from_symbol_narrative(
     sn: SymbolNarrative,
 ) -> StoryNode:
     """Build a StoryNode snapshot from a live SymbolNarrative."""
-    total   = len(sn.supporting_evidence) + len(sn.conflicting_evidence)
+    total = len(sn.supporting_evidence) + len(sn.conflicting_evidence)
     balance = (len(sn.supporting_evidence) / total) if total > 0 else 0.5
     summary = (
         f"{sn.kind.value} @ {sn.maturity.value} "
@@ -116,35 +120,35 @@ def _infer_maturity(
 
 def _build_node_standalone(
     *,
-    horizon:       NarrativeHorizon,
-    kind:          NarrativeKind,
+    horizon: NarrativeHorizon,
+    kind: NarrativeKind,
     existing_node: StoryNode | None,
-    boost:         float,
+    boost: float,
     is_supporting: bool,
-    now:           float,
+    now: float,
 ) -> StoryNode:
     """Build / update a StoryNode when no live engine is available."""
     if existing_node is None:
-        raw_conf    = 0.30 + (boost if is_supporting else -boost)
-        confidence  = max(0.0, min(1.0, raw_conf))
-        supporting  = 1 if is_supporting else 0
+        raw_conf = 0.30 + (boost if is_supporting else -boost)
+        confidence = max(0.0, min(1.0, raw_conf))
+        supporting = 1 if is_supporting else 0
         conflicting = 0 if is_supporting else 1
-        total       = supporting + conflicting
-        balance     = (supporting / total) if total > 0 else 0.5
+        total = supporting + conflicting
+        balance = (supporting / total) if total > 0 else 0.5
         narrative_id = str(uuid.uuid4())[:12]
-        formed_at    = now
+        formed_at = now
     else:
-        delta       = boost if is_supporting else -boost
-        confidence  = max(0.0, min(1.0, existing_node.confidence + delta))
-        supporting  = existing_node.supporting_count  + (1 if is_supporting else 0)
+        delta = boost if is_supporting else -boost
+        confidence = max(0.0, min(1.0, existing_node.confidence + delta))
+        supporting = existing_node.supporting_count + (1 if is_supporting else 0)
         conflicting = existing_node.conflicting_count + (0 if is_supporting else 1)
-        total       = supporting + conflicting
-        balance     = (supporting / total) if total > 0 else 0.5
+        total = supporting + conflicting
+        balance = (supporting / total) if total > 0 else 0.5
         narrative_id = existing_node.narrative_id
-        formed_at    = existing_node.formed_at
+        formed_at = existing_node.formed_at
 
     maturity = _infer_maturity(confidence, balance, supporting + conflicting)
-    summary  = f"{kind.value} @ {maturity} (conf={confidence:.0%})"
+    summary = f"{kind.value} @ {maturity} (conf={confidence:.0%})"
 
     return StoryNode(
         horizon=horizon,
@@ -163,14 +167,14 @@ def _build_node_standalone(
 
 def _make_lineage_entry(
     *,
-    horizon:           NarrativeHorizon,
-    kind:              NarrativeKind,
-    event_type:        LineageEventType,
-    evidence:          str,
+    horizon: NarrativeHorizon,
+    kind: NarrativeKind,
+    event_type: LineageEventType,
+    evidence: str,
     confidence_before: float,
-    confidence_after:  float,
-    session_label:     str,
-    now:               float,
+    confidence_after: float,
+    session_label: str,
+    now: float,
 ) -> LineageEntry:
     return LineageEntry(
         entry_id=str(uuid.uuid4())[:8],
@@ -202,9 +206,9 @@ def _make_story(instrument: str, kind: NarrativeKind, now: float) -> NarrativeSt
 def _detect_event_type(
     existing_node: StoryNode | None,
     is_supporting: bool,
-    story:         NarrativeStory,
-    horizon:       NarrativeHorizon,
-    kind:          NarrativeKind,
+    story: NarrativeStory,
+    horizon: NarrativeHorizon,
+    kind: NarrativeKind,
 ) -> LineageEventType:
     """Classify the lineage event type for this update.
 
@@ -221,7 +225,8 @@ def _detect_event_type(
         return LineageEventType.WEAKENED
     # Cross-horizon confirmation: same kind already active at another horizon
     other_active = [
-        n for h_val, n in story.nodes.items()
+        n
+        for h_val, n in story.nodes.items()
         if h_val != horizon.value and n.is_active() and n.kind == kind
     ]
     if other_active:
@@ -233,7 +238,7 @@ def _detect_event_type(
 
 def _session_snapshot(story: NarrativeStory, session_label: str, now: float) -> SessionSnapshot:
     """Snapshot current story node state at a session boundary."""
-    snap_nodes   = dict(story.nodes)
+    snap_nodes = dict(story.nodes)
     active_confs = [n.confidence for n in story.active_nodes()]
     dominant_kind: str | None = None
     if story.active_nodes():
@@ -243,9 +248,7 @@ def _session_snapshot(story: NarrativeStory, session_label: str, now: float) -> 
         recorded_at=now,
         nodes=snap_nodes,
         dominant_kind=dominant_kind,
-        overall_confidence=(
-            sum(active_confs) / len(active_confs) if active_confs else 0.0
-        ),
+        overall_confidence=(sum(active_confs) / len(active_confs) if active_confs else 0.0),
     )
 
 
@@ -277,10 +280,10 @@ def _cross_horizon_alignment(nodes: list[StoryNode]) -> float:
     if len(active) == 1:
         return 1.0
 
-    total_pairs       = 0
+    total_pairs = 0
     incompatible_pairs = 0
     for i, na in enumerate(active):
-        for nb in active[i + 1:]:
+        for nb in active[i + 1 :]:
             total_pairs += 1
             if frozenset({na.kind, nb.kind}) in _INCOMPATIBLE_PAIRS:
                 incompatible_pairs += 1
@@ -301,13 +304,12 @@ def _session_continuity_score(story: NarrativeStory) -> float:
     if len(snapshots) < 2:
         return 0.0
 
-    kind_val      = story.primary_kind.value
+    kind_val = story.primary_kind.value
     present_count = 0
     for snap in snapshots:
         # Prefer SESSION then MACRO horizons for continuity anchoring
-        node = (
-            snap.nodes.get(NarrativeHorizon.SESSION.value)
-            or snap.nodes.get(NarrativeHorizon.MACRO.value)
+        node = snap.nodes.get(NarrativeHorizon.SESSION.value) or snap.nodes.get(
+            NarrativeHorizon.MACRO.value
         )
         if node is not None and node.kind.value == kind_val and node.is_active():
             present_count += 1
@@ -326,7 +328,7 @@ def _longevity_bonus(story: NarrativeStory) -> float:
 
 
 def _refresh_story_from_engine(
-    story:  NarrativeStory,
+    story: NarrativeStory,
     engine: "MarketNarrativeEngine",
 ) -> None:
     """Re-read SymbolNarrative states from the live engine into StoryNodes.
@@ -348,17 +350,17 @@ def _refresh_story_from_engine(
 
 
 def update_narrative(
-    instrument:       str,
-    kind:             NarrativeKind,
-    horizon:          NarrativeHorizon,
+    instrument: str,
+    kind: NarrativeKind,
+    horizon: NarrativeHorizon,
     *,
-    evidence:         str                            = "",
-    boost:            float                          = 0.12,
-    is_supporting:    bool                           = True,
-    session_label:    str                            = "",
+    evidence: str = "",
+    boost: float = 0.12,
+    is_supporting: bool = True,
+    session_label: str = "",
     narrative_engine: "MarketNarrativeEngine | None" = None,
-    _state:           dict | None                    = None,
-    now:              float | None                   = None,
+    _state: dict | None = None,
+    now: float | None = None,
 ) -> StoryNode:
     """Record a narrative update at a specific time horizon.
 
@@ -402,7 +404,7 @@ def update_narrative(
     -------
     StoryNode — the freshly-built node for this (horizon, kind) update.
     """
-    now   = now   if now   is not None else time.time()
+    now = now if now is not None else time.time()
     state = _state if _state is not None else {}
 
     # ── Retrieve or create the story ──────────────────────────────────────
@@ -412,14 +414,12 @@ def update_narrative(
     # ── Session-transition detection ──────────────────────────────────────
     last_session = story.lineage.last_session_label()
     is_new_session = (
-        bool(session_label)
-        and last_session is not None
-        and session_label != last_session
+        bool(session_label) and last_session is not None and session_label != last_session
     )
     if is_new_session:
         snap = _session_snapshot(story, last_session or "", now)
         story.lineage.append_snapshot(snap)
-        story.session_count  += 1
+        story.session_count += 1
         story.is_multi_session = story.session_count >= 1
         # Record the session boundary in the lineage
         boundary_entry = _make_lineage_entry(
@@ -427,18 +427,38 @@ def update_narrative(
             kind=kind,
             event_type=LineageEventType.SESSION_NEW,
             evidence=f"session transition: {last_session} → {session_label}",
-            confidence_before=story.nodes.get(horizon.value, StoryNode(
-                horizon=horizon, kind=kind, narrative_id="", confidence=0.0,
-                maturity=NarrativeMaturity.FORMING.value, supporting_count=0,
-                conflicting_count=0, evidence_balance=0.5,
-                formed_at=now, last_updated_at=now, summary="",
-            )).confidence,
-            confidence_after=story.nodes.get(horizon.value, StoryNode(
-                horizon=horizon, kind=kind, narrative_id="", confidence=0.0,
-                maturity=NarrativeMaturity.FORMING.value, supporting_count=0,
-                conflicting_count=0, evidence_balance=0.5,
-                formed_at=now, last_updated_at=now, summary="",
-            )).confidence,
+            confidence_before=story.nodes.get(
+                horizon.value,
+                StoryNode(
+                    horizon=horizon,
+                    kind=kind,
+                    narrative_id="",
+                    confidence=0.0,
+                    maturity=NarrativeMaturity.FORMING.value,
+                    supporting_count=0,
+                    conflicting_count=0,
+                    evidence_balance=0.5,
+                    formed_at=now,
+                    last_updated_at=now,
+                    summary="",
+                ),
+            ).confidence,
+            confidence_after=story.nodes.get(
+                horizon.value,
+                StoryNode(
+                    horizon=horizon,
+                    kind=kind,
+                    narrative_id="",
+                    confidence=0.0,
+                    maturity=NarrativeMaturity.FORMING.value,
+                    supporting_count=0,
+                    conflicting_count=0,
+                    evidence_balance=0.5,
+                    formed_at=now,
+                    last_updated_at=now,
+                    summary="",
+                ),
+            ).confidence,
             session_label=session_label,
             now=now,
         )
@@ -450,8 +470,8 @@ def update_narrative(
         )
 
     # ── Build updated StoryNode ───────────────────────────────────────────
-    existing_node      = story.nodes.get(horizon.value)
-    confidence_before  = existing_node.confidence if existing_node else 0.30
+    existing_node = story.nodes.get(horizon.value)
+    confidence_before = existing_node.confidence if existing_node else 0.30
 
     if narrative_engine is not None:
         try:
@@ -462,13 +482,21 @@ def update_narrative(
             node = _node_from_symbol_narrative(horizon, sn)
         else:
             node = _build_node_standalone(
-                horizon=horizon, kind=kind, existing_node=existing_node,
-                boost=boost, is_supporting=is_supporting, now=now,
+                horizon=horizon,
+                kind=kind,
+                existing_node=existing_node,
+                boost=boost,
+                is_supporting=is_supporting,
+                now=now,
             )
     else:
         node = _build_node_standalone(
-            horizon=horizon, kind=kind, existing_node=existing_node,
-            boost=boost, is_supporting=is_supporting, now=now,
+            horizon=horizon,
+            kind=kind,
+            existing_node=existing_node,
+            boost=boost,
+            is_supporting=is_supporting,
+            now=now,
         )
 
     # ── Record lineage entry ──────────────────────────────────────────────
@@ -487,8 +515,8 @@ def update_narrative(
 
     # ── Persist ───────────────────────────────────────────────────────────
     story.nodes[horizon.value] = node
-    story.last_updated_at      = now
-    state[story_key]           = story
+    story.last_updated_at = now
+    state[story_key] = story
 
     return node
 
@@ -497,12 +525,12 @@ def update_narrative(
 
 
 def retrieve_story(
-    instrument:       str,
-    kind:             NarrativeKind | None        = None,
-    horizon:          NarrativeHorizon | None     = None,
+    instrument: str,
+    kind: NarrativeKind | None = None,
+    horizon: NarrativeHorizon | None = None,
     *,
     narrative_engine: "MarketNarrativeEngine | None" = None,
-    _state:           dict | None                    = None,
+    _state: dict | None = None,
 ) -> "NarrativeStory | list[NarrativeStory] | None":
     """Retrieve the narrative story (or stories) for an instrument.
 
@@ -546,11 +574,8 @@ def retrieve_story(
             return None
         return story
     else:
-        prefix  = f"{instrument}:"
-        stories = [
-            v for k, v in state.items()
-            if k.startswith(prefix)
-        ]
+        prefix = f"{instrument}:"
+        stories = [v for k, v in state.items() if k.startswith(prefix)]
         if narrative_engine is not None:
             for s in stories:
                 _refresh_story_from_engine(s, narrative_engine)
@@ -563,12 +588,12 @@ def retrieve_story(
 
 
 def evaluate_story_strength(
-    instrument:       str,
-    kind:             NarrativeKind | None        = None,
+    instrument: str,
+    kind: NarrativeKind | None = None,
     *,
     narrative_engine: "MarketNarrativeEngine | None" = None,
-    _state:           dict | None                    = None,
-    now:              float | None                   = None,
+    _state: dict | None = None,
+    now: float | None = None,
 ) -> StoryStrength:
     """Evaluate the strength of the narrative story across time horizons.
 
@@ -608,17 +633,23 @@ def evaluate_story_strength(
     Longevity bonus: scales linearly from 0 at 1 session to 1.0 at 10+
     sessions.
     """
-    now   = now   if now   is not None else time.time()
+    now = now if now is not None else time.time()
     state = _state if _state is not None else {}
 
     # ── Collect relevant stories ──────────────────────────────────────────
     if kind is not None:
         s = retrieve_story(
-            instrument, kind,
+            instrument,
+            kind,
             narrative_engine=narrative_engine,
             _state=state,
         )
-        stories: list[NarrativeStory] = [s] if s is not None else []
+        if s is None:
+            stories: list[NarrativeStory] = []
+        elif isinstance(s, list):
+            stories = s
+        else:
+            stories = [s]
     else:
         result = retrieve_story(
             instrument,
@@ -643,40 +674,38 @@ def evaluate_story_strength(
         )
 
     # ── Aggregate across all stories ──────────────────────────────────────
-    all_nodes:      list[StoryNode]  = []
+    all_nodes: list[StoryNode] = []
     horizon_scores: dict[str, float] = {}
-    session_conts:  list[float]      = []
-    longevity_vals: list[float]      = []
-    is_multi        = False
-    best_conf       = -1.0
+    session_conts: list[float] = []
+    longevity_vals: list[float] = []
+    is_multi = False
+    best_conf = -1.0
     dominant_kind: NarrativeKind | None = None
 
     for story in stories:
         active = story.active_nodes()
         all_nodes.extend(active)
         for node in active:
-            h_score  = _horizon_score(node)
+            h_score = _horizon_score(node)
             existing = horizon_scores.get(node.horizon.value, 0.0)
             horizon_scores[node.horizon.value] = max(existing, h_score)
             if node.confidence > best_conf:
-                best_conf     = node.confidence
+                best_conf = node.confidence
                 dominant_kind = node.kind
         session_conts.append(_session_continuity_score(story))
         longevity_vals.append(_longevity_bonus(story))
         if story.is_multi_session:
             is_multi = True
 
-    alignment  = _cross_horizon_alignment(all_nodes)
-    mean_h     = (sum(horizon_scores.values()) / len(horizon_scores)) if horizon_scores else 0.0
-    session_c  = sum(session_conts)  / len(session_conts)  if session_conts  else 0.0
-    longevity  = sum(longevity_vals) / len(longevity_vals) if longevity_vals else 0.0
+    alignment = _cross_horizon_alignment(all_nodes)
+    mean_h = (sum(horizon_scores.values()) / len(horizon_scores)) if horizon_scores else 0.0
+    session_c = sum(session_conts) / len(session_conts) if session_conts else 0.0
+    longevity = sum(longevity_vals) / len(longevity_vals) if longevity_vals else 0.0
 
-    overall = round(min(1.0, max(0.0,
-        0.40 * alignment
-        + 0.30 * mean_h
-        + 0.20 * session_c
-        + 0.10 * longevity
-    )), 4)
+    overall = round(
+        min(1.0, max(0.0, 0.40 * alignment + 0.30 * mean_h + 0.20 * session_c + 0.10 * longevity)),
+        4,
+    )
 
     reasoning = (
         f"alignment={alignment:.0%} | mean_horizon={mean_h:.0%} | "
@@ -741,21 +770,21 @@ class ContinuityEngine:
         narrative_engine: "MarketNarrativeEngine | None" = None,
     ) -> None:
         self._engine = narrative_engine
-        self._state:  dict = {}
+        self._state: dict = {}
 
     # ── Three public callables ────────────────────────────────────────────
 
     def update_narrative(
         self,
-        instrument:    str,
-        kind:          NarrativeKind,
-        horizon:       NarrativeHorizon,
+        instrument: str,
+        kind: NarrativeKind,
+        horizon: NarrativeHorizon,
         *,
-        evidence:      str   = "",
-        boost:         float = 0.12,
-        is_supporting: bool  = True,
-        session_label: str   = "",
-        now:           float | None = None,
+        evidence: str = "",
+        boost: float = 0.12,
+        is_supporting: bool = True,
+        session_label: str = "",
+        now: float | None = None,
     ) -> StoryNode:
         """Record a narrative update at the given horizon and store in lineage.
 
@@ -777,8 +806,8 @@ class ContinuityEngine:
     def retrieve_story(
         self,
         instrument: str,
-        kind:       NarrativeKind | None    = None,
-        horizon:    NarrativeHorizon | None = None,
+        kind: NarrativeKind | None = None,
+        horizon: NarrativeHorizon | None = None,
     ) -> "NarrativeStory | list[NarrativeStory] | None":
         """Return the narrative story for an instrument (optionally filtered).
 
@@ -795,9 +824,9 @@ class ContinuityEngine:
     def evaluate_story_strength(
         self,
         instrument: str,
-        kind:       NarrativeKind | None = None,
+        kind: NarrativeKind | None = None,
         *,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> StoryStrength:
         """Evaluate story strength across horizons.
 
@@ -831,28 +860,23 @@ class ContinuityEngine:
 
     def summary(self, instrument: str) -> dict:
         """Compact summary dict for logging or dashboards."""
-        stories  = self.stories_for(instrument)
+        stories = self.stories_for(instrument)
         strength = self.evaluate_story_strength(instrument)
         return {
-            "instrument":       instrument,
-            "story_count":      len(stories),
-            "multi_session":    any(s.is_multi_session for s in stories),
+            "instrument": instrument,
+            "story_count": len(stories),
+            "multi_session": any(s.is_multi_session for s in stories),
             "overall_strength": strength.overall_score,
-            "dominant_kind":    (
-                strength.dominant_kind.value if strength.dominant_kind else None
-            ),
-            "active_horizons":  strength.active_horizon_count,
-            "stories":          [s.to_dict() for s in stories],
+            "dominant_kind": (strength.dominant_kind.value if strength.dominant_kind else None),
+            "active_horizons": strength.active_horizon_count,
+            "stories": [s.to_dict() for s in stories],
         }
 
     def to_snapshot(self, instrument: str) -> dict:
         """Full serialisable snapshot for persistence / debugging."""
         return {
             "instrument": instrument,
-            "stories":    [
-                s.to_dict()
-                for s in self.stories_for(instrument)
-            ],
+            "stories": [s.to_dict() for s in self.stories_for(instrument)],
         }
 
 

@@ -39,11 +39,10 @@ import time
 from dataclasses import dataclass
 
 from trainer.qde.brain.projection.projection_memory import (
+    DEFAULT_RECENCY_TAU_DAYS,
     ProjectionConditions,
     ProjectionMemory,
     ProjectionRecord,
-    DEFAULT_RECENCY_TAU_DAYS,
-    _N_FEATURES,
 )
 
 # Minimum records before the estimate is considered informative
@@ -60,8 +59,8 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(x * x for x in b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))
@@ -74,9 +73,7 @@ def _weighted_mean(values: list[float], weights: list[float]) -> float:
     return sum(v * w for v, w in zip(values, weights)) / total_w
 
 
-def _weighted_std(
-    values: list[float], weights: list[float], mean: float
-) -> float:
+def _weighted_std(values: list[float], weights: list[float], mean: float) -> float:
     total_w = sum(weights)
     if total_w < 1e-12 or len(values) < 2:
         return 0.0
@@ -109,22 +106,22 @@ class DurationProjection:
     """
 
     expected_duration_seconds: float = 0.0
-    duration_std_seconds:      float = 0.0
-    expected_volatility:       float = 0.0
-    volatility_std:            float = 0.0
-    volatility_percentile:     float = 0.5
-    confidence:                float = 0.0
-    sample_count:              int   = 0
+    duration_std_seconds: float = 0.0
+    expected_volatility: float = 0.0
+    volatility_std: float = 0.0
+    volatility_percentile: float = 0.5
+    confidence: float = 0.0
+    sample_count: int = 0
 
     def to_dict(self) -> dict:
         return {
             "expected_duration_seconds": round(self.expected_duration_seconds, 1),
-            "duration_std_seconds":      round(self.duration_std_seconds, 1),
-            "expected_volatility":       round(self.expected_volatility, 8),
-            "volatility_std":            round(self.volatility_std, 8),
-            "volatility_percentile":     round(self.volatility_percentile, 4),
-            "confidence":                round(self.confidence, 4),
-            "sample_count":              self.sample_count,
+            "duration_std_seconds": round(self.duration_std_seconds, 1),
+            "expected_volatility": round(self.expected_volatility, 8),
+            "volatility_std": round(self.volatility_std, 8),
+            "volatility_percentile": round(self.volatility_percentile, 4),
+            "confidence": round(self.confidence, 4),
+            "sample_count": self.sample_count,
         }
 
 
@@ -145,14 +142,14 @@ class ExpectedDurationEngine:
 
     def project(
         self,
-        instrument:         str,
-        conditions:         ProjectionConditions,
-        memory:             ProjectionMemory,
-        direction:          int | None       = None,
-        k:                  int              = _DEFAULT_K,
-        recency_tau_days:   float            = DEFAULT_RECENCY_TAU_DAYS,
-        min_samples:        int              = _MIN_INFORMATIVE,
-        now:                float | None     = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        memory: ProjectionMemory,
+        direction: int | None = None,
+        k: int = _DEFAULT_K,
+        recency_tau_days: float = DEFAULT_RECENCY_TAU_DAYS,
+        min_samples: int = _MIN_INFORMATIVE,
+        now: float | None = None,
     ) -> DurationProjection:
         """Estimate expected duration and volatility for ``instrument``.
 
@@ -189,9 +186,9 @@ class ExpectedDurationEngine:
         # ── Score all records by similarity × recency ─────────────────────
         scored: list[tuple[float, ProjectionRecord]] = []
         for rec in records:
-            sim      = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
-            recency  = rec.recency_weight(now, recency_tau_days)
-            weight   = sim * recency
+            sim = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
+            recency = rec.recency_weight(now, recency_tau_days)
+            weight = sim * recency
             if weight > 1e-10:
                 scored.append((weight, rec))
 
@@ -209,9 +206,9 @@ class ExpectedDurationEngine:
         scored.sort(key=lambda t: t[0], reverse=True)
         top_k = scored[:k]
 
-        weights  = [t[0] for t in top_k]
+        weights = [t[0] for t in top_k]
         dur_vals = [t[1].outcome.duration_seconds for t in top_k]
-        vol_vals = [t[1].outcome.realized_vol     for t in top_k]
+        vol_vals = [t[1].outcome.realized_vol for t in top_k]
 
         exp_dur = _weighted_mean(dur_vals, weights)
         exp_vol = _weighted_mean(vol_vals, weights)
@@ -220,9 +217,9 @@ class ExpectedDurationEngine:
 
         # Percentile rank of expected_vol vs all historical vols (unweighted)
         all_vols = [r.outcome.realized_vol for r in records if r.outcome.realized_vol > 0]
-        vol_pct  = _percentile_rank(exp_vol, all_vols) if all_vols else 0.5
+        vol_pct = _percentile_rank(exp_vol, all_vols) if all_vols else 0.5
 
-        n_used     = len(top_k)
+        n_used = len(top_k)
         confidence = min(1.0, n_used / max(min_samples, 1))
 
         return DurationProjection(

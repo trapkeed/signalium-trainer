@@ -42,12 +42,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from trainer.qde.brain.institutional.accumulation_detector import (
-    BarSnapshot,
-    _mean,
-    _MAX_TOUCHES,
     _LONG_WINDOW,
+    _MAX_TOUCHES,
     _SHORT_WINDOW,
     _TOUCH_TOLERANCE,
+    BarSnapshot,
+    _mean,
 )
 
 # ── DistributionInput ─────────────────────────────────────────────────────────
@@ -95,16 +95,16 @@ class DistributionInput:
     bars: list[BarSnapshot] | None = None
 
     # Context scalars
-    momentum:               float = 0.0
-    session_quality:        float = 0.80
+    momentum: float = 0.0
+    session_quality: float = 0.80
     microstructure_quality: float = 0.80
-    level_proximity:        float = 0.0
+    level_proximity: float = 0.0
 
     # Pre-computed signal overrides
-    range_compression:     float = 0.0
-    rejection_strength:    float = 0.0
+    range_compression: float = 0.0
+    rejection_strength: float = 0.0
     volume_sell_dominance: float = 0.5
-    momentum_divergence:   float = 0.0
+    momentum_divergence: float = 0.0
 
 
 # ── DistributionEstimate ──────────────────────────────────────────────────────
@@ -134,21 +134,21 @@ class DistributionEstimate:
         0-1 reliability of the structural observation.
     """
 
-    distribution_prob:     float = 0.0
-    range_compression:     float = 0.0
-    rejection_strength:    float = 0.0
+    distribution_prob: float = 0.0
+    range_compression: float = 0.0
+    rejection_strength: float = 0.0
     volume_sell_dominance: float = 0.5
-    momentum_divergence:   float = 0.0
-    structural_quality:    float = 0.5
+    momentum_divergence: float = 0.0
+    structural_quality: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "distribution_prob":     round(self.distribution_prob, 4),
-            "range_compression":     round(self.range_compression, 4),
-            "rejection_strength":    round(self.rejection_strength, 4),
+            "distribution_prob": round(self.distribution_prob, 4),
+            "range_compression": round(self.range_compression, 4),
+            "rejection_strength": round(self.rejection_strength, 4),
             "volume_sell_dominance": round(self.volume_sell_dominance, 4),
-            "momentum_divergence":   round(self.momentum_divergence, 4),
-            "structural_quality":    round(self.structural_quality, 4),
+            "momentum_divergence": round(self.momentum_divergence, 4),
+            "structural_quality": round(self.structural_quality, 4),
         }
 
 
@@ -165,15 +165,15 @@ class DistributionDetector:
 
     def __init__(
         self,
-        short_window:    int   = _SHORT_WINDOW,
-        long_window:     int   = _LONG_WINDOW,
+        short_window: int = _SHORT_WINDOW,
+        long_window: int = _LONG_WINDOW,
         touch_tolerance: float = _TOUCH_TOLERANCE,
-        max_touches:     int   = _MAX_TOUCHES,
+        max_touches: int = _MAX_TOUCHES,
     ) -> None:
-        self._sw   = short_window
-        self._lw   = long_window
+        self._sw = short_window
+        self._lw = long_window
         self._ttol = touch_tolerance
-        self._mt   = max_touches
+        self._mt = max_touches
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -188,7 +188,7 @@ class DistributionDetector:
             md = inp.momentum_divergence
 
         prob = self._distribution_prob(rc, rj, vs, md, inp.level_proximity)
-        sq   = 0.5 * inp.session_quality + 0.5 * inp.microstructure_quality
+        sq = 0.5 * inp.session_quality + 0.5 * inp.microstructure_quality
 
         return DistributionEstimate(
             distribution_prob=round(max(0.0, min(1.0, prob)), 4),
@@ -201,11 +201,11 @@ class DistributionDetector:
 
     def from_bars(
         self,
-        bars:                   list[BarSnapshot],
-        momentum:               float = 0.0,
-        session_quality:        float = 0.80,
+        bars: list[BarSnapshot],
+        momentum: float = 0.0,
+        session_quality: float = 0.80,
         microstructure_quality: float = 0.80,
-        level_proximity:        float = 0.0,
+        level_proximity: float = 0.0,
     ) -> DistributionEstimate:
         """Convenience: compute signals from raw bars and detect."""
         inp = DistributionInput(
@@ -221,11 +221,11 @@ class DistributionDetector:
 
     def _distribution_prob(
         self,
-        range_compression:     float,
-        rejection_strength:    float,
+        range_compression: float,
+        rejection_strength: float,
         volume_sell_dominance: float,
-        momentum_divergence:   float,
-        level_proximity:       float,
+        momentum_divergence: float,
+        level_proximity: float,
     ) -> float:
         """Structural distribution probability from four components.
 
@@ -259,13 +259,15 @@ class DistributionDetector:
         n = len(bars)
         sw = min(self._sw, n // 2)
 
-        recent_bars   = bars[max(0, n - sw):]
-        baseline_bars = bars[max(0, n - self._lw): max(0, n - sw)]
-        window_bars   = bars[max(0, n - self._lw):]
+        recent_bars = bars[max(0, n - sw) :]
+        baseline_bars = bars[max(0, n - self._lw) : max(0, n - sw)]
+        window_bars = bars[max(0, n - self._lw) :]
 
         # ── Range compression (same logic as accumulation) ────────────────
-        recent_range   = _mean([b.full_range for b in recent_bars])
-        baseline_range = _mean([b.full_range for b in baseline_bars]) if baseline_bars else recent_range
+        recent_range = _mean([b.full_range for b in recent_bars])
+        baseline_range = (
+            _mean([b.full_range for b in baseline_bars]) if baseline_bars else recent_range
+        )
         if baseline_range > 1e-12:
             range_compression = max(0.0, 1.0 - recent_range / baseline_range)
         else:
@@ -275,31 +277,28 @@ class DistributionDetector:
         # A bar "touches" the zone if its high is within tolerance of the
         # window's highest high.  "Closes below" means close < high_zone.
         if window_bars:
-            high_zone  = max(b.high for b in window_bars)
+            high_zone = max(b.high for b in window_bars)
             touch_floor = high_zone * (1.0 - self._ttol)  # zone lower edge
-            touches     = sum(
-                1 for b in window_bars
-                if b.high >= touch_floor and b.close < high_zone
-            )
+            touches = sum(1 for b in window_bars if b.high >= touch_floor and b.close < high_zone)
             rejection = min(1.0, touches / max(self._mt, 1))
         else:
             rejection = 0.0
 
         # ── Volume sell dominance (inverse of buy dominance) ─────────────
-        up_bars   = [b for b in recent_bars if b.is_up]
+        up_bars = [b for b in recent_bars if b.is_up]
         down_bars = [b for b in recent_bars if not b.is_up]
-        avg_up_v  = _mean([b.volume for b in up_bars])   if up_bars   else 0.0
-        avg_dn_v  = _mean([b.volume for b in down_bars]) if down_bars else 0.0
-        total_v   = avg_up_v + avg_dn_v
-        vs        = (avg_dn_v / total_v) if total_v > 1e-12 else 0.5
+        avg_up_v = _mean([b.volume for b in up_bars]) if up_bars else 0.0
+        avg_dn_v = _mean([b.volume for b in down_bars]) if down_bars else 0.0
+        total_v = avg_up_v + avg_dn_v
+        vs = (avg_dn_v / total_v) if total_v > 1e-12 else 0.5
 
         # ── Momentum divergence: price near highs but range compressing ───
         window_high = max((b.high for b in window_bars), default=0.0)
-        window_low  = min((b.low  for b in window_bars), default=0.0)
+        window_low = min((b.low for b in window_bars), default=0.0)
         price_range = window_high - window_low
         if price_range > 1e-12 and window_bars:
-            close_position    = (window_bars[-1].close - window_low) / price_range
-            price_at_high     = close_position    # high when close is near high
+            close_position = (window_bars[-1].close - window_low) / price_range
+            price_at_high = close_position  # high when close is near high
             momentum_divergence = price_at_high * range_compression
         else:
             momentum_divergence = 0.0

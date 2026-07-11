@@ -71,11 +71,11 @@ class CognitiveAction(str, Enum):
     cognitive state supports.
     """
 
-    BUY     = "BUY"
-    SELL    = "SELL"
-    WAIT    = "WAIT"
+    BUY = "BUY"
+    SELL = "SELL"
+    WAIT = "WAIT"
     MONITOR = "MONITOR"
-    IGNORE  = "IGNORE"
+    IGNORE = "IGNORE"
 
     def is_actionable(self) -> bool:
         """True only for BUY and SELL — the two directions that suggest
@@ -120,49 +120,44 @@ class DecisionInput:
         Number of recent episodes recalled.
     """
 
-    instrument:                 str
-    narrative:                  "MarketNarrative | None"
-    active_hypotheses:          "list[Hypothesis]"
-    debate_record:              "DebateRecord | None"
-    uncertainty:                "UncertaintyScore"
-    conviction:                 "ConvictionScore | None"
-    portfolio_open_positions:   int   = 0
-    portfolio_daily_pnl_pct:    float = 0.0
-    has_existing_position:      bool  = False
+    instrument: str
+    narrative: "MarketNarrative | None"
+    active_hypotheses: "list[Hypothesis]"
+    debate_record: "DebateRecord | None"
+    uncertainty: "UncertaintyScore"
+    conviction: "ConvictionScore | None"
+    portfolio_open_positions: int = 0
+    portfolio_daily_pnl_pct: float = 0.0
+    has_existing_position: bool = False
     existing_position_direction: "BeliefDirection | None" = None
-    memory_win_rate:            float | None = None
-    memory_recent_count:        int   = 0
-    features:                   dict  = field(default_factory=dict)
+    memory_win_rate: float | None = None
+    memory_recent_count: int = 0
+    features: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
-            "instrument":                  self.instrument,
-            "has_narrative":               self.narrative is not None,
-            "narrative_tone":              self.narrative.tone.value if self.narrative else "NEUTRAL",
-            "market_regime":               self.narrative.market_regime if self.narrative else "",
-            "active_hypothesis_count":     len(self.active_hypotheses),
-            "has_debate":                  self.debate_record is not None,
-            "debate_conclusive":           (
-                self.debate_record.conclusive if self.debate_record else False
-            ),
-            "debate_quality":              (
-                self.debate_record.quality_grade if self.debate_record else "LOW"
-            ),
-            "uncertainty_composite":       round(self.uncertainty.composite, 4),
-            "uncertainty_level":           self.uncertainty.level.value,
-            "conviction_score":            round(self.conviction.conviction, 4) if self.conviction else 0.0,
-            "conviction_profile":          self.conviction.profile.value if self.conviction else "MIXED",
-            "portfolio_open_positions":    self.portfolio_open_positions,
-            "portfolio_daily_pnl_pct":     round(self.portfolio_daily_pnl_pct, 4),
-            "has_existing_position":       self.has_existing_position,
+            "instrument": self.instrument,
+            "has_narrative": self.narrative is not None,
+            "narrative_tone": self.narrative.tone.value if self.narrative else "NEUTRAL",
+            "market_regime": self.narrative.market_regime if self.narrative else "",
+            "active_hypothesis_count": len(self.active_hypotheses),
+            "has_debate": self.debate_record is not None,
+            "debate_conclusive": (self.debate_record.conclusive if self.debate_record else False),
+            "debate_quality": (self.debate_record.quality_grade if self.debate_record else "LOW"),
+            "uncertainty_composite": round(self.uncertainty.composite, 4),
+            "uncertainty_level": self.uncertainty.level.value,
+            "conviction_score": round(self.conviction.conviction, 4) if self.conviction else 0.0,
+            "conviction_profile": self.conviction.profile.value if self.conviction else "MIXED",
+            "portfolio_open_positions": self.portfolio_open_positions,
+            "portfolio_daily_pnl_pct": round(self.portfolio_daily_pnl_pct, 4),
+            "has_existing_position": self.has_existing_position,
             "existing_position_direction": (
-                self.existing_position_direction.value
-                if self.existing_position_direction else None
+                self.existing_position_direction.value if self.existing_position_direction else None
             ),
-            "memory_win_rate":             (
+            "memory_win_rate": (
                 round(self.memory_win_rate, 4) if self.memory_win_rate is not None else None
             ),
-            "memory_recent_count":         self.memory_recent_count,
+            "memory_recent_count": self.memory_recent_count,
         }
 
 
@@ -213,26 +208,26 @@ class CognitiveDecision:
         Whether the C5 debate detected ignored contradicting evidence.
     """
 
-    decision_id:               str            = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    instrument:                str            = ""
-    action:                    CognitiveAction = CognitiveAction.IGNORE
-    direction:                 BeliefDirection = BeliefDirection.NEUTRAL
-    confidence:                float          = 0.0
-    calibrated_confidence:     float          = 0.0
-    risk_signal:               float          = 0.0
-    entry_urgency:             float          = 0.0
-    hold_horizon:              float          = 0.0
-    size_signal:               float          = 0.0
-    uncertainty_score:         float          = 0.0
-    uncertainty_level:         str            = UncertaintyLevel.LOW.value
-    conviction_score:          float          = 0.0
-    conviction_profile:        str            = ConvictionProfile.MIXED.value
-    reasoning:                 str            = ""
-    primary_hypothesis_id:     str | None     = None
-    debate_id:                 str | None     = None
-    overconfidence_flagged:    bool           = False
-    ignored_evidence_flagged:  bool           = False
-    created_at:                float          = field(default_factory=time.time)
+    decision_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    action: CognitiveAction = CognitiveAction.IGNORE
+    direction: BeliefDirection = BeliefDirection.NEUTRAL
+    confidence: float = 0.0
+    calibrated_confidence: float = 0.0
+    risk_signal: float = 0.0
+    entry_urgency: float = 0.0
+    hold_horizon: float = 0.0
+    size_signal: float = 0.0
+    uncertainty_score: float = 0.0
+    uncertainty_level: str = UncertaintyLevel.LOW.value
+    conviction_score: float = 0.0
+    conviction_profile: str = ConvictionProfile.MIXED.value
+    reasoning: str = ""
+    primary_hypothesis_id: str | None = None
+    debate_id: str | None = None
+    overconfidence_flagged: bool = False
+    ignored_evidence_flagged: bool = False
+    created_at: float = field(default_factory=time.time)
 
     @property
     def is_actionable(self) -> bool:
@@ -244,51 +239,51 @@ class CognitiveDecision:
 
     def to_dict(self) -> dict:
         return {
-            "decision_id":              self.decision_id,
-            "instrument":               self.instrument,
-            "action":                   self.action.value,
-            "direction":                self.direction.value,
-            "confidence":               round(self.confidence,            4),
-            "calibrated_confidence":    round(self.calibrated_confidence, 4),
-            "risk_signal":              round(self.risk_signal,           4),
-            "entry_urgency":            round(self.entry_urgency,         4),
-            "hold_horizon":             round(self.hold_horizon,          1),
-            "size_signal":              round(self.size_signal,           4),
-            "uncertainty_score":        round(self.uncertainty_score,     4),
-            "uncertainty_level":        self.uncertainty_level,
-            "conviction_score":         round(self.conviction_score,      4),
-            "conviction_profile":       self.conviction_profile,
-            "reasoning":                self.reasoning,
-            "primary_hypothesis_id":    self.primary_hypothesis_id,
-            "debate_id":                self.debate_id,
-            "overconfidence_flagged":   self.overconfidence_flagged,
+            "decision_id": self.decision_id,
+            "instrument": self.instrument,
+            "action": self.action.value,
+            "direction": self.direction.value,
+            "confidence": round(self.confidence, 4),
+            "calibrated_confidence": round(self.calibrated_confidence, 4),
+            "risk_signal": round(self.risk_signal, 4),
+            "entry_urgency": round(self.entry_urgency, 4),
+            "hold_horizon": round(self.hold_horizon, 1),
+            "size_signal": round(self.size_signal, 4),
+            "uncertainty_score": round(self.uncertainty_score, 4),
+            "uncertainty_level": self.uncertainty_level,
+            "conviction_score": round(self.conviction_score, 4),
+            "conviction_profile": self.conviction_profile,
+            "reasoning": self.reasoning,
+            "primary_hypothesis_id": self.primary_hypothesis_id,
+            "debate_id": self.debate_id,
+            "overconfidence_flagged": self.overconfidence_flagged,
             "ignored_evidence_flagged": self.ignored_evidence_flagged,
-            "created_at":               round(self.created_at, 3),
+            "created_at": round(self.created_at, 3),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "CognitiveDecision":
         return cls(
-            decision_id=d.get("decision_id",    str(uuid.uuid4())[:12]),
-            instrument=d.get("instrument",      ""),
+            decision_id=d.get("decision_id", str(uuid.uuid4())[:12]),
+            instrument=d.get("instrument", ""),
             action=CognitiveAction(d.get("action", CognitiveAction.IGNORE.value)),
             direction=BeliefDirection(d.get("direction", BeliefDirection.NEUTRAL.value)),
-            confidence=d.get("confidence",               0.0),
+            confidence=d.get("confidence", 0.0),
             calibrated_confidence=d.get("calibrated_confidence", 0.0),
-            risk_signal=d.get("risk_signal",             0.0),
-            entry_urgency=d.get("entry_urgency",         0.0),
-            hold_horizon=d.get("hold_horizon",           0.0),
-            size_signal=d.get("size_signal",             0.0),
+            risk_signal=d.get("risk_signal", 0.0),
+            entry_urgency=d.get("entry_urgency", 0.0),
+            hold_horizon=d.get("hold_horizon", 0.0),
+            size_signal=d.get("size_signal", 0.0),
             uncertainty_score=d.get("uncertainty_score", 0.0),
             uncertainty_level=d.get("uncertainty_level", UncertaintyLevel.LOW.value),
-            conviction_score=d.get("conviction_score",   0.0),
+            conviction_score=d.get("conviction_score", 0.0),
             conviction_profile=d.get("conviction_profile", ConvictionProfile.MIXED.value),
-            reasoning=d.get("reasoning",                 ""),
+            reasoning=d.get("reasoning", ""),
             primary_hypothesis_id=d.get("primary_hypothesis_id"),
             debate_id=d.get("debate_id"),
-            overconfidence_flagged=d.get("overconfidence_flagged",    False),
+            overconfidence_flagged=d.get("overconfidence_flagged", False),
             ignored_evidence_flagged=d.get("ignored_evidence_flagged", False),
-            created_at=d.get("created_at",               0.0),
+            created_at=d.get("created_at", 0.0),
         )
 
 
@@ -331,17 +326,17 @@ class DecisionReasoning:
         List of active warning flags (overconfidence, ignored evidence, etc.).
     """
 
-    decision_id:          str        = ""
-    instrument:           str        = ""
-    action:               str        = CognitiveAction.IGNORE.value
-    chain:                list[str]  = field(default_factory=list)
-    hypothesis_basis:     str        = ""
-    debate_summary:       str        = ""
-    uncertainty_basis:    str        = ""
-    memory_influence:     str        = ""
-    portfolio_constraint: str        = ""
-    flags:                list[str]  = field(default_factory=list)
-    generated_at:         float      = field(default_factory=time.time)
+    decision_id: str = ""
+    instrument: str = ""
+    action: str = CognitiveAction.IGNORE.value
+    chain: list[str] = field(default_factory=list)
+    hypothesis_basis: str = ""
+    debate_summary: str = ""
+    uncertainty_basis: str = ""
+    memory_influence: str = ""
+    portfolio_constraint: str = ""
+    flags: list[str] = field(default_factory=list)
+    generated_at: float = field(default_factory=time.time)
 
     def full_text(self) -> str:
         """Single concatenated plain-text explanation."""
@@ -351,34 +346,34 @@ class DecisionReasoning:
 
     def to_dict(self) -> dict:
         return {
-            "decision_id":          self.decision_id,
-            "instrument":           self.instrument,
-            "action":               self.action,
-            "chain":                self.chain,
-            "hypothesis_basis":     self.hypothesis_basis,
-            "debate_summary":       self.debate_summary,
-            "uncertainty_basis":    self.uncertainty_basis,
-            "memory_influence":     self.memory_influence,
+            "decision_id": self.decision_id,
+            "instrument": self.instrument,
+            "action": self.action,
+            "chain": self.chain,
+            "hypothesis_basis": self.hypothesis_basis,
+            "debate_summary": self.debate_summary,
+            "uncertainty_basis": self.uncertainty_basis,
+            "memory_influence": self.memory_influence,
             "portfolio_constraint": self.portfolio_constraint,
-            "flags":                self.flags,
-            "full_text":            self.full_text(),
-            "generated_at":         round(self.generated_at, 3),
+            "flags": self.flags,
+            "full_text": self.full_text(),
+            "generated_at": round(self.generated_at, 3),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "DecisionReasoning":
         return cls(
-            decision_id=d.get("decision_id",      ""),
-            instrument=d.get("instrument",        ""),
-            action=d.get("action",                CognitiveAction.IGNORE.value),
-            chain=d.get("chain",                  []),
-            hypothesis_basis=d.get("hypothesis_basis",    ""),
-            debate_summary=d.get("debate_summary",        ""),
-            uncertainty_basis=d.get("uncertainty_basis",  ""),
-            memory_influence=d.get("memory_influence",    ""),
+            decision_id=d.get("decision_id", ""),
+            instrument=d.get("instrument", ""),
+            action=d.get("action", CognitiveAction.IGNORE.value),
+            chain=d.get("chain", []),
+            hypothesis_basis=d.get("hypothesis_basis", ""),
+            debate_summary=d.get("debate_summary", ""),
+            uncertainty_basis=d.get("uncertainty_basis", ""),
+            memory_influence=d.get("memory_influence", ""),
             portfolio_constraint=d.get("portfolio_constraint", ""),
-            flags=d.get("flags",                  []),
-            generated_at=d.get("generated_at",    0.0),
+            flags=d.get("flags", []),
+            generated_at=d.get("generated_at", 0.0),
         )
 
 
@@ -430,59 +425,57 @@ class ConfidenceReport:
         positive = over-confident historically; negative = under-confident.
     """
 
-    decision_id:              str    = ""
-    instrument:               str    = ""
-    raw_confidence:           float  = 0.0
-    calibration_bias:         float  = 0.0
-    calibrated_confidence:    float  = 0.0
-    conviction_score:         float  = 0.0
-    conviction_profile:       str    = ConvictionProfile.MIXED.value
-    calibration_sample_count: int    = 0
-    alignment_warning:        bool   = False
-    historical_win_rate:      float | None = None
-    accuracy_delta:           float | None = None
-    breakdown:                dict   = field(default_factory=dict)
-    generated_at:             float  = field(default_factory=time.time)
+    decision_id: str = ""
+    instrument: str = ""
+    raw_confidence: float = 0.0
+    calibration_bias: float = 0.0
+    calibrated_confidence: float = 0.0
+    conviction_score: float = 0.0
+    conviction_profile: str = ConvictionProfile.MIXED.value
+    calibration_sample_count: int = 0
+    alignment_warning: bool = False
+    historical_win_rate: float | None = None
+    accuracy_delta: float | None = None
+    breakdown: dict = field(default_factory=dict)
+    generated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
-            "decision_id":              self.decision_id,
-            "instrument":               self.instrument,
-            "raw_confidence":           round(self.raw_confidence,        4),
-            "calibration_bias":         round(self.calibration_bias,      4),
-            "calibrated_confidence":    round(self.calibrated_confidence, 4),
-            "conviction_score":         round(self.conviction_score,      4),
-            "conviction_profile":       self.conviction_profile,
+            "decision_id": self.decision_id,
+            "instrument": self.instrument,
+            "raw_confidence": round(self.raw_confidence, 4),
+            "calibration_bias": round(self.calibration_bias, 4),
+            "calibrated_confidence": round(self.calibrated_confidence, 4),
+            "conviction_score": round(self.conviction_score, 4),
+            "conviction_profile": self.conviction_profile,
             "calibration_sample_count": self.calibration_sample_count,
-            "alignment_warning":        self.alignment_warning,
+            "alignment_warning": self.alignment_warning,
             "historical_win_rate": (
-                round(self.historical_win_rate, 4)
-                if self.historical_win_rate is not None else None
+                round(self.historical_win_rate, 4) if self.historical_win_rate is not None else None
             ),
             "accuracy_delta": (
-                round(self.accuracy_delta, 4)
-                if self.accuracy_delta is not None else None
+                round(self.accuracy_delta, 4) if self.accuracy_delta is not None else None
             ),
-            "breakdown":                self.breakdown,
-            "generated_at":             round(self.generated_at, 3),
+            "breakdown": self.breakdown,
+            "generated_at": round(self.generated_at, 3),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "ConfidenceReport":
         return cls(
-            decision_id=d.get("decision_id",       ""),
-            instrument=d.get("instrument",         ""),
-            raw_confidence=d.get("raw_confidence",           0.0),
-            calibration_bias=d.get("calibration_bias",       0.0),
+            decision_id=d.get("decision_id", ""),
+            instrument=d.get("instrument", ""),
+            raw_confidence=d.get("raw_confidence", 0.0),
+            calibration_bias=d.get("calibration_bias", 0.0),
             calibrated_confidence=d.get("calibrated_confidence", 0.0),
-            conviction_score=d.get("conviction_score",       0.0),
-            conviction_profile=d.get("conviction_profile",   ConvictionProfile.MIXED.value),
+            conviction_score=d.get("conviction_score", 0.0),
+            conviction_profile=d.get("conviction_profile", ConvictionProfile.MIXED.value),
             calibration_sample_count=d.get("calibration_sample_count", 0),
-            alignment_warning=d.get("alignment_warning",     False),
+            alignment_warning=d.get("alignment_warning", False),
             historical_win_rate=d.get("historical_win_rate"),
             accuracy_delta=d.get("accuracy_delta"),
-            breakdown=d.get("breakdown",                     {}),
-            generated_at=d.get("generated_at",               0.0),
+            breakdown=d.get("breakdown", {}),
+            generated_at=d.get("generated_at", 0.0),
         )
 
 

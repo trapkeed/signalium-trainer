@@ -46,7 +46,6 @@ What this module does NOT do
 from __future__ import annotations
 
 import time
-import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -54,10 +53,11 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_models import Hypothesis
-from trainer.qde.brain.brain_types import BeliefDirection, HypothesisStatus
+from trainer.qde.brain.brain_types import BeliefDirection
 from trainer.qde.brain.hypothesis.hypothesis_failure_tracker import (
     FailureMode,
     HypothesisFailureTracker,
@@ -72,7 +72,6 @@ from trainer.qde.brain.hypothesis.hypothesis_probability import (
     ProbabilityUpdateResult,
 )
 from trainer.qde.brain.hypothesis.hypothesis_set import (
-    HypothesisScenario,
     HypothesisSet,
     make_hypothesis_set,
 )
@@ -88,7 +87,7 @@ _PROMOTE_BOOST = 0.50
 # How many HypothesisEngine reinforcements a "promote" triggers
 _PROMOTE_REINFORCE_COUNT = 2
 # Evidence dampening when update_probabilities internally reinforces/weakens
-_INTERNAL_EVIDENCE_BOOST  = 0.15   # per reinforce call
+_INTERNAL_EVIDENCE_BOOST = 0.15  # per reinforce call
 _INTERNAL_EVIDENCE_PENALTY = 0.20  # per weaken call
 
 
@@ -115,21 +114,21 @@ class HypothesisGenerationResult:
         Number of existing hypotheses reinforced (de-duplicated by thesis).
     """
 
-    instrument:          str
-    timestamp:           float
-    hypothesis_set:      HypothesisSet
-    seeds_used:          list[HypothesisSeed]    = field(default_factory=list)
-    memory_context:      HypothesisMemoryContext | None = None
-    scenarios_created:   int                     = 0
-    scenarios_updated:   int                     = 0
+    instrument: str
+    timestamp: float
+    hypothesis_set: HypothesisSet
+    seeds_used: list[HypothesisSeed] = field(default_factory=list)
+    memory_context: HypothesisMemoryContext | None = None
+    scenarios_created: int = 0
+    scenarios_updated: int = 0
 
     def to_dict(self) -> dict:
         return {
-            "instrument":        self.instrument,
-            "timestamp":         round(self.timestamp, 3),
-            "hypothesis_set":    self.hypothesis_set.to_dict(),
-            "seeds_used":        [s.to_dict() for s in self.seeds_used],
-            "memory_context":    self.memory_context.to_dict() if self.memory_context else None,
+            "instrument": self.instrument,
+            "timestamp": round(self.timestamp, 3),
+            "hypothesis_set": self.hypothesis_set.to_dict(),
+            "seeds_used": [s.to_dict() for s in self.seeds_used],
+            "memory_context": self.memory_context.to_dict() if self.memory_context else None,
             "scenarios_created": self.scenarios_created,
             "scenarios_updated": self.scenarios_updated,
         }
@@ -161,14 +160,14 @@ class HypothesisAPI:
     def __init__(
         self,
         hypothesis_engine: "HypothesisEngine",
-        failure_tracker:   HypothesisFailureTracker | None = None,
-        lineage:           HypothesisLineage | None         = None,
-        memory_bridge:     HypothesisMemoryBridge | None    = None,
+        failure_tracker: HypothesisFailureTracker | None = None,
+        lineage: HypothesisLineage | None = None,
+        memory_bridge: HypothesisMemoryBridge | None = None,
     ) -> None:
-        self._engine   = hypothesis_engine
-        self._tracker  = failure_tracker or HypothesisFailureTracker()
-        self._lineage  = lineage         or HypothesisLineage()
-        self._bridge   = memory_bridge   or HypothesisMemoryBridge()
+        self._engine = hypothesis_engine
+        self._tracker = failure_tracker or HypothesisFailureTracker()
+        self._lineage = lineage or HypothesisLineage()
+        self._bridge = memory_bridge or HypothesisMemoryBridge()
         self._prob_eng = HypothesisProbabilityEngine()
 
         # instrument → HypothesisSet (one active set per instrument at a time)
@@ -180,13 +179,13 @@ class HypothesisAPI:
 
     def generate_hypotheses(
         self,
-        instrument:       str,
-        inp:              SymbolObservationInput,
-        narrative_seeds:  list[HypothesisSeed],
-        features:         dict | None         = None,
-        session:          str                 = "",
-        market_regime:    str                 = "",
-        now:              float | None        = None,
+        instrument: str,
+        inp: SymbolObservationInput,
+        narrative_seeds: list[HypothesisSeed],
+        features: dict | None = None,
+        session: str = "",
+        market_regime: str = "",
+        now: float | None = None,
     ) -> HypothesisGenerationResult:
         """Generate (or refresh) the competing hypothesis set for ``instrument``.
 
@@ -219,8 +218,8 @@ class HypothesisAPI:
             Contains the full ``HypothesisSet`` with competing scenarios and
             their initial probability distribution.
         """
-        now          = now if now is not None else time.time()
-        regime_str   = market_regime or getattr(inp, "market_regime", "")
+        now = now if now is not None else time.time()
+        regime_str = market_regime or getattr(inp, "market_regime", "")
 
         # ── Step 1: Memory recall ─────────────────────────────────────────
         memory_ctx: HypothesisMemoryContext | None = None
@@ -240,18 +239,16 @@ class HypothesisAPI:
                 logger.warning(f"[HypothesisAPI] memory recall failed: {exc}")
 
         # ── Step 2: Create / reinforce hypotheses via HypothesisEngine ────
-        created  = 0
-        updated  = 0
-        created_hyps:  list[Hypothesis]     = []
-        used_seeds:    list[HypothesisSeed] = []
+        created = 0
+        updated = 0
+        created_hyps: list[Hypothesis] = []
+        used_seeds: list[HypothesisSeed] = []
 
         for seed in seeds_to_use:
             if seed.instrument != instrument:
                 continue
             try:
-                existing_before = list(
-                    self._engine._brain.get_state(instrument).hypotheses.keys()
-                )
+                existing_before = list(self._engine._brain.get_state(instrument).hypotheses.keys())
                 hyp = self._engine.create(
                     symbol=instrument,
                     thesis=seed.thesis,
@@ -279,7 +276,7 @@ class HypothesisAPI:
                 logger.warning(f"[HypothesisAPI] create failed for seed '{seed.thesis}': {exc}")
 
         # ── Step 3: Build HypothesisSet ───────────────────────────────────
-        state  = self._engine._brain.get_state(instrument)
+        state = self._engine._brain.get_state(instrument)
         active = self._engine._tracker.active(state.hypotheses)
 
         # Retrieve or create the set for this instrument
@@ -341,11 +338,11 @@ class HypothesisAPI:
 
     def update_probabilities(
         self,
-        hypothesis_set:  HypothesisSet,
-        new_evidence:    dict[str, float],
-        trigger:         str         = "EVIDENCE",
-        dampening:       float | None = None,
-        now:             float | None = None,
+        hypothesis_set: HypothesisSet,
+        new_evidence: dict[str, float],
+        trigger: str = "EVIDENCE",
+        dampening: float | None = None,
+        now: float | None = None,
     ) -> HypothesisSet:
         """Update the probability distribution over the competing scenarios.
 
@@ -404,7 +401,7 @@ class HypothesisAPI:
                 continue
 
             if abs(strength) < 0.05:
-                continue   # insignificant — skip
+                continue  # insignificant — skip
             if strength > 0:
                 # One reinforce call per update regardless of strength
                 self._engine.reinforce(
@@ -427,13 +424,13 @@ class HypothesisAPI:
 
     def invalidate_hypothesis(
         self,
-        hypothesis_id:           str,
-        reason:                  str,
-        hypothesis_set:          HypothesisSet | None  = None,
-        market_direction:        BeliefDirection | None = None,
-        winning_scenario_thesis: str | None             = None,
-        failure_mode:            FailureMode | None     = None,
-        now:                     float | None           = None,
+        hypothesis_id: str,
+        reason: str,
+        hypothesis_set: HypothesisSet | None = None,
+        market_direction: BeliefDirection | None = None,
+        winning_scenario_thesis: str | None = None,
+        failure_mode: FailureMode | None = None,
+        now: float | None = None,
     ) -> bool:
         """Invalidate a hypothesis and record its failure.
 
@@ -525,18 +522,16 @@ class HypothesisAPI:
                 if probs:
                     hyp_set._apply_probabilities(probs, trigger="INVALIDATION", now=now)
 
-        logger.debug(
-            f"[HypothesisAPI] invalidated {hypothesis_id[:8]} ({reason[:40]})"
-        )
+        logger.debug(f"[HypothesisAPI] invalidated {hypothesis_id[:8]} ({reason[:40]})")
         return True
 
     def promote_hypothesis(
         self,
-        hypothesis_id:  str,
-        reason:         str,
+        hypothesis_id: str,
+        reason: str,
         hypothesis_set: HypothesisSet | None = None,
-        boost:          float                = _PROMOTE_BOOST,
-        now:            float | None         = None,
+        boost: float = _PROMOTE_BOOST,
+        now: float | None = None,
     ) -> bool:
         """Promote a hypothesis to the dominant position in its scenario set.
 
@@ -596,7 +591,7 @@ class HypothesisAPI:
             hypothesis_id,
             resolution="PROMOTED",
             confidence_at_resolution=hyp.confidence,
-            probability_at_resolution=0.0,    # will be updated below
+            probability_at_resolution=0.0,  # will be updated below
             now=now,
         )
 
@@ -620,9 +615,7 @@ class HypothesisAPI:
                 if node and node.resolved_at:
                     node.probability_at_resolution = scenario.probability
 
-        logger.debug(
-            f"[HypothesisAPI] promoted {hypothesis_id[:8]} ({reason[:40]})"
-        )
+        logger.debug(f"[HypothesisAPI] promoted {hypothesis_id[:8]} ({reason[:40]})")
         return True
 
     # ── Convenience pass-throughs ─────────────────────────────────────────
@@ -638,9 +631,9 @@ class HypothesisAPI:
     def failure_summary(self, instrument: str) -> dict:
         """Quick failure summary for ``instrument``."""
         return {
-            "lessons":              self._tracker.lesson_summary(instrument),
+            "lessons": self._tracker.lesson_summary(instrument),
             "common_failure_modes": self._tracker.common_failure_modes(instrument),
-            "direction_bias":       self._tracker.direction_bias_summary(instrument),
+            "direction_bias": self._tracker.direction_bias_summary(instrument),
         }
 
     def lineage_path(self, hypothesis_id: str) -> list[dict]:
@@ -653,9 +646,9 @@ class HypothesisAPI:
         """Serialize state for ``instrument``."""
         hyp_set = self._active_sets.get(instrument)
         return {
-            "active_set":    hyp_set.to_dict() if hyp_set else None,
+            "active_set": hyp_set.to_dict() if hyp_set else None,
             "failure_tracker": self._tracker.to_snapshot(),
-            "lineage":       self._lineage.to_snapshot(),
+            "lineage": self._lineage.to_snapshot(),
         }
 
     def load_snapshot(self, instrument: str, data: dict) -> None:

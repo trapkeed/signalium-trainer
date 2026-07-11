@@ -87,9 +87,6 @@ Covers:
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
-from enum import Enum
 from unittest.mock import MagicMock
 
 import pytest
@@ -108,8 +105,9 @@ def _make_cognitive_decision(
     instrument: str = "EURUSD",
 ):
     """Build a mock CognitiveDecision with the given field values."""
-    from trainer.qde.brain.decision.decision_types import CognitiveAction
     from trainer.qde.brain.brain_types import BeliefDirection
+    from trainer.qde.brain.decision.decision_types import CognitiveAction
+
     m = MagicMock()
     m.action = CognitiveAction(action)
     m.uncertainty_score = uncertainty_score
@@ -159,26 +157,37 @@ def _high_quality_opp():
 class TestEnums:
     def test_wait_reason_seven_values(self):
         from trainer.qde.brain.patience import WaitReason
+
         assert len(list(WaitReason)) == 7
 
     def test_wait_reason_values_present(self):
         from trainer.qde.brain.patience import WaitReason
-        for name in ("COGNITIVE_PASSIVE", "UNCERTAINTY_HIGH", "OVERTRADING",
-                     "CONFIRMATION_PENDING", "LOW_QUALITY", "IMPULSIVE_GUARD",
-                     "CAPITAL_UNAVAILABLE"):
+
+        for name in (
+            "COGNITIVE_PASSIVE",
+            "UNCERTAINTY_HIGH",
+            "OVERTRADING",
+            "CONFIRMATION_PENDING",
+            "LOW_QUALITY",
+            "IMPULSIVE_GUARD",
+            "CAPITAL_UNAVAILABLE",
+        ):
             assert hasattr(WaitReason, name)
 
     def test_skip_outcome_four_values(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         assert len(list(SkipOutcome)) == 4
 
     def test_skip_outcome_values(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         for name in ("CORRECT_SKIP", "MISSED_OPPORTUNITY", "NEUTRAL", "UNRESOLVED"):
             assert hasattr(SkipOutcome, name)
 
     def test_wait_reason_is_str_enum(self):
         from trainer.qde.brain.patience import WaitReason
+
         assert isinstance(WaitReason.COGNITIVE_PASSIVE, str)
 
 
@@ -189,74 +198,91 @@ class TestEnums:
 
 class TestComputeNoActionReward:
     def test_base_reward_positive(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         r = compute_no_action_reward([WaitReason.LOW_QUALITY], opportunity_score=0.10)
         assert r > 0.0
 
     def test_cognitive_passive_adds_bonus(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         r_with = compute_no_action_reward([WaitReason.COGNITIVE_PASSIVE], opportunity_score=0.10)
         r_without = compute_no_action_reward([WaitReason.LOW_QUALITY], opportunity_score=0.10)
         assert r_with > r_without
 
     def test_uncertainty_high_adds_bonus(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
-        r = compute_no_action_reward([WaitReason.UNCERTAINTY_HIGH],
-                                     opportunity_score=0.10, uncertainty_score=0.80)
-        r_low = compute_no_action_reward([WaitReason.UNCERTAINTY_HIGH],
-                                          opportunity_score=0.10, uncertainty_score=0.56)
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
+        r = compute_no_action_reward(
+            [WaitReason.UNCERTAINTY_HIGH], opportunity_score=0.10, uncertainty_score=0.80
+        )
+        r_low = compute_no_action_reward(
+            [WaitReason.UNCERTAINTY_HIGH], opportunity_score=0.10, uncertainty_score=0.56
+        )
         assert r > r_low  # higher excess uncertainty → higher reward
 
     def test_overtrading_adds_bonus(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         r = compute_no_action_reward([WaitReason.OVERTRADING], opportunity_score=0.10)
         r_base = compute_no_action_reward([], opportunity_score=0.10)
         assert r > r_base
 
     def test_impulsive_guard_adds_bonus(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         r = compute_no_action_reward([WaitReason.IMPULSIVE_GUARD], opportunity_score=0.10)
         r_base = compute_no_action_reward([], opportunity_score=0.10)
         assert r > r_base
 
     def test_low_quality_gap_adds_proportional_bonus(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
-        r_large = compute_no_action_reward([WaitReason.LOW_QUALITY],
-                                           opportunity_score=0.05, quality_gap=0.15)
-        r_small = compute_no_action_reward([WaitReason.LOW_QUALITY],
-                                           opportunity_score=0.15, quality_gap=0.05)
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
+        r_large = compute_no_action_reward(
+            [WaitReason.LOW_QUALITY], opportunity_score=0.05, quality_gap=0.15
+        )
+        r_small = compute_no_action_reward(
+            [WaitReason.LOW_QUALITY], opportunity_score=0.15, quality_gap=0.05
+        )
         assert r_large > r_small
 
     def test_high_opp_score_reduces_reward(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
-        r_high_opp = compute_no_action_reward([WaitReason.COGNITIVE_PASSIVE],
-                                              opportunity_score=0.80)
-        r_low_opp  = compute_no_action_reward([WaitReason.COGNITIVE_PASSIVE],
-                                              opportunity_score=0.10)
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
+        r_high_opp = compute_no_action_reward(
+            [WaitReason.COGNITIVE_PASSIVE], opportunity_score=0.80
+        )
+        r_low_opp = compute_no_action_reward([WaitReason.COGNITIVE_PASSIVE], opportunity_score=0.10)
         assert r_high_opp < r_low_opp
 
     def test_clamped_to_zero_one(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         all_reasons = list(WaitReason)
-        r = compute_no_action_reward(all_reasons, opportunity_score=0.0,
-                                     uncertainty_score=1.0, quality_gap=1.0)
+        r = compute_no_action_reward(
+            all_reasons, opportunity_score=0.0, uncertainty_score=1.0, quality_gap=1.0
+        )
         assert 0.0 <= r <= 1.0
 
     def test_no_reasons_returns_base(self):
         from trainer.qde.brain.patience import compute_no_action_reward
+
         r = compute_no_action_reward([], opportunity_score=0.30)
         # Base reward 0.20, no bonuses, no penalties (opp < 0.65)
         assert r == pytest.approx(0.20)
 
     def test_multiple_reasons_accumulate(self):
-        from trainer.qde.brain.patience import compute_no_action_reward, WaitReason
+        from trainer.qde.brain.patience import WaitReason, compute_no_action_reward
+
         r_multi = compute_no_action_reward(
             [WaitReason.UNCERTAINTY_HIGH, WaitReason.OVERTRADING],
-            opportunity_score=0.10, uncertainty_score=0.70,
+            opportunity_score=0.10,
+            uncertainty_score=0.70,
         )
         r_single = compute_no_action_reward(
             [WaitReason.UNCERTAINTY_HIGH],
-            opportunity_score=0.10, uncertainty_score=0.70,
+            opportunity_score=0.10,
+            uncertainty_score=0.70,
         )
         assert r_multi > r_single
 
@@ -268,42 +294,50 @@ class TestComputeNoActionReward:
 
 class TestComputeRealizedReward:
     def test_correct_skip_positive(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r = compute_realized_reward(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.3)
         assert r >= 0.60
 
     def test_missed_opportunity_negative(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r = compute_realized_reward(SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=0.3)
         assert r <= -0.40
 
     def test_neutral_is_zero(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         assert compute_realized_reward(SkipOutcome.NEUTRAL) == pytest.approx(0.0)
 
     def test_larger_pnl_pushes_toward_ceiling(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r_large = compute_realized_reward(SkipOutcome.CORRECT_SKIP, pnl_estimate=2.0)
         r_small = compute_realized_reward(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.1)
         assert r_large > r_small
 
     def test_larger_missed_pushes_toward_floor(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r_large = compute_realized_reward(SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=2.0)
         r_small = compute_realized_reward(SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=0.1)
         assert r_large < r_small
 
     def test_unresolved_is_zero(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         assert compute_realized_reward(SkipOutcome.UNRESOLVED) == pytest.approx(0.0)
 
     def test_correct_skip_bounded(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r = compute_realized_reward(SkipOutcome.CORRECT_SKIP, pnl_estimate=100.0)
         assert 0.60 <= r <= 1.0
 
     def test_missed_bounded(self):
-        from trainer.qde.brain.patience import compute_realized_reward, SkipOutcome
+        from trainer.qde.brain.patience import SkipOutcome, compute_realized_reward
+
         r = compute_realized_reward(SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=100.0)
         assert -1.0 <= r <= -0.40
 
@@ -316,6 +350,7 @@ class TestComputeRealizedReward:
 class TestSkippedOpportunity:
     def _build(self, **kwargs):
         from trainer.qde.brain.patience import SkippedOpportunity, WaitReason
+
         defaults = dict(
             instrument="EURUSD",
             direction="BULLISH",
@@ -339,14 +374,15 @@ class TestSkippedOpportunity:
 
     def test_resolve_sets_outcome(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         s = self._build()
-        s.resolve(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.4,
-                  realized_reward=0.8, now=_T0 + 3600)
+        s.resolve(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.4, realized_reward=0.8, now=_T0 + 3600)
         assert s.outcome == SkipOutcome.CORRECT_SKIP
         assert s.is_resolved is True
 
     def test_resolve_sets_pnl_and_reward(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         s = self._build()
         s.resolve(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.5, realized_reward=0.85, now=_T0 + 100)
         assert s.outcome_pnl_estimate == pytest.approx(0.5)
@@ -354,13 +390,17 @@ class TestSkippedOpportunity:
 
     def test_resolve_idempotent(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         s = self._build()
         s.resolve(SkipOutcome.CORRECT_SKIP, pnl_estimate=0.5, realized_reward=0.8, now=_T0 + 100)
-        s.resolve(SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=0.2, realized_reward=-0.5, now=_T0 + 200)
+        s.resolve(
+            SkipOutcome.MISSED_OPPORTUNITY, pnl_estimate=0.2, realized_reward=-0.5, now=_T0 + 200
+        )
         assert s.outcome == SkipOutcome.CORRECT_SKIP  # first call wins
 
     def test_was_correct(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         s = self._build()
         s.resolve(SkipOutcome.CORRECT_SKIP, now=_T0 + 100)
         assert s.was_correct is True
@@ -368,6 +408,7 @@ class TestSkippedOpportunity:
 
     def test_was_mistake(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         s = self._build()
         s.resolve(SkipOutcome.MISSED_OPPORTUNITY, now=_T0 + 100)
         assert s.was_mistake is True
@@ -376,12 +417,27 @@ class TestSkippedOpportunity:
     def test_to_dict_keys(self):
         s = self._build()
         d = s.to_dict()
-        for key in ("skip_id", "instrument", "direction", "opportunity_score_at_skip",
-                    "quality_threshold_at_skip", "wait_reasons", "primary_reason",
-                    "cognitive_action", "uncertainty_score", "conviction_score",
-                    "entry_urgency", "prospective_no_action_reward", "outcome",
-                    "outcome_pnl_estimate", "realized_no_action_reward",
-                    "skipped_at", "resolved_at", "is_resolved", "was_correct"):
+        for key in (
+            "skip_id",
+            "instrument",
+            "direction",
+            "opportunity_score_at_skip",
+            "quality_threshold_at_skip",
+            "wait_reasons",
+            "primary_reason",
+            "cognitive_action",
+            "uncertainty_score",
+            "conviction_score",
+            "entry_urgency",
+            "prospective_no_action_reward",
+            "outcome",
+            "outcome_pnl_estimate",
+            "realized_no_action_reward",
+            "skipped_at",
+            "resolved_at",
+            "is_resolved",
+            "was_correct",
+        ):
             assert key in d, f"Missing key: {key}"
 
 
@@ -393,21 +449,38 @@ class TestSkippedOpportunity:
 class TestWaitDecision:
     def test_frozen(self):
         from trainer.qde.brain.patience import WaitDecision
+
         d = WaitDecision(
-            should_wait=True, wait_reasons=(), primary_reason=None,
-            prospective_no_action_reward=0.3, quality_gap=0.1, reasoning="test",
+            should_wait=True,
+            wait_reasons=(),
+            primary_reason=None,
+            prospective_no_action_reward=0.3,
+            quality_gap=0.1,
+            reasoning="test",
         )
         with pytest.raises((AttributeError, TypeError)):
             d.should_wait = False  # type: ignore[misc]
 
     def test_to_dict_keys(self):
         from trainer.qde.brain.patience import WaitDecision
+
         d = WaitDecision(
-            should_wait=True, wait_reasons=(), primary_reason=None,
-            prospective_no_action_reward=0.3, quality_gap=0.05, reasoning="x",
+            should_wait=True,
+            wait_reasons=(),
+            primary_reason=None,
+            prospective_no_action_reward=0.3,
+            quality_gap=0.05,
+            reasoning="x",
         )
-        for key in ("should_wait", "wait_reasons", "primary_reason",
-                    "prospective_no_action_reward", "quality_gap", "reasoning", "skip_id"):
+        for key in (
+            "should_wait",
+            "wait_reasons",
+            "primary_reason",
+            "prospective_no_action_reward",
+            "quality_gap",
+            "reasoning",
+            "skip_id",
+        ):
             assert key in d.to_dict()
 
 
@@ -419,12 +492,18 @@ class TestWaitDecision:
 class TestPatienceState:
     def _state(self):
         from trainer.qde.brain.patience import PatienceState
+
         return PatienceState(instrument="EURUSD")
 
     def _skip(self, resolved=False, correct=True):
-        from trainer.qde.brain.patience import SkippedOpportunity, WaitReason, SkipOutcome
-        s = SkippedOpportunity(instrument="EURUSD", direction="BULLISH",
-                               wait_reasons=[WaitReason.LOW_QUALITY], skipped_at=_T0)
+        from trainer.qde.brain.patience import SkipOutcome, SkippedOpportunity, WaitReason
+
+        s = SkippedOpportunity(
+            instrument="EURUSD",
+            direction="BULLISH",
+            wait_reasons=[WaitReason.LOW_QUALITY],
+            skipped_at=_T0,
+        )
         if resolved:
             outcome = SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY
             s.resolve(outcome, now=_T0 + 100)
@@ -455,6 +534,7 @@ class TestPatienceState:
 
     def test_append_skip_bounds(self):
         from trainer.qde.brain.patience import MAX_SKIPPED_RECORDS
+
         st = self._state()
         for _ in range(MAX_SKIPPED_RECORDS + 10):
             st._append_skip(self._skip())
@@ -463,10 +543,18 @@ class TestPatienceState:
     def test_to_dict_keys(self):
         st = self._state()
         d = st.to_dict()
-        for key in ("instrument", "total_trades", "total_skips",
-                    "correct_skips", "missed_opportunities",
-                    "impulsive_entries", "overtrading_events",
-                    "current_threshold", "pending_skips", "total_stored_skips"):
+        for key in (
+            "instrument",
+            "total_trades",
+            "total_skips",
+            "correct_skips",
+            "missed_opportunities",
+            "impulsive_entries",
+            "overtrading_events",
+            "current_threshold",
+            "pending_skips",
+            "total_stored_skips",
+        ):
             assert key in d
 
 
@@ -477,28 +565,33 @@ class TestPatienceState:
 
 class TestPatienceScore:
     def _resolved_skip(self, correct: bool):
-        from trainer.qde.brain.patience import SkippedOpportunity, WaitReason, SkipOutcome
-        s = SkippedOpportunity(instrument="X", wait_reasons=[WaitReason.LOW_QUALITY],
-                               skipped_at=_T0)
+        from trainer.qde.brain.patience import SkipOutcome, SkippedOpportunity, WaitReason
+
+        s = SkippedOpportunity(
+            instrument="X", wait_reasons=[WaitReason.LOW_QUALITY], skipped_at=_T0
+        )
         outcome = SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY
         s.resolve(outcome, now=_T0 + 100)
         return s
 
     def test_returns_patience_metrics(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState, PatienceMetrics
+        from trainer.qde.brain.patience import PatienceMetrics, PatienceState, patience_score
+
         st = PatienceState()
         m = patience_score(st)
         assert isinstance(m, PatienceMetrics)
 
     def test_new_state_neutral(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         m = patience_score(PatienceState())
         assert m.discipline_score == pytest.approx(0.0, abs=1e-4)
         assert m.impulsive_entry_rate == pytest.approx(0.0)
         assert m.miss_rate == pytest.approx(0.0)
 
     def test_discipline_score_correct_fraction(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         st = PatienceState()
         for _ in range(3):
             st._append_skip(self._resolved_skip(correct=True))
@@ -511,13 +604,15 @@ class TestPatienceScore:
         assert m.discipline_score == pytest.approx(0.75)
 
     def test_impulsive_entry_rate(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         st = PatienceState(total_trades=10, impulsive_entries=3)
         m = patience_score(st)
         assert m.impulsive_entry_rate == pytest.approx(0.3)
 
     def test_miss_rate(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         st = PatienceState(correct_skips=1, missed_opportunities=1)
         for _ in range(2):
             st._append_skip(self._resolved_skip(True))
@@ -526,16 +621,18 @@ class TestPatienceScore:
         # Actual resolved_skips() reads from skipped_opportunities list
         # Since we added 2 correct resolved skips but set missed=1, we need careful setup
         st2 = PatienceState(correct_skips=1, missed_opportunities=1)
-        st2._append_skip(self._resolved_skip(correct=True))   # adds to list
+        st2._append_skip(self._resolved_skip(correct=True))  # adds to list
         st2._append_skip(self._resolved_skip(correct=False))  # adds to list
         from trainer.qde.brain.patience import patience_score as ps
+
         m2 = ps(st2)
         # resolved_count from the actual resolved list = 2
         # miss_rate = 1/2 = 0.5
         assert m2.miss_rate == pytest.approx(0.5)
 
     def test_composite_formula(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         st = PatienceState(
             total_trades=10,
             impulsive_entries=2,
@@ -557,7 +654,8 @@ class TestPatienceScore:
         assert m.composite_patience_score == pytest.approx(expected, abs=1e-4)
 
     def test_composite_bounded(self):
-        from trainer.qde.brain.patience import patience_score, PatienceState
+        from trainer.qde.brain.patience import PatienceState, patience_score
+
         m = patience_score(PatienceState(total_trades=5, impulsive_entries=5))
         assert 0.0 <= m.composite_patience_score <= 1.0
 
@@ -569,26 +667,44 @@ class TestPatienceScore:
 
 class TestMinimumQualityThreshold:
     def test_default_when_no_history(self):
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState, DEFAULT_QUALITY_THRESHOLD
+        from trainer.qde.brain.patience import (
+            DEFAULT_QUALITY_THRESHOLD,
+            PatienceState,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState()
         assert minimum_quality_threshold(st) == pytest.approx(DEFAULT_QUALITY_THRESHOLD)
 
     def test_raises_when_impulsive_rate_high(self):
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState, THRESHOLD_STEP_UP
+        from trainer.qde.brain.patience import (
+            PatienceState,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState(total_trades=10, impulsive_entries=4)  # 40% > 30%
         threshold = minimum_quality_threshold(st)
         assert threshold > st.current_threshold
 
     def test_raises_when_discipline_low(self):
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState
-        from trainer.qde.brain.patience import SkippedOpportunity, WaitReason, SkipOutcome
+        from trainer.qde.brain.patience import (
+            PatienceState,
+            SkipOutcome,
+            SkippedOpportunity,
+            WaitReason,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState(correct_skips=1, missed_opportunities=4)
         # Add 5 resolved skips to the state list
         for correct in [True, False, False, False, False]:
-            s = SkippedOpportunity(instrument="X", wait_reasons=[WaitReason.LOW_QUALITY],
-                                   skipped_at=_T0)
-            s.resolve(SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY,
-                      now=_T0 + 100)
+            s = SkippedOpportunity(
+                instrument="X", wait_reasons=[WaitReason.LOW_QUALITY], skipped_at=_T0
+            )
+            s.resolve(
+                SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY,
+                now=_T0 + 100,
+            )
             st._append_skip(s)
         threshold = minimum_quality_threshold(st)
         assert threshold > st.current_threshold
@@ -601,15 +717,24 @@ class TestMinimumQualityThreshold:
           miss_rate   = 6/11 ≈ 0.545  → above 0.50, lower fires
         Net adjustment = -THRESHOLD_STEP_DOWN → threshold drops below 0.30.
         """
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState
-        from trainer.qde.brain.patience import SkippedOpportunity, WaitReason, SkipOutcome
+        from trainer.qde.brain.patience import (
+            PatienceState,
+            SkipOutcome,
+            SkippedOpportunity,
+            WaitReason,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState(current_threshold=0.30)
         # 5 correct, 6 missed → miss_rate ≈ 0.545, discipline ≈ 0.455
         for correct in [True] * 5 + [False] * 6:
-            s = SkippedOpportunity(instrument="X", wait_reasons=[WaitReason.LOW_QUALITY],
-                                   skipped_at=_T0)
-            s.resolve(SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY,
-                      now=_T0 + 100)
+            s = SkippedOpportunity(
+                instrument="X", wait_reasons=[WaitReason.LOW_QUALITY], skipped_at=_T0
+            )
+            s.resolve(
+                SkipOutcome.CORRECT_SKIP if correct else SkipOutcome.MISSED_OPPORTUNITY,
+                now=_T0 + 100,
+            )
             st._append_skip(s)
         st.correct_skips = 5
         st.missed_opportunities = 6
@@ -617,21 +742,33 @@ class TestMinimumQualityThreshold:
         assert threshold < 0.30
 
     def test_bounded_above(self):
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState, MAX_QUALITY_THRESHOLD
+        from trainer.qde.brain.patience import (
+            MAX_QUALITY_THRESHOLD,
+            PatienceState,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState(
-            total_trades=100, impulsive_entries=60,
+            total_trades=100,
+            impulsive_entries=60,
             current_threshold=MAX_QUALITY_THRESHOLD,
         )
         assert minimum_quality_threshold(st) <= MAX_QUALITY_THRESHOLD
 
     def test_bounded_below(self):
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState, MIN_QUALITY_THRESHOLD
+        from trainer.qde.brain.patience import (
+            MIN_QUALITY_THRESHOLD,
+            PatienceState,
+            minimum_quality_threshold,
+        )
+
         st = PatienceState(current_threshold=MIN_QUALITY_THRESHOLD)
         assert minimum_quality_threshold(st) >= MIN_QUALITY_THRESHOLD
 
     def test_drought_lowers_threshold(self):
         """All recent decisions were waits → threshold should drop (drought detected)."""
-        from trainer.qde.brain.patience import minimum_quality_threshold, PatienceState
+        from trainer.qde.brain.patience import PatienceState, minimum_quality_threshold
+
         st = PatienceState(total_trades=1, current_threshold=0.35)
         # Fill recent_wait_flags with True (all waits)
         for _ in range(25):
@@ -647,73 +784,84 @@ class TestMinimumQualityThreshold:
 
 class TestEvaluateWaitDecision:
     def test_ignore_action_triggers_cognitive_passive(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="IGNORE")
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.should_wait is True
         assert WaitReason.COGNITIVE_PASSIVE in result.wait_reasons
 
     def test_wait_action_triggers_cognitive_passive(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="WAIT")
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.should_wait is True
         assert WaitReason.COGNITIVE_PASSIVE in result.wait_reasons
 
     def test_monitor_action_triggers_confirmation_pending(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="MONITOR", uncertainty_score=0.30)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.should_wait is True
         assert WaitReason.CONFIRMATION_PENDING in result.wait_reasons
 
     def test_high_uncertainty_triggers_uncertainty_high(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="BUY", uncertainty_score=0.60)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert WaitReason.UNCERTAINTY_HIGH in result.wait_reasons
 
     def test_overtrading_flag_triggers_overtrading(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec()
         af = _make_account_features(is_overtrading=True)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50), account_features=af)
         assert WaitReason.OVERTRADING in result.wait_reasons
 
     def test_high_frequency_ratio_triggers_overtrading(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec()
         af = _make_account_features(is_overtrading=False, trade_frequency_ratio=2.0)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50), account_features=af)
         assert WaitReason.OVERTRADING in result.wait_reasons
 
     def test_impulsive_guard_high_urgency_low_conviction(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec(entry_urgency=0.80, conviction_score=0.30)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert WaitReason.IMPULSIVE_GUARD in result.wait_reasons
 
     def test_impulsive_guard_not_triggered_when_conviction_ok(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec(entry_urgency=0.80, conviction_score=0.60)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert WaitReason.IMPULSIVE_GUARD not in result.wait_reasons
 
     def test_low_quality_triggers_low_quality(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec()
         # score 0.10 < DEFAULT_QUALITY_THRESHOLD 0.20
         result = evaluate_wait_decision(cd, _make_opp_score(0.10))
         assert WaitReason.LOW_QUALITY in result.wait_reasons
 
     def test_capital_unavailable_triggers(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec()
         result = evaluate_wait_decision(cd, _make_opp_score(0.50), capital_unavailable=True)
         assert WaitReason.CAPITAL_UNAVAILABLE in result.wait_reasons
 
     def test_multiple_reasons_all_collected(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.70)
         af = _make_account_features(is_overtrading=True)
         result = evaluate_wait_decision(cd, _make_opp_score(0.05), account_features=af)
@@ -721,32 +869,38 @@ class TestEvaluateWaitDecision:
 
     def test_no_conditions_met_should_wait_false(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _active_cog_dec(uncertainty_score=0.20, conviction_score=0.80, entry_urgency=0.40)
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.should_wait is False
 
     def test_should_wait_false_no_action_reward_zero(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _active_cog_dec()
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.prospective_no_action_reward == pytest.approx(0.0)
 
     def test_should_wait_false_skip_record_none(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _active_cog_dec()
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.skip_record is None
 
     def test_should_wait_true_has_skip_record(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="WAIT")
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert result.skip_record is not None
 
     def test_skip_record_fields_populated(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
-        cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.30,
-                                      conviction_score=0.60, instrument="GBPUSD")
+
+        cd = _make_cognitive_decision(
+            action="WAIT", uncertainty_score=0.30, conviction_score=0.60, instrument="GBPUSD"
+        )
         result = evaluate_wait_decision(cd, _make_opp_score(0.25))
         s = result.skip_record
         assert s is not None
@@ -756,32 +910,37 @@ class TestEvaluateWaitDecision:
 
     def test_primary_reason_highest_priority(self):
         """COGNITIVE_PASSIVE should be primary when action=WAIT even if other reasons apply."""
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.70)
         result = evaluate_wait_decision(cd, _make_opp_score(0.05))
         assert result.primary_reason == WaitReason.COGNITIVE_PASSIVE
 
     def test_custom_threshold_honoured(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitReason
+        from trainer.qde.brain.patience import WaitReason, evaluate_wait_decision
+
         cd = _active_cog_dec()
         # With threshold=0.60, a score of 0.50 is below threshold
         result = evaluate_wait_decision(cd, _make_opp_score(0.50), quality_threshold=0.60)
         assert WaitReason.LOW_QUALITY in result.wait_reasons
 
     def test_returns_wait_decision(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, WaitDecision
+        from trainer.qde.brain.patience import WaitDecision, evaluate_wait_decision
+
         cd = _active_cog_dec()
         result = evaluate_wait_decision(cd, _make_opp_score(0.50))
         assert isinstance(result, WaitDecision)
 
     def test_no_action_reward_positive_for_cognitive_passive(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _make_cognitive_decision(action="IGNORE")
         result = evaluate_wait_decision(cd, _make_opp_score(0.10))
         assert result.prospective_no_action_reward > 0.0
 
     def test_quality_gap_positive_when_below_threshold(self):
-        from trainer.qde.brain.patience import evaluate_wait_decision, DEFAULT_QUALITY_THRESHOLD
+        from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _active_cog_dec()
         opp = _make_opp_score(0.05)
         result = evaluate_wait_decision(cd, opp)
@@ -790,6 +949,7 @@ class TestEvaluateWaitDecision:
 
     def test_quality_gap_negative_when_above_threshold(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         cd = _active_cog_dec()
         result = evaluate_wait_decision(cd, _make_opp_score(0.80))
         assert result.quality_gap < 0.0
@@ -803,10 +963,12 @@ class TestEvaluateWaitDecision:
 class TestPatienceEngine:
     def _engine(self, **kwargs):
         from trainer.qde.brain.patience import PatienceEngine
+
         return PatienceEngine(instrument="EURUSD", **kwargs)
 
     def test_initial_threshold_default(self):
         from trainer.qde.brain.patience import DEFAULT_QUALITY_THRESHOLD
+
         eng = self._engine()
         assert eng.minimum_quality_threshold() == pytest.approx(DEFAULT_QUALITY_THRESHOLD)
 
@@ -816,6 +978,7 @@ class TestPatienceEngine:
 
     def test_evaluate_wait_decision_uses_adaptive_threshold(self):
         from trainer.qde.brain.patience import PatienceEngine
+
         eng = PatienceEngine(instrument="EURUSD", initial_threshold=0.40)
         cd = _active_cog_dec()
         # score 0.30 < adaptive threshold 0.40 → should wait
@@ -823,7 +986,7 @@ class TestPatienceEngine:
         assert result.should_wait is True
 
     def test_record_skip_persists(self):
-        from trainer.qde.brain.patience import WaitReason
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50))
@@ -864,6 +1027,7 @@ class TestPatienceEngine:
 
     def test_resolve_correct_skip(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50))
@@ -875,6 +1039,7 @@ class TestPatienceEngine:
 
     def test_resolve_missed_opportunity(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50))
@@ -884,6 +1049,7 @@ class TestPatienceEngine:
 
     def test_resolve_updates_realized_reward(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50))
@@ -893,6 +1059,7 @@ class TestPatienceEngine:
 
     def test_resolve_idempotent(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50))
@@ -904,6 +1071,7 @@ class TestPatienceEngine:
 
     def test_resolve_unknown_skip_id_returns_none(self):
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         result = eng.resolve_skipped_opportunity("nonexistent", SkipOutcome.CORRECT_SKIP)
         assert result is None
@@ -911,6 +1079,7 @@ class TestPatienceEngine:
     def test_resolve_adapts_threshold(self):
         """After many impulsive entries, resolving skips should update the threshold."""
         from trainer.qde.brain.patience import SkipOutcome
+
         eng = self._engine()
         # Simulate many impulsive entries to raise the threshold
         for _ in range(5):
@@ -925,7 +1094,8 @@ class TestPatienceEngine:
         assert eng.state.last_threshold_update > 0.0
 
     def test_age_pending_skips_resolves_old(self):
-        from trainer.qde.brain.patience import SkipOutcome, DEFAULT_RESOLUTION_WINDOW_SECONDS
+        from trainer.qde.brain.patience import DEFAULT_RESOLUTION_WINDOW_SECONDS, SkipOutcome
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50), now=_T0)
@@ -939,7 +1109,7 @@ class TestPatienceEngine:
         assert skip.outcome == SkipOutcome.NEUTRAL
 
     def test_age_pending_skips_does_not_resolve_recent(self):
-        from trainer.qde.brain.patience import DEFAULT_RESOLUTION_WINDOW_SECONDS
+
         eng = self._engine()
         cd = _make_cognitive_decision(action="WAIT")
         result = eng.evaluate_wait_decision(cd, _make_opp_score(0.50), now=_T0)
@@ -950,6 +1120,7 @@ class TestPatienceEngine:
 
     def test_patience_score_delegates(self):
         from trainer.qde.brain.patience import PatienceMetrics
+
         eng = self._engine()
         m = eng.patience_score()
         assert isinstance(m, PatienceMetrics)
@@ -974,7 +1145,12 @@ class TestPatienceEngine:
 class TestBehavioral:
     def test_impulsive_entries_raise_threshold(self):
         """Many impulsive entries should push the adaptive threshold above default."""
-        from trainer.qde.brain.patience import PatienceEngine, SkipOutcome, DEFAULT_QUALITY_THRESHOLD
+        from trainer.qde.brain.patience import (
+            DEFAULT_QUALITY_THRESHOLD,
+            PatienceEngine,
+            SkipOutcome,
+        )
+
         eng = PatienceEngine(instrument="EURUSD")
         for _ in range(10):
             eng.record_trade(was_impulsive=True)
@@ -987,6 +1163,7 @@ class TestBehavioral:
 
     def test_correct_skips_improve_discipline(self):
         from trainer.qde.brain.patience import PatienceEngine, SkipOutcome
+
         eng = PatienceEngine(instrument="EURUSD")
         for _ in range(5):
             cd = _make_cognitive_decision(action="WAIT")
@@ -998,6 +1175,7 @@ class TestBehavioral:
 
     def test_missed_opportunities_increase_miss_rate(self):
         from trainer.qde.brain.patience import PatienceEngine, SkipOutcome
+
         eng = PatienceEngine(instrument="EURUSD")
         for _ in range(4):
             cd = _make_cognitive_decision(action="WAIT")
@@ -1009,6 +1187,7 @@ class TestBehavioral:
 
     def test_no_action_reward_positive_well_grounded(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         # High uncertainty + overtrading → strong basis for waiting
         cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.75)
         af = _make_account_features(is_overtrading=True)
@@ -1017,15 +1196,17 @@ class TestBehavioral:
 
     def test_no_action_reward_reduced_for_high_quality(self):
         from trainer.qde.brain.patience import evaluate_wait_decision
+
         # COGNITIVE_PASSIVE but high opp_score → reduced reward (might be over-cautious)
         cd_high = _make_cognitive_decision(action="WAIT")
-        cd_low  = _make_cognitive_decision(action="WAIT")
+        cd_low = _make_cognitive_decision(action="WAIT")
         r_high = evaluate_wait_decision(cd_high, _make_opp_score(0.80)).prospective_no_action_reward
-        r_low  = evaluate_wait_decision(cd_low,  _make_opp_score(0.10)).prospective_no_action_reward
+        r_low = evaluate_wait_decision(cd_low, _make_opp_score(0.10)).prospective_no_action_reward
         assert r_high < r_low
 
     def test_composite_patience_improves_after_correct_skips(self):
         from trainer.qde.brain.patience import PatienceEngine, SkipOutcome
+
         eng = PatienceEngine(instrument="EURUSD")
         m0 = eng.patience_score()
 
@@ -1047,13 +1228,15 @@ class TestBehavioral:
     def test_end_to_end_skip_lifecycle(self):
         """Full skip lifecycle: evaluate → record → resolve → query."""
         from trainer.qde.brain.patience import (
-            PatienceEngine, SkipOutcome, WaitReason, evaluate_wait_decision
+            PatienceEngine,
+            SkipOutcome,
+            WaitReason,
         )
+
         eng = PatienceEngine(instrument="USDJPY")
 
         # 1. Brain decides WAIT (high uncertainty)
-        cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.70,
-                                      instrument="USDJPY")
+        cd = _make_cognitive_decision(action="WAIT", uncertainty_score=0.70, instrument="USDJPY")
         opp = _make_opp_score(0.15)
         decision = eng.evaluate_wait_decision(cd, opp, now=_T0)
 
@@ -1088,27 +1271,47 @@ class TestBehavioral:
 class TestPackageExports:
     def test_all_c13_symbols_exported(self):
         import trainer.qde.brain.patience as pkg
+
         required = [
-            "evaluate_wait_decision", "patience_score", "minimum_quality_threshold",
+            "evaluate_wait_decision",
+            "patience_score",
+            "minimum_quality_threshold",
             "PatienceEngine",
-            "WaitReason", "SkipOutcome", "SkippedOpportunity", "WaitDecision",
-            "PatienceState", "PatienceMetrics",
-            "compute_no_action_reward", "compute_realized_reward",
-            "DEFAULT_QUALITY_THRESHOLD", "MIN_QUALITY_THRESHOLD", "MAX_QUALITY_THRESHOLD",
+            "WaitReason",
+            "SkipOutcome",
+            "SkippedOpportunity",
+            "WaitDecision",
+            "PatienceState",
+            "PatienceMetrics",
+            "compute_no_action_reward",
+            "compute_realized_reward",
+            "DEFAULT_QUALITY_THRESHOLD",
+            "MIN_QUALITY_THRESHOLD",
+            "MAX_QUALITY_THRESHOLD",
         ]
         for name in required:
             assert hasattr(pkg, name), f"Package missing: {name}"
 
     def test_three_callables_are_callable(self):
         from trainer.qde.brain.patience import (
-            evaluate_wait_decision, patience_score, minimum_quality_threshold
+            evaluate_wait_decision,
+            minimum_quality_threshold,
+            patience_score,
         )
+
         assert callable(evaluate_wait_decision)
         assert callable(patience_score)
         assert callable(minimum_quality_threshold)
 
     def test_all_in_dunder_all(self):
         import trainer.qde.brain.patience as pkg
-        for name in ["evaluate_wait_decision", "patience_score", "minimum_quality_threshold",
-                     "PatienceEngine", "WaitReason", "SkipOutcome"]:
+
+        for name in [
+            "evaluate_wait_decision",
+            "patience_score",
+            "minimum_quality_threshold",
+            "PatienceEngine",
+            "WaitReason",
+            "SkipOutcome",
+        ]:
             assert name in pkg.__all__

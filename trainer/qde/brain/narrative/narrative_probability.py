@@ -50,10 +50,10 @@ from trainer.qde.brain.narrative.narrative_store import (
 
 _MATURITY_WEIGHT: dict[NarrativeMaturity, float] = {
     NarrativeMaturity.ESTABLISHED: 1.00,
-    NarrativeMaturity.DEVELOPING:  0.75,
-    NarrativeMaturity.FORMING:     0.40,
-    NarrativeMaturity.FADING:      0.20,
-    NarrativeMaturity.EXPIRED:     0.00,
+    NarrativeMaturity.DEVELOPING: 0.75,
+    NarrativeMaturity.FORMING: 0.40,
+    NarrativeMaturity.FADING: 0.20,
+    NarrativeMaturity.EXPIRED: 0.00,
 }
 
 # Small prior for kinds that have no active narrative.
@@ -77,20 +77,20 @@ class NarrativeProbability:
     ``active``       — True if this kind has a living, non-EXPIRED narrative.
     """
 
-    kind:        NarrativeKind
-    raw_weight:  float
+    kind: NarrativeKind
+    raw_weight: float
     probability: float
-    confidence:  float
-    maturity:    NarrativeMaturity
-    active:      bool
+    confidence: float
+    maturity: NarrativeMaturity
+    active: bool
 
     def to_dict(self) -> dict:
         return {
-            "kind":        self.kind.value,
+            "kind": self.kind.value,
             "probability": round(self.probability, 4),
-            "confidence":  round(self.confidence, 4),
-            "maturity":    self.maturity.value,
-            "active":      self.active,
+            "confidence": round(self.confidence, 4),
+            "maturity": self.maturity.value,
+            "active": self.active,
         }
 
 
@@ -115,11 +115,11 @@ class NarrativeProbabilityDistribution:
         1 - (entropy / max_entropy).  0 = maximum uncertainty, 1 = certainty.
     """
 
-    probs:                list[NarrativeProbability] = field(default_factory=list)
-    dominant:             NarrativeKind | None       = None
-    dominant_probability: float                      = 0.0
-    entropy:              float                      = 0.0
-    certainty:            float                      = 0.0
+    probs: list[NarrativeProbability] = field(default_factory=list)
+    dominant: NarrativeKind | None = None
+    dominant_probability: float = 0.0
+    entropy: float = 0.0
+    certainty: float = 0.0
 
     # ── Query helpers ─────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ class NarrativeProbabilityDistribution:
 
     def top_k(self, k: int = 3) -> list[NarrativeProbability]:
         """Return the top-k kinds by probability (already sorted descending)."""
-        return self.probs[:max(1, k)]
+        return self.probs[: max(1, k)]
 
     def active_probs(self) -> list[NarrativeProbability]:
         """Only the kinds that have an active (non-epsilon) narrative."""
@@ -144,18 +144,18 @@ class NarrativeProbabilityDistribution:
 
     def to_dict(self) -> dict:
         return {
-            "probabilities":         [p.to_dict() for p in self.probs],
-            "dominant":              self.dominant.value if self.dominant else None,
-            "dominant_probability":  round(self.dominant_probability, 4),
-            "entropy":               round(self.entropy, 4),
-            "certainty":             round(self.certainty, 4),
-            "active_count":          sum(1 for p in self.probs if p.active),
+            "probabilities": [p.to_dict() for p in self.probs],
+            "dominant": self.dominant.value if self.dominant else None,
+            "dominant_probability": round(self.dominant_probability, 4),
+            "entropy": round(self.entropy, 4),
+            "certainty": round(self.certainty, 4),
+            "active_count": sum(1 for p in self.probs if p.active),
         }
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────
 
-_MAX_ENTROPY = math.log(len(_ALL_KINDS))   # ln(7) ≈ 1.946
+_MAX_ENTROPY = math.log(len(_ALL_KINDS))  # ln(7) ≈ 1.946
 
 
 class NarrativeProbabilityEngine:
@@ -185,9 +185,9 @@ class NarrativeProbabilityEngine:
 
     def compute(
         self,
-        narratives:    list[SymbolNarrative],
-        boost_kind:    NarrativeKind | None = None,
-        boost_amount:  float = 0.0,
+        narratives: list[SymbolNarrative],
+        boost_kind: NarrativeKind | None = None,
+        boost_amount: float = 0.0,
     ) -> NarrativeProbabilityDistribution:
         """Compute the probability distribution for the given narrative list.
 
@@ -248,10 +248,7 @@ class NarrativeProbabilityEngine:
         result_probs.sort(key=lambda p: p.probability, reverse=True)
 
         # Entropy
-        entropy = -sum(
-            p.probability * math.log(max(p.probability, 1e-15))
-            for p in result_probs
-        )
+        entropy = -sum(p.probability * math.log(max(p.probability, 1e-15)) for p in result_probs)
         certainty = 1.0 - (entropy / _MAX_ENTROPY) if _MAX_ENTROPY > 0 else 0.0
 
         # Dominant
@@ -270,7 +267,7 @@ class NarrativeProbabilityEngine:
     @staticmethod
     def from_confidences(
         kind_confidences: dict[NarrativeKind, float],
-        epsilon_prior:    float = _EPSILON_PRIOR,
+        epsilon_prior: float = _EPSILON_PRIOR,
     ) -> NarrativeProbabilityDistribution:
         """Convenience constructor from a raw {kind: confidence} dict.
 
@@ -280,6 +277,7 @@ class NarrativeProbabilityEngine:
         engine = NarrativeProbabilityEngine(epsilon_prior=epsilon_prior)
         # Build fake narratives with DEVELOPING maturity for each kind
         from trainer.qde.brain.narrative.narrative_store import NarrativeMaturity
+
         narratives: list[SymbolNarrative] = []
         for kind, conf in kind_confidences.items():
             n = SymbolNarrative(

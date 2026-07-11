@@ -77,7 +77,6 @@ Design rules
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 from trainer.execution.execution_types import OrderType
@@ -85,20 +84,20 @@ from trainer.execution.execution_types import OrderType
 # ── Order-type aggressiveness (mirrored from slippage_predictor) ──────────────
 # Kept local so this module has no circular imports.
 _AGGRESSIVENESS: dict[OrderType, float] = {
-    OrderType.MARKET:      1.00,
-    OrderType.STOP:        0.80,
-    OrderType.STOP_LIMIT:  0.50,
-    OrderType.LIMIT:       0.20,
+    OrderType.MARKET: 1.00,
+    OrderType.STOP: 0.80,
+    OrderType.STOP_LIMIT: 0.50,
+    OrderType.LIMIT: 0.20,
     OrderType.CONDITIONAL: 0.10,
 }
 
 # Spread-ATR thresholds that drive order-type recommendations.
-_SPREAD_ATR_LIMIT_THRESHOLD = 0.25   # above this → prefer LIMIT over MARKET
+_SPREAD_ATR_LIMIT_THRESHOLD = 0.25  # above this → prefer LIMIT over MARKET
 _SPREAD_ATR_STOPLIMIT_THRESHOLD = 0.60  # above this → prefer STOP_LIMIT
 
 # Estimated fill-wait seconds for passive orders (rough structural baseline).
 _LIMIT_WAIT_BASE_SECONDS = 120.0
-_STOPLIMIT_WAIT_SECONDS  = 180.0
+_STOPLIMIT_WAIT_SECONDS = 180.0
 
 
 # ── FillContext ───────────────────────────────────────────────────────────────
@@ -139,13 +138,13 @@ class FillContext:
         momentum is favourable or adverse relative to this order.
     """
 
-    order_type:              OrderType = OrderType.MARKET
-    distance_to_target_atr:  float     = 0.0    # ≥ 0; 0 for market
-    spread_atr_ratio:         float     = 0.10
-    volatility:               float     = 0.01
-    session_quality:          float     = 0.80
-    momentum:                 float     = 0.0
-    direction:                int       = 1      # +1 long, −1 short
+    order_type: OrderType = OrderType.MARKET
+    distance_to_target_atr: float = 0.0  # ≥ 0; 0 for market
+    spread_atr_ratio: float = 0.10
+    volatility: float = 0.01
+    session_quality: float = 0.80
+    momentum: float = 0.0
+    direction: int = 1  # +1 long, −1 short
 
     def _adverse_momentum(self) -> float:
         """Momentum magnitude that opposes this order's direction.
@@ -155,7 +154,7 @@ class FillContext:
         negative (the price will keep falling after the limit is hit).
         """
         # For a long order, negative momentum = adverse; vice versa.
-        signed = self.direction * self.momentum   # positive = aligned
+        signed = self.direction * self.momentum  # positive = aligned
         return max(0.0, -signed)
 
 
@@ -191,18 +190,18 @@ class FillProbabilitySignal:
         instead, would I get filled?"
     """
 
-    fill_probability:        float     = 1.0
-    expected_fill_quality:   float     = 0.75
-    estimated_wait_seconds:  float     = 0.0
-    recommended_order_type:  OrderType = OrderType.MARKET
-    fill_probability_passive: float    = 0.5
+    fill_probability: float = 1.0
+    expected_fill_quality: float = 0.75
+    estimated_wait_seconds: float = 0.0
+    recommended_order_type: OrderType = OrderType.MARKET
+    fill_probability_passive: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "fill_probability":         round(self.fill_probability, 4),
-            "expected_fill_quality":    round(self.expected_fill_quality, 4),
-            "estimated_wait_seconds":   round(self.estimated_wait_seconds, 1),
-            "recommended_order_type":   self.recommended_order_type.value,
+            "fill_probability": round(self.fill_probability, 4),
+            "expected_fill_quality": round(self.expected_fill_quality, 4),
+            "estimated_wait_seconds": round(self.estimated_wait_seconds, 1),
+            "recommended_order_type": self.recommended_order_type.value,
             "fill_probability_passive": round(self.fill_probability_passive, 4),
         }
 
@@ -242,27 +241,26 @@ class FillProbabilityEngine:
 
     def estimate(self, ctx: FillContext) -> FillProbabilitySignal:
         """Compute structural fill probability and quality for the context."""
-        agg          = _AGGRESSIVENESS.get(ctx.order_type, 0.6)
-        sar          = max(0.0, ctx.spread_atr_ratio)
-        sess         = max(0.0, min(1.0, ctx.session_quality))
-        vol          = max(0.0, ctx.volatility)
-        dist         = max(0.0, ctx.distance_to_target_atr)
-        adverse_mom  = ctx._adverse_momentum()
+        agg = _AGGRESSIVENESS.get(ctx.order_type, 0.6)
+        sar = max(0.0, ctx.spread_atr_ratio)
+        sess = max(0.0, min(1.0, ctx.session_quality))
+        vol = max(0.0, ctx.volatility)
+        dist = max(0.0, ctx.distance_to_target_atr)
+        adverse_mom = ctx._adverse_momentum()
 
-        fill_prob  = self._fill_probability(ctx.order_type, dist, sar, vol, sess, agg)
-        quality    = self._fill_quality(ctx.order_type, sar, sess, adverse_mom, agg)
-        wait_secs  = self._estimated_wait(ctx.order_type, dist, sar, vol, sess)
+        fill_prob = self._fill_probability(ctx.order_type, dist, sar, vol, sess, agg)
+        quality = self._fill_quality(ctx.order_type, sar, sess, adverse_mom, agg)
+        wait_secs = self._estimated_wait(ctx.order_type, dist, sar, vol, sess)
 
         # Fill probability for a hypothetical limit at the same distance
         fp_passive = self._fill_probability(
-            OrderType.LIMIT, dist, sar, vol, sess,
-            _AGGRESSIVENESS[OrderType.LIMIT]
+            OrderType.LIMIT, dist, sar, vol, sess, _AGGRESSIVENESS[OrderType.LIMIT]
         )
 
         rec = self.recommend_order_type(
             spread_atr_ratio=sar,
             expected_slippage_atr=sar * 0.5 + agg * sar * 0.2,
-            timing_budget_seconds=300.0,   # default window
+            timing_budget_seconds=300.0,  # default window
         )
 
         return FillProbabilitySignal(
@@ -275,9 +273,9 @@ class FillProbabilityEngine:
 
     def recommend_order_type(
         self,
-        spread_atr_ratio:       float,
-        expected_slippage_atr:  float,
-        timing_budget_seconds:  float = 300.0,
+        spread_atr_ratio: float,
+        expected_slippage_atr: float,
+        timing_budget_seconds: float = 300.0,
     ) -> OrderType:
         """Recommend the optimal order type for the given cost conditions.
 
@@ -317,11 +315,11 @@ class FillProbabilityEngine:
     @staticmethod
     def _fill_probability(
         order_type: OrderType,
-        distance:   float,
-        sar:        float,
-        vol:        float,
-        sess:       float,
-        agg:        float,
+        distance: float,
+        sar: float,
+        vol: float,
+        sess: float,
+        agg: float,
     ) -> float:
         """Structural fill probability for the given order type and conditions."""
         if order_type == OrderType.MARKET:
@@ -345,18 +343,18 @@ class FillProbabilityEngine:
 
         # LIMIT / CONDITIONAL: logistic decay over distance / vol_scale
         vol_scale = max(0.05, sar + vol * 2.0 * sess)
-        ratio     = distance / vol_scale
-        fill_prob = 1.0 / (1.0 + ratio ** 1.5)
+        ratio = distance / vol_scale
+        fill_prob = 1.0 / (1.0 + ratio**1.5)
         # Session quality penalises even reachable targets in thin markets
         return max(0.05, fill_prob * (0.7 + 0.3 * sess))
 
     @staticmethod
     def _fill_quality(
-        order_type:  OrderType,
-        sar:         float,
-        sess:        float,
+        order_type: OrderType,
+        sar: float,
+        sess: float,
         adverse_mom: float,
-        agg:         float,
+        agg: float,
     ) -> float:
         """Expected fill quality (0-1) for the given order type.
 
@@ -367,7 +365,7 @@ class FillProbabilityEngine:
             # Base is 0.95 (not 1.0) because MARKET orders always pay at
             # least some spread — a perfectly clean MARKET fill is still
             # slightly inferior to a LIMIT fill that rests and gets hit.
-            base     = 0.95 - min(0.50, sar * 0.50)
+            base = 0.95 - min(0.50, sar * 0.50)
             sess_pen = (1.0 - sess) * 0.10
             return max(0.20, base - sess_pen)
 
@@ -390,10 +388,10 @@ class FillProbabilityEngine:
     @staticmethod
     def _estimated_wait(
         order_type: OrderType,
-        distance:   float,
-        sar:        float,
-        vol:        float,
-        sess:       float,
+        distance: float,
+        sar: float,
+        vol: float,
+        sess: float,
     ) -> float:
         """Structural estimate of seconds until fill (0 for market orders)."""
         if order_type in (OrderType.MARKET, OrderType.STOP):
@@ -405,6 +403,6 @@ class FillProbabilityEngine:
 
         # LIMIT: time to fill grows with distance and shrinks with volatility
         vol_scale = max(0.05, vol * 2.0 * sess)
-        ratio     = distance / vol_scale
-        wait      = _LIMIT_WAIT_BASE_SECONDS * (1.0 + ratio ** 1.2)
-        return min(wait, 3600.0)   # cap at 1 hour structurally
+        ratio = distance / vol_scale
+        wait = _LIMIT_WAIT_BASE_SECONDS * (1.0 + ratio**1.2)
+        return min(wait, 3600.0)  # cap at 1 hour structurally

@@ -57,13 +57,11 @@ Covers:
 from __future__ import annotations
 
 import math
-import time
 
 import pytest
 
 from trainer.qde.brain.brain_models import Hypothesis
-from trainer.qde.brain.brain_types import HypothesisStatus, BeliefDirection
-
+from trainer.qde.brain.brain_types import BeliefDirection, HypothesisStatus
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +88,7 @@ def _hyp(
 
 def _state(hyp: Hypothesis, opp_class: str = "INTRADAY") -> "ThesisAgingState":
     from trainer.qde.brain.thesis import ThesisAgingState, profile_for_class
+
     return ThesisAgingState(
         hypothesis_id=hyp.hypothesis_id,
         instrument=hyp.instrument,
@@ -103,6 +102,7 @@ def _state(hyp: Hypothesis, opp_class: str = "INTRADAY") -> "ThesisAgingState":
 def _state_aged(hyp: Hypothesis, elapsed: float, opp_class: str = "INTRADAY") -> "ThesisAgingState":
     """Return a state whose last_decayed_at is already elapsed seconds ago."""
     from trainer.qde.brain.thesis import ThesisAgingState, profile_for_class
+
     return ThesisAgingState(
         hypothesis_id=hyp.hypothesis_id,
         instrument=hyp.instrument,
@@ -121,18 +121,21 @@ def _state_aged(hyp: Hypothesis, elapsed: float, opp_class: str = "INTRADAY") ->
 class TestThesisEventType:
     def test_five_values(self):
         from trainer.qde.brain.thesis import ThesisEventType
+
         assert len(list(ThesisEventType)) == 5
 
     def test_required_values(self):
         from trainer.qde.brain.thesis import ThesisEventType
-        assert ThesisEventType.CONFIRMATION.value  == "CONFIRMATION"
-        assert ThesisEventType.INVALIDATION.value  == "INVALIDATION"
-        assert ThesisEventType.DECAY_TICK.value    == "DECAY_TICK"
-        assert ThesisEventType.EXPIRY.value        == "EXPIRY"
-        assert ThesisEventType.FORCE_EXPIRE.value  == "FORCE_EXPIRE"
+
+        assert ThesisEventType.CONFIRMATION.value == "CONFIRMATION"
+        assert ThesisEventType.INVALIDATION.value == "INVALIDATION"
+        assert ThesisEventType.DECAY_TICK.value == "DECAY_TICK"
+        assert ThesisEventType.EXPIRY.value == "EXPIRY"
+        assert ThesisEventType.FORCE_EXPIRE.value == "FORCE_EXPIRE"
 
     def test_is_str_enum(self):
         from trainer.qde.brain.thesis import ThesisEventType
+
         assert isinstance(ThesisEventType.CONFIRMATION, str)
 
 
@@ -144,42 +147,54 @@ class TestThesisEventType:
 class TestThesisDecayProfile:
     def test_decay_factor_at_zero_elapsed_is_one(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=3600, max_age_seconds=28800)
         assert p.decay_factor(0.0) == pytest.approx(1.0)
 
     def test_decay_factor_at_half_life_is_half(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=3600, max_age_seconds=28800)
         assert p.decay_factor(3600.0) == pytest.approx(0.5, abs=1e-6)
 
     def test_decay_factor_at_two_half_lives_is_quarter(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=3600, max_age_seconds=28800)
         assert p.decay_factor(7200.0) == pytest.approx(0.25, abs=1e-6)
 
     def test_decay_rate_is_log2_over_half_life(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=1800, max_age_seconds=3600)
         assert p.decay_rate == pytest.approx(math.log(2) / 1800, rel=1e-9)
 
     def test_decay_factor_always_positive(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=600, max_age_seconds=900)
         for t in [0, 60, 600, 3600, 86400]:
             assert p.decay_factor(t) > 0.0
 
     def test_decay_factor_monotone_decreasing(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=1800, max_age_seconds=3600)
         factors = [p.decay_factor(t) for t in [0, 900, 1800, 3600, 7200]]
         assert factors == sorted(factors, reverse=True)
 
     def test_to_dict_contains_key_fields(self):
         from trainer.qde.brain.thesis import ThesisDecayProfile
+
         p = ThesisDecayProfile(half_life_seconds=600, max_age_seconds=900)
         d = p.to_dict()
-        for key in ("half_life_seconds", "max_age_seconds", "expiry_threshold",
-                    "min_decay_interval_seconds", "decay_rate"):
+        for key in (
+            "half_life_seconds",
+            "max_age_seconds",
+            "expiry_threshold",
+            "min_decay_interval_seconds",
+            "decay_rate",
+        ):
             assert key in d
 
 
@@ -191,36 +206,43 @@ class TestThesisDecayProfile:
 class TestDecayProfiles:
     def test_all_five_classes_present(self):
         from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES
+
         expected = {"MICRO_SCALP", "SCALP", "INTRADAY", "MULTI_SESSION", "SWING"}
         assert set(DEFAULT_DECAY_PROFILES.keys()) == expected
 
     def test_micro_scalp_fastest_half_life(self):
         from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES
+
         hl = {k: v.half_life_seconds for k, v in DEFAULT_DECAY_PROFILES.items()}
         assert hl["MICRO_SCALP"] < hl["SCALP"] < hl["INTRADAY"] < hl["MULTI_SESSION"] < hl["SWING"]
 
     def test_micro_scalp_half_life_in_range(self):
         from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES
+
         hl = DEFAULT_DECAY_PROFILES["MICRO_SCALP"].half_life_seconds
         assert 300 <= hl <= 900  # 5-15 min
 
     def test_swing_half_life_in_range(self):
         from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES
+
         hl = DEFAULT_DECAY_PROFILES["SWING"].half_life_seconds
         assert 604800 <= hl <= 1814400  # 1-3 weeks
 
     def test_profile_for_class_known(self):
-        from trainer.qde.brain.thesis import profile_for_class, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, profile_for_class
+
         for cls in ("MICRO_SCALP", "SCALP", "INTRADAY", "MULTI_SESSION", "SWING"):
             assert profile_for_class(cls) == DEFAULT_DECAY_PROFILES[cls]
 
     def test_profile_for_class_unknown_falls_back(self):
-        from trainer.qde.brain.thesis import profile_for_class, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, profile_for_class
+
         p = profile_for_class("UNKNOWN_CLASS")
         assert p == DEFAULT_DECAY_PROFILES["INTRADAY"]
 
     def test_max_age_ordered(self):
         from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES
+
         ma = {k: v.max_age_seconds for k, v in DEFAULT_DECAY_PROFILES.items()}
         assert ma["MICRO_SCALP"] < ma["SCALP"] < ma["INTRADAY"] < ma["MULTI_SESSION"] < ma["SWING"]
 
@@ -249,20 +271,30 @@ class TestThesisAgingState:
 
     def test_confirmation_count(self):
         from trainer.qde.brain.thesis import ThesisEvent, ThesisEventType
+
         hyp = _hyp()
         st = _state(hyp)
         assert st.confirmation_count == 0
-        ev = ThesisEvent(ThesisEventType.CONFIRMATION, confidence_before=0.5,
-                         confidence_after=0.6, occurred_at=_T0)
+        ev = ThesisEvent(
+            ThesisEventType.CONFIRMATION,
+            confidence_before=0.5,
+            confidence_after=0.6,
+            occurred_at=_T0,
+        )
         st._append_event(ev, is_confirmation=True)
         assert st.confirmation_count == 1
 
     def test_invalidation_count(self):
         from trainer.qde.brain.thesis import ThesisEvent, ThesisEventType
+
         hyp = _hyp()
         st = _state(hyp)
-        ev = ThesisEvent(ThesisEventType.INVALIDATION, confidence_before=0.5,
-                         confidence_after=0.3, occurred_at=_T0)
+        ev = ThesisEvent(
+            ThesisEventType.INVALIDATION,
+            confidence_before=0.5,
+            confidence_after=0.3,
+            occurred_at=_T0,
+        )
         st._append_event(ev, is_confirmation=False)
         assert st.invalidation_count == 1
 
@@ -276,33 +308,51 @@ class TestThesisAgingState:
         hyp = _hyp()
         st = _state(hyp)
         d = st.to_dict()
-        for key in ("hypothesis_id", "instrument", "created_at", "decay_profile",
-                    "confirmation_count", "invalidation_count",
-                    "last_confirmation_at", "last_decayed_at",
-                    "is_expired", "expired_at", "aging_history_len"):
+        for key in (
+            "hypothesis_id",
+            "instrument",
+            "created_at",
+            "decay_profile",
+            "confirmation_count",
+            "invalidation_count",
+            "last_confirmation_at",
+            "last_decayed_at",
+            "is_expired",
+            "expired_at",
+            "aging_history_len",
+        ):
             assert key in d
 
     def test_event_log_bounded(self):
-        from trainer.qde.brain.thesis import ThesisEvent, ThesisEventType, MAX_EVENTS
+        from trainer.qde.brain.thesis import MAX_EVENTS, ThesisEvent, ThesisEventType
+
         hyp = _hyp()
         st = _state(hyp)
         for i in range(MAX_EVENTS + 20):
-            ev = ThesisEvent(ThesisEventType.CONFIRMATION,
-                             confidence_before=0.5, confidence_after=0.6,
-                             occurred_at=_T0 + i)
+            ev = ThesisEvent(
+                ThesisEventType.CONFIRMATION,
+                confidence_before=0.5,
+                confidence_after=0.6,
+                occurred_at=_T0 + i,
+            )
             st._append_event(ev, is_confirmation=True)
         assert len(st.confirmation_events) == MAX_EVENTS
 
     def test_history_bounded(self):
-        from trainer.qde.brain.thesis import AgingRecord, ThesisEventType, MAX_HISTORY
+        from trainer.qde.brain.thesis import MAX_HISTORY, AgingRecord, ThesisEventType
+
         hyp = _hyp()
         st = _state(hyp)
         for i in range(MAX_HISTORY + 20):
             rec = AgingRecord(
-                hypothesis_id=hyp.hypothesis_id, confidence=0.5,
-                age_seconds=float(i), elapsed_since_confirm=0.0,
-                confirmation_count=0, invalidation_count=0,
-                trigger=ThesisEventType.DECAY_TICK, occurred_at=_T0 + i,
+                hypothesis_id=hyp.hypothesis_id,
+                confidence=0.5,
+                age_seconds=float(i),
+                elapsed_since_confirm=0.0,
+                confirmation_count=0,
+                invalidation_count=0,
+                trigger=ThesisEventType.DECAY_TICK,
+                occurred_at=_T0 + i,
             )
             st._append_history(rec)
         assert len(st.aging_history) == MAX_HISTORY
@@ -316,6 +366,7 @@ class TestThesisAgingState:
 class TestAgeThesisGuards:
     def test_no_op_on_expired_hypothesis(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(status=HypothesisStatus.EXPIRED, confidence=0.0)
         st = _state(hyp)
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -324,6 +375,7 @@ class TestAgeThesisGuards:
 
     def test_no_op_on_invalidated_hypothesis(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(status=HypothesisStatus.INVALIDATED, confidence=0.0)
         st = _state(hyp)
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -331,6 +383,7 @@ class TestAgeThesisGuards:
 
     def test_no_op_on_confirmed_hypothesis(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(status=HypothesisStatus.CONFIRMED, confidence=1.0)
         st = _state(hyp)
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -338,6 +391,7 @@ class TestAgeThesisGuards:
 
     def test_skips_when_interval_not_elapsed(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(created_at=_T0)
         st = _state(hyp)
         # Last decay was only 5 seconds ago; min interval is 10s
@@ -347,7 +401,8 @@ class TestAgeThesisGuards:
         assert result.confidence_before == result.confidence_after
 
     def test_returns_thesis_aging_result(self):
-        from trainer.qde.brain.thesis import age_thesis, ThesisAgingResult
+        from trainer.qde.brain.thesis import ThesisAgingResult, age_thesis
+
         hyp = _hyp(created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)  # well past interval
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -362,6 +417,7 @@ class TestAgeThesisGuards:
 class TestAgeThesisDecay:
     def test_decay_applied_true_when_interval_elapsed(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.6, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -369,6 +425,7 @@ class TestAgeThesisDecay:
 
     def test_confidence_decreases(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.6, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         result = age_thesis(hyp, st, now=_T0 + 7200)
@@ -376,7 +433,8 @@ class TestAgeThesisDecay:
 
     def test_confidence_decreases_by_correct_factor(self):
         """At one half-life the confidence should halve."""
-        from trainer.qde.brain.thesis import age_thesis, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, age_thesis
+
         profile = DEFAULT_DECAY_PROFILES["INTRADAY"]  # half_life=14400s
         hyp = _hyp(confidence=0.8, created_at=_T0)
         st = _state(hyp, "INTRADAY")
@@ -391,6 +449,7 @@ class TestAgeThesisDecay:
 
     def test_hyp_confidence_mutated(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         age_thesis(hyp, st, now=_T0 + 7200)
@@ -398,6 +457,7 @@ class TestAgeThesisDecay:
 
     def test_hyp_last_updated_at_touched(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         now = _T0 + 7200
@@ -405,7 +465,8 @@ class TestAgeThesisDecay:
         assert hyp.last_updated_at == pytest.approx(now)
 
     def test_decay_event_recorded(self):
-        from trainer.qde.brain.thesis import age_thesis, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         age_thesis(hyp, st, now=_T0 + 7200)
@@ -415,6 +476,7 @@ class TestAgeThesisDecay:
 
     def test_aging_record_appended(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         before_len = len(st.aging_history)
@@ -423,6 +485,7 @@ class TestAgeThesisDecay:
 
     def test_state_last_decayed_at_updated(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         now = _T0 + 7200
@@ -431,6 +494,7 @@ class TestAgeThesisDecay:
 
     def test_result_fields_populated(self):
         from trainer.qde.brain.thesis import age_thesis
+
         hyp = _hyp(confidence=0.7, created_at=_T0)
         st = _state_aged(hyp, elapsed=7200)
         now = _T0 + 7200
@@ -449,7 +513,8 @@ class TestAgeThesisDecay:
 
 class TestAgeThesisExpiry:
     def test_expires_when_confidence_below_threshold(self):
-        from trainer.qde.brain.thesis import age_thesis, ThesisDecayProfile, ThesisAgingState
+        from trainer.qde.brain.thesis import ThesisAgingState, ThesisDecayProfile, age_thesis
+
         # Build a profile with a very short half-life so confidence drops fast
         profile = ThesisDecayProfile(
             half_life_seconds=10.0,
@@ -473,7 +538,8 @@ class TestAgeThesisExpiry:
         assert hyp.confidence == pytest.approx(0.0)
 
     def test_expires_when_max_age_exceeded(self):
-        from trainer.qde.brain.thesis import age_thesis, ThesisDecayProfile, ThesisAgingState
+        from trainer.qde.brain.thesis import ThesisAgingState, ThesisDecayProfile, age_thesis
+
         profile = ThesisDecayProfile(
             half_life_seconds=1800.0,
             max_age_seconds=900.0,  # hard expiry at 15 min
@@ -495,16 +561,22 @@ class TestAgeThesisExpiry:
         assert hyp.status == HypothesisStatus.EXPIRED
 
     def test_expired_result_confidence_is_zero(self):
-        from trainer.qde.brain.thesis import age_thesis, ThesisDecayProfile, ThesisAgingState
+        from trainer.qde.brain.thesis import ThesisAgingState, ThesisDecayProfile, age_thesis
+
         profile = ThesisDecayProfile(
-            half_life_seconds=10.0, max_age_seconds=900.0,
-            expiry_threshold=0.05, min_decay_interval_seconds=5.0,
+            half_life_seconds=10.0,
+            max_age_seconds=900.0,
+            expiry_threshold=0.05,
+            min_decay_interval_seconds=5.0,
         )
         hyp = _hyp(confidence=0.06, created_at=_T0)
         st = ThesisAgingState(
-            hypothesis_id=hyp.hypothesis_id, instrument=hyp.instrument,
-            created_at=hyp.created_at, decay_profile=profile,
-            last_confirmation_at=_T0, last_decayed_at=_T0 - 600,
+            hypothesis_id=hyp.hypothesis_id,
+            instrument=hyp.instrument,
+            created_at=hyp.created_at,
+            decay_profile=profile,
+            last_confirmation_at=_T0,
+            last_decayed_at=_T0 - 600,
         )
         result = age_thesis(hyp, st, now=_T0 + 100)
         assert result.confidence_after == pytest.approx(0.0)
@@ -518,6 +590,7 @@ class TestAgeThesisExpiry:
 class TestExpireThesis:
     def test_forces_expired_status(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(confidence=0.7)
         st = _state(hyp)
         expire_thesis(hyp, st, reason="test expiry", now=_T0 + 100)
@@ -525,6 +598,7 @@ class TestExpireThesis:
 
     def test_sets_confidence_to_zero(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(confidence=0.8)
         st = _state(hyp)
         expire_thesis(hyp, st, now=_T0 + 100)
@@ -532,6 +606,7 @@ class TestExpireThesis:
 
     def test_sets_state_is_expired(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
         expire_thesis(hyp, st, now=_T0 + 100)
@@ -539,7 +614,8 @@ class TestExpireThesis:
         assert st.expired_at is not None
 
     def test_records_force_expire_event(self):
-        from trainer.qde.brain.thesis import expire_thesis, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, expire_thesis
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
         expire_thesis(hyp, st, reason="test", now=_T0 + 100)
@@ -548,18 +624,22 @@ class TestExpireThesis:
 
     def test_idempotent_on_already_expired(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(status=HypothesisStatus.EXPIRED, confidence=0.0)
         st = _state(hyp)
         expire_thesis(hyp, st, reason="first", now=_T0 + 100)
         expire_thesis(hyp, st, reason="second", now=_T0 + 200)
         # Only one expiry event recorded
         from trainer.qde.brain.thesis import ThesisEventType
-        expiry_events = [e for e in st.invalidation_events
-                         if e.event_type == ThesisEventType.FORCE_EXPIRE]
+
+        expiry_events = [
+            e for e in st.invalidation_events if e.event_type == ThesisEventType.FORCE_EXPIRE
+        ]
         assert len(expiry_events) == 0  # already terminal at first call
 
     def test_idempotent_on_invalidated(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(status=HypothesisStatus.INVALIDATED, confidence=0.0)
         st = _state(hyp)
         before_len = len(st.invalidation_events)
@@ -568,6 +648,7 @@ class TestExpireThesis:
 
     def test_appends_aging_record(self):
         from trainer.qde.brain.thesis import expire_thesis
+
         hyp = _hyp(confidence=0.6)
         st = _state(hyp)
         expire_thesis(hyp, st, now=_T0 + 100)
@@ -581,111 +662,141 @@ class TestExpireThesis:
 
 class TestUpdateConfidence:
     def test_confirmation_increases_confidence(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=0.15,
-                          event_type=ThesisEventType.CONFIRMATION,
-                          evidence="new high", now=_T0 + 100)
+        update_confidence(
+            hyp,
+            st,
+            delta=0.15,
+            event_type=ThesisEventType.CONFIRMATION,
+            evidence="new high",
+            now=_T0 + 100,
+        )
         assert hyp.confidence == pytest.approx(0.65)
 
     def test_invalidation_decreases_confidence(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=-0.2,
-                          event_type=ThesisEventType.INVALIDATION,
-                          evidence="rejection", now=_T0 + 100)
+        update_confidence(
+            hyp,
+            st,
+            delta=-0.2,
+            event_type=ThesisEventType.INVALIDATION,
+            evidence="rejection",
+            now=_T0 + 100,
+        )
         assert hyp.confidence == pytest.approx(0.3)
 
     def test_confirmation_resets_decay_clock(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
         st.last_confirmation_at = _T0  # old clock
         now = _T0 + 3600
-        update_confidence(hyp, st, delta=0.1,
-                          event_type=ThesisEventType.CONFIRMATION, now=now)
+        update_confidence(hyp, st, delta=0.1, event_type=ThesisEventType.CONFIRMATION, now=now)
         assert st.last_confirmation_at == pytest.approx(now)
 
     def test_invalidation_does_not_reset_clock(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
         st.last_confirmation_at = _T0  # set clock at T0
-        update_confidence(hyp, st, delta=-0.1,
-                          event_type=ThesisEventType.INVALIDATION, now=_T0 + 3600)
+        update_confidence(
+            hyp, st, delta=-0.1, event_type=ThesisEventType.INVALIDATION, now=_T0 + 3600
+        )
         assert st.last_confirmation_at == pytest.approx(_T0)  # unchanged
 
     def test_confidence_clamped_to_one(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.9)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=0.5,
-                          event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
+        update_confidence(hyp, st, delta=0.5, event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
         assert hyp.confidence <= 1.0
 
     def test_confidence_clamped_to_zero(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.1)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=-0.5,
-                          event_type=ThesisEventType.INVALIDATION, now=_T0 + 10)
+        update_confidence(
+            hyp, st, delta=-0.5, event_type=ThesisEventType.INVALIDATION, now=_T0 + 10
+        )
         assert hyp.confidence >= 0.0
 
     def test_confirmation_recorded_in_confirmation_events(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=0.1,
-                          event_type=ThesisEventType.CONFIRMATION,
-                          evidence="breakout confirmed", now=_T0 + 10)
+        update_confidence(
+            hyp,
+            st,
+            delta=0.1,
+            event_type=ThesisEventType.CONFIRMATION,
+            evidence="breakout confirmed",
+            now=_T0 + 10,
+        )
         assert st.confirmation_count == 1
         assert st.confirmation_events[0].evidence == "breakout confirmed"
 
     def test_invalidation_recorded_in_invalidation_events(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=-0.1,
-                          event_type=ThesisEventType.INVALIDATION,
-                          evidence="reversal", now=_T0 + 10)
+        update_confidence(
+            hyp,
+            st,
+            delta=-0.1,
+            event_type=ThesisEventType.INVALIDATION,
+            evidence="reversal",
+            now=_T0 + 10,
+        )
         assert st.invalidation_count == 1
         assert st.invalidation_events[0].evidence == "reversal"
 
     def test_auto_expires_when_confidence_below_threshold(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.12)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=-0.1,
-                          event_type=ThesisEventType.INVALIDATION, now=_T0 + 10)
+        update_confidence(
+            hyp, st, delta=-0.1, event_type=ThesisEventType.INVALIDATION, now=_T0 + 10
+        )
         # 0.12 - 0.1 = 0.02 < DEFAULT_EXPIRY_THRESHOLD (0.08)
         assert hyp.status == HypothesisStatus.EXPIRED
 
     def test_no_op_on_terminal(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(status=HypothesisStatus.EXPIRED, confidence=0.0)
         st = _state(hyp)
         before_count = st.confirmation_count
-        update_confidence(hyp, st, delta=0.5,
-                          event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
+        update_confidence(hyp, st, delta=0.5, event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
         assert st.confirmation_count == before_count
         assert hyp.confidence == pytest.approx(0.0)
 
     def test_appends_aging_record(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=0.1,
-                          event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
+        update_confidence(hyp, st, delta=0.1, event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
         assert len(st.aging_history) >= 1
 
     def test_event_delta_property(self):
-        from trainer.qde.brain.thesis import update_confidence, ThesisEventType
+        from trainer.qde.brain.thesis import ThesisEventType, update_confidence
+
         hyp = _hyp(confidence=0.5)
         st = _state(hyp)
-        update_confidence(hyp, st, delta=0.2,
-                          event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
+        update_confidence(hyp, st, delta=0.2, event_type=ThesisEventType.CONFIRMATION, now=_T0 + 10)
         ev = st.confirmation_events[-1]
         assert ev.delta == pytest.approx(0.2, abs=1e-4)
 
@@ -698,6 +809,7 @@ class TestUpdateConfidence:
 class TestThesisAgingEngine:
     def test_register_creates_state(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp()
         state = engine.register(hyp, "SCALP")
@@ -706,6 +818,7 @@ class TestThesisAgingEngine:
 
     def test_register_idempotent(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp()
         s1 = engine.register(hyp, "SCALP")
@@ -714,6 +827,7 @@ class TestThesisAgingEngine:
 
     def test_drop_removes_state(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp()
         engine.register(hyp, "INTRADAY")
@@ -722,16 +836,19 @@ class TestThesisAgingEngine:
 
     def test_drop_unknown_id_is_safe(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         engine.drop("nonexistent-id")  # should not raise
 
     def test_state_for_unknown_returns_none(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         assert engine.state_for("bogus") is None
 
     def test_age_thesis_auto_registers(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp(created_at=_T0)
         result = engine.age_thesis(hyp, now=_T0 + 7200)
@@ -740,6 +857,7 @@ class TestThesisAgingEngine:
 
     def test_expire_thesis_delegates(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.7)
         engine.register(hyp, "INTRADAY")
@@ -748,16 +866,22 @@ class TestThesisAgingEngine:
 
     def test_update_confidence_delegates(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine, ThesisEventType
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.5)
         engine.register(hyp, "INTRADAY")
-        engine.update_confidence(hyp, delta=0.1,
-                                 event_type=ThesisEventType.CONFIRMATION,
-                                 evidence="confirm", now=_T0 + 100)
+        engine.update_confidence(
+            hyp,
+            delta=0.1,
+            event_type=ThesisEventType.CONFIRMATION,
+            evidence="confirm",
+            now=_T0 + 100,
+        )
         assert hyp.confidence == pytest.approx(0.6)
 
     def test_age_all_skips_terminal(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         h_active = _hyp(confidence=0.6, created_at=_T0)
         h_expired = _hyp(status=HypothesisStatus.EXPIRED, confidence=0.0, created_at=_T0)
@@ -771,18 +895,18 @@ class TestThesisAgingEngine:
         assert h_expired.hypothesis_id not in ids
 
     def test_age_all_uses_opp_class_fn(self):
-        from trainer.qde.brain.thesis import ThesisAgingEngine, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.6, created_at=_T0)
         hypotheses = {hyp.hypothesis_id: hyp}
-        engine.age_all(hypotheses,
-                       opp_class_fn=lambda h: "MICRO_SCALP",
-                       now=_T0 + 7200)
+        engine.age_all(hypotheses, opp_class_fn=lambda h: "MICRO_SCALP", now=_T0 + 7200)
         state = engine.state_for(hyp.hypothesis_id)
         assert state.decay_profile == DEFAULT_DECAY_PROFILES["MICRO_SCALP"]
 
     def test_summary_returns_counts(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         h1, h2 = _hyp(), _hyp()
         engine.register(h1, "SCALP")
@@ -807,7 +931,12 @@ class TestBehavioral:
         invariant is that each confirmation resets the decay clock, so
         confidence should remain well above the expiry threshold.
         """
-        from trainer.qde.brain.thesis import ThesisAgingEngine, ThesisEventType, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import (
+            DEFAULT_DECAY_PROFILES,
+            ThesisAgingEngine,
+            ThesisEventType,
+        )
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.7, created_at=_T0)
         engine.register(hyp, "MULTI_SESSION")  # max_age = 3 days → safe for 4-hour sim
@@ -817,9 +946,13 @@ class TestBehavioral:
         # Simulate 4 hours with a confirmation every 30 minutes
         for _ in range(8):
             t += 1800.0
-            engine.update_confidence(hyp, delta=0.05,
-                                     event_type=ThesisEventType.CONFIRMATION,
-                                     evidence="30-min confirm", now=t)
+            engine.update_confidence(
+                hyp,
+                delta=0.05,
+                event_type=ThesisEventType.CONFIRMATION,
+                evidence="30-min confirm",
+                now=t,
+            )
             engine.age_thesis(hyp, now=t + min_iv + 1)
 
         assert hyp.status != HypothesisStatus.EXPIRED
@@ -827,7 +960,8 @@ class TestBehavioral:
 
     def test_no_confirmations_decays_to_expiry_micro_scalp(self):
         """A MICRO_SCALP thesis with no confirmation should expire within its window."""
-        from trainer.qde.brain.thesis import ThesisAgingEngine, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.5, created_at=_T0)
         engine.register(hyp, "MICRO_SCALP")
@@ -848,7 +982,8 @@ class TestBehavioral:
 
     def test_micro_scalp_decays_faster_than_swing(self):
         """Same elapsed time → MICRO_SCALP loses more confidence than SWING."""
-        from trainer.qde.brain.thesis import age_thesis, ThesisAgingState, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, ThesisAgingState, age_thesis
+
         elapsed = 600.0  # 10 minutes
 
         hyp_micro = _hyp(confidence=0.8, created_at=_T0)
@@ -873,15 +1008,16 @@ class TestBehavioral:
 
         now = _T0 + elapsed
         res_micro = age_thesis(hyp_micro, state_micro, now=now)
-        res_swing  = age_thesis(hyp_swing, state_swing, now=now)
+        res_swing = age_thesis(hyp_swing, state_swing, now=now)
 
         if res_micro.decay_applied and res_swing.decay_applied:
-            assert res_micro.confidence_after < res_swing.confidence_after, (
-                "MICRO_SCALP should decay faster than SWING over the same elapsed time"
-            )
+            assert (
+                res_micro.confidence_after < res_swing.confidence_after
+            ), "MICRO_SCALP should decay faster than SWING over the same elapsed time"
 
     def test_history_grows_with_each_tick(self):
         from trainer.qde.brain.thesis import ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         hyp = _hyp(confidence=0.8, created_at=_T0)
         engine.register(hyp, "INTRADAY")
@@ -894,7 +1030,8 @@ class TestBehavioral:
         assert len(state.aging_history) >= 3  # at least a few records
 
     def test_all_five_classes_can_be_registered(self):
-        from trainer.qde.brain.thesis import ThesisAgingEngine, DEFAULT_DECAY_PROFILES
+        from trainer.qde.brain.thesis import DEFAULT_DECAY_PROFILES, ThesisAgingEngine
+
         engine = ThesisAgingEngine()
         for cls in DEFAULT_DECAY_PROFILES:
             hyp = _hyp()
@@ -911,11 +1048,19 @@ class TestBehavioral:
 class TestPackageExports:
     def test_all_c12_symbols_exported(self):
         import trainer.qde.brain.thesis as pkg
+
         required = [
-            "ThesisEventType", "ThesisEvent", "ThesisDecayProfile",
-            "DEFAULT_DECAY_PROFILES", "profile_for_class",
-            "AgingRecord", "ThesisAgingState", "ThesisAgingResult",
-            "age_thesis", "expire_thesis", "update_confidence",
+            "ThesisEventType",
+            "ThesisEvent",
+            "ThesisDecayProfile",
+            "DEFAULT_DECAY_PROFILES",
+            "profile_for_class",
+            "AgingRecord",
+            "ThesisAgingState",
+            "ThesisAgingResult",
+            "age_thesis",
+            "expire_thesis",
+            "update_confidence",
             "ThesisAgingEngine",
         ]
         for name in required:
@@ -923,13 +1068,20 @@ class TestPackageExports:
 
     def test_all_in_dunder_all(self):
         import trainer.qde.brain.thesis as pkg
-        for name in ["age_thesis", "expire_thesis", "update_confidence",
-                     "ThesisAgingEngine", "ThesisDecayProfile",
-                     "DEFAULT_DECAY_PROFILES"]:
+
+        for name in [
+            "age_thesis",
+            "expire_thesis",
+            "update_confidence",
+            "ThesisAgingEngine",
+            "ThesisDecayProfile",
+            "DEFAULT_DECAY_PROFILES",
+        ]:
             assert name in pkg.__all__, f"{name} not in __all__"
 
     def test_three_callables_are_callable(self):
         from trainer.qde.brain.thesis import age_thesis, expire_thesis, update_confidence
+
         assert callable(age_thesis)
         assert callable(expire_thesis)
         assert callable(update_confidence)

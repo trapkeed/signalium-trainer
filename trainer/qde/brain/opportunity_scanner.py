@@ -64,10 +64,10 @@ class OpportunitySignals:
     # ── C10: four new attention factors ──────────────────────────────────────
     # Populated by signal_enricher.enrich_signals(); remain 0.0 when the
     # caller does not supply an ExtendedSignalContext.
-    volume_anomaly: float = 0.0       # unusual volume vs recent baseline
+    volume_anomaly: float = 0.0  # unusual volume vs recent baseline
     key_level_proximity: float = 0.0  # price closeness to a structural level
-    spread_change: float = 0.0        # spread widening/narrowing signal
-    failed_move: float = 0.0          # recent failed breakout or rejection
+    spread_change: float = 0.0  # spread widening/narrowing signal
+    failed_move: float = 0.0  # recent failed breakout or rejection
 
     def to_dict(self) -> dict:
         return {

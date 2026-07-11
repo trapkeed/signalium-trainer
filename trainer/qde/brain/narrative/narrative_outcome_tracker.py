@@ -50,15 +50,16 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.narrative.narrative_store import NarrativeKind
 
 # ── Hyper-parameters ──────────────────────────────────────────────────────────
 
-_EMA_ALPHA           = 0.15    # smoothing for win_rate / avg_reward EMA
-_MAX_RECORDS_PER_KEY = 500     # per (instrument, kind) history depth
-_GLOBAL_MAX_RECORDS  = 2000    # global cap across all records
+_EMA_ALPHA = 0.15  # smoothing for win_rate / avg_reward EMA
+_MAX_RECORDS_PER_KEY = 500  # per (instrument, kind) history depth
+_GLOBAL_MAX_RECORDS = 2000  # global cap across all records
 
 
 # ── Data models ───────────────────────────────────────────────────────────────
@@ -79,48 +80,46 @@ class NarrativeOutcomeRecord:
     ``resolution_bars``     — Bars until resolution (informational).
     """
 
-    record_id:              str          = field(
-        default_factory=lambda: str(uuid.uuid4())[:12]
-    )
-    narrative_id:           str          = ""
-    kind:                   NarrativeKind = NarrativeKind.TREND_CONTINUATION
-    instrument:             str          = ""
-    direction:              int          = 0        # +1 / -1 / 0
-    price_at_establishment: float        = 0.0
-    established_at:         float        = field(default_factory=time.time)
-    resolved:               bool         = False
-    direction_correct:      bool         = False
-    reward_normalized:      float        = 0.0
-    resolution_bars:        int          = 0
-    resolved_at:            float        = 0.0
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    narrative_id: str = ""
+    kind: NarrativeKind = NarrativeKind.TREND_CONTINUATION
+    instrument: str = ""
+    direction: int = 0  # +1 / -1 / 0
+    price_at_establishment: float = 0.0
+    established_at: float = field(default_factory=time.time)
+    resolved: bool = False
+    direction_correct: bool = False
+    reward_normalized: float = 0.0
+    resolution_bars: int = 0
+    resolved_at: float = 0.0
 
     def resolve(
         self,
         direction_correct: bool,
         reward_normalized: float,
-        resolution_bars:   int   = 0,
-        now:               float | None = None,
+        resolution_bars: int = 0,
+        now: float | None = None,
     ) -> None:
-        self.resolved          = True
+        self.resolved = True
         self.direction_correct = direction_correct
         self.reward_normalized = max(-1.0, min(1.0, reward_normalized))
-        self.resolution_bars   = resolution_bars
-        self.resolved_at       = now if now is not None else time.time()
+        self.resolution_bars = resolution_bars
+        self.resolved_at = now if now is not None else time.time()
 
     def to_dict(self) -> dict:
         return {
-            "record_id":              self.record_id,
-            "narrative_id":           self.narrative_id,
-            "kind":                   self.kind.value,
-            "instrument":             self.instrument,
-            "direction":              self.direction,
+            "record_id": self.record_id,
+            "narrative_id": self.narrative_id,
+            "kind": self.kind.value,
+            "instrument": self.instrument,
+            "direction": self.direction,
             "price_at_establishment": round(self.price_at_establishment, 6),
-            "established_at":         round(self.established_at, 3),
-            "resolved":               self.resolved,
-            "direction_correct":      self.direction_correct,
-            "reward_normalized":      round(self.reward_normalized, 4),
-            "resolution_bars":        self.resolution_bars,
-            "resolved_at":            round(self.resolved_at, 3),
+            "established_at": round(self.established_at, 3),
+            "resolved": self.resolved,
+            "direction_correct": self.direction_correct,
+            "reward_normalized": round(self.reward_normalized, 4),
+            "resolution_bars": self.resolution_bars,
+            "resolved_at": round(self.resolved_at, 3),
         }
 
     @classmethod
@@ -153,23 +152,23 @@ class NarrativeQualityScore:
                            Higher = both accurate and well-calibrated.
     """
 
-    kind:             NarrativeKind
-    instrument:       str   = ""    # "" = global across all instruments
-    win_rate:         float = 0.50
-    avg_reward:       float = 0.0
+    kind: NarrativeKind
+    instrument: str = ""  # "" = global across all instruments
+    win_rate: float = 0.50
+    avg_reward: float = 0.0
     calibration_bias: float = 0.0
-    sample_count:     int   = 0
-    reliability:      float = 0.50
+    sample_count: int = 0
+    reliability: float = 0.50
 
     def to_dict(self) -> dict:
         return {
-            "kind":             self.kind.value,
-            "instrument":       self.instrument,
-            "win_rate":         round(self.win_rate, 4),
-            "avg_reward":       round(self.avg_reward, 4),
+            "kind": self.kind.value,
+            "instrument": self.instrument,
+            "win_rate": round(self.win_rate, 4),
+            "avg_reward": round(self.avg_reward, 4),
             "calibration_bias": round(self.calibration_bias, 4),
-            "sample_count":     self.sample_count,
-            "reliability":      round(self.reliability, 4),
+            "sample_count": self.sample_count,
+            "reliability": round(self.reliability, 4),
         }
 
 
@@ -186,12 +185,12 @@ class NarrativeOutcomeTracker:
 
     def __init__(
         self,
-        ema_alpha:      float = _EMA_ALPHA,
-        max_per_key:    int   = _MAX_RECORDS_PER_KEY,
-        global_max:     int   = _GLOBAL_MAX_RECORDS,
+        ema_alpha: float = _EMA_ALPHA,
+        max_per_key: int = _MAX_RECORDS_PER_KEY,
+        global_max: int = _GLOBAL_MAX_RECORDS,
     ) -> None:
-        self._alpha      = ema_alpha
-        self._max        = max_per_key
+        self._alpha = ema_alpha
+        self._max = max_per_key
         self._global_max = global_max
 
         # (instrument, kind.value) → deque[NarrativeOutcomeRecord]
@@ -213,12 +212,12 @@ class NarrativeOutcomeTracker:
 
     def record_establishment(
         self,
-        narrative_id:           str,
-        kind:                   NarrativeKind,
-        instrument:             str,
-        direction:              int   = 0,
+        narrative_id: str,
+        kind: NarrativeKind,
+        instrument: str,
+        direction: int = 0,
         price_at_establishment: float = 0.0,
-        now:                    float | None = None,
+        now: float | None = None,
     ) -> NarrativeOutcomeRecord:
         """Open a new outcome record when a narrative reaches ESTABLISHED.
 
@@ -242,7 +241,7 @@ class NarrativeOutcomeTracker:
         key = (instrument, kind.value)
         self._records[key].append(rec)
         self._by_id[rec.record_id] = rec
-        self._by_id[narrative_id]  = rec   # also index by narrative_id
+        self._by_id[narrative_id] = rec  # also index by narrative_id
 
         logger.debug(
             f"[OutcomeTracker] opened record {rec.record_id} "
@@ -252,11 +251,11 @@ class NarrativeOutcomeTracker:
 
     def record_outcome(
         self,
-        narrative_id:      str,
+        narrative_id: str,
         direction_correct: bool,
         reward_normalized: float,
-        resolution_bars:   int   = 0,
-        now:               float | None = None,
+        resolution_bars: int = 0,
+        now: float | None = None,
     ) -> bool:
         """Resolve an open outcome record.
 
@@ -289,19 +288,19 @@ class NarrativeOutcomeTracker:
     def quality_score(
         self,
         instrument: str,
-        kind:       NarrativeKind,
+        kind: NarrativeKind,
     ) -> NarrativeQualityScore:
         """Quality score for a specific instrument + kind pair.
 
         Returns a default score (win_rate=0.5) when no resolved records exist.
         """
-        key  = (instrument, kind.value)
-        ema  = self._ema[key]
-        n    = ema["n"]
-        win  = ema["win"]
-        rw   = ema["reward"]
+        key = (instrument, kind.value)
+        ema = self._ema[key]
+        n = ema["n"]
+        win = ema["win"]
+        rw = ema["reward"]
         bias = ema["bias_sum"] / max(1, n)
-        rel  = win * max(0.0, 1.0 - abs(bias) * 2.0)
+        rel = win * max(0.0, 1.0 - abs(bias) * 2.0)
         return NarrativeQualityScore(
             kind=kind,
             instrument=instrument,
@@ -331,8 +330,8 @@ class NarrativeOutcomeTracker:
     def resolved_records(
         self,
         instrument: str,
-        kind:       NarrativeKind,
-        n:          int = 20,
+        kind: NarrativeKind,
+        n: int = 20,
     ) -> list[NarrativeOutcomeRecord]:
         """Most recent resolved records (newest last)."""
         key = (instrument, kind.value)
@@ -347,9 +346,7 @@ class NarrativeOutcomeTracker:
                 records_out.append(r.to_dict())
         return {
             "records": records_out,
-            "ema":     {
-                f"{k[0]}|{k[1]}": v for k, v in self._ema.items()
-            },
+            "ema": {f"{k[0]}|{k[1]}": v for k, v in self._ema.items()},
         }
 
     def load_snapshot(self, data: dict) -> None:
@@ -364,7 +361,7 @@ class NarrativeOutcomeTracker:
                 if key not in self._records:
                     self._records[key] = deque(maxlen=self._max)
                 self._records[key].append(rec)
-                self._by_id[rec.record_id]    = rec
+                self._by_id[rec.record_id] = rec
                 self._by_id[rec.narrative_id] = rec
             except Exception:
                 pass
@@ -374,9 +371,9 @@ class NarrativeOutcomeTracker:
                 parts = composite_key.split("|", 1)
                 k = (parts[0], parts[1])
                 self._ema[k] = {
-                    "win":      float(v.get("win", 0.5)),
-                    "reward":   float(v.get("reward", 0.0)),
-                    "n":        int(v.get("n", 0)),
+                    "win": float(v.get("win", 0.5)),
+                    "reward": float(v.get("reward", 0.0)),
+                    "n": int(v.get("n", 0)),
                     "bias_sum": float(v.get("bias_sum", 0.0)),
                 }
             except Exception:
@@ -384,15 +381,13 @@ class NarrativeOutcomeTracker:
 
     # ── Internal ──────────────────────────────────────────────────────────
 
-    def _update_ema(
-        self, key: tuple[str, str], direction_correct: bool, reward: float
-    ) -> None:
+    def _update_ema(self, key: tuple[str, str], direction_correct: bool, reward: float) -> None:
         """EMA-update the quality state for ``key``."""
         state = self._ema[key]
-        a     = self._alpha
-        state["win"]      = (1 - a) * state["win"]      + a * (1.0 if direction_correct else 0.0)
-        state["reward"]   = (1 - a) * state["reward"]   + a * reward
-        state["n"]        += 1
+        a = self._alpha
+        state["win"] = (1 - a) * state["win"] + a * (1.0 if direction_correct else 0.0)
+        state["reward"] = (1 - a) * state["reward"] + a * reward
+        state["n"] += 1
         state["bias_sum"] += (1.0 if direction_correct else 0.0) - 0.5
 
 

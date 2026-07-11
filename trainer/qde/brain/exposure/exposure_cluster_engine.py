@@ -63,7 +63,6 @@ Design rules
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -86,13 +85,13 @@ _CORRELATION_TAG_GROUPS = [
 ]
 _FOREX_MAJOR_GROUP = "forex_major"
 _FOREX_CROSS_GROUP = "forex_cross"
-_UNCORRELATED      = "uncorrelated"
+_UNCORRELATED = "uncorrelated"
 
 # Composite concentration weights for the four dimensions.
-_W_CURRENCY     = 0.35
-_W_SECTOR       = 0.20
-_W_CORRELATION  = 0.30
-_W_REGIONAL     = 0.15
+_W_CURRENCY = 0.35
+_W_SECTOR = 0.20
+_W_CORRELATION = 0.30
+_W_REGIONAL = 0.15
 
 assert abs(_W_CURRENCY + _W_SECTOR + _W_CORRELATION + _W_REGIONAL - 1.0) < 1e-9
 
@@ -129,8 +128,8 @@ def _correlation_group(info: InstrumentInfo) -> str:
 
 def _pairwise_corr_concentration(
     instruments: list[str],
-    weights:     list[float],
-    matrix:      "CorrelationMatrix",
+    weights: list[float],
+    matrix: "CorrelationMatrix",
 ) -> float:
     """Average |pairwise correlation| weighted by position sizes.
 
@@ -148,7 +147,7 @@ def _pairwise_corr_concentration(
             pair_w = abs(weights[i]) * abs(weights[j])
             rho = abs(matrix.get(instruments[i], instruments[j]))
             weighted_corr += pair_w * rho
-            total_weight  += pair_w
+            total_weight += pair_w
     return weighted_corr / max(total_weight, 1e-12)
 
 
@@ -169,9 +168,9 @@ class PositionExposure:
     short EURUSD gives EUR −weight, USD +weight.
     """
 
-    instrument: str   = ""
-    direction:  int   = 1     # +1 long, −1 short
-    weight:     float = 0.0   # 0-1 fraction of portfolio notional
+    instrument: str = ""
+    direction: int = 1  # +1 long, −1 short
+    weight: float = 0.0  # 0-1 fraction of portfolio notional
 
     def signed_weight(self) -> float:
         return self.direction * self.weight
@@ -179,8 +178,8 @@ class PositionExposure:
     def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
-            "direction":  self.direction,
-            "weight":     round(self.weight, 4),
+            "direction": self.direction,
+            "weight": round(self.weight, 4),
         }
 
 
@@ -204,45 +203,47 @@ class ExposureCluster:
     """
 
     # ── Currency dimension ─────────────────────────────────────────────────
-    currency_concentrations:   dict = field(default_factory=dict)  # {currency: net}
-    currency_hhi:              float = 0.0
-    max_single_currency_abs:   float = 0.0   # largest |net| currency exposure
-    dominant_currency:         str   = ""
+    currency_concentrations: dict = field(default_factory=dict)  # {currency: net}
+    currency_hhi: float = 0.0
+    max_single_currency_abs: float = 0.0  # largest |net| currency exposure
+    dominant_currency: str = ""
 
     # ── Sector / asset-class dimension ────────────────────────────────────
-    sector_concentrations:     dict = field(default_factory=dict)  # {sector: net}
-    sector_hhi:                float = 0.0
+    sector_concentrations: dict = field(default_factory=dict)  # {sector: net}
+    sector_hhi: float = 0.0
 
     # ── Structural correlation dimension ──────────────────────────────────
-    correlation_groups:        dict = field(default_factory=dict)  # {group: net}
+    correlation_groups: dict = field(default_factory=dict)  # {group: net}
     correlation_concentration: float = 0.0
 
     # ── Regional / macro dimension ────────────────────────────────────────
-    regional_concentrations:   dict = field(default_factory=dict)  # {region: net}
-    regional_hhi:              float = 0.0
+    regional_concentrations: dict = field(default_factory=dict)  # {region: net}
+    regional_hhi: float = 0.0
 
     # ── Summary ───────────────────────────────────────────────────────────
-    composite_concentration:   float = 0.0
-    n_positions:               int   = 0
+    composite_concentration: float = 0.0
+    n_positions: int = 0
 
     def to_dict(self) -> dict:
         return {
-            "currency_concentrations":   {k: round(v, 4)
-                                          for k, v in self.currency_concentrations.items()},
-            "currency_hhi":              round(self.currency_hhi, 4),
-            "max_single_currency_abs":   round(self.max_single_currency_abs, 4),
-            "dominant_currency":         self.dominant_currency,
-            "sector_concentrations":     {k: round(v, 4)
-                                          for k, v in self.sector_concentrations.items()},
-            "sector_hhi":                round(self.sector_hhi, 4),
-            "correlation_groups":        {k: round(v, 4)
-                                          for k, v in self.correlation_groups.items()},
+            "currency_concentrations": {
+                k: round(v, 4) for k, v in self.currency_concentrations.items()
+            },
+            "currency_hhi": round(self.currency_hhi, 4),
+            "max_single_currency_abs": round(self.max_single_currency_abs, 4),
+            "dominant_currency": self.dominant_currency,
+            "sector_concentrations": {
+                k: round(v, 4) for k, v in self.sector_concentrations.items()
+            },
+            "sector_hhi": round(self.sector_hhi, 4),
+            "correlation_groups": {k: round(v, 4) for k, v in self.correlation_groups.items()},
             "correlation_concentration": round(self.correlation_concentration, 4),
-            "regional_concentrations":   {k: round(v, 4)
-                                          for k, v in self.regional_concentrations.items()},
-            "regional_hhi":              round(self.regional_hhi, 4),
-            "composite_concentration":   round(self.composite_concentration, 4),
-            "n_positions":               self.n_positions,
+            "regional_concentrations": {
+                k: round(v, 4) for k, v in self.regional_concentrations.items()
+            },
+            "regional_hhi": round(self.regional_hhi, 4),
+            "composite_concentration": round(self.composite_concentration, 4),
+            "n_positions": self.n_positions,
         }
 
 
@@ -267,7 +268,7 @@ class ExposureClusterEngine:
 
     def compute(
         self,
-        positions:   list[PositionExposure],
+        positions: list[PositionExposure],
         corr_matrix: "CorrelationMatrix | None" = None,
     ) -> ExposureCluster:
         """Compute the four concentration dimensions for a position set.
@@ -285,13 +286,13 @@ class ExposureClusterEngine:
             return ExposureCluster(n_positions=len(positions))
 
         # ── Accumulate per-dimension net exposures ────────────────────────
-        currency_net:  dict[str, float] = {}
-        sector_net:    dict[str, float] = {}
-        corr_net:      dict[str, float] = {}
-        regional_net:  dict[str, float] = {}
+        currency_net: dict[str, float] = {}
+        sector_net: dict[str, float] = {}
+        corr_net: dict[str, float] = {}
+        regional_net: dict[str, float] = {}
 
-        corr_instruments: list[str]   = []
-        corr_weights:     list[float] = []
+        corr_instruments: list[str] = []
+        corr_weights: list[float] = []
 
         for pos in positions:
             info = self._registry.get(pos.instrument)
@@ -321,22 +322,20 @@ class ExposureClusterEngine:
 
         # ── Concentration HHIs ────────────────────────────────────────────
         currency_hhi = _hhi(currency_net)
-        sector_hhi   = _hhi(sector_net)
+        sector_hhi = _hhi(sector_net)
         regional_hhi = _hhi(regional_net)
 
         # Correlation: prefer live matrix over structural grouping
         if corr_matrix is not None and len(corr_instruments) >= 2:
-            corr_conc = _pairwise_corr_concentration(
-                corr_instruments, corr_weights, corr_matrix
-            )
+            corr_conc = _pairwise_corr_concentration(corr_instruments, corr_weights, corr_matrix)
         else:
             corr_conc = _hhi(corr_net)
 
         composite = (
-            _W_CURRENCY    * currency_hhi
-            + _W_SECTOR    * sector_hhi
+            _W_CURRENCY * currency_hhi
+            + _W_SECTOR * sector_hhi
             + _W_CORRELATION * corr_conc
-            + _W_REGIONAL  * regional_hhi
+            + _W_REGIONAL * regional_hhi
         )
 
         # Dominant currency
@@ -364,9 +363,9 @@ class ExposureClusterEngine:
 
     def marginal(
         self,
-        candidate:          PositionExposure,
-        current_positions:  list[PositionExposure],
-        corr_matrix:        "CorrelationMatrix | None" = None,
+        candidate: PositionExposure,
+        current_positions: list[PositionExposure],
+        corr_matrix: "CorrelationMatrix | None" = None,
     ) -> tuple[ExposureCluster, ExposureCluster]:
         """Return (cluster_before, cluster_after) for a candidate trade.
 
@@ -374,14 +373,14 @@ class ExposureClusterEngine:
         cost of adding this trade to the portfolio.
         """
         before = self.compute(current_positions, corr_matrix=corr_matrix)
-        after  = self.compute(current_positions + [candidate], corr_matrix=corr_matrix)
+        after = self.compute(current_positions + [candidate], corr_matrix=corr_matrix)
         return before, after
 
     def marginal_deltas(
         self,
-        candidate:         PositionExposure,
+        candidate: PositionExposure,
         current_positions: list[PositionExposure],
-        corr_matrix:       "CorrelationMatrix | None" = None,
+        corr_matrix: "CorrelationMatrix | None" = None,
     ) -> dict[str, float]:
         """Return a dict of concentration deltas introduced by the candidate.
 
@@ -393,13 +392,15 @@ class ExposureClusterEngine:
         """
         before, after = self.marginal(candidate, current_positions, corr_matrix)
         return {
-            "delta_currency_hhi":  round(after.currency_hhi - before.currency_hhi, 6),
-            "delta_sector_hhi":    round(after.sector_hhi   - before.sector_hhi,   6),
-            "delta_correlation":   round(after.correlation_concentration
-                                         - before.correlation_concentration, 6),
-            "delta_regional_hhi":  round(after.regional_hhi - before.regional_hhi, 6),
-            "delta_composite":     round(after.composite_concentration
-                                         - before.composite_concentration, 6),
+            "delta_currency_hhi": round(after.currency_hhi - before.currency_hhi, 6),
+            "delta_sector_hhi": round(after.sector_hhi - before.sector_hhi, 6),
+            "delta_correlation": round(
+                after.correlation_concentration - before.correlation_concentration, 6
+            ),
+            "delta_regional_hhi": round(after.regional_hhi - before.regional_hhi, 6),
+            "delta_composite": round(
+                after.composite_concentration - before.composite_concentration, 6
+            ),
         }
 
 

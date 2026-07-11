@@ -47,7 +47,6 @@ assumption #5 (learn from incorrect assumptions).
 from __future__ import annotations
 
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -64,21 +63,21 @@ if TYPE_CHECKING:
 class ScenarioType(str, Enum):
     """The kind of counterfactual market scenario."""
 
-    CONTINUATION  = "CONTINUATION"   # primary direction continues
-    REVERSAL      = "REVERSAL"        # primary direction reverses
-    SIDEWAYS      = "SIDEWAYS"        # no clear direction, consolidation
-    ACCELERATION  = "ACCELERATION"   # primary direction, faster/more extreme
-    EXHAUSTION    = "EXHAUSTION"      # primary direction winding down
+    CONTINUATION = "CONTINUATION"  # primary direction continues
+    REVERSAL = "REVERSAL"  # primary direction reverses
+    SIDEWAYS = "SIDEWAYS"  # no clear direction, consolidation
+    ACCELERATION = "ACCELERATION"  # primary direction, faster/more extreme
+    EXHAUSTION = "EXHAUSTION"  # primary direction winding down
 
 
 class FlipTrigger(str, Enum):
     """What caused a thesis flip / switch."""
 
-    EVIDENCE_SHIFT       = "EVIDENCE_SHIFT"        # conflicting evidence piled up
-    UNCERTAINTY_SPIKE    = "UNCERTAINTY_SPIKE"     # uncertainty jumped sharply
-    CONFIDENCE_COLLAPSE  = "CONFIDENCE_COLLAPSE"   # primary confidence fell below floor
-    SECONDARY_DOMINANCE  = "SECONDARY_DOMINANCE"   # secondary consistently stronger
-    FORCED               = "FORCED"                # explicit caller override
+    EVIDENCE_SHIFT = "EVIDENCE_SHIFT"  # conflicting evidence piled up
+    UNCERTAINTY_SPIKE = "UNCERTAINTY_SPIKE"  # uncertainty jumped sharply
+    CONFIDENCE_COLLAPSE = "CONFIDENCE_COLLAPSE"  # primary confidence fell below floor
+    SECONDARY_DOMINANCE = "SECONDARY_DOMINANCE"  # secondary consistently stronger
+    FORCED = "FORCED"  # explicit caller override
 
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
@@ -93,21 +92,21 @@ PRIMARY_CONFIDENCE_FLOOR: float = 0.35
 UNCERTAINTY_SPIKE_DELTA: float = 0.20
 
 # Reversal detection: a flip-back within this many seconds is a reversal
-REVERSAL_WINDOW_SECONDS: float = 300.0   # 5 minutes
+REVERSAL_WINDOW_SECONDS: float = 300.0  # 5 minutes
 
 # Max items stored per event type
-MAX_FLIP_RECORDS:       int = 100
-MAX_REVERSAL_RECORDS:   int = 50
-MAX_SPIKE_RECORDS:      int = 100
+MAX_FLIP_RECORDS: int = 100
+MAX_REVERSAL_RECORDS: int = 50
+MAX_SPIKE_RECORDS: int = 100
 MAX_PROBABILITY_POINTS: int = 500
 
 # Scenario generation weights (prior probability by type before evidence)
 _SCENARIO_BASE_WEIGHTS: dict[ScenarioType, float] = {
-    ScenarioType.CONTINUATION:  0.40,
-    ScenarioType.REVERSAL:      0.25,
-    ScenarioType.SIDEWAYS:      0.15,
-    ScenarioType.ACCELERATION:  0.12,
-    ScenarioType.EXHAUSTION:    0.08,
+    ScenarioType.CONTINUATION: 0.40,
+    ScenarioType.REVERSAL: 0.25,
+    ScenarioType.SIDEWAYS: 0.15,
+    ScenarioType.ACCELERATION: 0.12,
+    ScenarioType.EXHAUSTION: 0.08,
 }
 
 
@@ -125,10 +124,10 @@ class ProbabilityPoint:
     conviction reversals, and uncertainty spikes.
     """
 
-    timestamp:    float
-    primary_p:    float   # Thesis.strength() of the primary thesis
-    secondary_p:  float   # Thesis.strength() of the secondary thesis
-    uncertainty:  float   # composite uncertainty (0-1) at this moment
+    timestamp: float
+    primary_p: float  # Thesis.strength() of the primary thesis
+    secondary_p: float  # Thesis.strength() of the secondary thesis
+    uncertainty: float  # composite uncertainty (0-1) at this moment
 
     @property
     def spread(self) -> float:
@@ -137,11 +136,11 @@ class ProbabilityPoint:
 
     def to_dict(self) -> dict:
         return {
-            "timestamp":   round(self.timestamp, 3),
-            "primary_p":   round(self.primary_p, 4),
+            "timestamp": round(self.timestamp, 3),
+            "primary_p": round(self.primary_p, 4),
             "secondary_p": round(self.secondary_p, 4),
             "uncertainty": round(self.uncertainty, 4),
-            "spread":      round(self.spread, 4),
+            "spread": round(self.spread, 4),
         }
 
 
@@ -163,29 +162,29 @@ class CounterfactualScenario:
     this scenario higher.
     """
 
-    scenario_id:          str
-    scenario_type:        ScenarioType
-    direction:            BeliefDirection     # implied market direction if true
-    trigger_conditions:   list[str]           # market signals confirming this scenario
-    probability_weight:   float               # prior P(this scenario unfolds), 0-1
-    expected_observations: list[str]          # signals to watch for as it develops
-    invalidation_signals: list[str]           # signals that kill this scenario
-    confidence_if_correct: float              # how certain to be if scenario triggers
-    source_evidence:      list[str]           # seeded from these conflicting items
-    created_at:           float
+    scenario_id: str
+    scenario_type: ScenarioType
+    direction: BeliefDirection  # implied market direction if true
+    trigger_conditions: list[str]  # market signals confirming this scenario
+    probability_weight: float  # prior P(this scenario unfolds), 0-1
+    expected_observations: list[str]  # signals to watch for as it develops
+    invalidation_signals: list[str]  # signals that kill this scenario
+    confidence_if_correct: float  # how certain to be if scenario triggers
+    source_evidence: list[str]  # seeded from these conflicting items
+    created_at: float
 
     def to_dict(self) -> dict:
         return {
-            "scenario_id":           self.scenario_id,
-            "scenario_type":         self.scenario_type.value,
-            "direction":             self.direction.value,
-            "trigger_conditions":    self.trigger_conditions,
-            "probability_weight":    round(self.probability_weight, 4),
+            "scenario_id": self.scenario_id,
+            "scenario_type": self.scenario_type.value,
+            "direction": self.direction.value,
+            "trigger_conditions": self.trigger_conditions,
+            "probability_weight": round(self.probability_weight, 4),
             "expected_observations": self.expected_observations,
-            "invalidation_signals":  self.invalidation_signals,
+            "invalidation_signals": self.invalidation_signals,
             "confidence_if_correct": round(self.confidence_if_correct, 4),
-            "source_evidence":       self.source_evidence,
-            "created_at":            round(self.created_at, 3),
+            "source_evidence": self.source_evidence,
+            "created_at": round(self.created_at, 3),
         }
 
 
@@ -205,16 +204,16 @@ class FlipLesson:
     indicating the QDE was slower than it should have been.
     """
 
-    ignored_warnings:              list[str]   # conflicting evidence present before flip
-    key_trigger:                   str         # the final signal that caused the flip
-    time_to_flip:                  float       # seconds from earliest warning to flip
-    could_have_switched_earlier:   bool        # True when warnings ≥ REVERSAL_WINDOW_SECONDS old
+    ignored_warnings: list[str]  # conflicting evidence present before flip
+    key_trigger: str  # the final signal that caused the flip
+    time_to_flip: float  # seconds from earliest warning to flip
+    could_have_switched_earlier: bool  # True when warnings ≥ REVERSAL_WINDOW_SECONDS old
 
     def to_dict(self) -> dict:
         return {
-            "ignored_warnings":            self.ignored_warnings,
-            "key_trigger":                 self.key_trigger,
-            "time_to_flip":                round(self.time_to_flip, 1),
+            "ignored_warnings": self.ignored_warnings,
+            "key_trigger": self.key_trigger,
+            "time_to_flip": round(self.time_to_flip, 1),
             "could_have_switched_earlier": self.could_have_switched_earlier,
         }
 
@@ -232,29 +231,29 @@ class ThesisFlipRecord:
     evidence that was present in the old primary thesis at flip time.
     """
 
-    flip_id:               str
+    flip_id: str
     previous_primary_side: BeliefDirection
-    new_primary_side:      BeliefDirection
-    trigger:               FlipTrigger
-    trigger_detail:        str
-    primary_p_before:      float
-    secondary_p_before:    float
-    evidence_snapshot:     list[str]
-    flip_lesson:           FlipLesson | None
-    flipped_at:            float
+    new_primary_side: BeliefDirection
+    trigger: FlipTrigger
+    trigger_detail: str
+    primary_p_before: float
+    secondary_p_before: float
+    evidence_snapshot: list[str]
+    flip_lesson: FlipLesson | None
+    flipped_at: float
 
     def to_dict(self) -> dict:
         return {
-            "flip_id":               self.flip_id,
+            "flip_id": self.flip_id,
             "previous_primary_side": self.previous_primary_side.value,
-            "new_primary_side":      self.new_primary_side.value,
-            "trigger":               self.trigger.value,
-            "trigger_detail":        self.trigger_detail,
-            "primary_p_before":      round(self.primary_p_before, 4),
-            "secondary_p_before":    round(self.secondary_p_before, 4),
-            "evidence_snapshot":     self.evidence_snapshot,
-            "flip_lesson":           self.flip_lesson.to_dict() if self.flip_lesson else None,
-            "flipped_at":            round(self.flipped_at, 3),
+            "new_primary_side": self.new_primary_side.value,
+            "trigger": self.trigger.value,
+            "trigger_detail": self.trigger_detail,
+            "primary_p_before": round(self.primary_p_before, 4),
+            "secondary_p_before": round(self.secondary_p_before, 4),
+            "evidence_snapshot": self.evidence_snapshot,
+            "flip_lesson": self.flip_lesson.to_dict() if self.flip_lesson else None,
+            "flipped_at": round(self.flipped_at, 3),
         }
 
 
@@ -269,21 +268,21 @@ class ThesisReversalRecord:
     pathology (oscillation / flip-flopping).
     """
 
-    reversal_id:        str
-    returning_to_side:  BeliefDirection   # the side we returned to
-    intermediate_side:  BeliefDirection   # the side we briefly flipped to
-    seconds_elapsed:    float             # how long the intermediate thesis lasted
-    flip_id:            str               # the flip_id of the flip that is now reversed
-    reversed_at:        float
+    reversal_id: str
+    returning_to_side: BeliefDirection  # the side we returned to
+    intermediate_side: BeliefDirection  # the side we briefly flipped to
+    seconds_elapsed: float  # how long the intermediate thesis lasted
+    flip_id: str  # the flip_id of the flip that is now reversed
+    reversed_at: float
 
     def to_dict(self) -> dict:
         return {
-            "reversal_id":       self.reversal_id,
+            "reversal_id": self.reversal_id,
             "returning_to_side": self.returning_to_side.value,
             "intermediate_side": self.intermediate_side.value,
-            "seconds_elapsed":   round(self.seconds_elapsed, 1),
-            "flip_id":           self.flip_id,
-            "reversed_at":       round(self.reversed_at, 3),
+            "seconds_elapsed": round(self.seconds_elapsed, 1),
+            "flip_id": self.flip_id,
+            "reversed_at": round(self.reversed_at, 3),
         }
 
 
@@ -296,25 +295,25 @@ class UncertaintySpikeRecord:
     decreasing uncertainty is a recovery, not a pathology.
     """
 
-    spike_id:          str
-    instrument:        str
+    spike_id: str
+    instrument: str
     uncertainty_before: float
-    uncertainty_after:  float
-    delta:             float
-    level_after:       str    # UncertaintyLevel.value string
-    context:           str    # brief description of what drove the spike
-    spiked_at:         float
+    uncertainty_after: float
+    delta: float
+    level_after: str  # UncertaintyLevel.value string
+    context: str  # brief description of what drove the spike
+    spiked_at: float
 
     def to_dict(self) -> dict:
         return {
-            "spike_id":          self.spike_id,
-            "instrument":        self.instrument,
+            "spike_id": self.spike_id,
+            "instrument": self.instrument,
             "uncertainty_before": round(self.uncertainty_before, 4),
-            "uncertainty_after":  round(self.uncertainty_after, 4),
-            "delta":             round(self.delta, 4),
-            "level_after":       self.level_after,
-            "context":           self.context,
-            "spiked_at":         round(self.spiked_at, 3),
+            "uncertainty_after": round(self.uncertainty_after, 4),
+            "delta": round(self.delta, 4),
+            "level_after": self.level_after,
+            "context": self.context,
+            "spiked_at": round(self.spiked_at, 3),
         }
 
 
@@ -329,16 +328,16 @@ class ThesisSwitchResult:
     primary thesis, and whether the switch was detected as a reversal.
     """
 
-    flip_record:    ThesisFlipRecord
-    new_scenarios:  list[CounterfactualScenario]
-    is_reversal:    bool
+    flip_record: ThesisFlipRecord
+    new_scenarios: list[CounterfactualScenario]
+    is_reversal: bool
     reversal_record: ThesisReversalRecord | None
 
     def to_dict(self) -> dict:
         return {
-            "flip_record":    self.flip_record.to_dict(),
-            "new_scenarios":  [s.to_dict() for s in self.new_scenarios],
-            "is_reversal":    self.is_reversal,
+            "flip_record": self.flip_record.to_dict(),
+            "new_scenarios": [s.to_dict() for s in self.new_scenarios],
+            "is_reversal": self.is_reversal,
             "reversal_record": self.reversal_record.to_dict() if self.reversal_record else None,
         }
 
@@ -363,7 +362,7 @@ class CounterfactualState:
     enabling ``FlipLesson`` generation on the next flip.
     """
 
-    instrument:   str
+    instrument: str
     primary_side: BeliefDirection = BeliefDirection.BULLISH
     secondary_side: BeliefDirection = BeliefDirection.BEARISH
 
@@ -371,18 +370,18 @@ class CounterfactualState:
     probability_evolution: list[ProbabilityPoint] = field(default_factory=list)
 
     # Event stores
-    flip_records:       list[ThesisFlipRecord]       = field(default_factory=list)
-    reversal_records:   list[ThesisReversalRecord]   = field(default_factory=list)
+    flip_records: list[ThesisFlipRecord] = field(default_factory=list)
+    reversal_records: list[ThesisReversalRecord] = field(default_factory=list)
     uncertainty_spikes: list[UncertaintySpikeRecord] = field(default_factory=list)
 
     # Currently active scenarios
-    current_scenarios:  list[CounterfactualScenario] = field(default_factory=list)
+    current_scenarios: list[CounterfactualScenario] = field(default_factory=list)
 
     # For FlipLesson generation on next flip
     primary_evidence_at_last_flip: list[str] = field(default_factory=list)
     last_flip_at: float | None = None
 
-    created_at:     float = field(default_factory=time.time)
+    created_at: float = field(default_factory=time.time)
     last_updated_at: float = field(default_factory=time.time)
 
     def last_probability_point(self) -> ProbabilityPoint | None:
@@ -399,20 +398,19 @@ class CounterfactualState:
 
     def to_snapshot(self) -> dict:
         return {
-            "instrument":       self.instrument,
-            "primary_side":     self.primary_side.value,
-            "secondary_side":   self.secondary_side.value,
-            "flip_count":       self.flip_count(),
-            "reversal_count":   len(self.reversal_records),
-            "spike_count":      len(self.uncertainty_spikes),
-            "reversal_rate":    self.reversal_rate(),
+            "instrument": self.instrument,
+            "primary_side": self.primary_side.value,
+            "secondary_side": self.secondary_side.value,
+            "flip_count": self.flip_count(),
+            "reversal_count": len(self.reversal_records),
+            "spike_count": len(self.uncertainty_spikes),
+            "reversal_rate": self.reversal_rate(),
             "last_probability": (
-                self.last_probability_point().to_dict()
-                if self.last_probability_point() else None
+                self.last_probability_point().to_dict() if self.last_probability_point() else None
             ),
-            "scenario_count":   len(self.current_scenarios),
-            "created_at":       round(self.created_at, 3),
-            "last_updated_at":  round(self.last_updated_at, 3),
+            "scenario_count": len(self.current_scenarios),
+            "created_at": round(self.created_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
         }
 
 

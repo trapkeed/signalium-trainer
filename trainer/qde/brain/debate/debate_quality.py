@@ -30,24 +30,24 @@ from dataclasses import dataclass, field
 
 from trainer.qde.brain.conviction_engine import ConvictionScore
 from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateVerdict
-from trainer.qde.brain.thesis_manager import MAX_EVIDENCE_ITEMS, Thesis
+from trainer.qde.brain.thesis_manager import Thesis
 
 # -------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------
 
 # How stale (seconds) a thesis must be before timeliness degrades to 0
-_TIMELINESS_DECAY_SECONDS = 300.0   # 5-minute thesis freshness window
+_TIMELINESS_DECAY_SECONDS = 300.0  # 5-minute thesis freshness window
 
 # Minimum evidence items per thesis for full density credit
 _DENSITY_TARGET = 6
 
 # Weights for overall_score
-_W_DENSITY      = 0.20
-_W_BALANCE      = 0.20
-_W_MARGIN       = 0.25
-_W_ALIGNMENT    = 0.20
-_W_TIMELINESS   = 0.15
+_W_DENSITY = 0.20
+_W_BALANCE = 0.20
+_W_MARGIN = 0.25
+_W_ALIGNMENT = 0.20
+_W_TIMELINESS = 0.15
 
 
 # -------------------------------------------------------------------
@@ -88,33 +88,33 @@ class DebateQualityScore:
         "HIGH" (≥ 0.70), "MEDIUM" (≥ 0.45), or "LOW".
     """
 
-    score_id:            str   = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    debate_id:           str   = ""
-    instrument:          str   = ""
-    opportunity_id:      str   = ""
-    evidence_density:    float = 0.0
-    evidence_balance:    float = 0.0
-    margin_clarity:      float = 0.0
+    score_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    debate_id: str = ""
+    instrument: str = ""
+    opportunity_id: str = ""
+    evidence_density: float = 0.0
+    evidence_balance: float = 0.0
+    margin_clarity: float = 0.0
     conviction_alignment: float = 0.0
-    timeliness:          float = 0.0
-    overall_score:       float = 0.0
-    grade:               str   = "LOW"
-    computed_at:         float = field(default_factory=time.time)
+    timeliness: float = 0.0
+    overall_score: float = 0.0
+    grade: str = "LOW"
+    computed_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
-            "score_id":             self.score_id,
-            "debate_id":            self.debate_id,
-            "instrument":           self.instrument,
-            "opportunity_id":       self.opportunity_id,
-            "evidence_density":     round(self.evidence_density,    4),
-            "evidence_balance":     round(self.evidence_balance,     4),
-            "margin_clarity":       round(self.margin_clarity,       4),
+            "score_id": self.score_id,
+            "debate_id": self.debate_id,
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "evidence_density": round(self.evidence_density, 4),
+            "evidence_balance": round(self.evidence_balance, 4),
+            "margin_clarity": round(self.margin_clarity, 4),
             "conviction_alignment": round(self.conviction_alignment, 4),
-            "timeliness":           round(self.timeliness,           4),
-            "overall_score":        round(self.overall_score,        4),
-            "grade":                self.grade,
-            "computed_at":          round(self.computed_at,          3),
+            "timeliness": round(self.timeliness, 4),
+            "overall_score": round(self.overall_score, 4),
+            "grade": self.grade,
+            "computed_at": round(self.computed_at, 3),
         }
 
     @classmethod
@@ -141,15 +141,15 @@ class DebateQualityScore:
 
 
 def measure_quality(
-    verdict:       DebateVerdict,
-    conviction:    ConvictionScore,
-    bull_thesis:   Thesis,
-    bear_thesis:   Thesis,
-    debate_id:     str          = "",
-    now:           float | None = None,
-    decay_seconds: float        = _TIMELINESS_DECAY_SECONDS,
-    density_target: int         = _DENSITY_TARGET,
-    dominance_margin: float     = DEFAULT_DOMINANCE_MARGIN,
+    verdict: DebateVerdict,
+    conviction: ConvictionScore,
+    bull_thesis: Thesis,
+    bear_thesis: Thesis,
+    debate_id: str = "",
+    now: float | None = None,
+    decay_seconds: float = _TIMELINESS_DECAY_SECONDS,
+    density_target: int = _DENSITY_TARGET,
+    dominance_margin: float = DEFAULT_DOMINANCE_MARGIN,
 ) -> DebateQualityScore:
     """Measure the quality of a completed debate.
 
@@ -174,9 +174,9 @@ def measure_quality(
     now = now if now is not None else time.time()
 
     # ── Evidence density ──────────────────────────────────────────────
-    bull_ev  = len(bull_thesis.supporting_evidence) + len(bull_thesis.conflicting_evidence)
-    bear_ev  = len(bear_thesis.supporting_evidence) + len(bear_thesis.conflicting_evidence)
-    avg_ev   = (bull_ev + bear_ev) / 2.0
+    bull_ev = len(bull_thesis.supporting_evidence) + len(bull_thesis.conflicting_evidence)
+    bear_ev = len(bear_thesis.supporting_evidence) + len(bear_thesis.conflicting_evidence)
+    avg_ev = (bull_ev + bear_ev) / 2.0
     evidence_density = min(1.0, avg_ev / max(1, density_target))
 
     # ── Evidence balance ──────────────────────────────────────────────
@@ -196,17 +196,21 @@ def measure_quality(
 
     # ── Timeliness ────────────────────────────────────────────────────
     oldest_update = min(bull_thesis.updated_at, bear_thesis.updated_at)
-    age           = max(0.0, now - oldest_update)
-    timeliness    = max(0.0, 1.0 - age / max(1e-9, decay_seconds))
+    age = max(0.0, now - oldest_update)
+    timeliness = max(0.0, 1.0 - age / max(1e-9, decay_seconds))
 
     # ── Composite ─────────────────────────────────────────────────────
-    overall_score = max(0.0, min(1.0,
-        _W_DENSITY    * evidence_density    +
-        _W_BALANCE    * evidence_balance    +
-        _W_MARGIN     * margin_clarity      +
-        _W_ALIGNMENT  * conviction_alignment +
-        _W_TIMELINESS * timeliness
-    ))
+    overall_score = max(
+        0.0,
+        min(
+            1.0,
+            _W_DENSITY * evidence_density
+            + _W_BALANCE * evidence_balance
+            + _W_MARGIN * margin_clarity
+            + _W_ALIGNMENT * conviction_alignment
+            + _W_TIMELINESS * timeliness,
+        ),
+    )
 
     if overall_score >= 0.70:
         grade = "HIGH"

@@ -70,6 +70,11 @@ Design rules
 
 from __future__ import annotations
 
+# ── Engine ────────────────────────────────────────────────────────────────────
+from trainer.qde.brain.regime.regime_transition_engine import (
+    RegimeTransitionEngine,
+)
+
 # ── Memory / data models ──────────────────────────────────────────────────────
 from trainer.qde.brain.regime.transition_memory import (
     RegimeSnapshot,
@@ -83,13 +88,8 @@ from trainer.qde.brain.regime.transition_memory import (
 # ── Predictor ─────────────────────────────────────────────────────────────────
 from trainer.qde.brain.regime.transition_predictor import (
     TransitionFeatureVector,
-    TransitionProbabilityMap,
     TransitionPredictor,
-)
-
-# ── Engine ────────────────────────────────────────────────────────────────────
-from trainer.qde.brain.regime.regime_transition_engine import (
-    RegimeTransitionEngine,
+    TransitionProbabilityMap,
 )
 
 __all__ = [

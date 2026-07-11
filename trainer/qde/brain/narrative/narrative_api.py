@@ -53,6 +53,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_models import Hypothesis, MarketNarrative
@@ -71,9 +72,7 @@ from trainer.qde.brain.narrative.narrative_memory_bridge import (
     NarrativePortfolioContext,
 )
 from trainer.qde.brain.narrative.narrative_outcome_tracker import (
-    NarrativeOutcomeRecord,
     NarrativeOutcomeTracker,
-    NarrativeQualityScore,
 )
 from trainer.qde.brain.narrative.narrative_probability import (
     NarrativeProbabilityDistribution,
@@ -125,30 +124,30 @@ class NarrativeGenerationResult:
         The highest-confidence active narrative, or None.
     """
 
-    instrument:               str
-    timestamp:                float
+    instrument: str
+    timestamp: float
 
-    update_result:            NarrativeUpdateResult
+    update_result: NarrativeUpdateResult
     probability_distribution: NarrativeProbabilityDistribution
-    narratives_active:        list[SymbolNarrative]          = field(default_factory=list)
-    memory_context:           NarrativeMemoryContext | None  = None
-    portfolio_influence:      dict                           = field(default_factory=dict)
-    calibration_results:      list[CalibrationResult]        = field(default_factory=list)
-    dominant_narrative:       SymbolNarrative | None         = None
+    narratives_active: list[SymbolNarrative] = field(default_factory=list)
+    memory_context: NarrativeMemoryContext | None = None
+    portfolio_influence: dict = field(default_factory=dict)
+    calibration_results: list[CalibrationResult] = field(default_factory=list)
+    dominant_narrative: SymbolNarrative | None = None
 
     def to_dict(self) -> dict:
         return {
-            "instrument":                self.instrument,
-            "timestamp":                 round(self.timestamp, 3),
-            "probability_distribution":  self.probability_distribution.to_dict(),
-            "update_result":             self.update_result.to_dict(),
-            "narratives_active":         [n.to_dict() for n in self.narratives_active],
-            "dominant_narrative":        self.dominant_narrative.to_dict()
-                                         if self.dominant_narrative else None,
-            "memory_context":            self.memory_context.to_dict()
-                                         if self.memory_context else None,
-            "portfolio_influence":       self.portfolio_influence,
-            "calibration_results":       [c.to_dict() for c in self.calibration_results],
+            "instrument": self.instrument,
+            "timestamp": round(self.timestamp, 3),
+            "probability_distribution": self.probability_distribution.to_dict(),
+            "update_result": self.update_result.to_dict(),
+            "narratives_active": [n.to_dict() for n in self.narratives_active],
+            "dominant_narrative": (
+                self.dominant_narrative.to_dict() if self.dominant_narrative else None
+            ),
+            "memory_context": self.memory_context.to_dict() if self.memory_context else None,
+            "portfolio_influence": self.portfolio_influence,
+            "calibration_results": [c.to_dict() for c in self.calibration_results],
         }
 
 
@@ -177,35 +176,35 @@ class NarrativeAPI:
 
     def __init__(
         self,
-        engine:          MarketNarrativeEngine | None  = None,
+        engine: MarketNarrativeEngine | None = None,
         outcome_tracker: NarrativeOutcomeTracker | None = None,
-        calibrator:      NarrativeCalibrator | None    = None,
-        memory_bridge:   NarrativeMemoryBridge | None  = None,
+        calibrator: NarrativeCalibrator | None = None,
+        memory_bridge: NarrativeMemoryBridge | None = None,
     ) -> None:
-        self._engine          = engine          or MarketNarrativeEngine()
-        self._tracker         = outcome_tracker or NarrativeOutcomeTracker()
-        self._calibrator      = calibrator      or NarrativeCalibrator()
-        self._bridge          = memory_bridge   or NarrativeMemoryBridge()
-        self._prob_engine     = NarrativeProbabilityEngine()
-        self._store_ops       = NarrativeStore()
-        self._conflict        = NarrativeConflictDetector()
+        self._engine = engine or MarketNarrativeEngine()
+        self._tracker = outcome_tracker or NarrativeOutcomeTracker()
+        self._calibrator = calibrator or NarrativeCalibrator()
+        self._bridge = memory_bridge or NarrativeMemoryBridge()
+        self._prob_engine = NarrativeProbabilityEngine()
+        self._store_ops = NarrativeStore()
+        self._conflict = NarrativeConflictDetector()
 
         # Per-instrument cache of narrative_id → episode_id for outcome linking
-        self._episode_ids: dict[str, str] = {}   # narrative_id → episode_id
+        self._episode_ids: dict[str, str] = {}  # narrative_id → episode_id
 
     # ── Primary API ───────────────────────────────────────────────────────
 
     def generate_narrative(
         self,
-        instrument:        str,
-        inp:               SymbolObservationInput,
-        existing_narrative: MarketNarrative | None              = None,
-        active_hypotheses: list[Hypothesis]                     | None = None,
-        observation_result: ObservationResult | None            = None,
-        features:          dict                                 | None = None,
-        portfolio:         NarrativePortfolioContext | None     = None,
-        session:           str                                  = "",
-        now:               float | None                         = None,
+        instrument: str,
+        inp: SymbolObservationInput,
+        existing_narrative: MarketNarrative | None = None,
+        active_hypotheses: list[Hypothesis] | None = None,
+        observation_result: ObservationResult | None = None,
+        features: dict | None = None,
+        portfolio: NarrativePortfolioContext | None = None,
+        session: str = "",
+        now: float | None = None,
     ) -> NarrativeGenerationResult:
         """Generate narratives for ``instrument`` for the current tick.
 
@@ -236,7 +235,7 @@ class NarrativeAPI:
         now:
             Override current time (for replay/testing).
         """
-        now  = now  if now  is not None else time.time()
+        now = now if now is not None else time.time()
         hyps = active_hypotheses or []
 
         # ── Step 1: Memory recall ─────────────────────────────────────────
@@ -271,7 +270,7 @@ class NarrativeAPI:
         )
 
         # ── Step 4: Calibrate established narratives ──────────────────────
-        active   = self._engine.active_narratives_for(instrument)
+        active = self._engine.active_narratives_for(instrument)
         calib_results: list[CalibrationResult] = []
 
         for narrative in active:
@@ -279,18 +278,21 @@ class NarrativeAPI:
                 continue
             quality = self._tracker.quality_score(instrument, narrative.kind)
             cr = self._calibrator.calibrate_narrative(
-                narrative, quality, apply=False   # inspect only, don't mutate yet
+                narrative, quality, apply=False  # inspect only, don't mutate yet
             )
             calib_results.append(cr)
 
         # ── Step 5: Probability distribution ─────────────────────────────
         # Compute boost from memory context if available
-        boost_kind  = None
-        boost_amt   = 0.0
+        boost_kind = None
+        boost_amt = 0.0
         if memory_ctx is not None and memory_ctx.top_concept is not None:
-            from trainer.qde.brain.narrative.narrative_memory_bridge import _concept_to_narrative_kind
+            from trainer.qde.brain.narrative.narrative_memory_bridge import (
+                _concept_to_narrative_kind,
+            )
+
             boost_kind = _concept_to_narrative_kind(memory_ctx.top_concept)
-            boost_amt  = round(memory_ctx.concept_similarity * 0.08, 4)
+            boost_amt = round(memory_ctx.concept_similarity * 0.08, 4)
 
         dist = self._prob_engine.compute(
             active,
@@ -299,9 +301,7 @@ class NarrativeAPI:
         )
 
         # ── Step 6: Dominant narrative ────────────────────────────────────
-        dominant = self._store_ops.dominant(
-            {n.kind.value: n for n in active}
-        )
+        dominant = self._store_ops.dominant({n.kind.value: n for n in active})
 
         return NarrativeGenerationResult(
             instrument=instrument,
@@ -310,9 +310,7 @@ class NarrativeAPI:
             probability_distribution=dist,
             narratives_active=active,
             memory_context=memory_ctx,
-            portfolio_influence=(
-                memory_ctx.portfolio_influence if memory_ctx else {}
-            ),
+            portfolio_influence=(memory_ctx.portfolio_influence if memory_ctx else {}),
             calibration_results=calib_results,
             dominant_narrative=dominant,
         )
@@ -320,10 +318,10 @@ class NarrativeAPI:
     def store_narrative(
         self,
         instrument: str,
-        result:     NarrativeGenerationResult,
-        features:   dict | None                     = None,
-        portfolio:  NarrativePortfolioContext | None = None,
-        now:        float | None                     = None,
+        result: NarrativeGenerationResult,
+        features: dict | None = None,
+        portfolio: NarrativePortfolioContext | None = None,
+        now: float | None = None,
     ) -> list[str]:
         """Persist newly-established narratives to memory.
 
@@ -343,13 +341,12 @@ class NarrativeAPI:
         episode_ids: list[str] = []
 
         established = [
-            n for n in result.narratives_active
-            if n.maturity == NarrativeMaturity.ESTABLISHED
+            n for n in result.narratives_active if n.maturity == NarrativeMaturity.ESTABLISHED
         ]
 
         # direction from coherent narrative bias
-        net_bias    = self._conflict.net_bias(result.narratives_active)
-        direction   = 1 if net_bias > 0.1 else (-1 if net_bias < -0.1 else 0)
+        net_bias = self._conflict.net_bias(result.narratives_active)
+        direction = 1 if net_bias > 0.1 else (-1 if net_bias < -0.1 else 0)
 
         for narrative in established:
             # Track in outcome tracker (idempotent)
@@ -385,8 +382,8 @@ class NarrativeAPI:
     def evaluate_narrative(
         self,
         instrument: str,
-        kind:       NarrativeKind | None = None,
-        now:        float | None = None,
+        kind: NarrativeKind | None = None,
+        now: float | None = None,
     ) -> dict:
         """Return narrative quality evaluation for ``instrument``.
 
@@ -413,19 +410,19 @@ class NarrativeAPI:
 
         kinds = [kind] if kind is not None else list(NarrativeKind)
 
-        quality_scores:      dict[str, dict] = {}
+        quality_scores: dict[str, dict] = {}
         calibration_factors: dict[str, float] = {}
         total_resolved = 0
 
         for k in kinds:
             q = self._tracker.quality_score(instrument, k)
-            quality_scores[k.value]      = q.to_dict()
+            quality_scores[k.value] = q.to_dict()
             calibration_factors[k.value] = self._calibrator.compute_factor(k, q).factor
             total_resolved += q.sample_count
 
         # Current probability distribution
         active = self._engine.active_narratives_for(instrument)
-        dist   = self._prob_engine.compute(active)
+        dist = self._prob_engine.compute(active)
 
         # Global quality for comparison
         global_scores: dict[str, dict] = {}
@@ -433,24 +430,24 @@ class NarrativeAPI:
             global_scores[k.value] = self._tracker.quality_score_global(k).to_dict()
 
         return {
-            "instrument":             instrument,
-            "quality_scores":         quality_scores,
-            "global_quality_scores":  global_scores,
-            "calibration_factors":    calibration_factors,
+            "instrument": instrument,
+            "quality_scores": quality_scores,
+            "global_quality_scores": global_scores,
+            "calibration_factors": calibration_factors,
             "probability_distribution": dist.to_dict(),
-            "dominant_kind":          dist.dominant.value if dist.dominant else None,
+            "dominant_kind": dist.dominant.value if dist.dominant else None,
             "active_narrative_count": len(active),
-            "total_resolved":         total_resolved,
-            "evaluated_at":           round(now, 3),
+            "total_resolved": total_resolved,
+            "evaluated_at": round(now, 3),
         }
 
     def record_outcome(
         self,
-        narrative_id:      str,
+        narrative_id: str,
         direction_correct: bool,
         reward_normalized: float,
-        resolution_bars:   int   = 0,
-        now:               float | None = None,
+        resolution_bars: int = 0,
+        now: float | None = None,
     ) -> bool:
         """Record the final outcome for a narrative that reached ESTABLISHED.
 
@@ -464,7 +461,7 @@ class NarrativeAPI:
         Returns True if the outcome was successfully recorded.
         """
         now = now if now is not None else time.time()
-        ok  = self._tracker.record_outcome(
+        ok = self._tracker.record_outcome(
             narrative_id, direction_correct, reward_normalized, resolution_bars, now
         )
         # If there is a linked episode, resolve it in episodic memory too
@@ -473,7 +470,8 @@ class NarrativeAPI:
             # Resolve in all instruments (bridge doesn't know which one)
             for instr in self._engine.all_instruments():
                 if self._bridge.update_episode_outcome(
-                    instr, ep_id,
+                    instr,
+                    ep_id,
                     direction_correct=direction_correct,
                     reward_atr=reward_normalized,
                     bars_to_close=resolution_bars,
@@ -497,7 +495,7 @@ class NarrativeAPI:
         """Serialize all narrative state for ``instrument``."""
         return {
             "engine_narratives": self._engine.to_snapshot(instrument),
-            "outcome_tracker":   self._tracker.to_snapshot(),
+            "outcome_tracker": self._tracker.to_snapshot(),
         }
 
     def load_snapshot(self, instrument: str, data: dict) -> None:

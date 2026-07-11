@@ -34,11 +34,8 @@ Five behavioral pathologies tracked
 
 from __future__ import annotations
 
-import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-
 
 # ── Cognitive State ───────────────────────────────────────────────────────────
 
@@ -51,18 +48,18 @@ class CognitiveState(str, Enum):
     posture.
     """
 
-    CAUTION    = "CAUTION"    # elevated vigilance, narrowed entry filter
-    NORMAL     = "NORMAL"     # baseline processing
-    AGGRESSIVE = "AGGRESSIVE" # lean in — requires clean pathology signals
-    DEFENSIVE  = "DEFENSIVE"  # maximum restraint, loss-mode
+    CAUTION = "CAUTION"  # elevated vigilance, narrowed entry filter
+    NORMAL = "NORMAL"  # baseline processing
+    AGGRESSIVE = "AGGRESSIVE"  # lean in — requires clean pathology signals
+    DEFENSIVE = "DEFENSIVE"  # maximum restraint, loss-mode
 
 
 # Canonical transition ordering by severity (for comparison helpers)
 _STATE_SEVERITY: dict[CognitiveState, int] = {
     CognitiveState.AGGRESSIVE: 0,
-    CognitiveState.NORMAL:     1,
-    CognitiveState.CAUTION:    2,
-    CognitiveState.DEFENSIVE:  3,
+    CognitiveState.NORMAL: 1,
+    CognitiveState.CAUTION: 2,
+    CognitiveState.DEFENSIVE: 3,
 }
 
 
@@ -74,37 +71,37 @@ def state_severity(state: CognitiveState) -> int:
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
 # Confidence inflation (signed mean of predicted_confidence - actual_outcome)
-INFLATION_MILD_THRESHOLD:   float = 0.10   # → CAUTION flag
-INFLATION_SEVERE_THRESHOLD: float = 0.20   # → strong pathology signal
+INFLATION_MILD_THRESHOLD: float = 0.10  # → CAUTION flag
+INFLATION_SEVERE_THRESHOLD: float = 0.20  # → strong pathology signal
 
 # Overconfidence rate (fraction of high-confidence trades that lost)
-OVERCONFIDENCE_RATE_MILD:   float = 0.30   # → flag
+OVERCONFIDENCE_RATE_MILD: float = 0.30  # → flag
 OVERCONFIDENCE_RATE_SEVERE: float = 0.50
 
 # Aggressiveness drift (normalised slope of rolling aggressiveness)
-AGGRESSION_DRIFT_MILD:      float = 0.15   # → CAUTION
-AGGRESSION_DRIFT_SEVERE:    float = 0.30   # → strong signal
+AGGRESSION_DRIFT_MILD: float = 0.15  # → CAUTION
+AGGRESSION_DRIFT_SEVERE: float = 0.30  # → strong signal
 
 # Risk escalation (normalised second-derivative of per-trade risk)
-RISK_ESCALATION_MILD:       float = 0.10
-RISK_ESCALATION_SEVERE:     float = 0.25
+RISK_ESCALATION_MILD: float = 0.10
+RISK_ESCALATION_SEVERE: float = 0.25
 
 # Drawdown thresholds (fraction 0-1) — mirror qde_account_types soft limits
-DRAWDOWN_CAUTION_THRESHOLD:   float = 0.05  # 5% drawdown → CAUTION
+DRAWDOWN_CAUTION_THRESHOLD: float = 0.05  # 5% drawdown → CAUTION
 DRAWDOWN_DEFENSIVE_THRESHOLD: float = 0.08  # 8% drawdown → DEFENSIVE
 
 # Consecutive streaks
-LOSING_STREAK_CAUTION:    int = 2   # 2 losses → CAUTION
-LOSING_STREAK_DEFENSIVE:  int = 3   # 3 losses → DEFENSIVE (mirrors qde_account_types)
+LOSING_STREAK_CAUTION: int = 2  # 2 losses → CAUTION
+LOSING_STREAK_DEFENSIVE: int = 3  # 3 losses → DEFENSIVE (mirrors qde_account_types)
 WINNING_STREAK_AGGRESSIVE: int = 4  # 4 wins   → allow AGGRESSIVE
-WINNING_STREAK_EUPHORIA:   int = 6  # 6 wins   → euphoria guard (force CAUTION)
+WINNING_STREAK_EUPHORIA: int = 6  # 6 wins   → euphoria guard (force CAUTION)
 
 # Pathology composite → state transitions
-PATHOLOGY_CAUTION_THRESHOLD:   float = 0.25  # composite ≥ this → CAUTION
+PATHOLOGY_CAUTION_THRESHOLD: float = 0.25  # composite ≥ this → CAUTION
 PATHOLOGY_DEFENSIVE_THRESHOLD: float = 0.55  # composite ≥ this → DEFENSIVE
 
 # Euphoria risk (after strong winning streak)
-EUPHORIA_RISK_THRESHOLD: float = 0.55   # → downgrade AGGRESSIVE → CAUTION
+EUPHORIA_RISK_THRESHOLD: float = 0.55  # → downgrade AGGRESSIVE → CAUTION
 
 # Max history retained in BehavioralRecord list
 MAX_BEHAVIORAL_HISTORY: int = 200
@@ -132,7 +129,7 @@ class BehavioralSignals:
     recent_trade_confidences: list[float] = field(default_factory=list)
     # Realised outcome per recent closed trade: 1.0 = win, 0.0 = loss,
     # 0.5 = scratch / break-even.
-    recent_trade_outcomes: list[float]    = field(default_factory=list)
+    recent_trade_outcomes: list[float] = field(default_factory=list)
 
     # ── Aggressiveness ────────────────────────────────────────────────────
     # Aggressiveness score (0-1) recorded per recent trade or tick.
@@ -151,7 +148,7 @@ class BehavioralSignals:
 
     # ── Streaks ───────────────────────────────────────────────────────────
     consecutive_losses: int = 0
-    consecutive_wins:   int = 0
+    consecutive_wins: int = 0
 
     # ── Session context ───────────────────────────────────────────────────
     # Normalised P&L for current session (+1 = excellent, -1 = severe loss).
@@ -160,14 +157,14 @@ class BehavioralSignals:
     # ── Optional pre-computed metacognition signals ───────────────────────
     # Pass ``MetacognitionEngine.assess()`` values directly to avoid
     # recomputing them inside the behavioral engine.
-    overconfidence_score:       float = 0.0  # from MetacognitiveAssessment
+    overconfidence_score: float = 0.0  # from MetacognitiveAssessment
     metacognition_caution_level: float = 0.0  # from MetacognitiveAssessment
-    calibration_error:          float = 0.0  # from MetacognitiveAssessment
+    calibration_error: float = 0.0  # from MetacognitiveAssessment
 
     def __post_init__(self) -> None:
-        self.current_drawdown_fraction   = max(0.0, self.current_drawdown_fraction)
-        self.consecutive_losses          = max(0, self.consecutive_losses)
-        self.consecutive_wins            = max(0, self.consecutive_wins)
+        self.current_drawdown_fraction = max(0.0, self.current_drawdown_fraction)
+        self.consecutive_losses = max(0, self.consecutive_losses)
+        self.consecutive_wins = max(0, self.consecutive_wins)
 
 
 # ── Assessment Output ─────────────────────────────────────────────────────────
@@ -182,33 +179,33 @@ class BehavioralAssessment:
     """
 
     # ── Five tracked pathologies ──────────────────────────────────────────
-    confidence_inflation:       float  # 0-1: how inflated predictions are
-    overconfidence_level:       float  # 0-1: rate of high-conf + loss combos
-    drawdown_response_quality:  float  # 0-1: 1 = ideal reduction; 0 = ignored/escalated
-    aggressiveness_drift:       float  # -1..+1: positive = drifting aggressive
-    risk_escalation_rate:       float  # 0-1: second-derivative of risk trend
+    confidence_inflation: float  # 0-1: how inflated predictions are
+    overconfidence_level: float  # 0-1: rate of high-conf + loss combos
+    drawdown_response_quality: float  # 0-1: 1 = ideal reduction; 0 = ignored/escalated
+    aggressiveness_drift: float  # -1..+1: positive = drifting aggressive
+    risk_escalation_rate: float  # 0-1: second-derivative of risk trend
 
     # ── Composite ─────────────────────────────────────────────────────────
-    pathology_score:  float  # 0-1: weighted composite of all pathologies
-    euphoria_risk:    float  # 0-1: post-win overconfidence risk
+    pathology_score: float  # 0-1: weighted composite of all pathologies
+    euphoria_risk: float  # 0-1: post-win overconfidence risk
     loss_spiral_risk: float  # 0-1: post-loss revenge-trading risk
 
     # ── Recommendation ────────────────────────────────────────────────────
     recommended_state: CognitiveState
-    reasoning:         str  # compact log string
+    reasoning: str  # compact log string
 
     def to_dict(self) -> dict:
         return {
-            "confidence_inflation":      round(self.confidence_inflation, 4),
-            "overconfidence_level":      round(self.overconfidence_level, 4),
+            "confidence_inflation": round(self.confidence_inflation, 4),
+            "overconfidence_level": round(self.overconfidence_level, 4),
             "drawdown_response_quality": round(self.drawdown_response_quality, 4),
-            "aggressiveness_drift":      round(self.aggressiveness_drift, 4),
-            "risk_escalation_rate":      round(self.risk_escalation_rate, 4),
-            "pathology_score":           round(self.pathology_score, 4),
-            "euphoria_risk":             round(self.euphoria_risk, 4),
-            "loss_spiral_risk":          round(self.loss_spiral_risk, 4),
-            "recommended_state":         self.recommended_state.value,
-            "reasoning":                 self.reasoning,
+            "aggressiveness_drift": round(self.aggressiveness_drift, 4),
+            "risk_escalation_rate": round(self.risk_escalation_rate, 4),
+            "pathology_score": round(self.pathology_score, 4),
+            "euphoria_risk": round(self.euphoria_risk, 4),
+            "loss_spiral_risk": round(self.loss_spiral_risk, 4),
+            "recommended_state": self.recommended_state.value,
+            "reasoning": self.reasoning,
         }
 
 
@@ -224,13 +221,13 @@ class BehavioralRecord:
     change — the snapshot itself is valuable for trend analysis).
     """
 
-    record_id:       str
-    previous_state:  CognitiveState
-    new_state:       CognitiveState
-    assessment:      BehavioralAssessment
-    session_label:   str
-    recorded_at:     float
-    trigger:         str  # brief description of what drove the transition
+    record_id: str
+    previous_state: CognitiveState
+    new_state: CognitiveState
+    assessment: BehavioralAssessment
+    session_label: str
+    recorded_at: float
+    trigger: str  # brief description of what drove the transition
 
     @property
     def is_transition(self) -> bool:
@@ -238,14 +235,14 @@ class BehavioralRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":      self.record_id,
+            "record_id": self.record_id,
             "previous_state": self.previous_state.value,
-            "new_state":      self.new_state.value,
-            "assessment":     self.assessment.to_dict(),
-            "session_label":  self.session_label,
-            "recorded_at":    round(self.recorded_at, 3),
-            "trigger":        self.trigger,
-            "is_transition":  self.is_transition,
+            "new_state": self.new_state.value,
+            "assessment": self.assessment.to_dict(),
+            "session_label": self.session_label,
+            "recorded_at": round(self.recorded_at, 3),
+            "trigger": self.trigger,
+            "is_transition": self.is_transition,
         }
 
 

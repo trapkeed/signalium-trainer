@@ -94,33 +94,36 @@ from dataclasses import dataclass, field
 
 from trainer.execution.execution_types import ExecutionGrade, OrderType, TimingRecommendation
 from trainer.qde.brain.execution.fill_probability_engine import FillContext, FillProbabilityEngine
-from trainer.qde.brain.execution.slippage_predictor import SlippageInput, SlippagePredictor, _spread_risk
+from trainer.qde.brain.execution.slippage_predictor import (
+    SlippageInput,
+    SlippagePredictor,
+)
 
 # ── Learning hyper-parameters ──────────────────────────────────────────────────
 
-_DEFAULT_MAX_RECORDS  = 2000     # per-symbol bounded FIFO capacity
-_DEFAULT_K            = 20       # nearest-neighbour top-K
-_MIN_INFORMATIVE      = 5        # minimum records before history has weight
-_RECENCY_TAU_DAYS     = 21.0     # recency decay time constant (days)
-_L2_SCALE             = 0.40     # L2 distance at which similarity falls to 0.5
+_DEFAULT_MAX_RECORDS = 2000  # per-symbol bounded FIFO capacity
+_DEFAULT_K = 20  # nearest-neighbour top-K
+_MIN_INFORMATIVE = 5  # minimum records before history has weight
+_RECENCY_TAU_DAYS = 21.0  # recency decay time constant (days)
+_L2_SCALE = 0.40  # L2 distance at which similarity falls to 0.5
 
 # Observation vector dimension (must match ExecutionObservation.as_vector()).
 _N_DIMS = 6
 
 # ── Integration signal bounds ──────────────────────────────────────────────────
 
-_CONVICTION_DRAG_MAX   = -0.25
-_REWARD_MOD_MAX        = -0.30
+_CONVICTION_DRAG_MAX = -0.25
+_REWARD_MOD_MAX = -0.30
 
 # Timing score thresholds → TimingRecommendation
-_TIMING_EXECUTE_NOW    = 0.65
-_TIMING_WAIT           = 0.35
+_TIMING_EXECUTE_NOW = 0.65
+_TIMING_WAIT = 0.35
 
 # Execution grade thresholds (matching execution_types._grade_from_score convention)
-_GRADE_EXCELLENT       = 0.85
-_GRADE_GOOD            = 0.70
-_GRADE_ACCEPTABLE      = 0.55
-_GRADE_POOR            = 0.40
+_GRADE_EXCELLENT = 0.85
+_GRADE_GOOD = 0.70
+_GRADE_ACCEPTABLE = 0.55
+_GRADE_POOR = 0.40
 
 
 # ── ExecutionConditions ───────────────────────────────────────────────────────
@@ -153,12 +156,12 @@ class ExecutionConditions:
         0-1 from the MIE / liquidity map.  1 = clean order flow; 0 = stressed.
     """
 
-    instrument:             str   = ""
-    spread_atr_ratio:       float = 0.10
-    atr_pct:                float = 0.005
-    volatility:             float = 0.01
-    session_quality:        float = 0.80
-    momentum:               float = 0.0
+    instrument: str = ""
+    spread_atr_ratio: float = 0.10
+    atr_pct: float = 0.005
+    volatility: float = 0.01
+    session_quality: float = 0.80
+    momentum: float = 0.0
     microstructure_quality: float = 0.50
 
 
@@ -178,24 +181,24 @@ class ExecutionObservation:
     """
 
     # Market conditions
-    spread_atr_ratio:       float     = 0.10
-    volatility:             float     = 0.01
-    session_quality:        float     = 0.80
-    atr_pct:                float     = 0.005
-    abs_momentum:           float     = 0.0    # |momentum|, always >= 0
+    spread_atr_ratio: float = 0.10
+    volatility: float = 0.01
+    session_quality: float = 0.80
+    atr_pct: float = 0.005
+    abs_momentum: float = 0.0  # |momentum|, always >= 0
 
     # Order characteristics
-    order_type:             OrderType = OrderType.MARKET
-    order_aggressiveness:   float     = 1.0
-    distance_to_target_atr: float     = 0.0   # 0 for market orders
-    direction:              int       = 1      # +1 long, -1 short
+    order_type: OrderType = OrderType.MARKET
+    order_aggressiveness: float = 1.0
+    distance_to_target_atr: float = 0.0  # 0 for market orders
+    direction: int = 1  # +1 long, -1 short
 
     # Structural predictions at entry (retained for bias tracking)
-    structural_slippage_atr: float   = 0.0
-    structural_fill_quality:  float  = 0.75
+    structural_slippage_atr: float = 0.0
+    structural_fill_quality: float = 0.75
 
-    instrument:  str   = ""
-    timestamp:   float = field(default_factory=time.time)
+    instrument: str = ""
+    timestamp: float = field(default_factory=time.time)
 
     def as_vector(self) -> list[float]:
         """6-dimensional condition vector for L2-distance lookup."""
@@ -210,19 +213,19 @@ class ExecutionObservation:
 
     def to_dict(self) -> dict:
         return {
-            "spread_atr_ratio":        round(self.spread_atr_ratio, 4),
-            "volatility":              round(self.volatility, 4),
-            "session_quality":         round(self.session_quality, 4),
-            "atr_pct":                 round(self.atr_pct, 6),
-            "abs_momentum":            round(self.abs_momentum, 4),
-            "order_type":              self.order_type.value,
-            "order_aggressiveness":    round(self.order_aggressiveness, 4),
-            "distance_to_target_atr":  round(self.distance_to_target_atr, 4),
-            "direction":               self.direction,
+            "spread_atr_ratio": round(self.spread_atr_ratio, 4),
+            "volatility": round(self.volatility, 4),
+            "session_quality": round(self.session_quality, 4),
+            "atr_pct": round(self.atr_pct, 6),
+            "abs_momentum": round(self.abs_momentum, 4),
+            "order_type": self.order_type.value,
+            "order_aggressiveness": round(self.order_aggressiveness, 4),
+            "distance_to_target_atr": round(self.distance_to_target_atr, 4),
+            "direction": self.direction,
             "structural_slippage_atr": round(self.structural_slippage_atr, 6),
             "structural_fill_quality": round(self.structural_fill_quality, 4),
-            "instrument":              self.instrument,
-            "timestamp":               round(self.timestamp, 3),
+            "instrument": self.instrument,
+            "timestamp": round(self.timestamp, 3),
         }
 
     @classmethod
@@ -280,19 +283,19 @@ class ExecutionOutcome:
         ``ExecutionOutcome.compute_quality()`` for consistent normalisation.
     """
 
-    actual_slippage_atr:  float = 0.0
-    fill_quality_score:   float = 0.75
-    was_filled:           bool  = True
+    actual_slippage_atr: float = 0.0
+    fill_quality_score: float = 0.75
+    was_filled: bool = True
     time_to_fill_seconds: float = 0.0
-    outcome_quality:      float = 0.5   # 0-1, primary learning target
+    outcome_quality: float = 0.5  # 0-1, primary learning target
 
     def to_dict(self) -> dict:
         return {
-            "actual_slippage_atr":  round(self.actual_slippage_atr, 6),
-            "fill_quality_score":   round(self.fill_quality_score, 4),
-            "was_filled":           self.was_filled,
+            "actual_slippage_atr": round(self.actual_slippage_atr, 6),
+            "fill_quality_score": round(self.fill_quality_score, 4),
+            "was_filled": self.was_filled,
             "time_to_fill_seconds": round(self.time_to_fill_seconds, 1),
-            "outcome_quality":      round(self.outcome_quality, 4),
+            "outcome_quality": round(self.outcome_quality, 4),
         }
 
     @classmethod
@@ -307,10 +310,10 @@ class ExecutionOutcome:
 
     @staticmethod
     def compute_quality(
-        actual_slippage_atr:        float,
-        fill_quality_score:         float,
-        was_filled:                 bool,
-        structural_slippage_atr:    float = 0.0,
+        actual_slippage_atr: float,
+        fill_quality_score: float,
+        was_filled: bool,
+        structural_slippage_atr: float = 0.0,
     ) -> float:
         """Derive ``outcome_quality`` (0-1) from raw fill results.
 
@@ -334,7 +337,7 @@ class ExecutionOutcome:
         # Positive excess = worse than predicted → reduces quality
         # Negative excess = better than predicted → improves quality
         slip_factor = max(-0.4, min(0.4, -excess_slippage * 2.0))
-        quality     = fill_quality_score + slip_factor
+        quality = fill_quality_score + slip_factor
         return max(0.0, min(1.0, quality))
 
 
@@ -345,10 +348,10 @@ class ExecutionOutcome:
 class ExecutionRecord:
     """One completed (observation → outcome) fill record."""
 
-    record_id:   str                  = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     observation: ExecutionObservation = field(default_factory=ExecutionObservation)
-    outcome:     ExecutionOutcome     = field(default_factory=ExecutionOutcome)
-    created_at:  float                = field(default_factory=time.time)
+    outcome: ExecutionOutcome = field(default_factory=ExecutionOutcome)
+    created_at: float = field(default_factory=time.time)
 
     def recency_weight(self, now: float, tau_days: float = _RECENCY_TAU_DAYS) -> float:
         """Exponential recency weight: 1.0 when fresh, decays over tau_days."""
@@ -357,10 +360,10 @@ class ExecutionRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":   self.record_id,
+            "record_id": self.record_id,
             "observation": self.observation.to_dict(),
-            "outcome":     self.outcome.to_dict(),
-            "created_at":  round(self.created_at, 3),
+            "outcome": self.outcome.to_dict(),
+            "created_at": round(self.created_at, 3),
         }
 
     @classmethod
@@ -391,8 +394,8 @@ class ExecutionMemory:
     def record(
         self,
         observation: ExecutionObservation,
-        outcome:     ExecutionOutcome,
-        now:         float | None = None,
+        outcome: ExecutionOutcome,
+        now: float | None = None,
     ) -> ExecutionRecord:
         """Append one fill record.  Oldest is evicted when capacity is full."""
         now = now if now is not None else time.time()
@@ -410,7 +413,7 @@ class ExecutionMemory:
     def to_snapshot(self) -> dict:
         return {
             "max_records": self._max_records,
-            "records":     [r.to_dict() for r in self._store],
+            "records": [r.to_dict() for r in self._store],
         }
 
     @classmethod
@@ -458,47 +461,47 @@ class ExecutionQualitySignal:
     """
 
     # ── Conditions (echoed for convenience) ──────────────────────────────
-    spread_atr_ratio:          float              = 0.10
-    session_quality:           float              = 0.80
+    spread_atr_ratio: float = 0.10
+    session_quality: float = 0.80
 
     # ── Structural components ─────────────────────────────────────────────
-    spread_risk:               float              = 0.0
-    spread_cost_atr:           float              = 0.0
-    expected_slippage_atr:     float              = 0.0
-    worst_case_slippage_atr:   float              = 0.0
-    fill_probability:          float              = 1.0
-    fill_quality_score:        float              = 0.75
-    timing_score:              float              = 0.5
+    spread_risk: float = 0.0
+    spread_cost_atr: float = 0.0
+    expected_slippage_atr: float = 0.0
+    worst_case_slippage_atr: float = 0.0
+    fill_probability: float = 1.0
+    fill_quality_score: float = 0.75
+    timing_score: float = 0.5
 
     # ── Integration signals ───────────────────────────────────────────────
-    timing_recommendation:      TimingRecommendation = TimingRecommendation.WAIT
-    order_type_recommendation:  OrderType            = OrderType.MARKET
-    conviction_modifier:        float                = 0.0
-    expected_reward_modifier:   float                = 0.0
-    execution_grade:            ExecutionGrade        = ExecutionGrade.ACCEPTABLE
+    timing_recommendation: TimingRecommendation = TimingRecommendation.WAIT
+    order_type_recommendation: OrderType = OrderType.MARKET
+    conviction_modifier: float = 0.0
+    expected_reward_modifier: float = 0.0
+    execution_grade: ExecutionGrade = ExecutionGrade.ACCEPTABLE
 
     # ── Learning signals ──────────────────────────────────────────────────
-    historical_quality:        float = 0.5
-    history_confidence:        float = 0.0
+    historical_quality: float = 0.5
+    history_confidence: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "spread_atr_ratio":           round(self.spread_atr_ratio, 4),
-            "session_quality":            round(self.session_quality, 4),
-            "spread_risk":                round(self.spread_risk, 4),
-            "spread_cost_atr":            round(self.spread_cost_atr, 6),
-            "expected_slippage_atr":      round(self.expected_slippage_atr, 6),
-            "worst_case_slippage_atr":    round(self.worst_case_slippage_atr, 6),
-            "fill_probability":           round(self.fill_probability, 4),
-            "fill_quality_score":         round(self.fill_quality_score, 4),
-            "timing_score":               round(self.timing_score, 4),
-            "timing_recommendation":      self.timing_recommendation.value,
-            "order_type_recommendation":  self.order_type_recommendation.value,
-            "conviction_modifier":        round(self.conviction_modifier, 4),
-            "expected_reward_modifier":   round(self.expected_reward_modifier, 4),
-            "execution_grade":            self.execution_grade.value,
-            "historical_quality":         round(self.historical_quality, 4),
-            "history_confidence":         round(self.history_confidence, 4),
+            "spread_atr_ratio": round(self.spread_atr_ratio, 4),
+            "session_quality": round(self.session_quality, 4),
+            "spread_risk": round(self.spread_risk, 4),
+            "spread_cost_atr": round(self.spread_cost_atr, 6),
+            "expected_slippage_atr": round(self.expected_slippage_atr, 6),
+            "worst_case_slippage_atr": round(self.worst_case_slippage_atr, 6),
+            "fill_probability": round(self.fill_probability, 4),
+            "fill_quality_score": round(self.fill_quality_score, 4),
+            "timing_score": round(self.timing_score, 4),
+            "timing_recommendation": self.timing_recommendation.value,
+            "order_type_recommendation": self.order_type_recommendation.value,
+            "conviction_modifier": round(self.conviction_modifier, 4),
+            "expected_reward_modifier": round(self.expected_reward_modifier, 4),
+            "execution_grade": self.execution_grade.value,
+            "historical_quality": round(self.historical_quality, 4),
+            "history_confidence": round(self.history_confidence, 4),
         }
 
 
@@ -555,23 +558,23 @@ class ExecutionQualityEngine:
 
     def __init__(
         self,
-        max_records: int   = _DEFAULT_MAX_RECORDS,
-        k:           int   = _DEFAULT_K,
+        max_records: int = _DEFAULT_MAX_RECORDS,
+        k: int = _DEFAULT_K,
         recency_tau: float = _RECENCY_TAU_DAYS,
     ) -> None:
-        self._memory      = ExecutionMemory(max_records=max_records)
-        self._slip_pred   = SlippagePredictor()
+        self._memory = ExecutionMemory(max_records=max_records)
+        self._slip_pred = SlippagePredictor()
         self._fill_engine = FillProbabilityEngine()
-        self._k           = k
-        self._tau         = recency_tau
+        self._k = k
+        self._tau = recency_tau
 
     # ── Learning ──────────────────────────────────────────────────────────
 
     def record_outcome(
         self,
         observation: ExecutionObservation,
-        outcome:     ExecutionOutcome,
-        now:         float | None = None,
+        outcome: ExecutionOutcome,
+        now: float | None = None,
     ) -> ExecutionRecord:
         """Append one completed fill record to the learning store.
 
@@ -579,7 +582,8 @@ class ExecutionQualityEngine:
         this engine is tracking.
         """
         return self._memory.record(
-            observation, outcome,
+            observation,
+            outcome,
             now=now if now is not None else time.time(),
         )
 
@@ -587,11 +591,11 @@ class ExecutionQualityEngine:
 
     def score(
         self,
-        conditions:              ExecutionConditions,
-        order_type:              OrderType = OrderType.MARKET,
-        distance_to_target_atr:  float     = 0.0,
-        direction:               int       = 1,
-        now:                     float | None = None,
+        conditions: ExecutionConditions,
+        order_type: OrderType = OrderType.MARKET,
+        distance_to_target_atr: float = 0.0,
+        direction: int = 1,
+        now: float | None = None,
     ) -> ExecutionQualitySignal:
         """Compute the full execution quality signal for one order scenario.
 
@@ -635,9 +639,9 @@ class ExecutionQualityEngine:
         # ── 2. Composite timing score ─────────────────────────────────────
         slippage_risk = min(1.0, slip.expected_slippage_atr / max(0.1, slip.spread_cost_atr + 0.5))
         timing_struct = (
-            (1.0 - slip.spread_risk)         * 0.40
-            + fill_sig.fill_probability       * 0.30
-            + conditions.session_quality      * 0.20
+            (1.0 - slip.spread_risk) * 0.40
+            + fill_sig.fill_probability * 0.30
+            + conditions.session_quality * 0.20
             + (1.0 - min(1.0, slippage_risk)) * 0.10
         )
 
@@ -647,29 +651,28 @@ class ExecutionQualityEngine:
         # Historical adjustment: bad fills reduce timing; good fills boost it.
         # hist_quality < 0.5 → drag is negative → timing decreases.
         # hist_quality > 0.5 → drag is positive → timing increases.
-        hist_drag    = (hist_quality - 0.5) * 2.0 * hist_conf   # −conf..+conf
+        hist_drag = (hist_quality - 0.5) * 2.0 * hist_conf  # −conf..+conf
         timing_score = max(0.0, min(1.0, timing_struct + hist_drag * timing_struct))
 
         # ── 4. Integration signals ────────────────────────────────────────
-        timing_rec   = _timing_recommendation(timing_score)
+        timing_rec = _timing_recommendation(timing_score)
         order_type_rec = self._fill_engine.recommend_order_type(
             conditions.spread_atr_ratio,
             slip.expected_slippage_atr,
             timing_budget_seconds=300.0,
         )
-        conviction_mod = round(max(_CONVICTION_DRAG_MAX, min(0.0,
-            _CONVICTION_DRAG_MAX * (1.0 - timing_score)
-        )), 4)
+        conviction_mod = round(
+            max(_CONVICTION_DRAG_MAX, min(0.0, _CONVICTION_DRAG_MAX * (1.0 - timing_score))), 4
+        )
 
         # Execution cost as a fraction of "typical move" — proportional to
         # spread cost + expected slippage vs. the worst-case slippage
-        exec_cost_score = min(1.0,
+        exec_cost_score = min(
+            1.0,
             (slip.spread_cost_atr + slip.expected_slippage_atr)
-            / max(0.01, slip.worst_case_slippage_atr)
+            / max(0.01, slip.worst_case_slippage_atr),
         )
-        reward_mod = round(max(_REWARD_MOD_MAX, min(0.0,
-            _REWARD_MOD_MAX * exec_cost_score
-        )), 4)
+        reward_mod = round(max(_REWARD_MOD_MAX, min(0.0, _REWARD_MOD_MAX * exec_cost_score)), 4)
 
         grade = _grade_from_timing(timing_score)
 
@@ -694,11 +697,11 @@ class ExecutionQualityEngine:
 
     def context_for_inference(
         self,
-        conditions:             ExecutionConditions,
-        order_type:             OrderType = OrderType.MARKET,
-        distance_to_target_atr: float     = 0.0,
-        direction:              int       = 1,
-        now:                    float | None = None,
+        conditions: ExecutionConditions,
+        order_type: OrderType = OrderType.MARKET,
+        distance_to_target_atr: float = 0.0,
+        direction: int = 1,
+        now: float | None = None,
     ) -> dict:
         """Return exactly 16 ``exec_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -723,32 +726,32 @@ class ExecutionQualityEngine:
         """
         sig = self.score(conditions, order_type, distance_to_target_atr, direction, now)
         return {
-            "exec_spread_atr_ratio":          round(sig.spread_atr_ratio, 4),
-            "exec_spread_risk":               round(sig.spread_risk, 4),
-            "exec_spread_cost_atr":           round(sig.spread_cost_atr, 6),
-            "exec_expected_slippage_atr":     round(sig.expected_slippage_atr, 6),
-            "exec_worst_case_slippage_atr":   round(sig.worst_case_slippage_atr, 6),
-            "exec_fill_probability":          round(sig.fill_probability, 4),
-            "exec_fill_quality_score":        round(sig.fill_quality_score, 4),
-            "exec_timing_score":              round(sig.timing_score, 4),
-            "exec_timing_recommendation":     sig.timing_recommendation.value,
-            "exec_session_quality":           round(sig.session_quality, 4),
+            "exec_spread_atr_ratio": round(sig.spread_atr_ratio, 4),
+            "exec_spread_risk": round(sig.spread_risk, 4),
+            "exec_spread_cost_atr": round(sig.spread_cost_atr, 6),
+            "exec_expected_slippage_atr": round(sig.expected_slippage_atr, 6),
+            "exec_worst_case_slippage_atr": round(sig.worst_case_slippage_atr, 6),
+            "exec_fill_probability": round(sig.fill_probability, 4),
+            "exec_fill_quality_score": round(sig.fill_quality_score, 4),
+            "exec_timing_score": round(sig.timing_score, 4),
+            "exec_timing_recommendation": sig.timing_recommendation.value,
+            "exec_session_quality": round(sig.session_quality, 4),
             "exec_order_type_recommendation": sig.order_type_recommendation.value,
-            "exec_conviction_modifier":       round(sig.conviction_modifier, 4),
-            "exec_expected_reward_modifier":  round(sig.expected_reward_modifier, 4),
-            "exec_execution_grade":           sig.execution_grade.value,
-            "exec_historical_quality":        round(sig.historical_quality, 4),
-            "exec_history_confidence":        round(sig.history_confidence, 4),
+            "exec_conviction_modifier": round(sig.conviction_modifier, 4),
+            "exec_expected_reward_modifier": round(sig.expected_reward_modifier, 4),
+            "exec_execution_grade": sig.execution_grade.value,
+            "exec_historical_quality": round(sig.historical_quality, 4),
+            "exec_history_confidence": round(sig.history_confidence, 4),
         }
 
     # ── Convenience ──────────────────────────────────────────────────────────
 
     def build_observation(
         self,
-        conditions:              ExecutionConditions,
-        order_type:              OrderType = OrderType.MARKET,
-        distance_to_target_atr:  float     = 0.0,
-        direction:               int       = 1,
+        conditions: ExecutionConditions,
+        order_type: OrderType = OrderType.MARKET,
+        distance_to_target_atr: float = 0.0,
+        direction: int = 1,
     ) -> ExecutionObservation:
         """Build an ``ExecutionObservation`` to store at order-submission time.
 
@@ -810,7 +813,7 @@ class ExecutionQualityEngine:
         self,
         conditions: ExecutionConditions,
         order_type: OrderType,
-        now:        float,
+        now: float,
     ) -> tuple[float, float]:
         """Nearest-neighbour quality estimate from execution history.
 
@@ -831,7 +834,7 @@ class ExecutionQualityEngine:
             order_type=order_type,
             microstructure_quality=conditions.microstructure_quality,
         )
-        agg   = self._slip_pred.aggressiveness(order_type)
+        agg = self._slip_pred.aggressiveness(order_type)
         query = [
             conditions.spread_atr_ratio,
             conditions.volatility,
@@ -843,11 +846,11 @@ class ExecutionQualityEngine:
 
         scored: list[tuple[float, ExecutionRecord]] = []
         for rec in records:
-            hist_vec  = rec.observation.as_vector()
-            dist      = _l2_distance(query, hist_vec)
-            sim       = _similarity(dist, _L2_SCALE)
-            recency   = rec.recency_weight(now, tau_days=self._tau)
-            w         = sim * recency
+            hist_vec = rec.observation.as_vector()
+            dist = _l2_distance(query, hist_vec)
+            sim = _similarity(dist, _L2_SCALE)
+            recency = rec.recency_weight(now, tau_days=self._tau)
+            w = sim * recency
             if w > 1e-10:
                 scored.append((w, rec))
 
@@ -855,13 +858,13 @@ class ExecutionQualityEngine:
             return 0.5, 0.0
 
         scored.sort(key=lambda t: t[0], reverse=True)
-        top_k    = scored[: self._k]
-        total_w  = sum(w for w, _ in top_k)
+        top_k = scored[: self._k]
+        total_w = sum(w for w, _ in top_k)
         if total_w < 1e-12:
             return 0.5, 0.0
 
-        weighted_q  = sum(w * r.outcome.outcome_quality for w, r in top_k) / total_w
-        confidence  = min(1.0, len(top_k) / max(_MIN_INFORMATIVE, 1))
+        weighted_q = sum(w * r.outcome.outcome_quality for w, r in top_k) / total_w
+        confidence = min(1.0, len(top_k) / max(_MIN_INFORMATIVE, 1))
         return max(0.0, min(1.0, weighted_q)), round(confidence, 4)
 
 

@@ -35,9 +35,7 @@ from trainer.qde.brain.narrative.narrative_store import (
 from trainer.qde.qde_observer_models import SymbolObservationInput
 
 _VOL_RANK: dict[str, int] = {"LOW": 0, "NORMAL": 1, "ELEVATED": 2, "HIGH": 3, "EXTREME": 4}
-_LIQ_RANK: dict[str, int] = {
-    "POOR": 0, "THIN": 0, "LOW": 0, "NORMAL": 1, "GOOD": 2, "EXCELLENT": 2
-}
+_LIQ_RANK: dict[str, int] = {"POOR": 0, "THIN": 0, "LOW": 0, "NORMAL": 1, "GOOD": 2, "EXCELLENT": 2}
 
 
 class NarrativeEvolution:
@@ -70,26 +68,33 @@ class NarrativeEvolution:
         vol_rank = _VOL_RANK.get(inp.volatility_state.upper(), 1)
         liq_rank = _LIQ_RANK.get(inp.liquidity_state.upper(), 1)
         trend_maturity = (
-            existing_narrative.trend_maturity
-            if existing_narrative
-            else TrendMaturity.NONE
+            existing_narrative.trend_maturity if existing_narrative else TrendMaturity.NONE
         )
 
         # Dispatch to the per-kind evolution method.
         dispatcher = {
             NarrativeKind.TREND_CONTINUATION: self._evolve_trend_continuation,
-            NarrativeKind.REVERSAL:           self._evolve_reversal,
-            NarrativeKind.ACCUMULATION:       self._evolve_accumulation,
-            NarrativeKind.DISTRIBUTION:       self._evolve_distribution,
-            NarrativeKind.BREAKOUT:           self._evolve_breakout,
-            NarrativeKind.EXHAUSTION:         self._evolve_exhaustion,
-            NarrativeKind.LIQUIDITY_GRAB:     self._evolve_liquidity_grab,
+            NarrativeKind.REVERSAL: self._evolve_reversal,
+            NarrativeKind.ACCUMULATION: self._evolve_accumulation,
+            NarrativeKind.DISTRIBUTION: self._evolve_distribution,
+            NarrativeKind.BREAKOUT: self._evolve_breakout,
+            NarrativeKind.EXHAUSTION: self._evolve_exhaustion,
+            NarrativeKind.LIQUIDITY_GRAB: self._evolve_liquidity_grab,
         }
         fn = dispatcher.get(narrative.kind)
         if fn is not None:
             fn(
-                narrative, inp, regime, vol_rank, liq_rank, trend_maturity,
-                active_hypotheses, observer_state, readiness_score, dwell_seconds, now
+                narrative,
+                inp,
+                regime,
+                vol_rank,
+                liq_rank,
+                trend_maturity,
+                active_hypotheses,
+                observer_state,
+                readiness_score,
+                dwell_seconds,
+                now,
             )
 
         # Always refresh context strings so they reflect the latest regime/session.
@@ -100,48 +105,54 @@ class NarrativeEvolution:
     # ── Per-kind evolution logic ──────────────────────────────────────────
 
     def _evolve_trend_continuation(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         in_trend = regime in ("TREND_UP", "TREND_DOWN")
         trend_valid = inp.market.trend_valid
 
         if in_trend and trend_valid and readiness_score >= 0.4:
             boost = 0.08 + readiness_score * 0.06
-            n.reinforce(
-                f"readiness={readiness_score:.2f}, regime={regime}", boost=boost, now=now
-            )
+            n.reinforce(f"readiness={readiness_score:.2f}, regime={regime}", boost=boost, now=now)
         elif not in_trend:
-            n.weaken(
-                f"regime flipped to {regime}", penalty=0.20, now=now
-            )
+            n.weaken(f"regime flipped to {regime}", penalty=0.20, now=now)
         elif not trend_valid:
-            n.weaken(
-                "trend_valid=False", penalty=0.12, now=now
-            )
+            n.weaken("trend_valid=False", penalty=0.12, now=now)
         elif trend_maturity in (TrendMaturity.LATE, TrendMaturity.EXHAUSTED):
-            n.weaken(
-                f"trend_maturity={trend_maturity.value}", penalty=0.10, now=now
-            )
+            n.weaken(f"trend_maturity={trend_maturity.value}", penalty=0.10, now=now)
         else:
             # Neutral tick: small passive decay (confidence erodes without confirmation)
             n.confidence = max(0.0, n.confidence - 0.02)
             n.last_updated_at = now
 
     def _evolve_reversal(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         in_trend = regime in ("TREND_UP", "TREND_DOWN")
         if not in_trend:
             # Regime already flipped — reversal materialised or cancelled
-            n.weaken(
-                f"regime={regime} (no longer in trend)", penalty=0.25, now=now
-            )
+            n.weaken(f"regime={regime} (no longer in trend)", penalty=0.25, now=now)
             return
 
         reversal_signals = 0
@@ -163,19 +174,23 @@ class NarrativeEvolution:
             evidence_parts.append(f"mixed_hypotheses={bull}b/{bear}B")
 
         if reversal_signals >= 2:
-            n.reinforce(
-                "; ".join(evidence_parts), boost=0.06 * reversal_signals, now=now
-            )
+            n.reinforce("; ".join(evidence_parts), boost=0.06 * reversal_signals, now=now)
         else:
-            n.weaken(
-                "reversal signals fading", penalty=0.10, now=now
-            )
+            n.weaken("reversal signals fading", penalty=0.10, now=now)
 
     def _evolve_accumulation(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         in_range = regime in ("RANGE", "CHOP", "CHOPPY")
         if not in_range:
@@ -193,18 +208,24 @@ class NarrativeEvolution:
             score += 1
 
         if score >= 2:
-            n.reinforce(
-                f"quiet_range vol={inp.volatility_state.lower()}", boost=0.06, now=now
-            )
+            n.reinforce(f"quiet_range vol={inp.volatility_state.lower()}", boost=0.06, now=now)
         else:
             n.confidence = max(0.0, n.confidence - 0.03)
             n.last_updated_at = now
 
     def _evolve_distribution(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         in_range = regime in ("RANGE", "CHOP", "CHOPPY")
         if not in_range:
@@ -222,78 +243,92 @@ class NarrativeEvolution:
             score += 1
 
         if score >= 2:
-            n.reinforce(
-                f"supply_pressure vol={inp.volatility_state.lower()}", boost=0.06, now=now
-            )
+            n.reinforce(f"supply_pressure vol={inp.volatility_state.lower()}", boost=0.06, now=now)
         else:
             n.confidence = max(0.0, n.confidence - 0.03)
             n.last_updated_at = now
 
     def _evolve_breakout(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         armed = observer_state in ("ARMED", "ENTRY_WINDOW", "CONFIRMING", "READY")
         if armed and readiness_score >= 0.60:
             boost = 0.08 + readiness_score * 0.08
             n.reinforce(
-                f"observer={observer_state} readiness={readiness_score:.2f}",
-                boost=boost, now=now
+                f"observer={observer_state} readiness={readiness_score:.2f}", boost=boost, now=now
             )
         elif observer_state == "COOLDOWN":
             # Breakout window closed
             n.weaken("observer entered cooldown", penalty=0.30, now=now)
         elif readiness_score < 0.40:
-            n.weaken(
-                f"readiness dropped to {readiness_score:.2f}", penalty=0.12, now=now
-            )
+            n.weaken(f"readiness dropped to {readiness_score:.2f}", penalty=0.12, now=now)
         else:
             n.confidence = max(0.0, n.confidence - 0.05)
             n.last_updated_at = now
 
     def _evolve_exhaustion(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         in_trend = regime in ("TREND_UP", "TREND_DOWN")
 
         if in_trend and trend_maturity in (TrendMaturity.LATE, TrendMaturity.EXHAUSTED):
-            n.reinforce(
-                f"trend_maturity={trend_maturity.value} continuing", boost=0.07, now=now
-            )
+            n.reinforce(f"trend_maturity={trend_maturity.value} continuing", boost=0.07, now=now)
         elif in_trend and not inp.market.trend_valid:
             n.reinforce("trend_valid=False in trend regime", boost=0.08, now=now)
         elif in_trend and inp.market.trend_valid and readiness_score >= 0.60:
             # Trend re-validated at high readiness — exhaustion is fading
-            n.weaken(
-                f"trend re-validated, readiness={readiness_score:.2f}", penalty=0.15, now=now
-            )
+            n.weaken(f"trend re-validated, readiness={readiness_score:.2f}", penalty=0.15, now=now)
         else:
             n.confidence = max(0.0, n.confidence - 0.03)
             n.last_updated_at = now
 
     def _evolve_liquidity_grab(
-        self, n: SymbolNarrative, inp: SymbolObservationInput,
-        regime: str, vol_rank: int, liq_rank: int, trend_maturity: TrendMaturity,
-        hypotheses: list[Hypothesis], observer_state: str,
-        readiness_score: float, dwell_seconds: float, now: float,
+        self,
+        n: SymbolNarrative,
+        inp: SymbolObservationInput,
+        regime: str,
+        vol_rank: int,
+        liq_rank: int,
+        trend_maturity: TrendMaturity,
+        hypotheses: list[Hypothesis],
+        observer_state: str,
+        readiness_score: float,
+        dwell_seconds: float,
+        now: float,
     ) -> None:
         # Liquidity grab is inherently transient; it either resolves quickly
         # (liquidity normalises) or becomes a structural problem.
         if vol_rank >= 3 and liq_rank == 0:
             n.reinforce(
                 f"vol={inp.volatility_state.lower()} liq={inp.liquidity_state.lower()} persisting",
-                boost=0.06, now=now
+                boost=0.06,
+                now=now,
             )
         elif liq_rank >= 1 and vol_rank <= 2:
             # Normalised — liquidity grab resolved
-            n.weaken(
-                "liquidity normalised", penalty=0.35, now=now
-            )
+            n.weaken("liquidity normalised", penalty=0.35, now=now)
         else:
             # Passive decay (liq grab is a short-lived event by nature)
             n.confidence = max(0.0, n.confidence - 0.08)

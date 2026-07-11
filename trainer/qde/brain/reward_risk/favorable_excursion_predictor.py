@@ -74,15 +74,12 @@ from dataclasses import dataclass
 from trainer.qde.brain.reward_risk.adverse_excursion_predictor import (
     _SQRT2,
     _VOL_CEIL,
-    _Z_P50,
-    _Z_P75,
-    _Z_P90,
     _lognormal_quantiles,
 )
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_MFE_FLOOR  = 0.05   # minimum structural MFE estimate (ATR units)
+_MFE_FLOOR = 0.05  # minimum structural MFE estimate (ATR units)
 
 # Log-normal σ bounds for MFE.  MFE tends to be slightly less dispersed
 # than MAE because it requires sustained directional price action,
@@ -135,14 +132,14 @@ class FavorableExcursionInput:
         When > 0, ``target_hit_probability`` is computed analytically.
     """
 
-    spread_atr_ratio:       float = 0.10
-    atr_pct:                float = 0.005
-    volatility:             float = 0.010
-    session_quality:        float = 0.80
-    momentum:               float = 0.0
-    direction:              int   = 1
+    spread_atr_ratio: float = 0.10
+    atr_pct: float = 0.005
+    volatility: float = 0.010
+    session_quality: float = 0.80
+    momentum: float = 0.0
+    direction: int = 1
     microstructure_quality: float = 0.80
-    target_distance_atr:    float = 0.0
+    target_distance_atr: float = 0.0
 
     @property
     def directed_momentum(self) -> float:
@@ -186,23 +183,23 @@ class FavorableExcursionEstimate:
         Internal dispersion parameter for blending with historical data.
     """
 
-    expected_mfe_atr:      float = 0.0
-    mfe_p50_atr:           float = 0.0
-    mfe_p75_atr:           float = 0.0
-    mfe_p90_atr:           float = 0.0
+    expected_mfe_atr: float = 0.0
+    mfe_p50_atr: float = 0.0
+    mfe_p75_atr: float = 0.0
+    mfe_p90_atr: float = 0.0
     target_hit_probability: float = 0.0
-    optimal_target_atr:    float = 0.0
-    log_sigma:             float = 0.55
+    optimal_target_atr: float = 0.0
+    log_sigma: float = 0.55
 
     def to_dict(self) -> dict:
         return {
-            "expected_mfe_atr":     round(self.expected_mfe_atr, 4),
-            "mfe_p50_atr":          round(self.mfe_p50_atr, 4),
-            "mfe_p75_atr":          round(self.mfe_p75_atr, 4),
-            "mfe_p90_atr":          round(self.mfe_p90_atr, 4),
+            "expected_mfe_atr": round(self.expected_mfe_atr, 4),
+            "mfe_p50_atr": round(self.mfe_p50_atr, 4),
+            "mfe_p75_atr": round(self.mfe_p75_atr, 4),
+            "mfe_p90_atr": round(self.mfe_p90_atr, 4),
             "target_hit_probability": round(self.target_hit_probability, 4),
-            "optimal_target_atr":   round(self.optimal_target_atr, 4),
-            "log_sigma":            round(self.log_sigma, 4),
+            "optimal_target_atr": round(self.optimal_target_atr, 4),
+            "log_sigma": round(self.log_sigma, 4),
         }
 
 
@@ -234,9 +231,9 @@ class FavorableExcursionPredictor:
         probability of reaching that target.
         """
         expected_mfe = self._expected_mfe(inp)
-        sigma        = self._log_sigma(inp)
+        sigma = self._log_sigma(inp)
         p50, p75, p90 = _lognormal_quantiles(expected_mfe, sigma)
-        target_hit    = _target_hit_prob(inp.target_distance_atr, expected_mfe, sigma)
+        target_hit = _target_hit_prob(inp.target_distance_atr, expected_mfe, sigma)
 
         return FavorableExcursionEstimate(
             expected_mfe_atr=round(expected_mfe, 6),
@@ -244,7 +241,7 @@ class FavorableExcursionPredictor:
             mfe_p75_atr=round(p75, 6),
             mfe_p90_atr=round(p90, 6),
             target_hit_probability=round(target_hit, 4),
-            optimal_target_atr=round(p50, 6),   # P50 = natural conservative target
+            optimal_target_atr=round(p50, 6),  # P50 = natural conservative target
             log_sigma=round(sigma, 4),
         )
 
@@ -278,11 +275,11 @@ class FavorableExcursionPredictor:
             favorable excursion from entry mid-price.  Coefficient 0.30
             converts SAR to ATR fraction.
         """
-        dm       = inp.directed_momentum
+        dm = inp.directed_momentum
         vol_norm = min(1.0, inp.volatility / _VOL_CEIL)
 
-        mom_contribution  = max(0.0, dm) * 0.80
-        vol_contribution  = vol_norm * 0.50
+        mom_contribution = max(0.0, dm) * 0.80
+        vol_contribution = vol_norm * 0.50
 
         session_boost = _SESSION_BOOST_LO + inp.session_quality * (
             _SESSION_BOOST_HI - _SESSION_BOOST_LO
@@ -304,11 +301,7 @@ class FavorableExcursionPredictor:
         additional variability.
         """
         vol_norm = min(1.0, inp.volatility / _VOL_CEIL)
-        sigma = (
-            _MFE_SIGMA_MIN
-            + vol_norm                      * 0.25
-            + (1.0 - inp.session_quality)   * 0.15
-        )
+        sigma = _MFE_SIGMA_MIN + vol_norm * 0.25 + (1.0 - inp.session_quality) * 0.15
         return min(_MFE_SIGMA_MAX, sigma)
 
 
@@ -317,8 +310,8 @@ class FavorableExcursionPredictor:
 
 def _target_hit_prob(
     target_distance_atr: float,
-    expected_mfe:        float,
-    sigma:               float,
+    expected_mfe: float,
+    sigma: float,
 ) -> float:
     """P(MFE > target_distance_atr) from the structural log-normal model.
 
@@ -327,6 +320,6 @@ def _target_hit_prob(
     if target_distance_atr <= 0.0:
         return 0.0
     expected_mfe = max(expected_mfe, 1e-9)
-    mu = math.log(expected_mfe) - sigma ** 2 / 2.0
-    z  = (math.log(max(target_distance_atr, 1e-9)) - mu) / sigma
+    mu = math.log(expected_mfe) - sigma**2 / 2.0
+    z = (math.log(max(target_distance_atr, 1e-9)) - mu) / sigma
     return max(0.0, min(1.0, 0.5 * math.erfc(z / _SQRT2)))

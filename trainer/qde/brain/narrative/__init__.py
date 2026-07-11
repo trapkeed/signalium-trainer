@@ -44,6 +44,22 @@ brain.py (C3)           `NarrativeAPI.generate_narrative` (preferred entry
                         point when memory recall + calibration are needed)
 """
 
+from trainer.qde.brain.narrative.continuity import (
+    HORIZON_ORDER,
+    HORIZON_WINDOWS,
+    ContinuityEngine,
+    LineageEntry,
+    LineageEventType,
+    NarrativeHorizon,
+    NarrativeLineage,
+    NarrativeStory,
+    SessionSnapshot,
+    StoryNode,
+    StoryStrength,
+    evaluate_story_strength,
+    retrieve_story,
+    update_narrative,
+)
 from trainer.qde.brain.narrative.market_narrative_engine import (
     HypothesisSeed,
     MarketNarrativeEngine,
@@ -79,28 +95,12 @@ from trainer.qde.brain.narrative.narrative_probability import (
     NarrativeProbabilityEngine,
 )
 from trainer.qde.brain.narrative.narrative_store import (
+    _DEFAULT_MAX_AGE,
     MAX_EVIDENCE_ITEMS,
     NarrativeKind,
     NarrativeMaturity,
     NarrativeStore,
     SymbolNarrative,
-    _DEFAULT_MAX_AGE,
-)
-from trainer.qde.brain.narrative.continuity import (
-    ContinuityEngine,
-    HORIZON_ORDER,
-    HORIZON_WINDOWS,
-    LineageEntry,
-    LineageEventType,
-    NarrativeHorizon,
-    NarrativeLineage,
-    NarrativeStory,
-    SessionSnapshot,
-    StoryNode,
-    StoryStrength,
-    evaluate_story_strength,
-    retrieve_story,
-    update_narrative,
 )
 
 __all__ = [

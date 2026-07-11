@@ -54,36 +54,36 @@ Design rules
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 from trainer.qde.brain.opportunity.opportunity_ranker import (
+    OpportunityInput,
     OpportunityRanker,
     RankedOpportunity,
-    OpportunityInput,
 )
 
 # ── Tier thresholds and defaults ──────────────────────────────────────────────
 
 # Net-score thresholds for tier eligibility.  Below TIER_3_MIN → PASS.
-_TIER_1_MIN    = 0.55
-_TIER_2_MIN    = 0.38
-_TIER_3_MIN    = 0.20
+_TIER_1_MIN = 0.55
+_TIER_2_MIN = 0.38
+_TIER_3_MIN = 0.20
 
 # Size modifier scaling per tier relative to the projection engine's suggestion
-_TIER_1_SCALE  = 1.00   # full suggestion
-_TIER_2_SCALE  = 0.60
-_TIER_3_SCALE  = 0.30
+_TIER_1_SCALE = 1.00  # full suggestion
+_TIER_2_SCALE = 0.60
+_TIER_3_SCALE = 0.30
 
 # Fraction of total attention budget allocated to each tier group
-_ATTN_TIER1    = 0.60
-_ATTN_TIER2    = 0.30
-_ATTN_TIER3    = 0.10
+_ATTN_TIER1 = 0.60
+_ATTN_TIER2 = 0.30
+_ATTN_TIER3 = 0.10
 
 # Default portfolio constraints
-DEFAULT_MAX_CONCURRENT  = 3
-DEFAULT_MAX_CAPITAL_PCT = 1.0   # fraction of baseline (1.0 = 100 % of normal sizing)
-DEFAULT_MIN_SCORE       = _TIER_3_MIN
+DEFAULT_MAX_CONCURRENT = 3
+DEFAULT_MAX_CAPITAL_PCT = 1.0  # fraction of baseline (1.0 = 100 % of normal sizing)
+DEFAULT_MIN_SCORE = _TIER_3_MIN
 
 
 # ── PriorityTier ──────────────────────────────────────────────────────────────
@@ -92,10 +92,10 @@ DEFAULT_MIN_SCORE       = _TIER_3_MIN
 class PriorityTier(str, Enum):
     """Allocated priority for one opportunity."""
 
-    TIER_1 = "TIER_1"   # full allocation — deploy capital now
-    TIER_2 = "TIER_2"   # reduced allocation — queue with smaller size
-    TIER_3 = "TIER_3"   # monitoring only — minimal capital if at all
-    PASS   = "PASS"     # skip — insufficient quality or budget exhausted
+    TIER_1 = "TIER_1"  # full allocation — deploy capital now
+    TIER_2 = "TIER_2"  # reduced allocation — queue with smaller size
+    TIER_3 = "TIER_3"  # monitoring only — minimal capital if at all
+    PASS = "PASS"  # skip — insufficient quality or budget exhausted
 
 
 # ── CapitalAllocation ─────────────────────────────────────────────────────────
@@ -129,29 +129,29 @@ class CapitalAllocation:
         Net score from ``RankedOpportunity.net_score``.
     """
 
-    instrument:              str          = ""
-    opportunity_id:          str          = ""
-    tier:                    PriorityTier = PriorityTier.PASS
-    suggested_size_modifier: float        = 0.0
-    attention_allocation:    float        = 0.0
-    rank:                    int          = 0
-    net_score:               float        = 0.0
-    composite_score:         float        = 0.0
-    is_actionable:           bool         = False
-    reasoning:               str          = ""
+    instrument: str = ""
+    opportunity_id: str = ""
+    tier: PriorityTier = PriorityTier.PASS
+    suggested_size_modifier: float = 0.0
+    attention_allocation: float = 0.0
+    rank: int = 0
+    net_score: float = 0.0
+    composite_score: float = 0.0
+    is_actionable: bool = False
+    reasoning: str = ""
 
     def to_dict(self) -> dict:
         return {
-            "instrument":              self.instrument,
-            "opportunity_id":          self.opportunity_id,
-            "tier":                    self.tier.value,
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "tier": self.tier.value,
             "suggested_size_modifier": round(self.suggested_size_modifier, 4),
-            "attention_allocation":    round(self.attention_allocation, 4),
-            "rank":                    self.rank,
-            "net_score":               round(self.net_score, 4),
-            "composite_score":         round(self.composite_score, 4),
-            "is_actionable":           self.is_actionable,
-            "reasoning":               self.reasoning,
+            "attention_allocation": round(self.attention_allocation, 4),
+            "rank": self.rank,
+            "net_score": round(self.net_score, 4),
+            "composite_score": round(self.composite_score, 4),
+            "is_actionable": self.is_actionable,
+            "reasoning": self.reasoning,
         }
 
 
@@ -176,11 +176,11 @@ class CapitalPriorityEngine:
 
     def allocate(
         self,
-        ranked:           list[RankedOpportunity],
-        max_concurrent:   int   = DEFAULT_MAX_CONCURRENT,
-        max_capital_pct:  float = DEFAULT_MAX_CAPITAL_PCT,
-        min_score:        float = DEFAULT_MIN_SCORE,
-        now:              float | None = None,
+        ranked: list[RankedOpportunity],
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+        max_capital_pct: float = DEFAULT_MAX_CAPITAL_PCT,
+        min_score: float = DEFAULT_MIN_SCORE,
+        now: float | None = None,
     ) -> dict[str, CapitalAllocation]:
         """Produce ``CapitalAllocation`` for each ranked opportunity.
 
@@ -206,9 +206,9 @@ class CapitalPriorityEngine:
 
         # ── Pass 1: assign tiers and size modifiers ────────────────────
         tier_map: dict[str, PriorityTier] = {}
-        size_map: dict[str, float]        = {}
-        running_capital                   = 0.0
-        deployed_count                    = 0
+        size_map: dict[str, float] = {}
+        running_capital = 0.0
+        deployed_count = 0
 
         for row in ranked:
             tier, size, reason = self._assign_tier(
@@ -222,7 +222,7 @@ class CapitalPriorityEngine:
             tier_map[row.instrument] = tier
             size_map[row.instrument] = size
             if tier in (PriorityTier.TIER_1, PriorityTier.TIER_2):
-                deployed_count  += 1
+                deployed_count += 1
                 running_capital += size
 
         # ── Pass 2: distribute attention budget ───────────────────────
@@ -231,8 +231,8 @@ class CapitalPriorityEngine:
         # ── Pass 3: assemble results ───────────────────────────────────
         result: dict[str, CapitalAllocation] = {}
         for row in ranked:
-            tier   = tier_map[row.instrument]
-            size   = size_map[row.instrument]
+            tier = tier_map[row.instrument]
+            size = size_map[row.instrument]
             reason = self._reasoning(row, tier, size)
             result[row.instrument] = CapitalAllocation(
                 instrument=row.instrument,
@@ -251,14 +251,14 @@ class CapitalPriorityEngine:
 
     def allocate_from_inputs(
         self,
-        candidates:      list[OpportunityInput],
-        max_concurrent:  int   = DEFAULT_MAX_CONCURRENT,
+        candidates: list[OpportunityInput],
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
         max_capital_pct: float = DEFAULT_MAX_CAPITAL_PCT,
-        min_score:       float = DEFAULT_MIN_SCORE,
-        now:             float | None = None,
+        min_score: float = DEFAULT_MIN_SCORE,
+        now: float | None = None,
     ) -> dict[str, CapitalAllocation]:
         """Convenience wrapper: rank then allocate in one call."""
-        now    = now if now is not None else time.time()
+        now = now if now is not None else time.time()
         ranked = self._ranker.rank(candidates, now=now)
         return self.allocate(
             ranked=ranked,
@@ -270,21 +270,21 @@ class CapitalPriorityEngine:
 
     def top_tier(
         self,
-        candidates:     list[OpportunityInput],
-        max_concurrent: int   = DEFAULT_MAX_CONCURRENT,
-        now:            float | None = None,
+        candidates: list[OpportunityInput],
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+        now: float | None = None,
     ) -> list[CapitalAllocation]:
         """Return only TIER_1 allocations, sorted by rank."""
-        allocs  = self.allocate_from_inputs(candidates, max_concurrent=max_concurrent, now=now)
-        tier1   = [a for a in allocs.values() if a.tier == PriorityTier.TIER_1]
+        allocs = self.allocate_from_inputs(candidates, max_concurrent=max_concurrent, now=now)
+        tier1 = [a for a in allocs.values() if a.tier == PriorityTier.TIER_1]
         return sorted(tier1, key=lambda a: a.rank)
 
     def context_for_inference(
         self,
-        instrument:     str,
-        candidates:     list[OpportunityInput],
-        max_concurrent: int   = DEFAULT_MAX_CONCURRENT,
-        now:            float | None = None,
+        instrument: str,
+        candidates: list[OpportunityInput],
+        max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+        now: float | None = None,
     ) -> dict:
         """Return ``opp_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -299,22 +299,22 @@ class CapitalPriorityEngine:
         opp_total_candidates      — count of all candidates
         opp_concurrent_budget_pct — deployed / max_concurrent (0-1)
         """
-        now    = now if now is not None else time.time()
+        now = now if now is not None else time.time()
         allocs = self.allocate_from_inputs(candidates, max_concurrent=max_concurrent, now=now)
-        total  = len(candidates)
+        total = len(candidates)
         t1_cnt = sum(1 for a in allocs.values() if a.tier == PriorityTier.TIER_1)
         t2_cnt = sum(1 for a in allocs.values() if a.tier == PriorityTier.TIER_2)
-        used   = t1_cnt + t2_cnt
+        used = t1_cnt + t2_cnt
 
-        alloc  = allocs.get(instrument, CapitalAllocation(instrument=instrument))
+        alloc = allocs.get(instrument, CapitalAllocation(instrument=instrument))
         return {
-            "opp_tier":                  alloc.tier.value,
-            "opp_rank":                  alloc.rank,
-            "opp_net_score":             round(alloc.net_score, 4),
-            "opp_suggested_size_mod":    round(alloc.suggested_size_modifier, 4),
-            "opp_attention_allocation":  round(alloc.attention_allocation, 4),
-            "opp_is_actionable":         alloc.is_actionable,
-            "opp_total_candidates":      total,
+            "opp_tier": alloc.tier.value,
+            "opp_rank": alloc.rank,
+            "opp_net_score": round(alloc.net_score, 4),
+            "opp_suggested_size_mod": round(alloc.suggested_size_modifier, 4),
+            "opp_attention_allocation": round(alloc.attention_allocation, 4),
+            "opp_is_actionable": alloc.is_actionable,
+            "opp_total_candidates": total,
             "opp_concurrent_budget_pct": round(used / max(max_concurrent, 1), 4),
         }
 
@@ -322,12 +322,12 @@ class CapitalPriorityEngine:
 
     def _assign_tier(
         self,
-        row:             RankedOpportunity,
-        deployed_count:  int,
+        row: RankedOpportunity,
+        deployed_count: int,
         running_capital: float,
-        max_concurrent:  int,
+        max_concurrent: int,
         max_capital_pct: float,
-        min_score:       float,
+        min_score: float,
     ) -> tuple[PriorityTier, float, str]:
         """Return (tier, suggested_size_modifier, reasoning) for one row."""
 
@@ -338,7 +338,7 @@ class CapitalPriorityEngine:
             # Score it but don't deploy — it may be in WATCHING / ARMED
             return PriorityTier.TIER_3, 0.0, f"state={row.setup_state} not yet actionable"
 
-        base_size = row.proj_position_size_modifier   # from ExpectedMoveEngine
+        base_size = row.proj_position_size_modifier  # from ExpectedMoveEngine
 
         # TIER_1: top-ranked, within budget, above threshold
         if (
@@ -347,8 +347,10 @@ class CapitalPriorityEngine:
             and running_capital + base_size * _TIER_1_SCALE <= max_capital_pct + 0.1
         ):
             size = base_size * _TIER_1_SCALE
-            return PriorityTier.TIER_1, size, (
-                f"rank={row.rank} net_score={row.net_score:.3f} → TIER_1"
+            return (
+                PriorityTier.TIER_1,
+                size,
+                (f"rank={row.rank} net_score={row.net_score:.3f} → TIER_1"),
             )
 
         # TIER_2: decent score, some budget remaining
@@ -358,23 +360,25 @@ class CapitalPriorityEngine:
             and running_capital + base_size * _TIER_2_SCALE <= max_capital_pct + 0.2
         ):
             size = base_size * _TIER_2_SCALE
-            return PriorityTier.TIER_2, size, (
-                f"rank={row.rank} net_score={row.net_score:.3f} → TIER_2 (budget partial)"
+            return (
+                PriorityTier.TIER_2,
+                size,
+                (f"rank={row.rank} net_score={row.net_score:.3f} → TIER_2 (budget partial)"),
             )
 
         # TIER_3: below TIER_2 threshold or budget exhausted — watch, don't size
         if row.net_score >= _TIER_3_MIN:
-            return PriorityTier.TIER_3, 0.0, (
-                f"rank={row.rank} net_score={row.net_score:.3f} → TIER_3 (monitor only)"
+            return (
+                PriorityTier.TIER_3,
+                0.0,
+                (f"rank={row.rank} net_score={row.net_score:.3f} → TIER_3 (monitor only)"),
             )
 
-        return PriorityTier.PASS, 0.0, (
-            f"rank={row.rank} net_score={row.net_score:.3f} → PASS"
-        )
+        return PriorityTier.PASS, 0.0, (f"rank={row.rank} net_score={row.net_score:.3f} → PASS")
 
     @staticmethod
     def _allocate_attention(
-        ranked:   list[RankedOpportunity],
+        ranked: list[RankedOpportunity],
         tier_map: dict[str, PriorityTier],
     ) -> dict[str, float]:
         """Distribute 0-1 attention budget across tiers.

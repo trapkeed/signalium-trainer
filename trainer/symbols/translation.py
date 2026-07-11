@@ -56,6 +56,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 if TYPE_CHECKING:
@@ -93,6 +94,7 @@ class SymbolTranslationLayer:
     def __init__(self, normalizer: "SymbolNormalizer | None" = None) -> None:
         if normalizer is None:
             from trainer.market_data.symbol_normalizer import SymbolNormalizer
+
             normalizer = SymbolNormalizer()
         self._normalizer = normalizer
 
@@ -142,9 +144,7 @@ class SymbolTranslationLayer:
                 f"Known canonicals (first 8): {known}"
             )
 
-    def batch_translate(
-        self, symbols: list[str], *, broker: str | None = None
-    ) -> dict[str, str]:
+    def batch_translate(self, symbols: list[str], *, broker: str | None = None) -> dict[str, str]:
         """Translate a list of raw symbols, returning ``{raw: canonical}``.
 
         Raises ``SymbolTranslationError`` on the first symbol that cannot be

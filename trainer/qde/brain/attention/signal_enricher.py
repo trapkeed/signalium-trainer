@@ -47,20 +47,20 @@ from trainer.qde.brain.opportunity_scanner import OpportunitySignals
 # ── Thresholds (kept as module constants so they're easy to tune/test) ────────
 
 # Volume: ratio of current volume to baseline beyond which we flag an anomaly.
-_VOLUME_HIGH_RATIO = 2.0      # >2× baseline → strong anomaly
-_VOLUME_MOD_RATIO  = 1.5      # >1.5× baseline → moderate anomaly
+_VOLUME_HIGH_RATIO = 2.0  # >2× baseline → strong anomaly
+_VOLUME_MOD_RATIO = 1.5  # >1.5× baseline → moderate anomaly
 
 # Key level: distance thresholds as a fraction of current price.
-_LEVEL_CRITICAL_PCT = 0.001   # within 0.1% → very close (0.9)
-_LEVEL_NEAR_PCT     = 0.003   # within 0.3% → near (0.6)
-_LEVEL_WATCH_PCT    = 0.007   # within 0.7% → on radar (0.3)
+_LEVEL_CRITICAL_PCT = 0.001  # within 0.1% → very close (0.9)
+_LEVEL_NEAR_PCT = 0.003  # within 0.3% → near (0.6)
+_LEVEL_WATCH_PCT = 0.007  # within 0.7% → on radar (0.3)
 
 # Spread: normalized change thresholds (spread_normalized is 0-1).
-_SPREAD_SPIKE_DELTA    = 0.30  # ≥0.30 normalized delta → strong change
-_SPREAD_NOTABLE_DELTA  = 0.15  # ≥0.15 normalized delta → notable change
+_SPREAD_SPIKE_DELTA = 0.30  # ≥0.30 normalized delta → strong change
+_SPREAD_NOTABLE_DELTA = 0.15  # ≥0.15 normalized delta → notable change
 
 # Failed move: wick/body ratio beyond which we flag a significant rejection.
-_FAILED_MOVE_STRONG_RATIO  = 2.0
+_FAILED_MOVE_STRONG_RATIO = 2.0
 _FAILED_MOVE_NOTABLE_RATIO = 1.2
 
 
@@ -102,14 +102,14 @@ class ExtendedSignalContext:
                                   replaces ``hypothesis_activity``.
     """
 
-    volume_ratio: float = 1.0               # 1.0 = baseline-normal
-    spread_normalized: float = 0.5          # 0-1 normalized spread
-    prior_spread_normalized: float = 0.5    # previous tick's normalized spread
-    nearest_level_price: float = 0.0        # 0 = no level data available
-    current_price: float = 0.0              # 0 = no price data available
+    volume_ratio: float = 1.0  # 1.0 = baseline-normal
+    spread_normalized: float = 0.5  # 0-1 normalized spread
+    prior_spread_normalized: float = 0.5  # previous tick's normalized spread
+    nearest_level_price: float = 0.0  # 0 = no level data available
+    current_price: float = 0.0  # 0 = no price data available
     recent_failed_breakout: bool = False
-    failed_move_wick_ratio: float = 0.0     # 0 = no recent failed move
-    opportunity_quality: float = 0.0        # 0-1 direct quality score
+    failed_move_wick_ratio: float = 0.0  # 0 = no recent failed move
+    opportunity_quality: float = 0.0  # 0-1 direct quality score
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ def _volume_anomaly(ctx: ExtendedSignalContext) -> float:
         t = (ratio - _VOLUME_MOD_RATIO) / (_VOLUME_HIGH_RATIO - _VOLUME_MOD_RATIO)
         return round(0.5 + 0.5 * t, 4)
     if ratio >= 1.0:
-        return 0.0   # at or below baseline — no anomaly
+        return 0.0  # at or below baseline — no anomaly
     # Below-baseline volume (thin market) is also notable.
     below = max(0.0, 1.0 - ratio)
     return min(0.4, below * 0.6)

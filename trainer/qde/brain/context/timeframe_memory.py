@@ -20,7 +20,6 @@ detection (momentum slope, zero-crossing detection).
 from __future__ import annotations
 
 import dataclasses
-import math
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -52,13 +51,13 @@ class ContextTimeframe(str, Enum):
     execution stream.
     """
 
-    MN = "MN"    # Monthly  (~30 days)
-    W1 = "W1"    # Weekly   (7 days)
-    D1 = "D1"    # Daily
-    H4 = "H4"    # 4-hour
-    H1 = "H1"    # 1-hour
+    MN = "MN"  # Monthly  (~30 days)
+    W1 = "W1"  # Weekly   (7 days)
+    D1 = "D1"  # Daily
+    H4 = "H4"  # 4-hour
+    H1 = "H1"  # 1-hour
     M15 = "M15"  # 15-minute
-    M5 = "M5"    # 5-minute
+    M5 = "M5"  # 5-minute
 
 
 # Ordered coarsest → finest.  This ordering reflects only bar duration; it
@@ -74,24 +73,24 @@ ALL_CONTEXT_TIMEFRAMES: tuple[ContextTimeframe, ...] = (
 )
 
 CONTEXT_TIMEFRAME_SECONDS: dict[ContextTimeframe, int] = {
-    ContextTimeframe.MN:  30 * 24 * 3600,
-    ContextTimeframe.W1:   7 * 24 * 3600,
-    ContextTimeframe.D1:       24 * 3600,
-    ContextTimeframe.H4:    4 * 3600,
-    ContextTimeframe.H1:        3600,
-    ContextTimeframe.M15:      15 * 60,
-    ContextTimeframe.M5:        5 * 60,
+    ContextTimeframe.MN: 30 * 24 * 3600,
+    ContextTimeframe.W1: 7 * 24 * 3600,
+    ContextTimeframe.D1: 24 * 3600,
+    ContextTimeframe.H4: 4 * 3600,
+    ContextTimeframe.H1: 3600,
+    ContextTimeframe.M15: 15 * 60,
+    ContextTimeframe.M5: 5 * 60,
 }
 
 # Mapping from the existing qde_timeframe_types.Timeframe to ContextTimeframe
 # for the five shared members.  M1 is absent; callers use it only for
 # execution, not for context ingestion.
 TIMEFRAME_TO_CONTEXT: dict[Timeframe, ContextTimeframe] = {
-    Timeframe.D1:  ContextTimeframe.D1,
-    Timeframe.H4:  ContextTimeframe.H4,
-    Timeframe.H1:  ContextTimeframe.H1,
+    Timeframe.D1: ContextTimeframe.D1,
+    Timeframe.H4: ContextTimeframe.H4,
+    Timeframe.H1: ContextTimeframe.H1,
     Timeframe.M15: ContextTimeframe.M15,
-    Timeframe.M5:  ContextTimeframe.M5,
+    Timeframe.M5: ContextTimeframe.M5,
 }
 
 # The seven timeframes are split 4/3 into a "coarse" structural group and a
@@ -131,25 +130,25 @@ class TimeframeObservation:
     """
 
     timeframe: ContextTimeframe
-    as_of: float = 0.0                # close_time of the bar this describes
+    as_of: float = 0.0  # close_time of the bar this describes
 
     # ── Momentum ─────────────────────────────────────────────────────────
-    momentum: float = 0.0             # TimeframeFeatureVector.momentum_n (normalised)
-    momentum_sign: int = 0            # +1 / 0 / -1
+    momentum: float = 0.0  # TimeframeFeatureVector.momentum_n (normalised)
+    momentum_sign: int = 0  # +1 / 0 / -1
 
     # ── Price position ────────────────────────────────────────────────────
-    range_position: float = 0.5       # 0 = at period low, 1 = at period high
+    range_position: float = 0.5  # 0 = at period low, 1 = at period high
 
     # ── Candle character ─────────────────────────────────────────────────
-    body_ratio: float = 0.0           # |close−open| / (high−low), 0–1
-    close_direction: int = 0          # +1 close > open; −1 close < open; 0 doji
+    body_ratio: float = 0.0  # |close−open| / (high−low), 0–1
+    close_direction: int = 0  # +1 close > open; −1 close < open; 0 doji
 
     # ── Volatility ────────────────────────────────────────────────────────
     realized_vol: float = 0.0
 
     # ── Freshness ─────────────────────────────────────────────────────────
     bars_available: int = 0
-    staleness_ratio: float = 0.0      # bar_age / timeframe_seconds
+    staleness_ratio: float = 0.0  # bar_age / timeframe_seconds
 
     def is_fresh(self, max_staleness: float = 2.5) -> bool:
         """True if bar data exists and is not excessively stale.
@@ -198,7 +197,7 @@ _MOMENTUM_FLAT = 1e-9
 
 def _derive_observation(
     tf: ContextTimeframe,
-    feature_vector,       # TimeframeFeatureVector | None
+    feature_vector,  # TimeframeFeatureVector | None
     now: float,
 ) -> TimeframeObservation:
     """Derive a `TimeframeObservation` from a `TimeframeFeatureVector`.
@@ -262,7 +261,7 @@ class TimeframeMemory:
         self,
         instrument: str,
         tf: ContextTimeframe,
-        feature_vector,       # TimeframeFeatureVector | None
+        feature_vector,  # TimeframeFeatureVector | None
         now: float | None = None,
     ) -> TimeframeObservation:
         """Derive and store an observation from a feature vector.
@@ -339,9 +338,7 @@ class TimeframeMemory:
         so a move from +0.1 → +0.5 is +slope and a move from +0.5 → +0.1
         is −slope, which is the exhaustion pattern.
         """
-        history = [
-            o for o in self.observation_history(instrument, tf) if o.bars_available > 0
-        ]
+        history = [o for o in self.observation_history(instrument, tf) if o.bars_available > 0]
         momenta = [o.momentum for o in history]
         if len(momenta) < 2:
             return 0.0

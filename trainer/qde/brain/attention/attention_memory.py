@@ -26,13 +26,11 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Sequence
 
 from trainer.qde.brain.attention.attention_types import (
     AttentionEvolutionRecord,
     AttentionSnapshot,
     AttentionTier,
-    tier_from_composite,
 )
 
 DEFAULT_SNAPSHOT_DEPTH = 500
@@ -46,9 +44,9 @@ DEFAULT_TRANSITION_DEPTH = 100
 
 @dataclass
 class _SymbolAttentionState:
-    snapshots:   deque     # deque[AttentionSnapshot]
-    transitions: deque     # deque[AttentionEvolutionRecord]
-    last_tier:   AttentionTier | None = None
+    snapshots: deque  # deque[AttentionSnapshot]
+    transitions: deque  # deque[AttentionEvolutionRecord]
+    last_tier: AttentionTier | None = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -124,9 +122,7 @@ class AttentionMemory:
         snapshots = list(state.snapshots)
         return snapshots[-n:] if n < len(snapshots) else snapshots
 
-    def tier_transitions(
-        self, instrument: str, n: int = 20
-    ) -> list[AttentionEvolutionRecord]:
+    def tier_transitions(self, instrument: str, n: int = 20) -> list[AttentionEvolutionRecord]:
         """Most recent ``n`` tier-change events for ``instrument``, newest last."""
         state = self._states.get(instrument)
         if state is None:

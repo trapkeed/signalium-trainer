@@ -26,7 +26,6 @@ from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ── LiquidityLevelType ────────────────────────────────────────────────────────
 
 
@@ -38,18 +37,18 @@ class LiquidityLevelType(str, Enum):
     relationships from outcome data; they are never encoded here.
     """
 
-    SWING_HIGH    = "SWING_HIGH"    # local high in a lookback window
-    SWING_LOW     = "SWING_LOW"     # local low in a lookback window
-    EQUAL_HIGH    = "EQUAL_HIGH"    # ≥2 swing highs within tolerance
-    EQUAL_LOW     = "EQUAL_LOW"     # ≥2 swing lows within tolerance
-    SESSION_HIGH  = "SESSION_HIGH"  # highest price in a trading session block
-    SESSION_LOW   = "SESSION_LOW"
-    DAILY_HIGH    = "DAILY_HIGH"    # highest price in a UTC calendar day
-    DAILY_LOW     = "DAILY_LOW"
-    WEEKLY_HIGH   = "WEEKLY_HIGH"   # highest price in a UTC calendar week
-    WEEKLY_LOW    = "WEEKLY_LOW"
-    STOP_CLUSTER  = "STOP_CLUSTER"  # dense cluster of ≥3 nearby swing levels
-    BREAKOUT_TRAP = "BREAKOUT_TRAP" # level where price appeared to break out then reversed
+    SWING_HIGH = "SWING_HIGH"  # local high in a lookback window
+    SWING_LOW = "SWING_LOW"  # local low in a lookback window
+    EQUAL_HIGH = "EQUAL_HIGH"  # ≥2 swing highs within tolerance
+    EQUAL_LOW = "EQUAL_LOW"  # ≥2 swing lows within tolerance
+    SESSION_HIGH = "SESSION_HIGH"  # highest price in a trading session block
+    SESSION_LOW = "SESSION_LOW"
+    DAILY_HIGH = "DAILY_HIGH"  # highest price in a UTC calendar day
+    DAILY_LOW = "DAILY_LOW"
+    WEEKLY_HIGH = "WEEKLY_HIGH"  # highest price in a UTC calendar week
+    WEEKLY_LOW = "WEEKLY_LOW"
+    STOP_CLUSTER = "STOP_CLUSTER"  # dense cluster of ≥3 nearby swing levels
+    BREAKOUT_TRAP = "BREAKOUT_TRAP"  # level where price appeared to break out then reversed
 
 
 class LevelSide(str, Enum):
@@ -60,23 +59,23 @@ class LevelSide(str, Enum):
     """
 
     HIGH = "HIGH"
-    LOW  = "LOW"
+    LOW = "LOW"
     NONE = "NONE"
 
 
 # Lookup: what side does each level type belong to?
 LEVEL_TYPE_SIDE: dict[LiquidityLevelType, LevelSide] = {
-    LiquidityLevelType.SWING_HIGH:    LevelSide.HIGH,
-    LiquidityLevelType.SWING_LOW:     LevelSide.LOW,
-    LiquidityLevelType.EQUAL_HIGH:    LevelSide.HIGH,
-    LiquidityLevelType.EQUAL_LOW:     LevelSide.LOW,
-    LiquidityLevelType.SESSION_HIGH:  LevelSide.HIGH,
-    LiquidityLevelType.SESSION_LOW:   LevelSide.LOW,
-    LiquidityLevelType.DAILY_HIGH:    LevelSide.HIGH,
-    LiquidityLevelType.DAILY_LOW:     LevelSide.LOW,
-    LiquidityLevelType.WEEKLY_HIGH:   LevelSide.HIGH,
-    LiquidityLevelType.WEEKLY_LOW:    LevelSide.LOW,
-    LiquidityLevelType.STOP_CLUSTER:  LevelSide.NONE,
+    LiquidityLevelType.SWING_HIGH: LevelSide.HIGH,
+    LiquidityLevelType.SWING_LOW: LevelSide.LOW,
+    LiquidityLevelType.EQUAL_HIGH: LevelSide.HIGH,
+    LiquidityLevelType.EQUAL_LOW: LevelSide.LOW,
+    LiquidityLevelType.SESSION_HIGH: LevelSide.HIGH,
+    LiquidityLevelType.SESSION_LOW: LevelSide.LOW,
+    LiquidityLevelType.DAILY_HIGH: LevelSide.HIGH,
+    LiquidityLevelType.DAILY_LOW: LevelSide.LOW,
+    LiquidityLevelType.WEEKLY_HIGH: LevelSide.HIGH,
+    LiquidityLevelType.WEEKLY_LOW: LevelSide.LOW,
+    LiquidityLevelType.STOP_CLUSTER: LevelSide.NONE,
     LiquidityLevelType.BREAKOUT_TRAP: LevelSide.NONE,
 }
 
@@ -84,10 +83,10 @@ LEVEL_TYPE_SIDE: dict[LiquidityLevelType, LevelSide] = {
 class LevelStatus(str, Enum):
     """Current lifecycle status of a structural level."""
 
-    INTACT   = "INTACT"    # formed, never touched
-    TESTED   = "TESTED"    # price approached, did not break through
-    SWEPT    = "SWEPT"     # price wicked through and closed back (stop-hunt)
-    BROKEN   = "BROKEN"    # price closed decisively through, no reversal
+    INTACT = "INTACT"  # formed, never touched
+    TESTED = "TESTED"  # price approached, did not break through
+    SWEPT = "SWEPT"  # price wicked through and closed back (stop-hunt)
+    BROKEN = "BROKEN"  # price closed decisively through, no reversal
     RETESTED = "RETESTED"  # price returned to a previously broken/swept level
 
 
@@ -103,12 +102,12 @@ class OHLCBar:
     `OHLCBar.from_timeframe_bar()`.
     """
 
-    open:      float = 0.0
-    high:      float = 0.0
-    low:       float = 0.0
-    close:     float = 0.0
-    volume:    float = 0.0
-    timestamp: float = 0.0   # epoch seconds (bar open or close time)
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    close: float = 0.0
+    volume: float = 0.0
+    timestamp: float = 0.0  # epoch seconds (bar open or close time)
 
     @classmethod
     def from_timeframe_bar(cls, bar: object) -> OHLCBar:
@@ -135,11 +134,11 @@ class OHLCBar:
 
     def to_dict(self) -> dict:
         return {
-            "open":      round(self.open,      5),
-            "high":      round(self.high,      5),
-            "low":       round(self.low,       5),
-            "close":     round(self.close,     5),
-            "volume":    round(self.volume,    2),
+            "open": round(self.open, 5),
+            "high": round(self.high, 5),
+            "low": round(self.low, 5),
+            "close": round(self.close, 5),
+            "volume": round(self.volume, 2),
             "timestamp": round(self.timestamp, 3),
         }
 
@@ -160,21 +159,21 @@ class LiquidityLevel:
     tolerance without sweeping; `sweep_count` counts confirmed sweeps.
     """
 
-    level_id:              str = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    instrument:            str = ""
-    level_type:            LiquidityLevelType = LiquidityLevelType.SWING_HIGH
-    side:                  LevelSide          = LevelSide.HIGH
-    price:                 float = 0.0
-    status:                LevelStatus        = LevelStatus.INTACT
-    strength:              float = 0.40        # 0–1
-    formed_at:             float = field(default_factory=time.time)
-    last_tested_at:        float = 0.0
+    level_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    level_type: LiquidityLevelType = LiquidityLevelType.SWING_HIGH
+    side: LevelSide = LevelSide.HIGH
+    price: float = 0.0
+    status: LevelStatus = LevelStatus.INTACT
+    strength: float = 0.40  # 0–1
+    formed_at: float = field(default_factory=time.time)
+    last_tested_at: float = 0.0
     last_status_change_at: float = field(default_factory=time.time)
-    test_count:            int   = 0
-    sweep_count:           int   = 0
-    source_bar_timestamp:  float = 0.0         # timestamp of the bar that formed this level
-    cluster_member_count:  int   = 1           # >1 for equal-level / cluster entries
-    notes:                 str   = ""          # free-form (never a trading rule)
+    test_count: int = 0
+    sweep_count: int = 0
+    source_bar_timestamp: float = 0.0  # timestamp of the bar that formed this level
+    cluster_member_count: int = 1  # >1 for equal-level / cluster entries
+    notes: str = ""  # free-form (never a trading rule)
 
     def age_seconds(self, now: float | None = None) -> float:
         return max(0.0, (now or time.time()) - self.formed_at)
@@ -185,21 +184,21 @@ class LiquidityLevel:
 
     def to_dict(self) -> dict:
         return {
-            "level_id":              self.level_id,
-            "instrument":            self.instrument,
-            "level_type":            self.level_type.value,
-            "side":                  self.side.value,
-            "price":                 round(self.price, 5),
-            "status":                self.status.value,
-            "strength":              round(self.strength, 4),
-            "formed_at":             round(self.formed_at, 3),
-            "last_tested_at":        round(self.last_tested_at, 3),
+            "level_id": self.level_id,
+            "instrument": self.instrument,
+            "level_type": self.level_type.value,
+            "side": self.side.value,
+            "price": round(self.price, 5),
+            "status": self.status.value,
+            "strength": round(self.strength, 4),
+            "formed_at": round(self.formed_at, 3),
+            "last_tested_at": round(self.last_tested_at, 3),
             "last_status_change_at": round(self.last_status_change_at, 3),
-            "test_count":            self.test_count,
-            "sweep_count":           self.sweep_count,
-            "source_bar_timestamp":  round(self.source_bar_timestamp, 3),
-            "cluster_member_count":  self.cluster_member_count,
-            "notes":                 self.notes,
+            "test_count": self.test_count,
+            "sweep_count": self.sweep_count,
+            "source_bar_timestamp": round(self.source_bar_timestamp, 3),
+            "cluster_member_count": self.cluster_member_count,
+            "notes": self.notes,
         }
 
     @classmethod
@@ -229,14 +228,14 @@ class LiquidityLevel:
 class LiquidityEventType(str, Enum):
     """Category of structural event recorded on the liquidity map."""
 
-    LEVEL_FORMED        = "LEVEL_FORMED"
-    LEVEL_TESTED        = "LEVEL_TESTED"
-    LEVEL_SWEPT         = "LEVEL_SWEPT"         # wick through + close back
-    LEVEL_BROKEN        = "LEVEL_BROKEN"        # decisive close through
-    LEVEL_RETESTED      = "LEVEL_RETESTED"      # return to broken/swept level
-    CLUSTER_FORMED      = "CLUSTER_FORMED"      # equal-level group identified
-    BREAKOUT_TRAP       = "BREAKOUT_TRAP"       # false breakout detected
-    STOP_CLUSTER_FOUND  = "STOP_CLUSTER_FOUND"  # dense level cluster identified
+    LEVEL_FORMED = "LEVEL_FORMED"
+    LEVEL_TESTED = "LEVEL_TESTED"
+    LEVEL_SWEPT = "LEVEL_SWEPT"  # wick through + close back
+    LEVEL_BROKEN = "LEVEL_BROKEN"  # decisive close through
+    LEVEL_RETESTED = "LEVEL_RETESTED"  # return to broken/swept level
+    CLUSTER_FORMED = "CLUSTER_FORMED"  # equal-level group identified
+    BREAKOUT_TRAP = "BREAKOUT_TRAP"  # false breakout detected
+    STOP_CLUSTER_FOUND = "STOP_CLUSTER_FOUND"  # dense level cluster identified
 
 
 @dataclass
@@ -247,27 +246,27 @@ class LiquidityEvent:
     triggered the event — never a trading instruction.
     """
 
-    event_id:      str = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    instrument:    str = ""
-    event_type:    LiquidityEventType  = LiquidityEventType.LEVEL_FORMED
-    level_id:      str = ""
-    level_type:    LiquidityLevelType  = LiquidityLevelType.SWING_HIGH
-    level_price:   float = 0.0
-    bar_timestamp: float = 0.0      # bar on which the event was detected
-    detected_at:   float = field(default_factory=time.time)
-    context:       str   = ""       # e.g. "high=1.09510 > level=1.09490, close=1.09480"
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    event_type: LiquidityEventType = LiquidityEventType.LEVEL_FORMED
+    level_id: str = ""
+    level_type: LiquidityLevelType = LiquidityLevelType.SWING_HIGH
+    level_price: float = 0.0
+    bar_timestamp: float = 0.0  # bar on which the event was detected
+    detected_at: float = field(default_factory=time.time)
+    context: str = ""  # e.g. "high=1.09510 > level=1.09490, close=1.09480"
 
     def to_dict(self) -> dict:
         return {
-            "event_id":      self.event_id,
-            "instrument":    self.instrument,
-            "event_type":    self.event_type.value,
-            "level_id":      self.level_id,
-            "level_type":    self.level_type.value,
-            "level_price":   round(self.level_price, 5),
+            "event_id": self.event_id,
+            "instrument": self.instrument,
+            "event_type": self.event_type.value,
+            "level_id": self.level_id,
+            "level_type": self.level_type.value,
+            "level_price": round(self.level_price, 5),
             "bar_timestamp": round(self.bar_timestamp, 3),
-            "detected_at":   round(self.detected_at, 3),
-            "context":       self.context,
+            "detected_at": round(self.detected_at, 3),
+            "context": self.context,
         }
 
     @classmethod
@@ -297,20 +296,18 @@ class LiquidityMap:
     unboundedly from event history alone.
     """
 
-    instrument: str                           = ""
-    levels:     dict[str, LiquidityLevel]     = field(default_factory=dict)
-    events:     deque[LiquidityEvent]         = field(
-        default_factory=lambda: deque(maxlen=500)
-    )
-    last_bar:   OHLCBar | None               = None
-    updated_at: float                         = field(default_factory=time.time)
+    instrument: str = ""
+    levels: dict[str, LiquidityLevel] = field(default_factory=dict)
+    events: deque[LiquidityEvent] = field(default_factory=lambda: deque(maxlen=500))
+    last_bar: OHLCBar | None = None
+    updated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
             "instrument": self.instrument,
-            "levels":     [lv.to_dict() for lv in self.levels.values()],
-            "events":     [ev.to_dict() for ev in self.events],
-            "last_bar":   self.last_bar.to_dict() if self.last_bar else None,
+            "levels": [lv.to_dict() for lv in self.levels.values()],
+            "events": [ev.to_dict() for ev in self.events],
+            "last_bar": self.last_bar.to_dict() if self.last_bar else None,
             "updated_at": round(self.updated_at, 3),
         }
 
@@ -330,8 +327,8 @@ class LiquidityMap:
 
 # ── LiquidityMemory ───────────────────────────────────────────────────────────
 
-_DEFAULT_BAR_HISTORY = 500    # bars retained per symbol (enough for weekly extremes)
-_DEFAULT_MAX_LEVELS  = 300    # max total levels; broken levels pruned first
+_DEFAULT_BAR_HISTORY = 500  # bars retained per symbol (enough for weekly extremes)
+_DEFAULT_MAX_LEVELS = 300  # max total levels; broken levels pruned first
 
 
 class LiquidityMemory:
@@ -350,12 +347,12 @@ class LiquidityMemory:
         bar_history_depth: int = _DEFAULT_BAR_HISTORY,
         max_levels: int = _DEFAULT_MAX_LEVELS,
     ) -> None:
-        self._depth      = bar_history_depth
+        self._depth = bar_history_depth
         self._max_levels = max_levels
         # instrument → deque[OHLCBar]  (oldest → newest)
-        self._bars:  dict[str, deque[OHLCBar]]  = {}
+        self._bars: dict[str, deque[OHLCBar]] = {}
         # instrument → LiquidityMap
-        self._maps:  dict[str, LiquidityMap]    = {}
+        self._maps: dict[str, LiquidityMap] = {}
 
     # ── Bar ingestion ─────────────────────────────────────────────────────
 
@@ -412,7 +409,7 @@ class LiquidityMemory:
 
     def to_snapshot(self, instrument: str) -> dict:
         return {
-            "map":  self._map(instrument).to_dict(),
+            "map": self._map(instrument).to_dict(),
             "bars": [b.to_dict() for b in self.bars(instrument)],
         }
 

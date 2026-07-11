@@ -25,14 +25,13 @@ Design constraints
 from __future__ import annotations
 
 import time
-import uuid
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.decision.decision_types import CognitiveDecision
@@ -45,8 +44,8 @@ try:
         EpisodeFeatures,
         EpisodeOutcome,
         EpisodePortfolioState,
-        EpisodicMemory,
     )
+
     _HAS_EPISODIC = True
 except ImportError:
     _HAS_EPISODIC = False
@@ -64,11 +63,11 @@ def _decision_to_features(decision: CognitiveDecision) -> dict:
     consumed by ``EpisodeFeatures.from_dict()``.
     """
     action_numeric = {
-        "BUY":     1.0,
-        "SELL":    0.0,
-        "WAIT":    0.5,
+        "BUY": 1.0,
+        "SELL": 0.0,
+        "WAIT": 0.5,
         "MONITOR": 0.5,
-        "IGNORE":  0.5,
+        "IGNORE": 0.5,
     }
     dir_numeric = {
         "BULLISH": 1.0,
@@ -76,18 +75,18 @@ def _decision_to_features(decision: CognitiveDecision) -> dict:
         "NEUTRAL": 0.5,
     }
     return {
-        "volatility":        decision.uncertainty_score,
-        "momentum":          dir_numeric.get(decision.direction.value, 0.5) * 2.0 - 1.0,
-        "trend_strength":    decision.conviction_score,
+        "volatility": decision.uncertainty_score,
+        "momentum": dir_numeric.get(decision.direction.value, 0.5) * 2.0 - 1.0,
+        "trend_strength": decision.conviction_score,
         "range_compression": decision.risk_signal,
-        "absorption":        decision.entry_urgency,
-        "volume_balance":    decision.size_signal,
-        "session_quality":   decision.calibrated_confidence,
-        "microstructure":    1.0 - decision.uncertainty_score,
-        "regime_numeric":    action_numeric.get(decision.action.value, 0.5),
-        "hypothesis_conf":   decision.confidence,
-        "attention_weight":  1.0 if decision.overconfidence_flagged else 0.0,
-        "spread_norm":       1.0 if decision.ignored_evidence_flagged else 0.0,
+        "absorption": decision.entry_urgency,
+        "volume_balance": decision.size_signal,
+        "session_quality": decision.calibrated_confidence,
+        "microstructure": 1.0 - decision.uncertainty_score,
+        "regime_numeric": action_numeric.get(decision.action.value, 0.5),
+        "hypothesis_conf": decision.confidence,
+        "attention_weight": 1.0 if decision.overconfidence_flagged else 0.0,
+        "spread_norm": 1.0 if decision.ignored_evidence_flagged else 0.0,
     }
 
 
@@ -111,10 +110,10 @@ class DecisionMemoryBridge:
     def __init__(
         self,
         episodic_memory: object | None = None,
-        max_local:       int           = MAX_LOCAL_DECISIONS,
+        max_local: int = MAX_LOCAL_DECISIONS,
     ) -> None:
-        self._episodic   = episodic_memory
-        self._max_local  = max_local
+        self._episodic = episodic_memory
+        self._max_local = max_local
         self._local: dict[str, deque[CognitiveDecision]] = defaultdict(
             lambda: deque(maxlen=self._max_local)
         )
@@ -124,9 +123,9 @@ class DecisionMemoryBridge:
 
     def store(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: object | None = None,
-        now:         float | None  = None,
+        now: float | None = None,
     ) -> str:
         """Persist the decision to all available stores.
 
@@ -160,8 +159,8 @@ class DecisionMemoryBridge:
     def recent_decisions(
         self,
         instrument: str,
-        n:          int = 20,
-        action:     str | None = None,
+        n: int = 20,
+        action: str | None = None,
     ) -> list[CognitiveDecision]:
         """Most-recent decisions for ``instrument``, newest first.
 
@@ -188,10 +187,7 @@ class DecisionMemoryBridge:
 
     def to_snapshot(self) -> dict:
         return {
-            "decisions": {
-                instr: [d.to_dict() for d in deq]
-                for instr, deq in self._local.items()
-            }
+            "decisions": {instr: [d.to_dict() for d in deq] for instr, deq in self._local.items()}
         }
 
     def load_snapshot(self, data: dict) -> None:
@@ -208,8 +204,8 @@ class DecisionMemoryBridge:
 
     def _store_episodic(self, decision: CognitiveDecision, now: float) -> str:
         try:
-            feat      = EpisodeFeatures.from_dict(_decision_to_features(decision))  # type: ignore[name-defined]
-            outcome   = EpisodeOutcome(  # type: ignore[name-defined]
+            feat = EpisodeFeatures.from_dict(_decision_to_features(decision))  # type: ignore[name-defined]
+            outcome = EpisodeOutcome(  # type: ignore[name-defined]
                 direction_correct=decision.is_actionable,
                 reward_atr=decision.size_signal * decision.risk_signal,
                 resolved=False,

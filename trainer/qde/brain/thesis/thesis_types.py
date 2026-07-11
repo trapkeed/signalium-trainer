@@ -60,7 +60,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass   # Avoid circular imports at runtime
+    pass  # Avoid circular imports at runtime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -93,11 +93,11 @@ MIN_DECAY_INTERVAL_SECONDS = 10.0
 # SWING             │ 1-3 weeks       │ 2 wk (1209600) │ 3 wk (1814400)
 
 _PROFILE_PARAMS: dict[str, tuple[float, float]] = {
-    "MICRO_SCALP":   (600.0,     900.0),
-    "SCALP":         (1800.0,    3600.0),
-    "INTRADAY":      (14400.0,   28800.0),
-    "MULTI_SESSION": (172800.0,  259200.0),
-    "SWING":         (1209600.0, 1814400.0),
+    "MICRO_SCALP": (600.0, 900.0),
+    "SCALP": (1800.0, 3600.0),
+    "INTRADAY": (14400.0, 28800.0),
+    "MULTI_SESSION": (172800.0, 259200.0),
+    "SWING": (1209600.0, 1814400.0),
 }
 
 # Fall-through default for callers that have not classified the opportunity.
@@ -112,11 +112,11 @@ _DEFAULT_CLASS = "INTRADAY"
 class ThesisEventType(str, Enum):
     """Discriminator for entries in the per-hypothesis event log."""
 
-    CONFIRMATION  = "CONFIRMATION"   # market confirms the thesis direction
-    INVALIDATION  = "INVALIDATION"   # market contradicts the thesis direction
-    DECAY_TICK    = "DECAY_TICK"     # scheduled confidence decay applied
-    EXPIRY        = "EXPIRY"         # thesis expired (age or threshold)
-    FORCE_EXPIRE  = "FORCE_EXPIRE"   # explicit ``expire_thesis()`` call
+    CONFIRMATION = "CONFIRMATION"  # market confirms the thesis direction
+    INVALIDATION = "INVALIDATION"  # market contradicts the thesis direction
+    DECAY_TICK = "DECAY_TICK"  # scheduled confidence decay applied
+    EXPIRY = "EXPIRY"  # thesis expired (age or threshold)
+    FORCE_EXPIRE = "FORCE_EXPIRE"  # explicit ``expire_thesis()`` call
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,11 +133,11 @@ class ThesisEvent:
     independent of ``AgingRecord`` snapshots.
     """
 
-    event_type:         ThesisEventType
-    evidence:           str   = ""
-    confidence_before:  float = 0.0
-    confidence_after:   float = 0.0
-    occurred_at:        float = field(default_factory=time.time)
+    event_type: ThesisEventType
+    evidence: str = ""
+    confidence_before: float = 0.0
+    confidence_after: float = 0.0
+    occurred_at: float = field(default_factory=time.time)
 
     @property
     def delta(self) -> float:
@@ -145,12 +145,12 @@ class ThesisEvent:
 
     def to_dict(self) -> dict:
         return {
-            "event_type":        self.event_type.value,
-            "evidence":          self.evidence,
+            "event_type": self.event_type.value,
+            "evidence": self.evidence,
             "confidence_before": round(self.confidence_before, 4),
-            "confidence_after":  round(self.confidence_after, 4),
-            "delta":             round(self.delta, 4),
-            "occurred_at":       round(self.occurred_at, 3),
+            "confidence_after": round(self.confidence_after, 4),
+            "delta": round(self.delta, 4),
+            "occurred_at": round(self.occurred_at, 3),
         }
 
 
@@ -184,10 +184,10 @@ class ThesisDecayProfile:
         last decay tick, ``age_thesis()`` returns a no-op result.
     """
 
-    half_life_seconds:           float
-    max_age_seconds:             float
-    expiry_threshold:            float = DEFAULT_EXPIRY_THRESHOLD
-    min_decay_interval_seconds:  float = MIN_DECAY_INTERVAL_SECONDS
+    half_life_seconds: float
+    max_age_seconds: float
+    expiry_threshold: float = DEFAULT_EXPIRY_THRESHOLD
+    min_decay_interval_seconds: float = MIN_DECAY_INTERVAL_SECONDS
 
     @property
     def decay_rate(self) -> float:
@@ -202,11 +202,11 @@ class ThesisDecayProfile:
 
     def to_dict(self) -> dict:
         return {
-            "half_life_seconds":          self.half_life_seconds,
-            "max_age_seconds":            self.max_age_seconds,
-            "expiry_threshold":           self.expiry_threshold,
+            "half_life_seconds": self.half_life_seconds,
+            "max_age_seconds": self.max_age_seconds,
+            "expiry_threshold": self.expiry_threshold,
             "min_decay_interval_seconds": self.min_decay_interval_seconds,
-            "decay_rate":                 round(self.decay_rate, 8),
+            "decay_rate": round(self.decay_rate, 8),
         }
 
 
@@ -229,8 +229,7 @@ def profile_for_class(opp_class_value: str) -> ThesisDecayProfile:
     Falls back to the INTRADAY profile for unrecognised values so callers
     never need to guard against ``KeyError``.
     """
-    return DEFAULT_DECAY_PROFILES.get(opp_class_value,
-                                      DEFAULT_DECAY_PROFILES[_DEFAULT_CLASS])
+    return DEFAULT_DECAY_PROFILES.get(opp_class_value, DEFAULT_DECAY_PROFILES[_DEFAULT_CLASS])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -247,25 +246,25 @@ class AgingRecord:
     available for inspection and training signal derivation.
     """
 
-    hypothesis_id:        str
-    confidence:           float
-    age_seconds:          float         # now − created_at
-    elapsed_since_confirm: float        # now − last_confirmation_at
-    confirmation_count:   int
-    invalidation_count:   int
-    trigger:              ThesisEventType
-    occurred_at:          float = field(default_factory=time.time)
+    hypothesis_id: str
+    confidence: float
+    age_seconds: float  # now − created_at
+    elapsed_since_confirm: float  # now − last_confirmation_at
+    confirmation_count: int
+    invalidation_count: int
+    trigger: ThesisEventType
+    occurred_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
-            "hypothesis_id":         self.hypothesis_id,
-            "confidence":            round(self.confidence, 4),
-            "age_seconds":           round(self.age_seconds, 1),
+            "hypothesis_id": self.hypothesis_id,
+            "confidence": round(self.confidence, 4),
+            "age_seconds": round(self.age_seconds, 1),
             "elapsed_since_confirm": round(self.elapsed_since_confirm, 1),
-            "confirmation_count":    self.confirmation_count,
-            "invalidation_count":    self.invalidation_count,
-            "trigger":               self.trigger.value,
-            "occurred_at":           round(self.occurred_at, 3),
+            "confirmation_count": self.confirmation_count,
+            "invalidation_count": self.invalidation_count,
+            "trigger": self.trigger.value,
+            "occurred_at": round(self.occurred_at, 3),
         }
 
 
@@ -310,25 +309,25 @@ class ThesisAgingState:
         can check the aging state independently of the hypothesis object.
     """
 
-    hypothesis_id:         str
-    instrument:            str
-    created_at:            float
-    decay_profile:         ThesisDecayProfile
+    hypothesis_id: str
+    instrument: str
+    created_at: float
+    decay_profile: ThesisDecayProfile
 
     # ── Event logs (rolling, bounded) ────────────────────────────────────────
-    confirmation_events:   list[ThesisEvent] = field(default_factory=list)
-    invalidation_events:   list[ThesisEvent] = field(default_factory=list)
+    confirmation_events: list[ThesisEvent] = field(default_factory=list)
+    invalidation_events: list[ThesisEvent] = field(default_factory=list)
 
     # ── Aging history (rolling, bounded) ─────────────────────────────────────
-    aging_history:         list[AgingRecord] = field(default_factory=list)
+    aging_history: list[AgingRecord] = field(default_factory=list)
 
     # ── Decay clock ──────────────────────────────────────────────────────────
-    last_confirmation_at:  float = 0.0   # set to created_at in __post_init__
-    last_decayed_at:       float = 0.0   # set to created_at in __post_init__
+    last_confirmation_at: float = 0.0  # set to created_at in __post_init__
+    last_decayed_at: float = 0.0  # set to created_at in __post_init__
 
     # ── Terminal flags ────────────────────────────────────────────────────────
-    is_expired:            bool  = False
-    expired_at:            float | None = None
+    is_expired: bool = False
+    expired_at: float | None = None
 
     def __post_init__(self) -> None:
         # Start both clocks from the hypothesis formation time so the very
@@ -373,19 +372,19 @@ class ThesisAgingState:
 
     def to_dict(self) -> dict:
         return {
-            "hypothesis_id":        self.hypothesis_id,
-            "instrument":           self.instrument,
-            "created_at":           round(self.created_at, 3),
-            "decay_profile":        self.decay_profile.to_dict(),
-            "confirmation_count":   self.confirmation_count,
-            "invalidation_count":   self.invalidation_count,
+            "hypothesis_id": self.hypothesis_id,
+            "instrument": self.instrument,
+            "created_at": round(self.created_at, 3),
+            "decay_profile": self.decay_profile.to_dict(),
+            "confirmation_count": self.confirmation_count,
+            "invalidation_count": self.invalidation_count,
             "last_confirmation_at": round(self.last_confirmation_at, 3),
-            "last_decayed_at":      round(self.last_decayed_at, 3),
-            "is_expired":           self.is_expired,
-            "expired_at":           round(self.expired_at, 3) if self.expired_at else None,
-            "aging_history_len":    len(self.aging_history),
-            "confirmation_events":  [e.to_dict() for e in self.confirmation_events[-5:]],
-            "invalidation_events":  [e.to_dict() for e in self.invalidation_events[-5:]],
+            "last_decayed_at": round(self.last_decayed_at, 3),
+            "is_expired": self.is_expired,
+            "expired_at": round(self.expired_at, 3) if self.expired_at else None,
+            "aging_history_len": len(self.aging_history),
+            "confirmation_events": [e.to_dict() for e in self.confirmation_events[-5:]],
+            "invalidation_events": [e.to_dict() for e in self.invalidation_events[-5:]],
         }
 
 
@@ -413,16 +412,16 @@ class ThesisAgingResult:
         Human-readable explanation of the outcome, useful for logging.
     """
 
-    hypothesis_id:      str
-    instrument:         str
-    confidence_before:  float
-    confidence_after:   float
-    age_seconds:        float
+    hypothesis_id: str
+    instrument: str
+    confidence_before: float
+    confidence_after: float
+    age_seconds: float
     elapsed_since_confirm: float
-    decay_factor:       float   # multiplier applied (1.0 = no decay)
-    expired:            bool
-    decay_applied:      bool
-    reason:             str = ""
+    decay_factor: float  # multiplier applied (1.0 = no decay)
+    expired: bool
+    decay_applied: bool
+    reason: str = ""
 
     @property
     def confidence_delta(self) -> float:
@@ -430,17 +429,17 @@ class ThesisAgingResult:
 
     def to_dict(self) -> dict:
         return {
-            "hypothesis_id":         self.hypothesis_id,
-            "instrument":            self.instrument,
-            "confidence_before":     round(self.confidence_before, 4),
-            "confidence_after":      round(self.confidence_after, 4),
-            "confidence_delta":      round(self.confidence_delta, 4),
-            "age_seconds":           round(self.age_seconds, 1),
+            "hypothesis_id": self.hypothesis_id,
+            "instrument": self.instrument,
+            "confidence_before": round(self.confidence_before, 4),
+            "confidence_after": round(self.confidence_after, 4),
+            "confidence_delta": round(self.confidence_delta, 4),
+            "age_seconds": round(self.age_seconds, 1),
             "elapsed_since_confirm": round(self.elapsed_since_confirm, 1),
-            "decay_factor":          round(self.decay_factor, 6),
-            "expired":               self.expired,
-            "decay_applied":         self.decay_applied,
-            "reason":                self.reason,
+            "decay_factor": round(self.decay_factor, 6),
+            "expired": self.expired,
+            "decay_applied": self.decay_applied,
+            "reason": self.reason,
         }
 
 

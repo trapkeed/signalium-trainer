@@ -38,15 +38,14 @@ Design constraints
 
 from __future__ import annotations
 
-import math
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.narrative.narrative_store import NarrativeKind, SymbolNarrative
@@ -58,24 +57,26 @@ try:
         EpisodeFeatures,
         EpisodeOutcome,
         EpisodePortfolioState,
-        EpisodicMemory,
-        SimilarEpisode,
     )
+
     _HAS_EPISODIC = True
 except ImportError:
     _HAS_EPISODIC = False
 
 try:
-    from trainer.qde.brain.semantic.semantic_memory import (
-        MarketConcept,
+    from trainer.qde.brain.semantic.semantic_memory import (  # noqa: F401
         SemanticMemory,
     )
+
     _HAS_SEMANTIC = True
 except ImportError:
     _HAS_SEMANTIC = False
 
 try:
-    from trainer.qde.brain.memory.working_memory_store import WorkingMemoryStore
+    from trainer.qde.brain.memory.working_memory_store import (  # noqa: F401
+        WorkingMemoryStore,
+    )
+
     _HAS_WORKING = True
 except ImportError:
     _HAS_WORKING = False
@@ -121,39 +122,38 @@ class NarrativeMemoryContext:
           ``session_pnl_boost`` — +/- adjustment from session P&L
     """
 
-    similar_episodes:              list          = field(default_factory=list)
+    similar_episodes: list = field(default_factory=list)
     historical_narrative_outcomes: dict[str, float | None] = field(
         default_factory=lambda: {k.value: None for k in NarrativeKind}
     )
-    avg_reward_by_kind:            dict[str, float] = field(
+    avg_reward_by_kind: dict[str, float] = field(
         default_factory=lambda: {k.value: 0.0 for k in NarrativeKind}
     )
-    kind_confidence_adjustments:   dict[str, float] = field(
+    kind_confidence_adjustments: dict[str, float] = field(
         default_factory=lambda: {k.value: 0.0 for k in NarrativeKind}
     )
-    top_concept:                   object | None = None    # MarketConcept | None
-    concept_similarity:            float         = 0.0
-    portfolio_influence:           dict          = field(default_factory=dict)
+    top_concept: object | None = None  # MarketConcept | None
+    concept_similarity: float = 0.0
+    portfolio_influence: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
-            "similar_episode_count":        len(self.similar_episodes),
+            "similar_episode_count": len(self.similar_episodes),
             "historical_narrative_outcomes": {
                 k: round(v, 4) if v is not None else None
                 for k, v in self.historical_narrative_outcomes.items()
             },
-            "avg_reward_by_kind":           {
-                k: round(v, 4) for k, v in self.avg_reward_by_kind.items()
-            },
-            "kind_confidence_adjustments":  {
+            "avg_reward_by_kind": {k: round(v, 4) for k, v in self.avg_reward_by_kind.items()},
+            "kind_confidence_adjustments": {
                 k: round(v, 4) for k, v in self.kind_confidence_adjustments.items()
             },
-            "concept_similarity":           round(self.concept_similarity, 4),
+            "concept_similarity": round(self.concept_similarity, 4),
             "top_concept_id": (
                 self.top_concept.concept_id  # type: ignore[union-attr]
-                if self.top_concept is not None else None
+                if self.top_concept is not None
+                else None
             ),
-            "portfolio_influence":          self.portfolio_influence,
+            "portfolio_influence": self.portfolio_influence,
         }
 
 
@@ -168,20 +168,20 @@ class NarrativePortfolioContext:
     no portfolio context is supplied.
     """
 
-    open_positions:    int   = 0
-    total_exposure:    float = 0.0    # 0-1 fraction of capital
-    unrealized_pnl:    float = 0.0    # ATR units (signed)
-    drawdown:          float = 0.0    # 0-1 current drawdown
-    session_pnl:       float = 0.0    # ATR units in current session
+    open_positions: int = 0
+    total_exposure: float = 0.0  # 0-1 fraction of capital
+    unrealized_pnl: float = 0.0  # ATR units (signed)
+    drawdown: float = 0.0  # 0-1 current drawdown
+    session_pnl: float = 0.0  # ATR units in current session
     equity_normalized: float = 1.0
 
     def to_dict(self) -> dict:
         return {
-            "open_positions":    self.open_positions,
-            "total_exposure":    round(self.total_exposure, 4),
-            "unrealized_pnl":    round(self.unrealized_pnl, 4),
-            "drawdown":          round(self.drawdown, 4),
-            "session_pnl":       round(self.session_pnl, 4),
+            "open_positions": self.open_positions,
+            "total_exposure": round(self.total_exposure, 4),
+            "unrealized_pnl": round(self.unrealized_pnl, 4),
+            "drawdown": round(self.drawdown, 4),
+            "session_pnl": round(self.session_pnl, 4),
             "equity_normalized": round(self.equity_normalized, 4),
         }
 
@@ -218,30 +218,30 @@ class NarrativeMemoryBridge:
 
     def __init__(
         self,
-        episodic_memory: object | None = None,    # EpisodicMemory | None
-        semantic_memory: object | None = None,    # SemanticMemory | None
-        working_memory:  object | None = None,    # WorkingMemoryStore | None
-        recall_k:        int           = 20,
-        recency_lambda:  float         = 1.0 / 14.0,
-        adj_scale:       float         = 0.15,    # max confidence adjustment
+        episodic_memory: object | None = None,  # EpisodicMemory | None
+        semantic_memory: object | None = None,  # SemanticMemory | None
+        working_memory: object | None = None,  # WorkingMemoryStore | None
+        recall_k: int = 20,
+        recency_lambda: float = 1.0 / 14.0,
+        adj_scale: float = 0.15,  # max confidence adjustment
     ) -> None:
-        self._episodic  = episodic_memory
-        self._semantic  = semantic_memory
-        self._working   = working_memory
-        self._k         = recall_k
-        self._lambda    = recency_lambda
+        self._episodic = episodic_memory
+        self._semantic = semantic_memory
+        self._working = working_memory
+        self._k = recall_k
+        self._lambda = recency_lambda
         self._adj_scale = adj_scale
 
     # ── Primary recall entry point ────────────────────────────────────────
 
     def recall_context(
         self,
-        instrument:        str,
-        features:          dict,
-        session:           str                       = "",
-        portfolio:         NarrativePortfolioContext | None = None,
-        active_narratives: list[SymbolNarrative]     = (),
-        now:               float | None              = None,
+        instrument: str,
+        features: dict,
+        session: str = "",
+        portfolio: NarrativePortfolioContext | None = None,
+        active_narratives: list[SymbolNarrative] = (),
+        now: float | None = None,
     ) -> NarrativeMemoryContext:
         """Recall relevant past episodes and compute portfolio influence.
 
@@ -266,9 +266,7 @@ class NarrativeMemoryBridge:
 
         # 1. Episodic memory recall
         if _HAS_EPISODIC and self._episodic is not None:
-            ctx = self._recall_from_episodic(
-                ctx, instrument, features, session, now
-            )
+            ctx = self._recall_from_episodic(ctx, instrument, features, session, now)
 
         # 2. Semantic memory recall
         if _HAS_SEMANTIC and self._semantic is not None:
@@ -286,13 +284,13 @@ class NarrativeMemoryBridge:
 
     def store_narrative_episode(
         self,
-        narrative:  SymbolNarrative,
-        features:   dict,
-        portfolio:  NarrativePortfolioContext | None = None,
-        action:     str                              = "NO_TRADE",
-        confidence: float                            = 0.0,
-        reasoning:  str                              = "",
-        now:        float | None                     = None,
+        narrative: SymbolNarrative,
+        features: dict,
+        portfolio: NarrativePortfolioContext | None = None,
+        action: str = "NO_TRADE",
+        confidence: float = 0.0,
+        reasoning: str = "",
+        now: float | None = None,
     ) -> str:
         """Write an established narrative as an episode to episodic memory.
 
@@ -350,13 +348,13 @@ class NarrativeMemoryBridge:
 
     def update_episode_outcome(
         self,
-        instrument:        str,
-        episode_id:        str,
+        instrument: str,
+        episode_id: str,
         direction_correct: bool,
-        reward_atr:        float,
-        exit_reason:       str   = "",
-        bars_to_close:     int   = 0,
-        now:               float | None = None,
+        reward_atr: float,
+        exit_reason: str = "",
+        bars_to_close: int = 0,
+        now: float | None = None,
     ) -> bool:
         """Resolve an episode's outcome in episodic memory."""
         if not _HAS_EPISODIC or self._episodic is None:
@@ -379,8 +377,8 @@ class NarrativeMemoryBridge:
     def apply_memory_context(
         self,
         narratives: list[SymbolNarrative],
-        ctx:        NarrativeMemoryContext,
-        max_adj:    float = 0.12,
+        ctx: NarrativeMemoryContext,
+        max_adj: float = 0.12,
     ) -> None:
         """Adjust active narrative confidences using memory context.
 
@@ -402,11 +400,11 @@ class NarrativeMemoryBridge:
 
     def _recall_from_episodic(
         self,
-        ctx:        NarrativeMemoryContext,
+        ctx: NarrativeMemoryContext,
         instrument: str,
-        features:   dict,
-        session:    str,
-        now:        float,
+        features: dict,
+        session: str,
+        now: float,
     ) -> NarrativeMemoryContext:
         """Populate ctx from episodic memory recall."""
         try:
@@ -430,7 +428,7 @@ class NarrativeMemoryBridge:
 
         # Compute per-kind historical outcome statistics from similar episodes
         kind_correct: dict[str, list[float]] = {k.value: [] for k in NarrativeKind}
-        kind_reward:  dict[str, list[float]] = {k.value: [] for k in NarrativeKind}
+        kind_reward: dict[str, list[float]] = {k.value: [] for k in NarrativeKind}
 
         for se in similar:
             if not se.outcome.resolved:
@@ -440,20 +438,18 @@ class NarrativeMemoryBridge:
             # using regime context and session.
             kind_value = _action_to_narrative_kind(se.action, se.regime_context)
             if kind_value and kind_value in kind_correct:
-                kind_correct[kind_value].append(
-                    1.0 if se.outcome.direction_correct else 0.0
-                )
+                kind_correct[kind_value].append(1.0 if se.outcome.direction_correct else 0.0)
                 kind_reward[kind_value].append(se.reward_atr)
 
         for kind in NarrativeKind:
             corrects = kind_correct[kind.value]
-            rewards  = kind_reward[kind.value]
+            rewards = kind_reward[kind.value]
             if corrects:
                 win_rate = sum(corrects) / len(corrects)
                 ctx.historical_narrative_outcomes[kind.value] = round(win_rate, 4)
-                ctx.avg_reward_by_kind[kind.value]            = round(
-                    sum(rewards) / len(rewards), 4
-                ) if rewards else 0.0
+                ctx.avg_reward_by_kind[kind.value] = (
+                    round(sum(rewards) / len(rewards), 4) if rewards else 0.0
+                )
             else:
                 ctx.historical_narrative_outcomes[kind.value] = None
 
@@ -474,24 +470,24 @@ class NarrativeMemoryBridge:
 
     def _recall_from_semantic(
         self,
-        ctx:      NarrativeMemoryContext,
+        ctx: NarrativeMemoryContext,
         features: dict,
     ) -> NarrativeMemoryContext:
         """Populate ctx from semantic memory recall."""
         try:
             feat_vec = [
-                features.get("volatility",        0.5),
+                features.get("volatility", 0.5),
                 (features.get("momentum", 0.0) + 1.0) / 2.0,
-                features.get("trend_strength",     0.0),
-                features.get("range_compression",  0.0),
-                features.get("absorption",         0.0),
-                features.get("volume_balance",     0.5),
-                features.get("session_quality",    0.8),
-                features.get("microstructure",     0.8),
-                features.get("regime_numeric",     0.5),
-                features.get("hypothesis_conf",    0.0),
-                features.get("attention_weight",   0.5),
-                features.get("spread_norm",        0.5),
+                features.get("trend_strength", 0.0),
+                features.get("range_compression", 0.0),
+                features.get("absorption", 0.0),
+                features.get("volume_balance", 0.5),
+                features.get("session_quality", 0.8),
+                features.get("microstructure", 0.8),
+                features.get("regime_numeric", 0.5),
+                features.get("hypothesis_conf", 0.0),
+                features.get("attention_weight", 0.5),
+                features.get("spread_norm", 0.5),
             ]
             results = self._semantic.recall(  # type: ignore[union-attr]
                 feature_vec=feat_vec,
@@ -506,7 +502,7 @@ class NarrativeMemoryBridge:
             return ctx
 
         top = results[0]
-        ctx.top_concept      = top.concept
+        ctx.top_concept = top.concept
         ctx.concept_similarity = top.similarity
 
         # If a concept has a strong win_rate, boost the narrative kind that
@@ -523,7 +519,7 @@ class NarrativeMemoryBridge:
 
     @staticmethod
     def _compute_portfolio_influence(
-        portfolio:         NarrativePortfolioContext,
+        portfolio: NarrativePortfolioContext,
         active_narratives: list[SymbolNarrative],
     ) -> dict:
         """Compute how portfolio state modifies narrative relevance.
@@ -535,21 +531,21 @@ class NarrativeMemoryBridge:
 
         Drawdown → dampen all directional narratives (protect capital).
         """
-        exposure   = portfolio.total_exposure
-        drawdown   = portfolio.drawdown
-        spnl       = portfolio.session_pnl        # signed ATR units
-        unrealized = portfolio.unrealized_pnl     # signed ATR units
+        exposure = portfolio.total_exposure
+        drawdown = portfolio.drawdown
+        spnl = portfolio.session_pnl  # signed ATR units
+        unrealized = portfolio.unrealized_pnl  # signed ATR units
 
         # Long/short bias from open positions + unrealized PnL sign
-        long_bias  = 0.0
+        long_bias = 0.0
         short_bias = 0.0
         if exposure > 0.0:
             if unrealized >= 0:
-                long_bias  = exposure * 0.80   # net long
+                long_bias = exposure * 0.80  # net long
             else:
-                short_bias = exposure * 0.60   # losing long → treat as short-leaning
+                short_bias = exposure * 0.60  # losing long → treat as short-leaning
 
-        long_bias  = round(min(1.0, long_bias), 4)
+        long_bias = round(min(1.0, long_bias), 4)
         short_bias = round(min(1.0, short_bias), 4)
 
         # Drawdown penalty: at max_drawdown=0.20 the penalty is 0.40 (large)
@@ -560,11 +556,11 @@ class NarrativeMemoryBridge:
         spnl_boost = round(max(-0.10, min(0.10, spnl * 0.05)), 4)
 
         return {
-            "heavy_long_bias":   long_bias,
-            "heavy_short_bias":  short_bias,
-            "drawdown_penalty":  dd_penalty,
+            "heavy_long_bias": long_bias,
+            "heavy_short_bias": short_bias,
+            "drawdown_penalty": dd_penalty,
             "session_pnl_boost": spnl_boost,
-            "exposure":          round(exposure, 4),
+            "exposure": round(exposure, 4),
         }
 
 
@@ -599,18 +595,18 @@ def _concept_to_narrative_kind(concept: object) -> NarrativeKind | None:
 
     # ConceptKind → NarrativeKind mapping (best approximation)
     mapping: dict[str, NarrativeKind] = {
-        "BREAKOUT_AFTER_COMPRESSION":    NarrativeKind.BREAKOUT,
-        "FAILED_LIQUIDITY_SWEEP":        NarrativeKind.LIQUIDITY_GRAB,
-        "TREND_CONTINUATION_PULLBACK":   NarrativeKind.TREND_CONTINUATION,
+        "BREAKOUT_AFTER_COMPRESSION": NarrativeKind.BREAKOUT,
+        "FAILED_LIQUIDITY_SWEEP": NarrativeKind.LIQUIDITY_GRAB,
+        "TREND_CONTINUATION_PULLBACK": NarrativeKind.TREND_CONTINUATION,
         "MEAN_REVERSION_AFTER_EXPANSION": NarrativeKind.REVERSAL,
-        "ACCUMULATION_BREAKOUT":         NarrativeKind.ACCUMULATION,
-        "DISTRIBUTION_REVERSAL":         NarrativeKind.DISTRIBUTION,
-        "STOP_HUNT_REVERSAL":            NarrativeKind.LIQUIDITY_GRAB,
-        "RANGE_FADE":                    NarrativeKind.DISTRIBUTION,
-        "VOLATILITY_CONTRACTION":        NarrativeKind.ACCUMULATION,
-        "VOLATILITY_EXPANSION":          NarrativeKind.BREAKOUT,
-        "SESSION_OPEN_MOMENTUM":         NarrativeKind.TREND_CONTINUATION,
-        "NEWS_SPIKE_FADE":               NarrativeKind.EXHAUSTION,
+        "ACCUMULATION_BREAKOUT": NarrativeKind.ACCUMULATION,
+        "DISTRIBUTION_REVERSAL": NarrativeKind.DISTRIBUTION,
+        "STOP_HUNT_REVERSAL": NarrativeKind.LIQUIDITY_GRAB,
+        "RANGE_FADE": NarrativeKind.DISTRIBUTION,
+        "VOLATILITY_CONTRACTION": NarrativeKind.ACCUMULATION,
+        "VOLATILITY_EXPANSION": NarrativeKind.BREAKOUT,
+        "SESSION_OPEN_MOMENTUM": NarrativeKind.TREND_CONTINUATION,
+        "NEWS_SPIKE_FADE": NarrativeKind.EXHAUSTION,
     }
     return mapping.get(kind_str)
 

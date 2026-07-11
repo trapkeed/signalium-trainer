@@ -70,6 +70,20 @@ Modules
 
 from __future__ import annotations
 
+# ── Engine ────────────────────────────────────────────────────────────────────
+from trainer.qde.brain.patience.patience_engine import (
+    PatienceEngine,
+    evaluate_wait_decision,
+)
+
+# ── Scoring ───────────────────────────────────────────────────────────────────
+from trainer.qde.brain.patience.patience_scoring import (
+    compute_no_action_reward,
+    compute_realized_reward,
+    minimum_quality_threshold,
+    patience_score,
+)
+
 # ── Types ─────────────────────────────────────────────────────────────────────
 from trainer.qde.brain.patience.patience_types import (
     DEFAULT_QUALITY_THRESHOLD,
@@ -90,20 +104,6 @@ from trainer.qde.brain.patience.patience_types import (
     SkippedOpportunity,
     WaitDecision,
     WaitReason,
-)
-
-# ── Scoring ───────────────────────────────────────────────────────────────────
-from trainer.qde.brain.patience.patience_scoring import (
-    compute_no_action_reward,
-    compute_realized_reward,
-    minimum_quality_threshold,
-    patience_score,
-)
-
-# ── Engine ────────────────────────────────────────────────────────────────────
-from trainer.qde.brain.patience.patience_engine import (
-    PatienceEngine,
-    evaluate_wait_decision,
 )
 
 __all__ = [

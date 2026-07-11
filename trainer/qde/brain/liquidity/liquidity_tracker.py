@@ -19,12 +19,10 @@ from __future__ import annotations
 import time
 
 from trainer.qde.brain.liquidity.liquidity_memory import (
-    LevelSide,
     LevelStatus,
     LiquidityEvent,
     LiquidityEventType,
     LiquidityLevel,
-    LiquidityLevelType,
     LiquidityMap,
 )
 
@@ -48,7 +46,8 @@ class LiquidityTracker:
     ) -> list[LiquidityLevel]:
         """Active levels strictly above ``price``, sorted nearest first."""
         result = [
-            lv for lv in mp.levels.values()
+            lv
+            for lv in mp.levels.values()
             if lv.price > price and (not only_active or lv.is_active())
         ]
         return sorted(result, key=lambda lv: lv.price)
@@ -61,7 +60,8 @@ class LiquidityTracker:
     ) -> list[LiquidityLevel]:
         """Active levels strictly below ``price``, sorted nearest first."""
         result = [
-            lv for lv in mp.levels.values()
+            lv
+            for lv in mp.levels.values()
             if lv.price < price and (not only_active or lv.is_active())
         ]
         return sorted(result, key=lambda lv: lv.price, reverse=True)
@@ -75,7 +75,8 @@ class LiquidityTracker:
     ) -> list[LiquidityLevel]:
         """Active levels within ``distance_pct`` of ``price`` on either side."""
         return [
-            lv for lv in mp.levels.values()
+            lv
+            for lv in mp.levels.values()
             if abs(lv.price - price) / max(price, 1e-9) <= distance_pct
             and (not only_active or lv.is_active())
         ]
@@ -96,7 +97,8 @@ class LiquidityTracker:
     ) -> LiquidityLevel | None:
         """Highest-strength active level above price within ``lookup_pct``."""
         candidates = [
-            lv for lv in mp.levels.values()
+            lv
+            for lv in mp.levels.values()
             if lv.price > price
             and (lv.price - price) / max(price, 1e-9) <= lookup_pct
             and lv.is_active()
@@ -111,7 +113,8 @@ class LiquidityTracker:
     ) -> LiquidityLevel | None:
         """Highest-strength active level below price within ``lookup_pct``."""
         candidates = [
-            lv for lv in mp.levels.values()
+            lv
+            for lv in mp.levels.values()
             if lv.price < price
             and (price - lv.price) / max(price, 1e-9) <= lookup_pct
             and lv.is_active()
@@ -133,7 +136,8 @@ class LiquidityTracker:
         Returns levels-per-percent (e.g. 3 levels in 2% range → 1.5).
         """
         count = sum(
-            1 for lv in mp.levels.values()
+            1
+            for lv in mp.levels.values()
             if lv.price > price
             and (lv.price - price) / max(price, 1e-9) <= lookback_pct
             and lv.is_active()
@@ -150,7 +154,8 @@ class LiquidityTracker:
         normalized identically to ``density_above``.
         """
         count = sum(
-            1 for lv in mp.levels.values()
+            1
+            for lv in mp.levels.values()
             if lv.price < price
             and (price - lv.price) / max(price, 1e-9) <= lookback_pct
             and lv.is_active()
@@ -221,13 +226,15 @@ class LiquidityTracker:
         """
         if direction > 0:
             return sum(
-                1 for lv in mp.levels.values()
+                1
+                for lv in mp.levels.values()
                 if lv.is_active()
                 and lv.price > price
                 and (lv.price - price) / max(price, 1e-9) <= distance_pct
             )
         return sum(
-            1 for lv in mp.levels.values()
+            1
+            for lv in mp.levels.values()
             if lv.is_active()
             and lv.price < price
             and (price - lv.price) / max(price, 1e-9) <= distance_pct
@@ -244,7 +251,8 @@ class LiquidityTracker:
         """Count of sweep events in the last ``lookback_seconds``."""
         now = now if now is not None else time.time()
         return sum(
-            1 for ev in mp.events
+            1
+            for ev in mp.events
             if ev.event_type == LiquidityEventType.LEVEL_SWEPT
             and (now - ev.detected_at) <= lookback_seconds
         )
@@ -260,7 +268,7 @@ class LiquidityTracker:
         Higher = more sweeps happened recently, regardless of direction.
         """
         now = now if now is not None else time.time()
-        c1h = self.recent_sweep_count(mp, 3600,    now=now)
+        c1h = self.recent_sweep_count(mp, 3600, now=now)
         c4h = self.recent_sweep_count(mp, 4 * 3600, now=now)
         return min(1.0, c1h * 0.35 + c4h * 0.10)
 
@@ -277,7 +285,8 @@ class LiquidityTracker:
         """Most recent event of the given type, or any event if None."""
         pool = (
             [ev for ev in mp.events if ev.event_type == event_type]
-            if event_type else list(mp.events)
+            if event_type
+            else list(mp.events)
         )
         return max(pool, key=lambda ev: ev.detected_at) if pool else None
 
@@ -294,8 +303,8 @@ class LiquidityTracker:
         slow 7-day age decay (levels don't lose relevance overnight).
         """
         now = now if now is not None else time.time()
-        age_hours  = lv.age_seconds(now) / 3600.0
-        age_decay  = max(0.50, 1.0 - age_hours / (24.0 * 7.0))
+        age_hours = lv.age_seconds(now) / 3600.0
+        age_decay = max(0.50, 1.0 - age_hours / (24.0 * 7.0))
         test_bonus = min(0.30, lv.test_count * 0.05)
         return min(1.0, (lv.strength + test_bonus) * age_decay)
 
@@ -322,12 +331,12 @@ class LiquidityTracker:
     ) -> None:
         """Record that price approached but did not break this level."""
         now = now if now is not None else time.time()
-        lv  = mp.levels.get(level_id)
+        lv = mp.levels.get(level_id)
         if lv and lv.status == LevelStatus.INTACT:
-            lv.status        = LevelStatus.TESTED
-            lv.test_count   += 1
+            lv.status = LevelStatus.TESTED
+            lv.test_count += 1
             lv.last_tested_at = now
-            lv.strength      = min(1.0, lv.strength + 0.05)
+            lv.strength = min(1.0, lv.strength + 0.05)
 
     def mark_broken(
         self,
@@ -338,7 +347,7 @@ class LiquidityTracker:
         """Mark a level as decisively broken (no reversal after close-through)."""
         lv = mp.levels.get(level_id)
         if lv:
-            lv.status                = LevelStatus.BROKEN
+            lv.status = LevelStatus.BROKEN
             lv.last_status_change_at = now if now is not None else time.time()
 
     def prune_old_broken(
@@ -354,9 +363,9 @@ class LiquidityTracker:
         now = now if now is not None else time.time()
         before = len(mp.levels)
         for lid in [
-            lid for lid, lv in mp.levels.items()
-            if lv.status == LevelStatus.BROKEN
-            and lv.age_seconds(now) > older_than_seconds
+            lid
+            for lid, lv in mp.levels.items()
+            if lv.status == LevelStatus.BROKEN and lv.age_seconds(now) > older_than_seconds
         ]:
             del mp.levels[lid]
         return before - len(mp.levels)
@@ -369,7 +378,8 @@ class LiquidityTracker:
     ) -> list[str]:
         """Return IDs of INTACT levels that ``price`` is currently touching."""
         return [
-            lid for lid, lv in mp.levels.items()
+            lid
+            for lid, lv in mp.levels.items()
             if lv.status == LevelStatus.INTACT
             and abs(lv.price - price) / max(price, 1e-9) <= touch_tolerance_pct
         ]
@@ -403,14 +413,12 @@ class LiquidityTracker:
         top = sorted(candidates[:30], key=lambda lv: lv.strength, reverse=True)[:top_n]
         return [
             {
-                "price":                round(lv.price, 5),
-                "level_type":           lv.level_type.value,
-                "status":               lv.status.value,
-                "strength":             round(lv.strength, 3),
-                "distance_pct":         round(
-                    abs(lv.price - price) / max(price, 1e-9), 5
-                ),
-                "test_count":           lv.test_count,
+                "price": round(lv.price, 5),
+                "level_type": lv.level_type.value,
+                "status": lv.status.value,
+                "strength": round(lv.strength, 3),
+                "distance_pct": round(abs(lv.price - price) / max(price, 1e-9), 5),
+                "test_count": lv.test_count,
                 "cluster_member_count": lv.cluster_member_count,
             }
             for lv in top

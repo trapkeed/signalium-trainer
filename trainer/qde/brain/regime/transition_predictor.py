@@ -49,15 +49,14 @@ import time
 from dataclasses import dataclass
 
 from trainer.qde.brain.regime.transition_memory import (
-    TransitionMemory,
-    TransitionRecord,
-    TransitionTarget,
-    RegimeSnapshot,
     _PRE_WINDOW,
+    RegimeSnapshot,
+    TransitionMemory,
+    TransitionTarget,
 )
 
 # Default window: how many recent snapshots form the "current pattern"
-_DEFAULT_WINDOW = _PRE_WINDOW          # matches pre-transition capture window
+_DEFAULT_WINDOW = _PRE_WINDOW  # matches pre-transition capture window
 
 # Recency decay: a transition that occurred N hours ago has weight exp(-N/τ)
 # Default τ = 336 h (≈ 2 weeks), so a 1-week-old transition retains ~50%
@@ -107,8 +106,8 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(x * x for x in b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))
@@ -141,16 +140,16 @@ class TransitionFeatureVector:
     cross-feature scaling differences are removed automatically.
     """
 
-    atr_slope:            float = 0.0
-    spread_slope:         float = 0.0
-    momentum_slope:       float = 0.0
-    volatility_slope:     float = 0.0
-    vol_rank_slope:       float = 0.0
-    trend_valid_ratio:    float = 0.5
+    atr_slope: float = 0.0
+    spread_slope: float = 0.0
+    momentum_slope: float = 0.0
+    volatility_slope: float = 0.0
+    vol_rank_slope: float = 0.0
+    trend_valid_ratio: float = 0.5
     microstructure_slope: float = 0.0
-    vol_quality_slope:    float = 0.0
-    atr_cv:               float = 0.0
-    window_fill:          float = 1.0
+    vol_quality_slope: float = 0.0
+    atr_cv: float = 0.0
+    window_fill: float = 1.0
 
     def as_list(self) -> list[float]:
         return [
@@ -168,16 +167,16 @@ class TransitionFeatureVector:
 
     def to_dict(self) -> dict:
         return {
-            "atr_slope":            round(self.atr_slope, 6),
-            "spread_slope":         round(self.spread_slope, 6),
-            "momentum_slope":       round(self.momentum_slope, 6),
-            "volatility_slope":     round(self.volatility_slope, 6),
-            "vol_rank_slope":       round(self.vol_rank_slope, 6),
-            "trend_valid_ratio":    round(self.trend_valid_ratio, 4),
+            "atr_slope": round(self.atr_slope, 6),
+            "spread_slope": round(self.spread_slope, 6),
+            "momentum_slope": round(self.momentum_slope, 6),
+            "volatility_slope": round(self.volatility_slope, 6),
+            "vol_rank_slope": round(self.vol_rank_slope, 6),
+            "trend_valid_ratio": round(self.trend_valid_ratio, 4),
             "microstructure_slope": round(self.microstructure_slope, 6),
-            "vol_quality_slope":    round(self.vol_quality_slope, 6),
-            "atr_cv":               round(self.atr_cv, 6),
-            "window_fill":          round(self.window_fill, 4),
+            "vol_quality_slope": round(self.vol_quality_slope, 6),
+            "atr_cv": round(self.atr_cv, 6),
+            "window_fill": round(self.window_fill, 4),
         }
 
 
@@ -202,12 +201,12 @@ class TransitionProbabilityMap:
     High entropy means the system sees no clear directional signal.
     """
 
-    probabilities:  dict[str, float]    # target.value → probability
-    confidence:     float               # 0-1
-    top_target:     str                 # TransitionTarget.value
-    top_probability: float              # 0-1
-    entropy:        float               # 0-1 normalised
-    sample_count:   int                 # how many historical records used
+    probabilities: dict[str, float]  # target.value → probability
+    confidence: float  # 0-1
+    top_target: str  # TransitionTarget.value
+    top_probability: float  # 0-1
+    entropy: float  # 0-1 normalised
+    sample_count: int  # how many historical records used
     feature_vector: TransitionFeatureVector | None = None
 
     # ── Convenience accessors ─────────────────────────────────────────────
@@ -217,13 +216,13 @@ class TransitionProbabilityMap:
 
     def to_dict(self) -> dict:
         return {
-            "probabilities":   {k: round(v, 4) for k, v in self.probabilities.items()},
-            "confidence":      round(self.confidence, 4),
-            "top_target":      self.top_target,
+            "probabilities": {k: round(v, 4) for k, v in self.probabilities.items()},
+            "confidence": round(self.confidence, 4),
+            "top_target": self.top_target,
             "top_probability": round(self.top_probability, 4),
-            "entropy":         round(self.entropy, 4),
-            "sample_count":    self.sample_count,
-            "feature_vector":  self.feature_vector.to_dict() if self.feature_vector else None,
+            "entropy": round(self.entropy, 4),
+            "sample_count": self.sample_count,
+            "feature_vector": self.feature_vector.to_dict() if self.feature_vector else None,
         }
 
 
@@ -281,16 +280,16 @@ class TransitionPredictor:
             return TransitionFeatureVector()
 
         window = snapshots[-desired_window:]
-        n      = len(window)
+        n = len(window)
 
-        atr_vals     = [s.atr                   for s in window]
-        spread_vals  = [s.spread                 for s in window]
-        mom_vals     = [s.momentum               for s in window]
-        vol_vals     = [s.volatility             for s in window]
-        rank_vals    = [float(s.vol_state_rank)  for s in window]
-        tv_vals      = [1.0 if s.trend_valid else 0.0 for s in window]
-        micro_vals   = [s.microstructure_quality for s in window]
-        vq_vals      = [s.volatility_quality     for s in window]
+        atr_vals = [s.atr for s in window]
+        spread_vals = [s.spread for s in window]
+        mom_vals = [s.momentum for s in window]
+        vol_vals = [s.volatility for s in window]
+        rank_vals = [float(s.vol_state_rank) for s in window]
+        tv_vals = [1.0 if s.trend_valid else 0.0 for s in window]
+        micro_vals = [s.microstructure_quality for s in window]
+        vq_vals = [s.volatility_quality for s in window]
 
         return TransitionFeatureVector(
             atr_slope=_linear_slope(atr_vals),
@@ -307,12 +306,12 @@ class TransitionPredictor:
 
     def predict(
         self,
-        instrument:          str,
-        memory:              TransitionMemory,
-        window:              int   = _DEFAULT_WINDOW,
-        recency_tau_hours:   float = _DEFAULT_DECAY_TAU_HOURS,
-        min_samples:         int   = _MIN_INFORMATIVE,
-        now:                 float | None = None,
+        instrument: str,
+        memory: TransitionMemory,
+        window: int = _DEFAULT_WINDOW,
+        recency_tau_hours: float = _DEFAULT_DECAY_TAU_HOURS,
+        min_samples: int = _MIN_INFORMATIVE,
+        now: float | None = None,
     ) -> TransitionProbabilityMap:
         """Return a probability distribution over ``TransitionTarget``.
 
@@ -336,7 +335,7 @@ class TransitionPredictor:
         """
         now = now if now is not None else time.time()
 
-        snaps       = memory.snapshots(instrument)
+        snaps = memory.snapshots(instrument)
         transitions = memory.transitions(instrument)
 
         # Extract current feature vector
@@ -353,14 +352,14 @@ class TransitionPredictor:
         for rec in transitions:
             if not rec.feature_vector:
                 continue
-            age_h     = rec.age_hours(now)
-            recency   = math.exp(-age_h / max(recency_tau_hours, 1e-3))
-            sim       = max(0.0, _cosine_sim(current_vec, rec.feature_vector))
+            age_h = rec.age_hours(now)
+            recency = math.exp(-age_h / max(recency_tau_hours, 1e-3))
+            sim = max(0.0, _cosine_sim(current_vec, rec.feature_vector))
             raw_scores[rec.target] += sim * recency
-            total_weight            += recency
+            total_weight += recency
 
         # ── Confidence: proportion of informative history available ───────
-        n_used     = len(transitions)
+        n_used = len(transitions)
         confidence = min(1.0, n_used / max(min_samples, 1))
 
         # ── Check for degenerate case (all zeros) ─────────────────────────

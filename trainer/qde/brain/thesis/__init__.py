@@ -50,28 +50,28 @@ Design principles
 
 from __future__ import annotations
 
-# ── Types ─────────────────────────────────────────────────────────────────────
-from trainer.qde.brain.thesis.thesis_types import (
-    AgingRecord,
-    DEFAULT_DECAY_PROFILES,
-    DEFAULT_EXPIRY_THRESHOLD,
-    MAX_EVENTS,
-    MAX_HISTORY,
-    MIN_DECAY_INTERVAL_SECONDS,
-    ThesisAgingResult,
-    ThesisAgingState,
-    ThesisDecayProfile,
-    ThesisEvent,
-    ThesisEventType,
-    profile_for_class,
-)
-
 # ── Functions + Engine ────────────────────────────────────────────────────────
 from trainer.qde.brain.thesis.thesis_aging import (
     ThesisAgingEngine,
     age_thesis,
     expire_thesis,
     update_confidence,
+)
+
+# ── Types ─────────────────────────────────────────────────────────────────────
+from trainer.qde.brain.thesis.thesis_types import (
+    DEFAULT_DECAY_PROFILES,
+    DEFAULT_EXPIRY_THRESHOLD,
+    MAX_EVENTS,
+    MAX_HISTORY,
+    MIN_DECAY_INTERVAL_SECONDS,
+    AgingRecord,
+    ThesisAgingResult,
+    ThesisAgingState,
+    ThesisDecayProfile,
+    ThesisEvent,
+    ThesisEventType,
+    profile_for_class,
 )
 
 __all__ = [

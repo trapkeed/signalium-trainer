@@ -55,11 +55,11 @@ if TYPE_CHECKING:
     # Soft import — only for type hints so the liquidity package boundary
     # is respected.  Callers construct ``ProjectionOutcome`` themselves via
     # ``from_outcome_path`` or directly.
-    from trainer.training_signals.outcome_path import TradeOutcomePath
+    pass
 
 # ── Numeric feature dimension ─────────────────────────────────────────────────
 
-_N_FEATURES = 9   # length of ProjectionConditions.as_vector()
+_N_FEATURES = 9  # length of ProjectionConditions.as_vector()
 
 # Rolling-store limit (per symbol).  Old records are evicted FIFO once
 # this limit is exceeded so memory is bounded.
@@ -94,19 +94,19 @@ class ProjectionConditions:
     trend_valid_f          — 1.0 if trend_valid else 0.0
     """
 
-    instrument:            str   = ""
-    atr_pct:               float = 0.0
-    spread_atr_ratio:      float = 0.0
-    volatility:            float = 0.0
-    momentum:              float = 0.0
-    vol_state_rank_norm:   float = 0.25   # NORMAL = rank 1/4
-    volatility_quality:    float = 0.5
+    instrument: str = ""
+    atr_pct: float = 0.0
+    spread_atr_ratio: float = 0.0
+    volatility: float = 0.0
+    momentum: float = 0.0
+    vol_state_rank_norm: float = 0.25  # NORMAL = rank 1/4
+    volatility_quality: float = 0.5
     microstructure_quality: float = 0.5
-    session_quality:       float = 0.5
-    trend_valid_f:         float = 1.0
+    session_quality: float = 0.5
+    trend_valid_f: float = 1.0
     # Non-feature context retained for filtering / display
-    regime:                str   = ""
-    timestamp:             float = field(default_factory=time.time)
+    regime: str = ""
+    timestamp: float = field(default_factory=time.time)
 
     def as_vector(self) -> list[float]:
         """Return the 9-dimensional numeric feature vector."""
@@ -126,18 +126,26 @@ class ProjectionConditions:
     def from_observation(
         cls,
         instrument: str,
-        inp: object,          # SymbolObservationInput — duck-typed
+        inp: object,  # SymbolObservationInput — duck-typed
         now: float | None = None,
     ) -> ProjectionConditions:
         """Construct from a live ``SymbolObservationInput`` tick."""
-        mkt   = inp.market
+        mkt = inp.market
         price = float(getattr(mkt, "price", 0.0)) or 1.0
-        atr   = float(getattr(mkt, "atr",   0.0))
+        atr = float(getattr(mkt, "atr", 0.0))
         spread = float(getattr(mkt, "spread", 0.0))
 
         vol_state = str(getattr(inp, "volatility_state", "NORMAL")).upper()
-        _RANK = {"LOW": 0, "QUIET": 0, "NORMAL": 1, "MODERATE": 1,
-                 "ELEVATED": 2, "HIGH": 3, "VOLATILE": 3, "EXTREME": 4}
+        _RANK = {
+            "LOW": 0,
+            "QUIET": 0,
+            "NORMAL": 1,
+            "MODERATE": 1,
+            "ELEVATED": 2,
+            "HIGH": 3,
+            "VOLATILE": 3,
+            "EXTREME": 4,
+        }
         rank_norm = _RANK.get(vol_state, 1) / 4.0
 
         return cls(
@@ -157,18 +165,18 @@ class ProjectionConditions:
 
     def to_dict(self) -> dict:
         return {
-            "instrument":             self.instrument,
-            "atr_pct":                round(self.atr_pct, 8),
-            "spread_atr_ratio":       round(self.spread_atr_ratio, 6),
-            "volatility":             round(self.volatility, 8),
-            "momentum":               round(self.momentum, 4),
-            "vol_state_rank_norm":    round(self.vol_state_rank_norm, 4),
-            "volatility_quality":     round(self.volatility_quality, 4),
+            "instrument": self.instrument,
+            "atr_pct": round(self.atr_pct, 8),
+            "spread_atr_ratio": round(self.spread_atr_ratio, 6),
+            "volatility": round(self.volatility, 8),
+            "momentum": round(self.momentum, 4),
+            "vol_state_rank_norm": round(self.vol_state_rank_norm, 4),
+            "volatility_quality": round(self.volatility_quality, 4),
             "microstructure_quality": round(self.microstructure_quality, 4),
-            "session_quality":        round(self.session_quality, 4),
-            "trend_valid_f":          round(self.trend_valid_f, 1),
-            "regime":                 self.regime,
-            "timestamp":              round(self.timestamp, 3),
+            "session_quality": round(self.session_quality, 4),
+            "trend_valid_f": round(self.trend_valid_f, 1),
+            "regime": self.regime,
+            "timestamp": round(self.timestamp, 3),
         }
 
     @classmethod
@@ -204,18 +212,18 @@ class ProjectionOutcome:
     excursion magnitude, not direction).
     """
 
-    realized_move_pct:   float = 0.0   # |realized_return| as fraction of price
-    realized_return_pct: float = 0.0   # signed fraction (positive = trade won)
-    reward_atr:          float = 0.0   # signed: realized move in ATR multiples
-    mae_atr:             float = 0.0   # max adverse excursion in ATR multiples
-    mfe_atr:             float = 0.0   # max favorable excursion in ATR multiples
-    duration_seconds:    float = 0.0   # trade holding time
-    realized_vol:        float = 0.0   # rolling vol during trade (if available)
+    realized_move_pct: float = 0.0  # |realized_return| as fraction of price
+    realized_return_pct: float = 0.0  # signed fraction (positive = trade won)
+    reward_atr: float = 0.0  # signed: realized move in ATR multiples
+    mae_atr: float = 0.0  # max adverse excursion in ATR multiples
+    mfe_atr: float = 0.0  # max favorable excursion in ATR multiples
+    duration_seconds: float = 0.0  # trade holding time
+    realized_vol: float = 0.0  # rolling vol during trade (if available)
 
     @classmethod
     def from_outcome_path(
         cls,
-        path: object,           # TradeOutcomePath — duck-typed
+        path: object,  # TradeOutcomePath — duck-typed
         atr_at_entry: float,
         bar_duration_seconds: float = 3600.0,
     ) -> ProjectionOutcome:
@@ -229,16 +237,18 @@ class ProjectionOutcome:
         entry_price = float(getattr(path, "entry_price", 0.0)) or 1.0
 
         ret_pct: float = path.realized_return_pct()
-        mfe_raw, _    = path.max_favorable_excursion()
+        mfe_raw, _ = path.max_favorable_excursion()
         mae_raw: float = path.max_adverse_excursion()
-        n_bars: int    = len(getattr(path, "future_bars", []))
+        n_bars: int = len(getattr(path, "future_bars", []))
 
         # Realized vol from bar returns if enough bars
         bars = getattr(path, "future_bars", [])
         closes = [getattr(b, "close", entry_price) for b in bars]
         if len(closes) >= 3:
-            returns = [(closes[i] - closes[i - 1]) / max(closes[i - 1], 1e-9)
-                       for i in range(1, len(closes))]
+            returns = [
+                (closes[i] - closes[i - 1]) / max(closes[i - 1], 1e-9)
+                for i in range(1, len(closes))
+            ]
             realized_vol = statistics.stdev(returns) if len(returns) >= 2 else 0.0
         else:
             realized_vol = 0.0
@@ -255,13 +265,13 @@ class ProjectionOutcome:
 
     def to_dict(self) -> dict:
         return {
-            "realized_move_pct":   round(self.realized_move_pct, 6),
+            "realized_move_pct": round(self.realized_move_pct, 6),
             "realized_return_pct": round(self.realized_return_pct, 6),
-            "reward_atr":          round(self.reward_atr, 4),
-            "mae_atr":             round(self.mae_atr, 4),
-            "mfe_atr":             round(self.mfe_atr, 4),
-            "duration_seconds":    round(self.duration_seconds, 1),
-            "realized_vol":        round(self.realized_vol, 8),
+            "reward_atr": round(self.reward_atr, 4),
+            "mae_atr": round(self.mae_atr, 4),
+            "mfe_atr": round(self.mfe_atr, 4),
+            "duration_seconds": round(self.duration_seconds, 1),
+            "realized_vol": round(self.realized_vol, 8),
         }
 
     @classmethod
@@ -288,14 +298,12 @@ class ProjectionRecord:
     convention: +1 = long, −1 = short.
     """
 
-    record_id:   str                = field(
-        default_factory=lambda: str(uuid.uuid4())[:12]
-    )
-    instrument:  str                = ""
-    direction:   int                = 1       # +1 or -1
-    conditions:  ProjectionConditions = field(default_factory=ProjectionConditions)
-    outcome:     ProjectionOutcome  = field(default_factory=ProjectionOutcome)
-    recorded_at: float              = field(default_factory=time.time)
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    direction: int = 1  # +1 or -1
+    conditions: ProjectionConditions = field(default_factory=ProjectionConditions)
+    outcome: ProjectionOutcome = field(default_factory=ProjectionOutcome)
+    recorded_at: float = field(default_factory=time.time)
 
     def age_days(self, now: float | None = None) -> float:
         now = now if now is not None else time.time()
@@ -310,11 +318,11 @@ class ProjectionRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":   self.record_id,
-            "instrument":  self.instrument,
-            "direction":   self.direction,
-            "conditions":  self.conditions.to_dict(),
-            "outcome":     self.outcome.to_dict(),
+            "record_id": self.record_id,
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "conditions": self.conditions.to_dict(),
+            "outcome": self.outcome.to_dict(),
             "recorded_at": round(self.recorded_at, 3),
         }
 
@@ -354,10 +362,10 @@ class ProjectionMemory:
     def record(
         self,
         instrument: str,
-        direction:  int,
+        direction: int,
         conditions: ProjectionConditions,
-        outcome:    ProjectionOutcome,
-        now:        float | None = None,
+        outcome: ProjectionOutcome,
+        now: float | None = None,
     ) -> ProjectionRecord:
         """Append one observation and return the new record."""
         now = now if now is not None else time.time()
@@ -377,8 +385,8 @@ class ProjectionMemory:
     def records(
         self,
         instrument: str,
-        regime:     str | None = None,
-        direction:  int | None = None,
+        regime: str | None = None,
+        direction: int | None = None,
     ) -> list[ProjectionRecord]:
         """Return matching records, oldest → newest.
 

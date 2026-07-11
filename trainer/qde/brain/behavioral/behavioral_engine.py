@@ -86,24 +86,21 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.behavioral.behavioral_types import (
-    AGGRESSION_DRIFT_MILD,
     AGGRESSION_DRIFT_SEVERE,
     DRAWDOWN_CAUTION_THRESHOLD,
     DRAWDOWN_DEFENSIVE_THRESHOLD,
     EUPHORIA_RISK_THRESHOLD,
-    INFLATION_MILD_THRESHOLD,
     INFLATION_SEVERE_THRESHOLD,
     LOSING_STREAK_CAUTION,
     LOSING_STREAK_DEFENSIVE,
     MAX_BEHAVIORAL_HISTORY,
-    OVERCONFIDENCE_RATE_MILD,
     OVERCONFIDENCE_RATE_SEVERE,
     PATHOLOGY_CAUTION_THRESHOLD,
     PATHOLOGY_DEFENSIVE_THRESHOLD,
-    RISK_ESCALATION_MILD,
     RISK_ESCALATION_SEVERE,
     WINNING_STREAK_AGGRESSIVE,
     WINNING_STREAK_EUPHORIA,
@@ -113,7 +110,6 @@ from trainer.qde.brain.behavioral.behavioral_types import (
     CognitiveState,
     state_severity,
 )
-
 
 # ── Internal signal computation ───────────────────────────────────────────────
 
@@ -143,9 +139,7 @@ def _overconfidence_rate(
 
     Returns 0.0 when no high-confidence trades exist in the window.
     """
-    high_conf_pairs = [
-        (c, o) for c, o in zip(confidences, outcomes) if c >= conf_threshold
-    ]
+    high_conf_pairs = [(c, o) for c, o in zip(confidences, outcomes) if c >= conf_threshold]
     if not high_conf_pairs:
         return 0.0
     lost = sum(1 for _, o in high_conf_pairs if o < 0.5)
@@ -174,8 +168,7 @@ def _drawdown_response_quality(
 
     # Also factor in trend of recent aggressiveness
     recent_mean = (
-        sum(recent_aggressiveness) / len(recent_aggressiveness)
-        if recent_aggressiveness else 0.5
+        sum(recent_aggressiveness) / len(recent_aggressiveness) if recent_aggressiveness else 0.5
     )
     # Worst case: both peak AND recent mean are high
     worst_agg = max(drawdown_peak_aggressiveness, recent_mean)
@@ -197,7 +190,7 @@ def _aggressiveness_drift(scores: list[float]) -> float:
     # Least-squares slope for y = scores, x = 0..n-1
     x_mean = (n - 1) / 2.0
     y_mean = sum(scores) / n
-    numerator   = sum((i - x_mean) * (scores[i] - y_mean) for i in range(n))
+    numerator = sum((i - x_mean) * (scores[i] - y_mean) for i in range(n))
     denominator = sum((i - x_mean) ** 2 for i in range(n))
     if denominator == 0:
         return 0.0
@@ -227,7 +220,7 @@ def _risk_escalation_rate(risk_series: list[float]) -> float:
         return (window[-1] - window[0]) / (k - 1)
 
     mid = n // 2
-    first_slope  = _slope(risk_series[:mid])
+    first_slope = _slope(risk_series[:mid])
     second_slope = _slope(risk_series[mid:])
 
     # Escalation requires the second half to have a genuinely positive slope
@@ -262,15 +255,19 @@ def _loss_spiral_risk(
     (aggressiveness not declining).
     Range: [0, 1].
     """
-    loss_component   = min(1.0, consecutive_losses / 6.0)
+    loss_component = min(1.0, consecutive_losses / 6.0)
     drawdown_component = min(1.0, drawdown / DRAWDOWN_DEFENSIVE_THRESHOLD)
     # Invert quality: poor response amplifies the spiral risk
     response_amplifier = 1.0 - drawdown_response_quality
-    return round(min(1.0,
-        0.40 * loss_component
-        + 0.30 * drawdown_component
-        + 0.30 * response_amplifier * max(loss_component, drawdown_component)
-    ), 4)
+    return round(
+        min(
+            1.0,
+            0.40 * loss_component
+            + 0.30 * drawdown_component
+            + 0.30 * response_amplifier * max(loss_component, drawdown_component),
+        ),
+        4,
+    )
 
 
 def _pathology_score(
@@ -295,10 +292,10 @@ def _pathology_score(
         0.10 risk escalation        (second-derivative acceleration)
         0.10 metacognition signal   (optional pre-computed composite)
     """
-    inflation_contrib   = max(0.0, confidence_inflation)   # only positive inflation
-    drift_contrib       = max(0.0, aggressiveness_drift)    # only positive drift
-    response_contrib    = 1.0 - drawdown_response_quality  # invert (poor = high)
-    meta_contrib        = max(metacognition_overconfidence, metacognition_caution * 0.5)
+    inflation_contrib = max(0.0, confidence_inflation)  # only positive inflation
+    drift_contrib = max(0.0, aggressiveness_drift)  # only positive drift
+    response_contrib = 1.0 - drawdown_response_quality  # invert (poor = high)
+    meta_contrib = max(metacognition_overconfidence, metacognition_caution * 0.5)
 
     raw = (
         0.25 * min(1.0, inflation_contrib / INFLATION_SEVERE_THRESHOLD)
@@ -335,9 +332,7 @@ def _recommend_state(
 
     # ── Euphoria guard ────────────────────────────────────────────────────
     if consecutive_wins >= WINNING_STREAK_EUPHORIA:
-        return CognitiveState.CAUTION, (
-            f"euphoria_guard: winning_streak={consecutive_wins}"
-        )
+        return CognitiveState.CAUTION, (f"euphoria_guard: winning_streak={consecutive_wins}")
     if euphoria >= EUPHORIA_RISK_THRESHOLD and current_state == CognitiveState.AGGRESSIVE:
         return CognitiveState.CAUTION, f"euphoria_risk={euphoria:.2f}"
 
@@ -364,9 +359,7 @@ def _recommend_state(
         and euphoria < EUPHORIA_RISK_THRESHOLD
         and (current_state in (CognitiveState.NORMAL, None))
     ):
-        return CognitiveState.AGGRESSIVE, (
-            f"clean_winning_streak={consecutive_wins}"
-        )
+        return CognitiveState.AGGRESSIVE, (f"clean_winning_streak={consecutive_wins}")
 
     # ── CAUTION → NORMAL recovery ─────────────────────────────────────────
     if (
@@ -456,7 +449,7 @@ def evaluate_behavior(
         metacognition_overconfidence=signals.overconfidence_score,
         metacognition_caution=signals.metacognition_caution_level,
     )
-    euphoria    = _euphoria_risk(signals.consecutive_wins, inflation)
+    euphoria = _euphoria_risk(signals.consecutive_wins, inflation)
     loss_spiral = _loss_spiral_risk(
         signals.consecutive_losses,
         signals.current_drawdown_fraction,
@@ -500,7 +493,7 @@ def evaluate_behavior(
 
 def adjust_state(
     current_state: CognitiveState,
-    assessment:    BehavioralAssessment,
+    assessment: BehavioralAssessment,
 ) -> CognitiveState:
     """Apply the behavioral assessment to determine the next CognitiveState.
 
@@ -538,9 +531,9 @@ def adjust_state(
         # Reverse-lookup severity → state
         for state, sev in {
             CognitiveState.AGGRESSIVE: 0,
-            CognitiveState.NORMAL:     1,
-            CognitiveState.CAUTION:    2,
-            CognitiveState.DEFENSIVE:  3,
+            CognitiveState.NORMAL: 1,
+            CognitiveState.CAUTION: 2,
+            CognitiveState.DEFENSIVE: 3,
         }.items():
             if sev == new_severity:
                 return state
@@ -555,7 +548,7 @@ def adjust_state(
 
 def behavior_report(
     engine: "BehavioralControlEngine",
-    now:    float | None = None,
+    now: float | None = None,
 ) -> dict:
     """Generate a comprehensive behavioral report from a BehavioralControlEngine.
 
@@ -585,7 +578,7 @@ def behavior_report(
 
     time_in_state: dict[str, int] = {s.value: 0 for s in CognitiveState}
     transition_count = 0
-    euphoria_events  = 0
+    euphoria_events = 0
     loss_spiral_events = 0
     pathology_trend: list[float] = []
 
@@ -608,17 +601,17 @@ def behavior_report(
     latest = history[-1].assessment.to_dict() if history else None
 
     return {
-        "instrument":         engine.instrument,
-        "current_state":      engine.state.value,
-        "state_history":      [r.to_dict() for r in history[-20:]],
-        "transition_count":   transition_count,
-        "time_in_state":      time_in_state,
-        "latest_assessment":  latest,
-        "pathology_trend":    pathology_trend,
-        "euphoria_events":    euphoria_events,
+        "instrument": engine.instrument,
+        "current_state": engine.state.value,
+        "state_history": [r.to_dict() for r in history[-20:]],
+        "transition_count": transition_count,
+        "time_in_state": time_in_state,
+        "latest_assessment": latest,
+        "pathology_trend": pathology_trend,
+        "euphoria_events": euphoria_events,
         "loss_spiral_events": loss_spiral_events,
-        "history_size":       len(history),
-        "generated_at":       round(now, 3),
+        "history_size": len(history),
+        "generated_at": round(now, 3),
     }
 
 
@@ -661,11 +654,11 @@ class BehavioralControlEngine:
 
     def __init__(
         self,
-        instrument:    str            = "",
+        instrument: str = "",
         initial_state: CognitiveState = CognitiveState.NORMAL,
     ) -> None:
         self.instrument = instrument
-        self._state     = initial_state
+        self._state = initial_state
         self._history: deque[BehavioralRecord] = deque(maxlen=MAX_BEHAVIORAL_HISTORY)
 
     # ── Properties ────────────────────────────────────────────────────────
@@ -689,9 +682,9 @@ class BehavioralControlEngine:
 
     def adjust_state(
         self,
-        assessment:    BehavioralAssessment,
-        session_label: str          = "",
-        now:           float | None = None,
+        assessment: BehavioralAssessment,
+        session_label: str = "",
+        now: float | None = None,
     ) -> CognitiveState:
         """Apply the assessment to determine and record the next CognitiveState.
 
@@ -714,7 +707,11 @@ class BehavioralControlEngine:
         previous = self._state
         new_state = adjust_state(previous, assessment)
 
-        trigger_desc = assessment.reasoning.split("trigger=")[-1] if "trigger=" in assessment.reasoning else "n/a"
+        trigger_desc = (
+            assessment.reasoning.split("trigger=")[-1]
+            if "trigger=" in assessment.reasoning
+            else "n/a"
+        )
         if new_state != previous:
             trigger_desc = f"{previous.value}→{new_state.value}: {trigger_desc}"
             logger.debug(
@@ -763,12 +760,12 @@ class BehavioralControlEngine:
     def summary(self) -> dict:
         """Compact summary for logging."""
         return {
-            "instrument":       self.instrument,
-            "current_state":    self._state.value,
-            "history_size":     len(self._history),
+            "instrument": self.instrument,
+            "current_state": self._state.value,
+            "history_size": len(self._history),
             "transition_count": self.transition_count(),
             "time_in_defensive": self.time_in_state(CognitiveState.DEFENSIVE),
-            "time_in_caution":  self.time_in_state(CognitiveState.CAUTION),
+            "time_in_caution": self.time_in_state(CognitiveState.CAUTION),
             "time_in_aggressive": self.time_in_state(CognitiveState.AGGRESSIVE),
         }
 

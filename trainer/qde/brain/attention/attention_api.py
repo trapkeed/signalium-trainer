@@ -53,26 +53,28 @@ from trainer.qde.brain.attention.signal_enricher import (
     SignalEnricher,
     enrich_signals,
 )
+
 # C10 default contribution weights for the four new signals.  Applied
 # additively on top of whatever composite the engine produces from its own
 # six-factor weights (which may be DEFAULT_WEIGHTS with 0.0 for C10 fields).
 # Kept here rather than importing C10_WEIGHTS from attention_allocator to
 # avoid a circular dependency chain; the values mirror those in C10_WEIGHTS.
-_C10_VOL_W         = 0.10
-_C10_LEVEL_W       = 0.08
-_C10_SPREAD_W      = 0.05
+_C10_VOL_W = 0.10
+_C10_LEVEL_W = 0.08
+_C10_SPREAD_W = 0.05
 _C10_FAILED_MOVE_W = 0.02
 
-from trainer.qde.qde_observer_models import SymbolObservationInput
+from trainer.qde.qde_observer_models import SymbolObservationInput  # noqa: E402
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 # TYPE_CHECKING only to avoid circular imports in the brain package.
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING  # noqa: E402
 
 if TYPE_CHECKING:
     from trainer.qde.brain.attention_engine import AttentionEngine
@@ -251,9 +253,9 @@ class AttentionAPI:
             base_signals = score.last_signals
             enriched = enrich_signals(base_signals, extended_context)
             c10_addition = (
-                _C10_VOL_W         * enriched.volume_anomaly
-                + _C10_LEVEL_W     * enriched.key_level_proximity
-                + _C10_SPREAD_W    * enriched.spread_change
+                _C10_VOL_W * enriched.volume_anomaly
+                + _C10_LEVEL_W * enriched.key_level_proximity
+                + _C10_SPREAD_W * enriched.spread_change
                 + _C10_FAILED_MOVE_W * enriched.failed_move
             )
             c10_composite = min(1.0, score.composite + c10_addition)
@@ -356,9 +358,7 @@ class AttentionAPI:
         """Recent attention snapshots for ``instrument``, newest last."""
         return self._memory.history(instrument, n=n)
 
-    def tier_transitions(
-        self, instrument: str, n: int = 20
-    ) -> list[AttentionEvolutionRecord]:
+    def tier_transitions(self, instrument: str, n: int = 20) -> list[AttentionEvolutionRecord]:
         """Recent tier-change events for ``instrument``, newest last."""
         return self._memory.tier_transitions(instrument, n=n)
 

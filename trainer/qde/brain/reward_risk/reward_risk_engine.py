@@ -120,40 +120,38 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.reward_risk.adverse_excursion_predictor import (
     AdverseExcursionInput,
     AdverseExcursionPredictor,
-    _lognormal_quantiles,
-    _stop_hit_prob,
 )
 from trainer.qde.brain.reward_risk.favorable_excursion_predictor import (
     FavorableExcursionInput,
     FavorableExcursionPredictor,
-    _target_hit_prob,
 )
 
 # ── Hyper-parameters ──────────────────────────────────────────────────────────
 
-_DEFAULT_MAX_RECORDS = 2000   # per-symbol bounded FIFO capacity
-_DEFAULT_K           = 30     # top-K for weighted estimates
-_MIN_INFORMATIVE     = 5      # confidence floor sample count
-_RECENCY_TAU_DAYS    = 21.0   # exponential recency decay (days)
-_COSINE_FALLBACK_W   = 1e-3   # weight floor for recency-only fallback
+_DEFAULT_MAX_RECORDS = 2000  # per-symbol bounded FIFO capacity
+_DEFAULT_K = 30  # top-K for weighted estimates
+_MIN_INFORMATIVE = 5  # confidence floor sample count
+_RECENCY_TAU_DAYS = 21.0  # exponential recency decay (days)
+_COSINE_FALLBACK_W = 1e-3  # weight floor for recency-only fallback
 
 # Conditions vector dimension
 _N_DIMS = 7
 
 # Integration signal bounds
-_SIZE_MOD_MIN      = 0.50
-_SIZE_MOD_MAX      = 2.00
-_RISK_DRAG_MAX     = -0.50
-_RISK_BOOST_MAX    =  0.25
+_SIZE_MOD_MIN = 0.50
+_SIZE_MOD_MAX = 2.00
+_RISK_DRAG_MAX = -0.50
+_RISK_BOOST_MAX = 0.25
 
 # Kelly half-Kelly clamp bounds (before mapping to size modifier)
 _KELLY_LO = -0.50
-_KELLY_HI =  1.00
+_KELLY_HI = 1.00
 
 
 # ── RewardRiskConditions ──────────────────────────────────────────────────────
@@ -177,15 +175,15 @@ class RewardRiskConditions:
     similarity scores against historical records.
     """
 
-    instrument:             str   = ""
-    spread_atr_ratio:       float = 0.10
-    atr_pct:                float = 0.005
-    volatility:             float = 0.010
-    session_quality:        float = 0.80
-    momentum:               float = 0.0
-    direction:              int   = 1
+    instrument: str = ""
+    spread_atr_ratio: float = 0.10
+    atr_pct: float = 0.005
+    volatility: float = 0.010
+    session_quality: float = 0.80
+    momentum: float = 0.0
+    direction: int = 1
     microstructure_quality: float = 0.80
-    timestamp:              float = field(default_factory=time.time)
+    timestamp: float = field(default_factory=time.time)
 
     @property
     def directed_momentum(self) -> float:
@@ -210,20 +208,20 @@ class RewardRiskConditions:
             self.session_quality,
             self.directed_momentum,
             self.microstructure_quality,
-            float(self.direction) * 0.5,   # ±0.5 direction flag
+            float(self.direction) * 0.5,  # ±0.5 direction flag
         ]
 
     def to_dict(self) -> dict:
         return {
-            "instrument":             self.instrument,
-            "spread_atr_ratio":       round(self.spread_atr_ratio, 4),
-            "atr_pct":                round(self.atr_pct, 8),
-            "volatility":             round(self.volatility, 8),
-            "session_quality":        round(self.session_quality, 4),
-            "momentum":               round(self.momentum, 4),
-            "direction":              self.direction,
+            "instrument": self.instrument,
+            "spread_atr_ratio": round(self.spread_atr_ratio, 4),
+            "atr_pct": round(self.atr_pct, 8),
+            "volatility": round(self.volatility, 8),
+            "session_quality": round(self.session_quality, 4),
+            "momentum": round(self.momentum, 4),
+            "direction": self.direction,
             "microstructure_quality": round(self.microstructure_quality, 4),
-            "timestamp":              round(self.timestamp, 3),
+            "timestamp": round(self.timestamp, 3),
         }
 
     @classmethod
@@ -271,20 +269,20 @@ class TradeGeometryOutcome:
         converted to realized profit.
     """
 
-    mae_atr:      float = 0.0
-    mfe_atr:      float = 0.0
-    reward_atr:   float = 0.0    # signed
-    was_stopped:  bool  = False
-    hit_target:   bool  = False
-    capture_rate: float = 0.0    # reward / mfe; 0.0 if not profitable
+    mae_atr: float = 0.0
+    mfe_atr: float = 0.0
+    reward_atr: float = 0.0  # signed
+    was_stopped: bool = False
+    hit_target: bool = False
+    capture_rate: float = 0.0  # reward / mfe; 0.0 if not profitable
 
     @staticmethod
     def compute(
-        mae_atr:     float,
-        mfe_atr:     float,
-        reward_atr:  float,
+        mae_atr: float,
+        mfe_atr: float,
+        reward_atr: float,
         was_stopped: bool = False,
-        hit_target:  bool = False,
+        hit_target: bool = False,
     ) -> "TradeGeometryOutcome":
         """Factory with automatic capture-rate computation.
 
@@ -306,11 +304,11 @@ class TradeGeometryOutcome:
 
     def to_dict(self) -> dict:
         return {
-            "mae_atr":      round(self.mae_atr, 6),
-            "mfe_atr":      round(self.mfe_atr, 6),
-            "reward_atr":   round(self.reward_atr, 6),
-            "was_stopped":  self.was_stopped,
-            "hit_target":   self.hit_target,
+            "mae_atr": round(self.mae_atr, 6),
+            "mfe_atr": round(self.mfe_atr, 6),
+            "reward_atr": round(self.reward_atr, 6),
+            "was_stopped": self.was_stopped,
+            "hit_target": self.hit_target,
             "capture_rate": round(self.capture_rate, 4),
         }
 
@@ -333,10 +331,10 @@ class TradeGeometryOutcome:
 class RewardRiskRecord:
     """One completed (conditions → geometry outcome) learning observation."""
 
-    record_id:   str                   = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    conditions:  RewardRiskConditions  = field(default_factory=RewardRiskConditions)
-    outcome:     TradeGeometryOutcome  = field(default_factory=TradeGeometryOutcome)
-    recorded_at: float                 = field(default_factory=time.time)
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    conditions: RewardRiskConditions = field(default_factory=RewardRiskConditions)
+    outcome: TradeGeometryOutcome = field(default_factory=TradeGeometryOutcome)
+    recorded_at: float = field(default_factory=time.time)
 
     def recency_weight(self, now: float, tau_days: float = _RECENCY_TAU_DAYS) -> float:
         """Exponential recency weight.  1.0 when fresh, decays over tau_days."""
@@ -345,9 +343,9 @@ class RewardRiskRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":   self.record_id,
-            "conditions":  self.conditions.to_dict(),
-            "outcome":     self.outcome.to_dict(),
+            "record_id": self.record_id,
+            "conditions": self.conditions.to_dict(),
+            "outcome": self.outcome.to_dict(),
             "recorded_at": round(self.recorded_at, 3),
         }
 
@@ -374,20 +372,20 @@ class RewardRiskMemory:
     """
 
     def __init__(self, max_records: int = _DEFAULT_MAX_RECORDS) -> None:
-        self._max   = max(1, max_records)
+        self._max = max(1, max_records)
         self._store: dict[str, deque[RewardRiskRecord]] = {}
 
     def record(
         self,
-        instrument:  str,
-        conditions:  RewardRiskConditions,
-        outcome:     TradeGeometryOutcome,
-        now:         float | None = None,
+        instrument: str,
+        conditions: RewardRiskConditions,
+        outcome: TradeGeometryOutcome,
+        now: float | None = None,
     ) -> RewardRiskRecord:
         """Append one observation.  Evicts oldest when at capacity."""
         now = now if now is not None else time.time()
         rec = RewardRiskRecord(conditions=conditions, outcome=outcome, recorded_at=now)
-        q   = self._store.setdefault(instrument, deque(maxlen=self._max))
+        q = self._store.setdefault(instrument, deque(maxlen=self._max))
         q.append(rec)
         return rec
 
@@ -462,53 +460,53 @@ class RewardRiskSignal:
     """
 
     # MAE distribution
-    expected_mae_atr:        float = 0.0
-    mae_p75_atr:             float = 0.0
-    mae_p90_atr:             float = 0.0
+    expected_mae_atr: float = 0.0
+    mae_p75_atr: float = 0.0
+    mae_p90_atr: float = 0.0
 
     # MFE distribution
-    expected_mfe_atr:        float = 0.0
-    mfe_p50_atr:             float = 0.0
-    mfe_p75_atr:             float = 0.0
+    expected_mfe_atr: float = 0.0
+    mfe_p50_atr: float = 0.0
+    mfe_p75_atr: float = 0.0
 
     # Ratio and probabilities
-    expected_rr:             float = 0.0
-    win_rate:                float = 0.5
-    win_rate_at_rr2:         float = 0.0
-    stop_hit_probability:    float = 0.0
-    target_hit_probability:  float = 0.0
-    expected_capture_rate:   float = 0.0
+    expected_rr: float = 0.0
+    win_rate: float = 0.5
+    win_rate_at_rr2: float = 0.0
+    stop_hit_probability: float = 0.0
+    target_hit_probability: float = 0.0
+    expected_capture_rate: float = 0.0
 
     # Integration signals
-    position_size_modifier:   float = 1.0
-    risk_appetite_modifier:   float = 0.0
-    opportunity_rank_signal:  float = 0.0
+    position_size_modifier: float = 1.0
+    risk_appetite_modifier: float = 0.0
+    opportunity_rank_signal: float = 0.0
 
     # Metadata
-    confidence:   float = 0.0
-    sample_count: int   = 0
+    confidence: float = 0.0
+    sample_count: int = 0
     is_structural: bool = True
 
     def to_dict(self) -> dict:
         return {
-            "expected_mae_atr":        round(self.expected_mae_atr, 4),
-            "mae_p75_atr":             round(self.mae_p75_atr, 4),
-            "mae_p90_atr":             round(self.mae_p90_atr, 4),
-            "expected_mfe_atr":        round(self.expected_mfe_atr, 4),
-            "mfe_p50_atr":             round(self.mfe_p50_atr, 4),
-            "mfe_p75_atr":             round(self.mfe_p75_atr, 4),
-            "expected_rr":             round(self.expected_rr, 4),
-            "win_rate":                round(self.win_rate, 4),
-            "win_rate_at_rr2":         round(self.win_rate_at_rr2, 4),
-            "stop_hit_probability":    round(self.stop_hit_probability, 4),
-            "target_hit_probability":  round(self.target_hit_probability, 4),
-            "expected_capture_rate":   round(self.expected_capture_rate, 4),
-            "position_size_modifier":  round(self.position_size_modifier, 4),
-            "risk_appetite_modifier":  round(self.risk_appetite_modifier, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "mae_p75_atr": round(self.mae_p75_atr, 4),
+            "mae_p90_atr": round(self.mae_p90_atr, 4),
+            "expected_mfe_atr": round(self.expected_mfe_atr, 4),
+            "mfe_p50_atr": round(self.mfe_p50_atr, 4),
+            "mfe_p75_atr": round(self.mfe_p75_atr, 4),
+            "expected_rr": round(self.expected_rr, 4),
+            "win_rate": round(self.win_rate, 4),
+            "win_rate_at_rr2": round(self.win_rate_at_rr2, 4),
+            "stop_hit_probability": round(self.stop_hit_probability, 4),
+            "target_hit_probability": round(self.target_hit_probability, 4),
+            "expected_capture_rate": round(self.expected_capture_rate, 4),
+            "position_size_modifier": round(self.position_size_modifier, 4),
+            "risk_appetite_modifier": round(self.risk_appetite_modifier, 4),
             "opportunity_rank_signal": round(self.opportunity_rank_signal, 4),
-            "confidence":              round(self.confidence, 4),
-            "sample_count":            self.sample_count,
-            "is_structural":           self.is_structural,
+            "confidence": round(self.confidence, 4),
+            "sample_count": self.sample_count,
+            "is_structural": self.is_structural,
         }
 
 
@@ -556,25 +554,25 @@ class RewardRiskEngine:
 
     def __init__(
         self,
-        max_records:      int   = _DEFAULT_MAX_RECORDS,
-        k:                int   = _DEFAULT_K,
+        max_records: int = _DEFAULT_MAX_RECORDS,
+        k: int = _DEFAULT_K,
         recency_tau_days: float = _RECENCY_TAU_DAYS,
-        min_informative:  int   = _MIN_INFORMATIVE,
+        min_informative: int = _MIN_INFORMATIVE,
     ) -> None:
-        self._memory   = RewardRiskMemory(max_records=max_records)
+        self._memory = RewardRiskMemory(max_records=max_records)
         self._mae_pred = AdverseExcursionPredictor()
         self._mfe_pred = FavorableExcursionPredictor()
-        self._k        = k
-        self._tau      = recency_tau_days
-        self._min      = min_informative
+        self._k = k
+        self._tau = recency_tau_days
+        self._min = min_informative
 
     # ── Learning ──────────────────────────────────────────────────────────
 
     def record_outcome(
         self,
-        conditions:  RewardRiskConditions,
-        outcome:     TradeGeometryOutcome,
-        now:         float | None = None,
+        conditions: RewardRiskConditions,
+        outcome: TradeGeometryOutcome,
+        now: float | None = None,
     ) -> RewardRiskRecord:
         """Append one completed trade geometry to the learning store.
 
@@ -595,10 +593,10 @@ class RewardRiskEngine:
 
     def score(
         self,
-        conditions:          RewardRiskConditions,
-        stop_distance_atr:   float = 0.0,
+        conditions: RewardRiskConditions,
+        stop_distance_atr: float = 0.0,
         target_distance_atr: float = 0.0,
-        now:                 float | None = None,
+        now: float | None = None,
     ) -> RewardRiskSignal:
         """Compute the full reward/risk geometry signal for one opportunity.
 
@@ -652,29 +650,29 @@ class RewardRiskEngine:
         confidence = 0.0
         h_mae_mean = s_mae.expected_mae_atr
         h_mfe_mean = s_mfe.expected_mfe_atr
-        h_mae_p75  = s_mae.mae_p75_atr
-        h_mae_p90  = s_mae.mae_p90_atr
-        h_mfe_p50  = s_mfe.mfe_p50_atr
-        h_mfe_p75  = s_mfe.mfe_p75_atr
+        h_mae_p75 = s_mae.mae_p75_atr
+        h_mae_p90 = s_mae.mae_p90_atr
+        h_mfe_p50 = s_mfe.mfe_p50_atr
+        h_mfe_p75 = s_mfe.mfe_p75_atr
         h_win_rate = struct_win_rate
-        h_win_rr2  = max(0.0, struct_win_rate - 0.15)  # structural prior for RR2
-        h_capture  = 0.50   # neutral prior when no history
+        h_win_rr2 = max(0.0, struct_win_rate - 0.15)  # structural prior for RR2
+        h_capture = 0.50  # neutral prior when no history
         h_stop_hit = s_mae.stop_hit_probability
-        h_tgt_hit  = s_mfe.target_hit_probability
-        n_used     = 0
+        h_tgt_hit = s_mfe.target_hit_probability
+        n_used = 0
 
         if records:
             scored = _score_records(conditions.as_vector(), records, self._tau, now)
-            top_k  = scored[: self._k]
+            top_k = scored[: self._k]
 
             if top_k:
-                n_used     = len(top_k)
+                n_used = len(top_k)
                 confidence = min(1.0, n_used / max(self._min, 1))
-                weights    = [w for w, _ in top_k]
-                recs_k     = [r for _, r in top_k]
+                weights = [w for w, _ in top_k]
+                recs_k = [r for _, r in top_k]
 
-                h_mae_mean = _wmean([r.outcome.mae_atr    for r in recs_k], weights)
-                h_mfe_mean = _wmean([r.outcome.mfe_atr    for r in recs_k], weights)
+                h_mae_mean = _wmean([r.outcome.mae_atr for r in recs_k], weights)
+                h_mfe_mean = _wmean([r.outcome.mfe_atr for r in recs_k], weights)
 
                 # Quantiles from empirical weighted distribution
                 h_mae_p75, h_mae_p90 = _wquantiles(
@@ -685,11 +683,9 @@ class RewardRiskEngine:
                 )
 
                 # Win rate: fraction with reward > 0 (weighted)
-                h_win_rate = _wfrac(
-                    weights, [r.outcome.reward_atr > 0.0 for r in recs_k]
-                )
+                h_win_rate = _wfrac(weights, [r.outcome.reward_atr > 0.0 for r in recs_k])
                 # Win rate at ≥2:1 RR: mfe_atr / mae_atr ≥ 2 AND profitable
-                h_win_rr2  = _wfrac(
+                h_win_rr2 = _wfrac(
                     weights,
                     [
                         r.outcome.reward_atr > 0.0
@@ -698,10 +694,8 @@ class RewardRiskEngine:
                     ],
                 )
                 # Capture rate: mean of positive-reward records' capture_rate
-                cap_vals = [r.outcome.capture_rate for r in recs_k
-                            if r.outcome.reward_atr > 0.0]
-                cap_ws   = [w for w, r in zip(weights, recs_k)
-                            if r.outcome.reward_atr > 0.0]
+                cap_vals = [r.outcome.capture_rate for r in recs_k if r.outcome.reward_atr > 0.0]
+                cap_ws = [w for w, r in zip(weights, recs_k) if r.outcome.reward_atr > 0.0]
                 h_capture = _wmean(cap_vals, cap_ws) if cap_vals else 0.50
 
                 # Probabilistic stop/target hit from empirical distribution
@@ -722,19 +716,19 @@ class RewardRiskEngine:
 
         mae_mean = s * s_mae.expected_mae_atr + c * h_mae_mean
         mfe_mean = s * s_mfe.expected_mfe_atr + c * h_mfe_mean
-        mae_p75  = s * s_mae.mae_p75_atr       + c * h_mae_p75
-        mae_p90  = s * s_mae.mae_p90_atr       + c * h_mae_p90
-        mfe_p50  = s * s_mfe.mfe_p50_atr       + c * h_mfe_p50
-        mfe_p75  = s * s_mfe.mfe_p75_atr       + c * h_mfe_p75
-        win_rate = s * struct_win_rate          + c * h_win_rate
-        win_rr2  = s * max(0.0, struct_win_rate - 0.15) + c * h_win_rr2
-        capture  = s * 0.50                    + c * h_capture
+        mae_p75 = s * s_mae.mae_p75_atr + c * h_mae_p75
+        mae_p90 = s * s_mae.mae_p90_atr + c * h_mae_p90
+        mfe_p50 = s * s_mfe.mfe_p50_atr + c * h_mfe_p50
+        mfe_p75 = s * s_mfe.mfe_p75_atr + c * h_mfe_p75
+        win_rate = s * struct_win_rate + c * h_win_rate
+        win_rr2 = s * max(0.0, struct_win_rate - 0.15) + c * h_win_rr2
+        capture = s * 0.50 + c * h_capture
 
         # Blended stop/target hit probabilities (structural already
         # embedded in h_* when no history, so only blend when we have
         # empirical data)
         stop_hit = h_stop_hit
-        tgt_hit  = h_tgt_hit
+        tgt_hit = h_tgt_hit
 
         expected_rr = mfe_mean / max(mae_mean, 1e-9)
 
@@ -766,10 +760,10 @@ class RewardRiskEngine:
 
     def context_for_inference(
         self,
-        conditions:          RewardRiskConditions,
-        stop_distance_atr:   float = 0.0,
+        conditions: RewardRiskConditions,
+        stop_distance_atr: float = 0.0,
         target_distance_atr: float = 0.0,
-        now:                 float | None = None,
+        now: float | None = None,
     ) -> dict:
         """Return exactly 18 ``rr_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -796,24 +790,24 @@ class RewardRiskEngine:
         """
         sig = self.score(conditions, stop_distance_atr, target_distance_atr, now)
         return {
-            "rr_expected_mae_atr":        round(sig.expected_mae_atr, 4),
-            "rr_mae_p75_atr":             round(sig.mae_p75_atr, 4),
-            "rr_mae_p90_atr":             round(sig.mae_p90_atr, 4),
-            "rr_expected_mfe_atr":        round(sig.expected_mfe_atr, 4),
-            "rr_mfe_p50_atr":             round(sig.mfe_p50_atr, 4),
-            "rr_mfe_p75_atr":             round(sig.mfe_p75_atr, 4),
-            "rr_expected_rr":             round(sig.expected_rr, 4),
-            "rr_win_rate":                round(sig.win_rate, 4),
-            "rr_win_rate_at_rr2":         round(sig.win_rate_at_rr2, 4),
-            "rr_stop_hit_probability":    round(sig.stop_hit_probability, 4),
-            "rr_target_hit_probability":  round(sig.target_hit_probability, 4),
-            "rr_expected_capture_rate":   round(sig.expected_capture_rate, 4),
-            "rr_position_size_modifier":  round(sig.position_size_modifier, 4),
-            "rr_risk_appetite_modifier":  round(sig.risk_appetite_modifier, 4),
+            "rr_expected_mae_atr": round(sig.expected_mae_atr, 4),
+            "rr_mae_p75_atr": round(sig.mae_p75_atr, 4),
+            "rr_mae_p90_atr": round(sig.mae_p90_atr, 4),
+            "rr_expected_mfe_atr": round(sig.expected_mfe_atr, 4),
+            "rr_mfe_p50_atr": round(sig.mfe_p50_atr, 4),
+            "rr_mfe_p75_atr": round(sig.mfe_p75_atr, 4),
+            "rr_expected_rr": round(sig.expected_rr, 4),
+            "rr_win_rate": round(sig.win_rate, 4),
+            "rr_win_rate_at_rr2": round(sig.win_rate_at_rr2, 4),
+            "rr_stop_hit_probability": round(sig.stop_hit_probability, 4),
+            "rr_target_hit_probability": round(sig.target_hit_probability, 4),
+            "rr_expected_capture_rate": round(sig.expected_capture_rate, 4),
+            "rr_position_size_modifier": round(sig.position_size_modifier, 4),
+            "rr_risk_appetite_modifier": round(sig.risk_appetite_modifier, 4),
             "rr_opportunity_rank_signal": round(sig.opportunity_rank_signal, 4),
-            "rr_confidence":              round(sig.confidence, 4),
-            "rr_sample_count":            sig.sample_count,
-            "rr_is_structural":           1.0 if sig.is_structural else 0.0,
+            "rr_confidence": round(sig.confidence, 4),
+            "rr_sample_count": sig.sample_count,
+            "rr_is_structural": 1.0 if sig.is_structural else 0.0,
         }
 
     # ── Persistence ───────────────────────────────────────────────────────────
@@ -841,18 +835,18 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(x * x for x in b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))
 
 
 def _score_records(
-    current_vec:  list[float],
-    records:      list[RewardRiskRecord],
-    tau_days:     float,
-    now:          float,
+    current_vec: list[float],
+    records: list[RewardRiskRecord],
+    tau_days: float,
+    now: float,
 ) -> list[tuple[float, RewardRiskRecord]]:
     """Score records by cosine_sim × recency, sorted highest first.
 
@@ -861,9 +855,9 @@ def _score_records(
     """
     scored: list[tuple[float, RewardRiskRecord]] = []
     for rec in records:
-        sim     = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
+        sim = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
         recency = rec.recency_weight(now, tau_days)
-        w       = sim * recency
+        w = sim * recency
         if w > 1e-12:
             scored.append((w, rec))
 
@@ -896,8 +890,8 @@ def _wfrac(weights: list[float], flags: list[bool]) -> float:
 
 
 def _wquantiles(
-    values:    list[float],
-    weights:   list[float],
+    values: list[float],
+    weights: list[float],
     quantiles: tuple[float, ...],
 ) -> tuple[float, ...]:
     """Weighted empirical quantiles.
@@ -918,7 +912,7 @@ def _wquantiles(
 
     # Build cumulative weight CDF
     cum_w = 0.0
-    cdf: list[tuple[float, float]] = []   # (cum_fraction, value)
+    cdf: list[tuple[float, float]] = []  # (cum_fraction, value)
     for v, w in pairs:
         cum_w += w
         cdf.append((cum_w / total_w, v))
@@ -927,7 +921,7 @@ def _wquantiles(
     for q in quantiles:
         q = max(0.0, min(1.0, q))
         # Find the value where cumulative fraction first exceeds q
-        found = cdf[-1][1]   # default: max value
+        found = cdf[-1][1]  # default: max value
         for frac, v in cdf:
             if frac >= q:
                 found = v
@@ -951,15 +945,15 @@ def _kelly_size_modifier(win_rate: float, expected_rr: float) -> float:
     """
     if expected_rr < 1e-6:
         return _SIZE_MOD_MIN
-    kelly_f   = win_rate - (1.0 - win_rate) / expected_rr
+    kelly_f = win_rate - (1.0 - win_rate) / expected_rr
     half_kelly = max(_KELLY_LO, min(_KELLY_HI, kelly_f * 0.5))
     return max(_SIZE_MOD_MIN, min(_SIZE_MOD_MAX, 1.0 + half_kelly))
 
 
 def _risk_appetite(
-    mae_p75:    float,
-    mfe_mean:   float,
-    win_rate:   float,
+    mae_p75: float,
+    mfe_mean: float,
+    win_rate: float,
     confidence: float,
 ) -> float:
     """Risk appetite modifier in [−0.50, +0.25].
@@ -976,19 +970,19 @@ def _risk_appetite(
         risk_boost = rr_quality × RISK_BOOST_MAX  × confidence
         risk_mod   = clamp(risk_boost − risk_drag, DRAG_MAX, BOOST_MAX)
     """
-    denom     = mae_p75 + mfe_mean
+    denom = mae_p75 + mfe_mean
     mae_share = mae_p75 / max(denom, 1e-9)
-    rr_q      = min(1.0, mfe_mean / max(mae_p75, 1e-9)) if mae_p75 > 0 else 0.5
+    rr_q = min(1.0, mfe_mean / max(mae_p75, 1e-9)) if mae_p75 > 0 else 0.5
 
-    drag  = mae_share * abs(_RISK_DRAG_MAX) * confidence
-    boost = rr_q     * _RISK_BOOST_MAX      * confidence
+    drag = mae_share * abs(_RISK_DRAG_MAX) * confidence
+    boost = rr_q * _RISK_BOOST_MAX * confidence
     return max(_RISK_DRAG_MAX, min(_RISK_BOOST_MAX, boost - drag))
 
 
 def _opportunity_rank(
-    win_rate:    float,
+    win_rate: float,
     expected_rr: float,
-    confidence:  float,
+    confidence: float,
 ) -> float:
     """Opportunity rank signal in [0, 1].
 

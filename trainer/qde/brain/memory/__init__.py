@@ -32,13 +32,13 @@ Public API
 """
 
 from trainer.qde.brain.memory.working_memory_store import (
+    TIMEFRAME_CANDLE_LIMITS,
     CandleRecord,
     CorrelationShift,
     FailedBreakout,
     LiquidityEvent,
     SessionTransition,
     SpreadPoint,
-    TIMEFRAME_CANDLE_LIMITS,
     TrendState,
     VolatilityPoint,
     WorkingMemoryStore,

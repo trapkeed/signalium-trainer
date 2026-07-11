@@ -55,8 +55,8 @@ from trainer.qde.brain.counterfactual.counterfactual_engine import (
     CounterfactualEngine,
     evaluate_alternative,
     generate_alternatives,
-    record_probability_point,
     recommend_switch,
+    record_probability_point,
     switch_thesis,
 )
 from trainer.qde.brain.counterfactual.counterfactual_types import (

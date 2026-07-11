@@ -19,7 +19,6 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Tier enum
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,27 +125,27 @@ class ResourceBudget:
 #: ``ResourceAllocator`` to override any or all tiers.
 TIER_RESOURCES: dict[AttentionTier, ResourceBudget] = {
     AttentionTier.WATCH: ResourceBudget(
-        observation_interval_s=300.0,    # every 5 minutes
+        observation_interval_s=300.0,  # every 5 minutes
         memory_update_interval_s=600.0,  # every 10 minutes
-        inference_interval_s=300.0,      # every 5 minutes
-        reasoning_cycles_per_hour=1.0,   # once per hour
+        inference_interval_s=300.0,  # every 5 minutes
+        reasoning_cycles_per_hour=1.0,  # once per hour
     ),
     AttentionTier.OBSERVE: ResourceBudget(
-        observation_interval_s=60.0,     # every minute
+        observation_interval_s=60.0,  # every minute
         memory_update_interval_s=120.0,  # every 2 minutes
-        inference_interval_s=60.0,       # every minute
-        reasoning_cycles_per_hour=4.0,   # every 15 minutes
+        inference_interval_s=60.0,  # every minute
+        reasoning_cycles_per_hour=4.0,  # every 15 minutes
     ),
     AttentionTier.HIGH_ATTENTION: ResourceBudget(
-        observation_interval_s=15.0,     # every 15 seconds
-        memory_update_interval_s=30.0,   # every 30 seconds
-        inference_interval_s=15.0,       # every 15 seconds
+        observation_interval_s=15.0,  # every 15 seconds
+        memory_update_interval_s=30.0,  # every 30 seconds
+        inference_interval_s=15.0,  # every 15 seconds
         reasoning_cycles_per_hour=12.0,  # every 5 minutes
     ),
     AttentionTier.CRITICAL_ATTENTION: ResourceBudget(
-        observation_interval_s=0.0,      # every tick
-        memory_update_interval_s=5.0,    # every 5 seconds
-        inference_interval_s=0.0,        # every tick
+        observation_interval_s=0.0,  # every tick
+        memory_update_interval_s=5.0,  # every 5 seconds
+        inference_interval_s=0.0,  # every tick
         reasoning_cycles_per_hour=60.0,  # every minute
     ),
 }
@@ -168,9 +167,9 @@ class AttentionSnapshot:
 
     instrument: str
     tier: AttentionTier
-    composite: float            # 0-1 raw composite score
-    weight: float               # normalized weight across all tracked symbols
-    signals: dict               # factor breakdown from OpportunitySignals.to_dict()
+    composite: float  # 0-1 raw composite score
+    weight: float  # normalized weight across all tracked symbols
+    signals: dict  # factor breakdown from OpportunitySignals.to_dict()
     resources: ResourceBudget
     captured_at: float = field(default_factory=time.time)
 
@@ -202,11 +201,11 @@ class AttentionEvolutionRecord:
     """
 
     instrument: str
-    from_tier: AttentionTier | None     # ``None`` on the first recorded event
+    from_tier: AttentionTier | None  # ``None`` on the first recorded event
     to_tier: AttentionTier
     composite_at_transition: float
     transitioned_at: float = field(default_factory=time.time)
-    dominant_signal: str = ""           # which factor drove the transition
+    dominant_signal: str = ""  # which factor drove the transition
 
     def to_dict(self) -> dict:
         return {

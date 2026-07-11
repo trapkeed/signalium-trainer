@@ -22,9 +22,8 @@ Covers:
 
 from __future__ import annotations
 
-import time
-import math
 import sys
+import time
 
 import pytest
 
@@ -34,6 +33,7 @@ try:
     import loguru  # noqa: F401
 except ImportError:
     import logging
+
     sys.modules.setdefault("loguru", type(sys)("loguru"))
     sys.modules["loguru"].logger = logging.getLogger("loguru")  # type: ignore
 
@@ -43,8 +43,8 @@ except ImportError:
 
 def _obs(instrument: str = "EURUSD", **kwargs):
     """Build a minimal SymbolObservationInput for testing."""
-    from trainer.qde.qde_observer_models import SymbolObservationInput
     from trainer.lifecycle.lifecycle_models import MarketContext
+    from trainer.qde.qde_observer_models import SymbolObservationInput
 
     market = MarketContext(
         momentum=kwargs.pop("momentum", 0.0),
@@ -68,8 +68,8 @@ def _obs(instrument: str = "EURUSD", **kwargs):
 
 def _make_brain_and_engine(instrument: str = "EURUSD"):
     """Create a minimal QDEBrain and attached AttentionEngine for testing."""
-    from trainer.qde.brain.brain import QDEBrain
     from trainer.qde.brain.attention_engine import AttentionEngine
+    from trainer.qde.brain.brain import QDEBrain
 
     brain = QDEBrain()
     engine = AttentionEngine(brain=brain)
@@ -85,44 +85,54 @@ def _make_brain_and_engine(instrument: str = "EURUSD"):
 
 class TestAttentionTierClassification:
     def test_watch_at_zero(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.0) == AttentionTier.WATCH
 
     def test_watch_below_threshold(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.24) == AttentionTier.WATCH
 
     def test_observe_at_threshold(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.25) == AttentionTier.OBSERVE
 
     def test_observe_mid(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.40) == AttentionTier.OBSERVE
 
     def test_high_attention_at_threshold(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.50) == AttentionTier.HIGH_ATTENTION
 
     def test_high_attention_mid(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.65) == AttentionTier.HIGH_ATTENTION
 
     def test_critical_at_threshold(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(0.75) == AttentionTier.CRITICAL_ATTENTION
 
     def test_critical_at_one(self):
-        from trainer.qde.brain.attention import tier_from_composite, AttentionTier
+        from trainer.qde.brain.attention import AttentionTier, tier_from_composite
+
         assert tier_from_composite(1.0) == AttentionTier.CRITICAL_ATTENTION
 
     def test_all_tiers_distinct(self):
         from trainer.qde.brain.attention import AttentionTier
+
         tiers = list(AttentionTier)
         assert len(tiers) == 4
 
     def test_tier_enum_values(self):
         from trainer.qde.brain.attention import AttentionTier
+
         assert AttentionTier.WATCH.value == "WATCH"
         assert AttentionTier.OBSERVE.value == "OBSERVE"
         assert AttentionTier.HIGH_ATTENTION.value == "HIGH_ATTENTION"
@@ -137,22 +147,26 @@ class TestAttentionTierClassification:
 class TestResourceBudget:
     def test_watch_has_largest_intervals(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         watch = TIER_RESOURCES[AttentionTier.WATCH]
         critical = TIER_RESOURCES[AttentionTier.CRITICAL_ATTENTION]
         assert watch.observation_interval_s > critical.observation_interval_s
 
     def test_critical_enables_every_tick_observation(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         critical = TIER_RESOURCES[AttentionTier.CRITICAL_ATTENTION]
         assert critical.observation_interval_s == 0.0
 
     def test_critical_enables_every_tick_inference(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         critical = TIER_RESOURCES[AttentionTier.CRITICAL_ATTENTION]
         assert critical.inference_interval_s == 0.0
 
     def test_critical_has_highest_reasoning_rate(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         tiers = [
             AttentionTier.WATCH,
             AttentionTier.OBSERVE,
@@ -164,6 +178,7 @@ class TestResourceBudget:
 
     def test_resource_budget_to_dict(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         d = TIER_RESOURCES[AttentionTier.OBSERVE].to_dict()
         assert "observation_interval_s" in d
         assert "inference_interval_s" in d
@@ -172,17 +187,20 @@ class TestResourceBudget:
 
     def test_reasoning_interval_s_inverse_of_rate(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         budget = TIER_RESOURCES[AttentionTier.OBSERVE]
         expected = 3600.0 / budget.reasoning_cycles_per_hour
         assert abs(budget.reasoning_interval_s - expected) < 0.01
 
     def test_watch_reasoning_interval_is_hour(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         budget = TIER_RESOURCES[AttentionTier.WATCH]
         assert budget.reasoning_interval_s == 3600.0
 
     def test_all_four_tiers_have_budgets(self):
         from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         for tier in AttentionTier:
             assert tier in TIER_RESOURCES
 
@@ -195,6 +213,7 @@ class TestResourceBudget:
 class TestOpportunitySignalsBackwardCompat:
     def test_old_six_field_construction_still_works(self):
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         s = OpportunitySignals(
             hypothesis_activity=0.5,
             volatility_expansion=0.3,
@@ -211,6 +230,7 @@ class TestOpportunitySignalsBackwardCompat:
 
     def test_to_dict_includes_four_new_fields(self):
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         s = OpportunitySignals()
         d = s.to_dict()
         for key in ("volume_anomaly", "key_level_proximity", "spread_change", "failed_move"):
@@ -218,11 +238,13 @@ class TestOpportunitySignalsBackwardCompat:
 
     def test_max_signal_uses_all_ten(self):
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         s = OpportunitySignals(key_level_proximity=0.95)
         assert s.max_signal() == pytest.approx(0.95)
 
     def test_default_construction_has_all_zeros(self):
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         s = OpportunitySignals()
         assert s.max_signal() == 0.0
 
@@ -234,8 +256,9 @@ class TestOpportunitySignalsBackwardCompat:
 
 class TestSignalEnricher:
     def test_no_context_preserves_base_signals(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         base = OpportunitySignals(hypothesis_activity=0.8, volatility_expansion=0.4)
         ctx = ExtendedSignalContext()
         enriched = enrich_signals(base, ctx)
@@ -243,36 +266,41 @@ class TestSignalEnricher:
         assert enriched.volatility_expansion == pytest.approx(0.4)
 
     def test_volume_anomaly_high_ratio(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(volume_ratio=3.0)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.volume_anomaly == pytest.approx(1.0)
 
     def test_volume_anomaly_normal(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(volume_ratio=1.0)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.volume_anomaly == pytest.approx(0.0)
 
     def test_volume_anomaly_moderate(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(volume_ratio=1.75)  # between 1.5 and 2.0
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert 0.5 < enriched.volume_anomaly < 1.0
 
     def test_volume_anomaly_below_baseline(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(volume_ratio=0.1)  # very thin
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.volume_anomaly > 0.0
 
     def test_key_level_proximity_very_close(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         # Price within 0.05% of level
         ctx = ExtendedSignalContext(
             current_price=1.1000,
@@ -282,8 +310,9 @@ class TestSignalEnricher:
         assert enriched.key_level_proximity >= 0.9
 
     def test_key_level_proximity_far(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(
             current_price=1.1000,
             nearest_level_price=1.1500,  # >4% away
@@ -292,37 +321,42 @@ class TestSignalEnricher:
         assert enriched.key_level_proximity == pytest.approx(0.0)
 
     def test_key_level_proximity_no_data(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(current_price=0.0, nearest_level_price=0.0)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.key_level_proximity == pytest.approx(0.0)
 
     def test_spread_change_spike(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(spread_normalized=0.9, prior_spread_normalized=0.1)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.spread_change == pytest.approx(1.0)
 
     def test_spread_change_stable(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(spread_normalized=0.5, prior_spread_normalized=0.5)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.spread_change == pytest.approx(0.0)
 
     def test_spread_change_notable(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(spread_normalized=0.7, prior_spread_normalized=0.5)
         # delta = 0.20 → between 0.15 and 0.30
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert 0.5 <= enriched.spread_change <= 1.0
 
     def test_failed_move_with_breakout(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(
             recent_failed_breakout=True,
             failed_move_wick_ratio=2.5,
@@ -331,22 +365,25 @@ class TestSignalEnricher:
         assert enriched.failed_move == pytest.approx(1.0)
 
     def test_failed_move_without_breakout(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(recent_failed_breakout=False, failed_move_wick_ratio=5.0)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.failed_move == pytest.approx(0.0)
 
     def test_failed_move_mild_breakout(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         ctx = ExtendedSignalContext(recent_failed_breakout=True, failed_move_wick_ratio=0.5)
         enriched = enrich_signals(OpportunitySignals(), ctx)
         assert enriched.failed_move == pytest.approx(0.4)  # mild flat signal
 
     def test_enrich_preserves_original_six_unchanged(self):
+        from trainer.qde.brain.attention import ExtendedSignalContext, enrich_signals
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
-        from trainer.qde.brain.attention import enrich_signals, ExtendedSignalContext
+
         base = OpportunitySignals(
             hypothesis_activity=0.7,
             volatility_expansion=0.5,
@@ -374,6 +411,7 @@ class TestAttentionWeights:
     def test_default_weights_ignore_c10_fields(self):
         from trainer.qde.brain.attention_allocator import DEFAULT_WEIGHTS
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         s1 = OpportunitySignals(hypothesis_activity=0.5)
         s2 = OpportunitySignals(
             hypothesis_activity=0.5,
@@ -386,6 +424,7 @@ class TestAttentionWeights:
     def test_c10_weights_include_new_signals(self):
         from trainer.qde.brain.attention_allocator import C10_WEIGHTS
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         base = OpportunitySignals(hypothesis_activity=0.5)
         enriched = OpportunitySignals(
             hypothesis_activity=0.5,
@@ -396,6 +435,7 @@ class TestAttentionWeights:
 
     def test_c10_weights_fields_sum_reasonable(self):
         from trainer.qde.brain.attention_allocator import C10_WEIGHTS
+
         total = (
             C10_WEIGHTS.hypothesis_activity
             + C10_WEIGHTS.volatility_expansion
@@ -412,10 +452,11 @@ class TestAttentionWeights:
 
     def test_score_clamped_at_one_in_allocator(self):
         from trainer.qde.brain.attention_allocator import (
-            AttentionScoreAllocator,
             C10_WEIGHTS,
+            AttentionScoreAllocator,
         )
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         # All signals at 1.0 should clamp to composite ≤ 1.0
         all_max = OpportunitySignals(
             hypothesis_activity=1.0,
@@ -442,8 +483,11 @@ class TestAttentionWeights:
 class TestAttentionMemory:
     def _snapshot(self, instrument: str, tier_name: str, composite: float) -> object:
         from trainer.qde.brain.attention import (
-            AttentionSnapshot, AttentionTier, TIER_RESOURCES, tier_from_composite
+            TIER_RESOURCES,
+            AttentionSnapshot,
+            AttentionTier,
         )
+
         tier = AttentionTier(tier_name)
         return AttentionSnapshot(
             instrument=instrument,
@@ -456,14 +500,16 @@ class TestAttentionMemory:
 
     def test_record_returns_none_on_same_tier(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         s1 = self._snapshot("EURUSD", "WATCH", 0.1)
         s2 = self._snapshot("EURUSD", "WATCH", 0.12)
         assert mem.record(s1) is not None  # first snapshot always produces a record
-        assert mem.record(s2) is None      # same tier → no transition
+        assert mem.record(s2) is None  # same tier → no transition
 
     def test_record_returns_event_on_tier_change(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         s1 = self._snapshot("EURUSD", "WATCH", 0.1)
         s2 = self._snapshot("EURUSD", "OBSERVE", 0.30)
@@ -475,6 +521,7 @@ class TestAttentionMemory:
 
     def test_first_record_has_none_from_tier(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         s = self._snapshot("GBPUSD", "HIGH_ATTENTION", 0.6)
         event = mem.record(s)
@@ -483,6 +530,7 @@ class TestAttentionMemory:
 
     def test_history_returns_n_most_recent(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         for i in range(10):
             mem.record(self._snapshot("EURUSD", "WATCH", 0.05))
@@ -491,11 +539,13 @@ class TestAttentionMemory:
 
     def test_history_empty_for_unknown_instrument(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         assert mem.history("UNKNOWN") == []
 
     def test_current_tier_tracks_latest(self):
         from trainer.qde.brain.attention import AttentionMemory, AttentionTier
+
         mem = AttentionMemory()
         mem.record(self._snapshot("EURUSD", "WATCH", 0.1))
         mem.record(self._snapshot("EURUSD", "OBSERVE", 0.3))
@@ -504,11 +554,13 @@ class TestAttentionMemory:
 
     def test_current_tier_none_for_unseen(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         assert mem.current_tier("EURUSD") is None
 
     def test_tier_transitions_returns_changes_only(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         # 3 WATCH snapshots → only 1 transition (initial)
         for _ in range(3):
@@ -520,6 +572,7 @@ class TestAttentionMemory:
 
     def test_evolution_summary_tracked(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         mem.record(self._snapshot("EURUSD", "WATCH", 0.1))
         summary = mem.evolution_summary("EURUSD")
@@ -529,12 +582,14 @@ class TestAttentionMemory:
 
     def test_evolution_summary_untracked(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         summary = mem.evolution_summary("UNKNOWN")
         assert summary["tracked"] is False
 
     def test_drop_clears_state(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         mem.record(self._snapshot("EURUSD", "WATCH", 0.1))
         mem.drop("EURUSD")
@@ -543,6 +598,7 @@ class TestAttentionMemory:
 
     def test_bounded_snapshot_depth(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory(max_snapshots=5)
         for _ in range(10):
             mem.record(self._snapshot("EURUSD", "WATCH", 0.1))
@@ -550,17 +606,23 @@ class TestAttentionMemory:
 
     def test_time_in_current_tier(self):
         from trainer.qde.brain.attention import AttentionMemory
+
         mem = AttentionMemory()
         t0 = time.time() - 60.0
         snap = self._snapshot("EURUSD", "WATCH", 0.1)
         snap.captured_at = t0  # type: ignore[attr-defined]  # dataclass not frozen
         mem.record(snap)
         elapsed = mem.time_in_current_tier("EURUSD")
-        assert elapsed >= 50.0   # at least ~60s have passed
+        assert elapsed >= 50.0  # at least ~60s have passed
 
     def test_dominant_signal_in_transition(self):
-        from trainer.qde.brain.attention import AttentionMemory, TIER_RESOURCES, AttentionTier
-        from trainer.qde.brain.attention import AttentionSnapshot
+        from trainer.qde.brain.attention import (
+            TIER_RESOURCES,
+            AttentionMemory,
+            AttentionSnapshot,
+            AttentionTier,
+        )
+
         mem = AttentionMemory()
         tier = AttentionTier.HIGH_ATTENTION
         snap = AttentionSnapshot(
@@ -584,12 +646,14 @@ class TestAttentionMemory:
 class TestAttentionAPI:
     def _setup(self, instrument: str = "EURUSD"):
         from trainer.qde.brain.attention import AttentionAPI
+
         brain, engine = _make_brain_and_engine(instrument)
         api = AttentionAPI(engine=engine)
         return api, engine, brain
 
     def test_calculate_attention_returns_snapshot(self):
         from trainer.qde.brain.attention import AttentionSnapshot
+
         api, _, _ = self._setup()
         obs = _obs("EURUSD")
         snapshot = api.calculate_attention(obs)
@@ -600,18 +664,21 @@ class TestAttentionAPI:
 
     def test_calculate_attention_tier_assigned(self):
         from trainer.qde.brain.attention import AttentionTier
+
         api, _, _ = self._setup()
         snapshot = api.calculate_attention(_obs("EURUSD"))
         assert snapshot.tier in list(AttentionTier)
 
     def test_calculate_attention_resources_non_null(self):
         from trainer.qde.brain.attention import ResourceBudget
+
         api, _, _ = self._setup()
         snap = api.calculate_attention(_obs("EURUSD"))
         assert isinstance(snap.resources, ResourceBudget)
 
     def test_calculate_attention_with_extended_context(self):
         from trainer.qde.brain.attention import ExtendedSignalContext
+
         api, _, _ = self._setup()
         ctx = ExtendedSignalContext(
             volume_ratio=3.0,
@@ -658,31 +725,40 @@ class TestAttentionAPI:
 
     def test_allocate_resources_known_symbol(self):
         from trainer.qde.brain.attention import ResourceBudget
+
         api, _, _ = self._setup()
         api.calculate_attention(_obs("EURUSD"))
         budget = api.allocate_resources("EURUSD")
         assert isinstance(budget, ResourceBudget)
 
     def test_allocate_resources_unknown_symbol_returns_watch(self):
-        from trainer.qde.brain.attention import ResourceBudget, AttentionTier, TIER_RESOURCES
+        from trainer.qde.brain.attention import TIER_RESOURCES, AttentionTier
+
         api, _, _ = self._setup()
         budget = api.allocate_resources("UNKNOWN")
         assert budget == TIER_RESOURCES[AttentionTier.WATCH]
 
     def test_allocate_resources_critical_has_zero_observation_interval(self):
         from trainer.qde.brain.attention import (
-            AttentionAPI, AttentionTier, TIER_RESOURCES, ExtendedSignalContext
+            TIER_RESOURCES,
+            AttentionTier,
         )
+
         api, _, _ = self._setup()
         # Force critical tier by injecting all-max signals
-        from trainer.qde.brain.attention_allocator import AttentionScoreAllocator, C10_WEIGHTS
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         all_max = OpportunitySignals(
-            hypothesis_activity=1.0, volatility_expansion=1.0,
-            liquidity_event=1.0, news_impact=1.0,
-            unusual_behavior=1.0, session_transition=1.0,
-            volume_anomaly=1.0, key_level_proximity=1.0,
-            spread_change=1.0, failed_move=1.0,
+            hypothesis_activity=1.0,
+            volatility_expansion=1.0,
+            liquidity_event=1.0,
+            news_impact=1.0,
+            unusual_behavior=1.0,
+            session_transition=1.0,
+            volume_anomaly=1.0,
+            key_level_proximity=1.0,
+            spread_change=1.0,
+            failed_move=1.0,
         )
         # Directly update allocator to force CRITICAL composite
         api._engine._allocator.update("EURUSD", all_max, now=time.time())
@@ -701,10 +777,11 @@ class TestAttentionAPI:
         api, _, _ = self._setup()
         api.calculate_attention(_obs("EURUSD"))
         transitions = api.tier_transitions("EURUSD")
-        assert len(transitions) >= 1   # at least the initial recording
+        assert len(transitions) >= 1  # at least the initial recording
 
     def test_current_tier_returns_tier(self):
         from trainer.qde.brain.attention import AttentionTier
+
         api, _, _ = self._setup()
         api.calculate_attention(_obs("EURUSD"))
         tier = api.current_tier("EURUSD")
@@ -712,11 +789,13 @@ class TestAttentionAPI:
 
     def test_current_tier_watch_for_unseen(self):
         from trainer.qde.brain.attention import AttentionTier
+
         api, _, _ = self._setup()
         assert api.current_tier("UNKNOWN") == AttentionTier.WATCH
 
     def test_high_attention_symbols_respects_tier_threshold(self):
-        from trainer.qde.brain.attention import AttentionTier, ExtendedSignalContext
+        from trainer.qde.brain.attention import AttentionTier
+
         api, _, _ = self._setup("EURUSD")
         # EURUSD with no signals → low weight
         api.calculate_attention(_obs("EURUSD"))
@@ -753,8 +832,9 @@ class TestAttentionAPI:
 
 class TestSignalEnricherStateful:
     def test_enrich_uses_cached_context(self):
-        from trainer.qde.brain.attention import SignalEnricher, ExtendedSignalContext
+        from trainer.qde.brain.attention import ExtendedSignalContext, SignalEnricher
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         enricher = SignalEnricher()
         ctx = ExtendedSignalContext(volume_ratio=3.0)
         enricher.update_context("EURUSD", ctx)
@@ -765,6 +845,7 @@ class TestSignalEnricherStateful:
     def test_enrich_no_context_returns_base_unchanged(self):
         from trainer.qde.brain.attention import SignalEnricher
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         enricher = SignalEnricher()
         base = OpportunitySignals(hypothesis_activity=0.5)
         result = enricher.enrich("EURUSD", base)
@@ -772,8 +853,9 @@ class TestSignalEnricherStateful:
         assert result.volume_anomaly == pytest.approx(0.0)
 
     def test_remove_clears_context(self):
-        from trainer.qde.brain.attention import SignalEnricher, ExtendedSignalContext
+        from trainer.qde.brain.attention import ExtendedSignalContext, SignalEnricher
         from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         enricher = SignalEnricher()
         enricher.update_context("EURUSD", ExtendedSignalContext(volume_ratio=3.0))
         enricher.remove("EURUSD")
@@ -814,11 +896,14 @@ class TestBrainExports:
 
     def test_c10_weights_exported_from_allocator(self):
         from trainer.qde.brain.attention_allocator import C10_WEIGHTS
+
         assert C10_WEIGHTS is not None
 
     def test_opportunity_signals_has_new_fields(self):
-        from trainer.qde.brain.opportunity_scanner import OpportunitySignals
         import dataclasses
+
+        from trainer.qde.brain.opportunity_scanner import OpportunitySignals
+
         field_names = {f.name for f in dataclasses.fields(OpportunitySignals)}
         for name in ("volume_anomaly", "key_level_proximity", "spread_change", "failed_move"):
             assert name in field_names
@@ -831,14 +916,16 @@ class TestBrainExports:
 
 class TestModuleLevelWrappers:
     def test_calculate_attention_wrapper(self):
-        from trainer.qde.brain.attention import calculate_attention, AttentionAPI
+        from trainer.qde.brain.attention import AttentionAPI, calculate_attention
+
         brain, engine = _make_brain_and_engine("EURUSD")
         api = AttentionAPI(engine=engine)
         snap = calculate_attention(api, _obs("EURUSD"))
         assert snap.instrument == "EURUSD"
 
     def test_rank_symbols_wrapper(self):
-        from trainer.qde.brain.attention import rank_symbols, AttentionAPI
+        from trainer.qde.brain.attention import AttentionAPI, rank_symbols
+
         brain, engine = _make_brain_and_engine("EURUSD")
         api = AttentionAPI(engine=engine)
         api.calculate_attention(_obs("EURUSD"))
@@ -846,7 +933,8 @@ class TestModuleLevelWrappers:
         assert len(ranked) >= 1
 
     def test_allocate_resources_wrapper(self):
-        from trainer.qde.brain.attention import allocate_resources, AttentionAPI, ResourceBudget
+        from trainer.qde.brain.attention import AttentionAPI, ResourceBudget, allocate_resources
+
         brain, engine = _make_brain_and_engine("EURUSD")
         api = AttentionAPI(engine=engine)
         api.calculate_attention(_obs("EURUSD"))

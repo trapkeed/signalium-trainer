@@ -43,10 +43,10 @@ class ReasoningEngine:
 
     def explain(
         self,
-        decision:     CognitiveDecision,
-        brain_state:  "BrainState",
+        decision: CognitiveDecision,
+        brain_state: "BrainState",
         debate_record: "DebateRecord | None" = None,
-        now:          float | None           = None,
+        now: float | None = None,
     ) -> DecisionReasoning:
         """Build a full ``DecisionReasoning`` for a completed decision.
 
@@ -63,13 +63,13 @@ class ReasoningEngine:
         """
         now = now if now is not None else time.time()
 
-        chain          = self._build_chain(decision, brain_state, debate_record)
-        hyp_basis      = self._hypothesis_basis(decision, brain_state)
+        chain = self._build_chain(decision, brain_state, debate_record)
+        hyp_basis = self._hypothesis_basis(decision, brain_state)
         debate_summary = self._debate_summary(debate_record)
-        unc_basis      = self._uncertainty_basis(decision, brain_state)
-        mem_influence  = self._memory_influence(decision, brain_state)
-        portfolio_con  = self._portfolio_constraint(decision, brain_state)
-        flags          = self._collect_flags(decision)
+        unc_basis = self._uncertainty_basis(decision, brain_state)
+        mem_influence = self._memory_influence(decision, brain_state)
+        portfolio_con = self._portfolio_constraint(decision, brain_state)
+        flags = self._collect_flags(decision)
 
         return DecisionReasoning(
             decision_id=decision.decision_id,
@@ -89,8 +89,8 @@ class ReasoningEngine:
 
     def _build_chain(
         self,
-        decision:      CognitiveDecision,
-        brain_state:   "BrainState",
+        decision: CognitiveDecision,
+        brain_state: "BrainState",
         debate_record: "DebateRecord | None",
     ) -> list[str]:
         """Build an ordered list of reasoning steps."""
@@ -100,9 +100,7 @@ class ReasoningEngine:
         # Step 1: market ambiguity
         unc_pct = f"{decision.uncertainty_score:.0%}"
         unc_lvl = decision.uncertainty_level
-        steps.append(
-            f"Market uncertainty is {unc_lvl.lower()} ({unc_pct})."
-        )
+        steps.append(f"Market uncertainty is {unc_lvl.lower()} ({unc_pct}).")
 
         # Step 2: hypothesis context
         active = brain_state.active_hypotheses()
@@ -127,11 +125,9 @@ class ReasoningEngine:
             )
 
         # Step 4: conviction reading
-        conv_pct     = f"{decision.conviction_score:.0%}"
+        conv_pct = f"{decision.conviction_score:.0%}"
         conv_profile = decision.conviction_profile.replace("_", " ").lower()
-        steps.append(
-            f"Conviction is {conv_pct} ({conv_profile})."
-        )
+        steps.append(f"Conviction is {conv_pct} ({conv_profile}).")
 
         # Step 5: calibrated confidence
         if abs(decision.calibrated_confidence - decision.confidence) > 0.01:
@@ -142,8 +138,7 @@ class ReasoningEngine:
             )
         else:
             steps.append(
-                f"Confidence is {decision.confidence:.0%} "
-                f"(no material calibration bias)."
+                f"Confidence is {decision.confidence:.0%} " f"(no material calibration bias)."
             )
 
         # Step 6: debate
@@ -188,7 +183,7 @@ class ReasoningEngine:
 
     def _hypothesis_basis(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: "BrainState",
     ) -> str:
         hyp_id = decision.primary_hypothesis_id
@@ -235,7 +230,7 @@ class ReasoningEngine:
 
     def _uncertainty_basis(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: "BrainState",
     ) -> str:
         # The full explanation is already computed by compute_uncertainty()
@@ -250,7 +245,7 @@ class ReasoningEngine:
 
     def _memory_influence(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: "BrainState",
     ) -> str:
         # LongTermMemory entries carry accumulated outcome quality
@@ -258,9 +253,14 @@ class ReasoningEngine:
         if not ltm:
             return "No long-term memory entries — decision made without historical context."
         recent = ltm[-5:]  # last 5 entries
-        avg_quality = sum(e.get("outcome_quality", 0.0) if isinstance(e, dict)
-                          else getattr(e, "outcome_quality", 0.0)
-                          for e in recent) / len(recent)
+        avg_quality = sum(
+            (
+                e.get("outcome_quality", 0.0)
+                if isinstance(e, dict)
+                else getattr(e, "outcome_quality", 0.0)
+            )
+            for e in recent
+        ) / len(recent)
         return (
             f"{len(ltm)} long-term memory entries; "
             f"recent average outcome quality={avg_quality:+.2f} "
@@ -269,7 +269,7 @@ class ReasoningEngine:
 
     def _portfolio_constraint(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: "BrainState",
     ) -> str:
         parts = []

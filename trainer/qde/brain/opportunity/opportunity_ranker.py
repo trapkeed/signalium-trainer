@@ -78,7 +78,7 @@ Design rules
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from trainer.qde.brain.opportunity.opportunity_cost_engine import (
     OpportunityCost,
@@ -88,12 +88,12 @@ from trainer.qde.brain.opportunity.opportunity_cost_engine import (
 
 # ── Weight constants ──────────────────────────────────────────────────────────
 
-_W_CONVICTION    = 0.30
-_W_EV            = 0.25
-_W_UNCERTAINTY   = 0.25
-_W_EFFICIENCY    = 0.20
-_W_OPP_COST      = 0.15   # penalty weight applied to opportunity_cost_score
-_ATTN_MAX_BOOST  = 0.10   # max multiplicative boost from attention weight
+_W_CONVICTION = 0.30
+_W_EV = 0.25
+_W_UNCERTAINTY = 0.25
+_W_EFFICIENCY = 0.20
+_W_OPP_COST = 0.15  # penalty weight applied to opportunity_cost_score
+_ATTN_MAX_BOOST = 0.10  # max multiplicative boost from attention weight
 
 assert abs(_W_CONVICTION + _W_EV + _W_UNCERTAINTY + _W_EFFICIENCY - 1.0) < 1e-9
 
@@ -132,63 +132,63 @@ class RankedOpportunity:
     what drove the ranking (useful for logging and tests).
     """
 
-    rank:                   int   = 0
-    instrument:             str   = ""
-    direction:              int   = 1
-    opportunity_id:         str   = ""
-    setup_state:            str   = ""
+    rank: int = 0
+    instrument: str = ""
+    direction: int = 1
+    opportunity_id: str = ""
+    setup_state: str = ""
 
     # ── Intermediate scores (all 0-1) ─────────────────────────────────────
-    conviction_joint:       float = 0.0   # conviction × confidence
-    ev_score:               float = 0.0   # percentile of weighted expected value
-    uncertainty_discount:   float = 0.5   # 1 - uncertainty
-    efficiency_score:       float = 0.0   # percentile of capital_efficiency
-    attention_boost:        float = 1.0   # multiplicative, 1.0 = no boost
+    conviction_joint: float = 0.0  # conviction × confidence
+    ev_score: float = 0.0  # percentile of weighted expected value
+    uncertainty_discount: float = 0.5  # 1 - uncertainty
+    efficiency_score: float = 0.0  # percentile of capital_efficiency
+    attention_boost: float = 1.0  # multiplicative, 1.0 = no boost
 
-    composite_score:        float = 0.0   # before opp-cost penalty
-    opportunity_cost_score: float = 0.0   # 0-1 cost (from OpportunityCostEngine)
-    net_score:              float = 0.0   # composite − cost_penalty
+    composite_score: float = 0.0  # before opp-cost penalty
+    opportunity_cost_score: float = 0.0  # 0-1 cost (from OpportunityCostEngine)
+    net_score: float = 0.0  # composite − cost_penalty
 
     # ── Capital-efficiency metadata ────────────────────────────────────────
-    capital_efficiency:     float = 0.0   # ATR/hour
-    efficiency_rank:        int   = 1
+    capital_efficiency: float = 0.0  # ATR/hour
+    efficiency_rank: int = 1
 
-    is_actionable:          bool  = False   # CONFIRMING / READY / EXECUTING
+    is_actionable: bool = False  # CONFIRMING / READY / EXECUTING
 
     # ── Passthrough fields for downstream consumers ────────────────────────
-    expected_reward_atr:    float = 0.0
+    expected_reward_atr: float = 0.0
     expected_duration_seconds: float = 0.0
-    expected_mae_atr:       float = 0.0
-    conviction:             float = 0.0
-    confidence:             float = 0.0
-    uncertainty:            float = 0.5
+    expected_mae_atr: float = 0.0
+    conviction: float = 0.0
+    confidence: float = 0.0
+    uncertainty: float = 0.5
     proj_position_size_modifier: float = 1.0
     proj_risk_appetite_modifier: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "rank":                   self.rank,
-            "instrument":             self.instrument,
-            "direction":              self.direction,
-            "opportunity_id":         self.opportunity_id,
-            "setup_state":            self.setup_state,
-            "conviction_joint":       round(self.conviction_joint, 4),
-            "ev_score":               round(self.ev_score, 4),
-            "uncertainty_discount":   round(self.uncertainty_discount, 4),
-            "efficiency_score":       round(self.efficiency_score, 4),
-            "attention_boost":        round(self.attention_boost, 4),
-            "composite_score":        round(self.composite_score, 4),
+            "rank": self.rank,
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "opportunity_id": self.opportunity_id,
+            "setup_state": self.setup_state,
+            "conviction_joint": round(self.conviction_joint, 4),
+            "ev_score": round(self.ev_score, 4),
+            "uncertainty_discount": round(self.uncertainty_discount, 4),
+            "efficiency_score": round(self.efficiency_score, 4),
+            "attention_boost": round(self.attention_boost, 4),
+            "composite_score": round(self.composite_score, 4),
             "opportunity_cost_score": round(self.opportunity_cost_score, 4),
-            "net_score":              round(self.net_score, 4),
-            "capital_efficiency":     round(self.capital_efficiency, 4),
-            "efficiency_rank":        self.efficiency_rank,
-            "is_actionable":          self.is_actionable,
-            "expected_reward_atr":    round(self.expected_reward_atr, 4),
+            "net_score": round(self.net_score, 4),
+            "capital_efficiency": round(self.capital_efficiency, 4),
+            "efficiency_rank": self.efficiency_rank,
+            "is_actionable": self.is_actionable,
+            "expected_reward_atr": round(self.expected_reward_atr, 4),
             "expected_duration_seconds": round(self.expected_duration_seconds, 1),
-            "expected_mae_atr":       round(self.expected_mae_atr, 4),
-            "conviction":             round(self.conviction, 4),
-            "confidence":             round(self.confidence, 4),
-            "uncertainty":            round(self.uncertainty, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "conviction": round(self.conviction, 4),
+            "confidence": round(self.confidence, 4),
+            "uncertainty": round(self.uncertainty, 4),
             "proj_position_size_modifier": round(self.proj_position_size_modifier, 4),
             "proj_risk_appetite_modifier": round(self.proj_risk_appetite_modifier, 4),
         }
@@ -244,48 +244,49 @@ class OpportunityRanker:
         costs: dict[str, OpportunityCost] = self._cost_engine.compute(candidates)
 
         # ── Step 2: per-candidate raw signals ─────────────────────────────
-        conviction_joints   = [c.conviction * c.confidence for c in candidates]
-        ev_values           = [c.expected_reward_atr * c.reward_sufficiency_score for c in candidates]
-        eff_values          = [
+        conviction_joints = [c.conviction * c.confidence for c in candidates]
+        ev_values = [c.expected_reward_atr * c.reward_sufficiency_score for c in candidates]
+        eff_values = [
             costs.get(c.instrument, OpportunityCost(instrument=c.instrument)).capital_efficiency
             for c in candidates
         ]
 
-        lo_conv, hi_conv  = min(conviction_joints), max(conviction_joints)
-        lo_ev,   hi_ev    = min(ev_values),         max(ev_values)
-        lo_eff,  hi_eff   = min(eff_values),        max(eff_values)
+        lo_conv, hi_conv = min(conviction_joints), max(conviction_joints)
+        lo_ev, hi_ev = min(ev_values), max(ev_values)
+        lo_eff, hi_eff = min(eff_values), max(eff_values)
 
         # ── Step 3: score and collect ──────────────────────────────────────
         scored: list[tuple[float, RankedOpportunity]] = []
 
         for inp, cj, ev, eff in zip(candidates, conviction_joints, ev_values, eff_values):
-            cost = costs.get(inp.instrument, OpportunityCost(
-                instrument=inp.instrument, opportunity_id=inp.opportunity_id
-            ))
+            cost = costs.get(
+                inp.instrument,
+                OpportunityCost(instrument=inp.instrument, opportunity_id=inp.opportunity_id),
+            )
 
             # Normalize each component within the current candidate set
-            cj_score  = _minmax_norm(cj,  lo_conv, hi_conv)
-            ev_score  = _minmax_norm(ev,  lo_ev,   hi_ev)
-            eff_score = _minmax_norm(eff, lo_eff,  hi_eff)
-            unc_disc  = max(0.0, min(1.0, 1.0 - inp.uncertainty))
+            cj_score = _minmax_norm(cj, lo_conv, hi_conv)
+            ev_score = _minmax_norm(ev, lo_ev, hi_ev)
+            eff_score = _minmax_norm(eff, lo_eff, hi_eff)
+            unc_disc = max(0.0, min(1.0, 1.0 - inp.uncertainty))
 
             composite = (
-                _W_CONVICTION  * cj_score
-                + _W_EV        * ev_score
+                _W_CONVICTION * cj_score
+                + _W_EV * ev_score
                 + _W_UNCERTAINTY * unc_disc
                 + _W_EFFICIENCY * eff_score
             )
 
             # Attention: mild multiplicative boost (1.0 at weight=0, up to 1+max_boost)
             attn_boost = 1.0 + _ATTN_MAX_BOOST * inp.attention_weight
-            composite  = min(1.0, composite * attn_boost)
+            composite = min(1.0, composite * attn_boost)
 
             # Opportunity-cost penalty (subtractive, proportional to cost weight)
             opp_cost_penalty = _W_OPP_COST * cost.opportunity_cost_score
-            net_score        = max(0.0, composite - opp_cost_penalty)
+            net_score = max(0.0, composite - opp_cost_penalty)
 
             row = RankedOpportunity(
-                rank=0,   # filled below after sort
+                rank=0,  # filled below after sort
                 instrument=inp.instrument,
                 direction=inp.direction,
                 opportunity_id=inp.opportunity_id,

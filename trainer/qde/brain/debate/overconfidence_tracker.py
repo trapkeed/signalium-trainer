@@ -43,6 +43,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.conviction_engine import ConvictionProfile, ConvictionScore
@@ -53,9 +54,9 @@ from trainer.qde.brain.thesis_manager import Thesis
 # Configuration
 # -------------------------------------------------------------------
 
-HIGH_CONVICTION_THRESHOLD   = 0.70   # conviction score above which an event can trigger
-POOR_BALANCE_THRESHOLD      = 0.50   # evidence balance below this → "poor"
-MAX_EVENTS_PER_INSTRUMENT   = 200
+HIGH_CONVICTION_THRESHOLD = 0.70  # conviction score above which an event can trigger
+POOR_BALANCE_THRESHOLD = 0.50  # evidence balance below this → "poor"
+MAX_EVENTS_PER_INSTRUMENT = 200
 MAX_EVENTS_PER_INSTRUMENT_DEQUE = 200
 
 
@@ -79,68 +80,68 @@ class OverconfidenceEvent:
         never arrives (e.g. no trade was taken).
     """
 
-    event_id:             str            = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    hypothesis_id:        str            = ""
-    instrument:           str            = ""
-    opportunity_id:       str            = ""
-    trigger:              str            = "LOW_MARGIN"
-    conviction_at_event:  float          = 0.0
-    confidence_at_event:  float          = 0.0
-    debate_margin:        float          = 0.0
-    bull_strength:        float          = 0.0
-    bear_strength:        float          = 0.0
-    evidence_balance:     float          = 0.0   # (dominant_supporting - dominant_conflicting) normalised
-    profile:              str            = ConvictionProfile.MIXED.value
-    resolved:             bool           = False
-    resolution_outcome:   str | None     = None  # "WIN", "LOSS", "SKIPPED", etc.
-    created_at:           float          = field(default_factory=time.time)
-    resolved_at:          float | None   = None
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    hypothesis_id: str = ""
+    instrument: str = ""
+    opportunity_id: str = ""
+    trigger: str = "LOW_MARGIN"
+    conviction_at_event: float = 0.0
+    confidence_at_event: float = 0.0
+    debate_margin: float = 0.0
+    bull_strength: float = 0.0
+    bear_strength: float = 0.0
+    evidence_balance: float = 0.0  # (dominant_supporting - dominant_conflicting) normalised
+    profile: str = ConvictionProfile.MIXED.value
+    resolved: bool = False
+    resolution_outcome: str | None = None  # "WIN", "LOSS", "SKIPPED", etc.
+    created_at: float = field(default_factory=time.time)
+    resolved_at: float | None = None
 
     def resolve(self, outcome: str, now: float | None = None) -> None:
         if self.resolved:
             return
-        self.resolved            = True
-        self.resolution_outcome  = outcome
-        self.resolved_at         = now if now is not None else time.time()
+        self.resolved = True
+        self.resolution_outcome = outcome
+        self.resolved_at = now if now is not None else time.time()
 
     def to_dict(self) -> dict:
         return {
-            "event_id":             self.event_id,
-            "hypothesis_id":        self.hypothesis_id,
-            "instrument":           self.instrument,
-            "opportunity_id":       self.opportunity_id,
-            "trigger":              self.trigger,
-            "conviction_at_event":  round(self.conviction_at_event, 4),
-            "confidence_at_event":  round(self.confidence_at_event, 4),
-            "debate_margin":        round(self.debate_margin,        4),
-            "bull_strength":        round(self.bull_strength,        4),
-            "bear_strength":        round(self.bear_strength,        4),
-            "evidence_balance":     round(self.evidence_balance,     4),
-            "profile":              self.profile,
-            "resolved":             self.resolved,
-            "resolution_outcome":   self.resolution_outcome,
-            "created_at":           round(self.created_at,  3),
-            "resolved_at":          round(self.resolved_at, 3) if self.resolved_at else None,
+            "event_id": self.event_id,
+            "hypothesis_id": self.hypothesis_id,
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "trigger": self.trigger,
+            "conviction_at_event": round(self.conviction_at_event, 4),
+            "confidence_at_event": round(self.confidence_at_event, 4),
+            "debate_margin": round(self.debate_margin, 4),
+            "bull_strength": round(self.bull_strength, 4),
+            "bear_strength": round(self.bear_strength, 4),
+            "evidence_balance": round(self.evidence_balance, 4),
+            "profile": self.profile,
+            "resolved": self.resolved,
+            "resolution_outcome": self.resolution_outcome,
+            "created_at": round(self.created_at, 3),
+            "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "OverconfidenceEvent":
         evt = cls(
-            event_id=d.get("event_id",    str(uuid.uuid4())[:12]),
+            event_id=d.get("event_id", str(uuid.uuid4())[:12]),
             hypothesis_id=d.get("hypothesis_id", ""),
-            instrument=d.get("instrument",     ""),
+            instrument=d.get("instrument", ""),
             opportunity_id=d.get("opportunity_id", ""),
-            trigger=d.get("trigger",       "LOW_MARGIN"),
+            trigger=d.get("trigger", "LOW_MARGIN"),
             conviction_at_event=d.get("conviction_at_event", 0.0),
             confidence_at_event=d.get("confidence_at_event", 0.0),
-            debate_margin=d.get("debate_margin",   0.0),
-            bull_strength=d.get("bull_strength",   0.0),
-            bear_strength=d.get("bear_strength",   0.0),
+            debate_margin=d.get("debate_margin", 0.0),
+            bull_strength=d.get("bull_strength", 0.0),
+            bear_strength=d.get("bear_strength", 0.0),
             evidence_balance=d.get("evidence_balance", 0.0),
-            profile=d.get("profile",       ConvictionProfile.MIXED.value),
-            resolved=d.get("resolved",      False),
+            profile=d.get("profile", ConvictionProfile.MIXED.value),
+            resolved=d.get("resolved", False),
             resolution_outcome=d.get("resolution_outcome"),
-            created_at=d.get("created_at",  0.0),
+            created_at=d.get("created_at", 0.0),
             resolved_at=d.get("resolved_at"),
         )
         return evt
@@ -163,8 +164,9 @@ def _dominant_evidence_balance(
     if verdict.dominant_side is None:
         return 0.0
     from trainer.qde.brain.brain_types import BeliefDirection
+
     thesis = bull_thesis if verdict.dominant_side == BeliefDirection.BULLISH else bear_thesis
-    sup  = len(thesis.supporting_evidence)
+    sup = len(thesis.supporting_evidence)
     conf = len(thesis.conflicting_evidence)
     total = sup + conf
     if total == 0:
@@ -190,12 +192,12 @@ class OverconfidenceTracker:
     def __init__(
         self,
         high_conviction_threshold: float = HIGH_CONVICTION_THRESHOLD,
-        dominance_margin:          float = DEFAULT_DOMINANCE_MARGIN,
-        max_events:                int   = MAX_EVENTS_PER_INSTRUMENT_DEQUE,
+        dominance_margin: float = DEFAULT_DOMINANCE_MARGIN,
+        max_events: int = MAX_EVENTS_PER_INSTRUMENT_DEQUE,
     ) -> None:
-        self._threshold    = high_conviction_threshold
-        self._dom_margin   = dominance_margin
-        self._max_events   = max_events
+        self._threshold = high_conviction_threshold
+        self._dom_margin = dominance_margin
+        self._max_events = max_events
         # instrument → deque of events (most recent at right)
         self._events: dict[str, deque[OverconfidenceEvent]] = defaultdict(
             lambda: deque(maxlen=self._max_events)
@@ -207,11 +209,11 @@ class OverconfidenceTracker:
 
     def check_and_record(
         self,
-        verdict:       DebateVerdict,
-        conviction:    ConvictionScore,
-        bull_thesis:   Thesis,
-        bear_thesis:   Thesis,
-        now:           float | None = None,
+        verdict: DebateVerdict,
+        conviction: ConvictionScore,
+        bull_thesis: Thesis,
+        bear_thesis: Thesis,
+        now: float | None = None,
     ) -> OverconfidenceEvent | None:
         """Evaluate the current debate for overconfidence signals and,
         if found, record the first triggered event.
@@ -248,9 +250,9 @@ class OverconfidenceTracker:
 
     def resolve_event(
         self,
-        event_id:  str,
-        outcome:   str,
-        now:       float | None = None,
+        event_id: str,
+        outcome: str,
+        now: float | None = None,
     ) -> bool:
         """Mark an event as resolved with a known trade outcome."""
         event = self._index.get(event_id)
@@ -264,8 +266,8 @@ class OverconfidenceTracker:
     def get_events(
         self,
         instrument: str,
-        n:          int = 20,
-        resolved:   bool | None = None,
+        n: int = 20,
+        resolved: bool | None = None,
     ) -> list[OverconfidenceEvent]:
         """Return up to ``n`` events for ``instrument``, newest first.
 
@@ -307,18 +309,15 @@ class OverconfidenceTracker:
             key = evt.resolution_outcome or "UNKNOWN"
             outcomes[key] = outcomes.get(key, 0) + 1
         return {
-            "total_resolved":  len(resolved),
-            "outcome_counts":  outcomes,
+            "total_resolved": len(resolved),
+            "outcome_counts": outcomes,
         }
 
     # ── Persistence ───────────────────────────────────────────────────
 
     def to_snapshot(self) -> dict:
         return {
-            "events": {
-                instr: [e.to_dict() for e in deq]
-                for instr, deq in self._events.items()
-            }
+            "events": {instr: [e.to_dict() for e in deq] for instr, deq in self._events.items()}
         }
 
     def load_snapshot(self, data: dict) -> None:
@@ -337,7 +336,7 @@ class OverconfidenceTracker:
 
     def _classify(
         self,
-        verdict:    DebateVerdict,
+        verdict: DebateVerdict,
         conviction: ConvictionScore,
         bull_thesis: Thesis,
         bear_thesis: Thesis,
@@ -352,7 +351,7 @@ class OverconfidenceTracker:
         # 2. High conviction with poor dominant-thesis evidence balance
         if is_high_conviction:
             ev_balance = _dominant_evidence_balance(verdict, bull_thesis, bear_thesis)
-            if ev_balance < 0.0:   # more conflicting than supporting
+            if ev_balance < 0.0:  # more conflicting than supporting
                 return "POOR_EVIDENCE_BALANCE"
 
         # 3. Conviction/confidence profile divergence

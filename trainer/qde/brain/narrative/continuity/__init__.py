@@ -48,6 +48,7 @@ from trainer.qde.brain.narrative.continuity.continuity_engine import (
     update_narrative,
 )
 from trainer.qde.brain.narrative.continuity.continuity_types import (
+    _INCOMPATIBLE_PAIRS,
     HORIZON_ORDER,
     HORIZON_WINDOWS,
     MAX_LINEAGE_ENTRIES,
@@ -60,7 +61,6 @@ from trainer.qde.brain.narrative.continuity.continuity_types import (
     SessionSnapshot,
     StoryNode,
     StoryStrength,
-    _INCOMPATIBLE_PAIRS,
 )
 
 __all__ = [

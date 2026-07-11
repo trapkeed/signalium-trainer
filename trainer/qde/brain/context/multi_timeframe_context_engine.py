@@ -30,7 +30,7 @@ direction from a fixed rule.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 try:
     from loguru import logger
@@ -49,8 +49,6 @@ from trainer.qde.brain.context.timeframe_memory import (
     TIMEFRAME_TO_CONTEXT,
     ContextTimeframe,
     TimeframeMemory,
-    coarse_timeframes,
-    fine_timeframes,
 )
 from trainer.qde.qde_timeframe_models import MultiTimeframeSnapshot, TimeframeFeatureVector
 
@@ -80,9 +78,9 @@ class ContextHypothesisSeed:
     instrument: str
     thesis: str
     direction: BeliefDirection
-    confidence: float             # 0–1
+    confidence: float  # 0–1
     source_pattern: AlignmentPattern
-    evidence: str                 # the CrossTimeframeContext.summary
+    evidence: str  # the CrossTimeframeContext.summary
 
     def to_dict(self) -> dict:
         return {
@@ -232,9 +230,7 @@ class MultiTimeframeContextEngine:
             seeds.append(
                 ContextHypothesisSeed(
                     instrument=instrument,
-                    thesis=(
-                        "Fine-TF counter-move may resolve in coarse-TF direction"
-                    ),
+                    thesis=("Fine-TF counter-move may resolve in coarse-TF direction"),
                     direction=direction,
                     confidence=ctx.pattern_confidence * 0.80,
                     source_pattern=ctx.pattern,
@@ -246,9 +242,7 @@ class MultiTimeframeContextEngine:
             seeds.append(
                 ContextHypothesisSeed(
                     instrument=instrument,
-                    thesis=(
-                        "Cross-timeframe momentum aligned and fine-TF strengthening"
-                    ),
+                    thesis=("Cross-timeframe momentum aligned and fine-TF strengthening"),
                     direction=direction,
                     confidence=ctx.pattern_confidence * 0.90,
                     source_pattern=ctx.pattern,
@@ -278,9 +272,7 @@ class MultiTimeframeContextEngine:
             seeds.append(
                 ContextHypothesisSeed(
                     instrument=instrument,
-                    thesis=(
-                        "Momentum weakening across timeframes — possible exhaustion"
-                    ),
+                    thesis=("Momentum weakening across timeframes — possible exhaustion"),
                     direction=opp,
                     confidence=ctx.pattern_confidence * 0.58,
                     source_pattern=ctx.pattern,

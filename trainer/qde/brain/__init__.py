@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 """QDE Brain — internal market consciousness for the QDE.
 
 This package gives QDE a persistent, continuously-updated internal mental
@@ -28,14 +29,9 @@ independent of whether a user is connected or autonomous trading is
 enabled, so QDE's internal state advances even when nobody is watching.
 """
 
-from trainer.qde.brain.attention_allocator import (
-    AttentionScore,
-    AttentionScoreAllocator,
-    AttentionWeights,
-    C10_WEIGHTS,
-)
-from trainer.qde.brain.attention_engine import AttentionEngine
 from trainer.qde.brain.attention import (  # new attention/ subpackage (C10)
+    TIER_RESOURCES,
+    TIER_THRESHOLDS,
     AttentionAPI,
     AttentionEvolutionRecord,
     AttentionMemory,
@@ -45,14 +41,19 @@ from trainer.qde.brain.attention import (  # new attention/ subpackage (C10)
     RankedSymbol,
     ResourceBudget,
     SignalEnricher,
-    TIER_RESOURCES,
-    TIER_THRESHOLDS,
-    enrich_signals,
-    tier_from_composite,
     allocate_resources,
     calculate_attention,
+    enrich_signals,
     rank_symbols,
+    tier_from_composite,
 )
+from trainer.qde.brain.attention_allocator import (
+    C10_WEIGHTS,
+    AttentionScore,
+    AttentionScoreAllocator,
+    AttentionWeights,
+)
+from trainer.qde.brain.attention_engine import AttentionEngine
 from trainer.qde.brain.behavioral_memory import BehavioralMemory, BehavioralObservation
 from trainer.qde.brain.brain import QDEBrain
 from trainer.qde.brain.brain_models import (
@@ -84,6 +85,20 @@ from trainer.qde.brain.conviction_engine import (
     compute_conviction,
     is_trade_worthy,
 )
+from trainer.qde.brain.debate import (
+    HIGH_CONVICTION_THRESHOLD,
+    IGNORED_EVIDENCE_MIN_CONVICTION,
+    DebateAPI,
+    DebateMemoryBridge,
+    DebateQualityScore,
+    DebateRecord,
+    IgnoredEvidenceRecord,
+    IgnoredEvidenceTracker,
+    OverconfidenceEvent,
+    OverconfidenceTracker,
+    make_debate_record,
+    measure_quality,
+)
 from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateEngine, DebateVerdict
 from trainer.qde.brain.decision import (
     CONVICTION_ACTION_THRESHOLD,
@@ -98,21 +113,34 @@ from trainer.qde.brain.decision import (
     ReasoningEngine,
     compute_decision,
 )
-from trainer.qde.brain.debate import (
-    DebateAPI,
-    DebateMemoryBridge,
-    DebateQualityScore,
-    DebateRecord,
-    HIGH_CONVICTION_THRESHOLD,
-    IGNORED_EVIDENCE_MIN_CONVICTION,
-    IgnoredEvidenceRecord,
-    IgnoredEvidenceTracker,
-    OverconfidenceEvent,
-    OverconfidenceTracker,
-    make_debate_record,
-    measure_quality,
+from trainer.qde.brain.episodic import (
+    Episode,
+    EpisodeFeatures,
+    EpisodeOutcome,
+    EpisodePortfolioState,
+    EpisodicIndex,
+    EpisodicMemory,
+    SimilarEpisode,
 )
 from trainer.qde.brain.forgetting_engine import ForgettingEngine, ForgettingReport
+from trainer.qde.brain.hypothesis import (
+    FailureMode,
+    HypothesisAPI,
+    HypothesisFailureRecord,
+    HypothesisFailureTracker,
+    HypothesisGenerationResult,
+    HypothesisLineage,
+    HypothesisMemoryBridge,
+    HypothesisMemoryContext,
+    HypothesisProbabilityEngine,
+    HypothesisScenario,
+    HypothesisSet,
+    LineageNode,
+    ProbabilitySnapshot,
+    ProbabilityUpdateResult,
+    ResolutionState,
+    make_hypothesis_set,
+)
 from trainer.qde.brain.hypothesis_engine import HypothesisEngine
 from trainer.qde.brain.hypothesis_lifecycle import (
     HypothesisMaturity,
@@ -123,6 +151,18 @@ from trainer.qde.brain.hypothesis_lifecycle import (
 from trainer.qde.brain.hypothesis_registry import HypothesisRegistry, HypothesisView
 from trainer.qde.brain.internal_state_store import InternalStateStore
 from trainer.qde.brain.lesson_extractor import LessonApplication, LessonExtractor
+from trainer.qde.brain.memory import (
+    TIMEFRAME_CANDLE_LIMITS,
+    CandleRecord,
+    CorrelationShift,
+    FailedBreakout,
+    LiquidityEvent,
+    SessionTransition,
+    SpreadPoint,
+    TrendState,
+    VolatilityPoint,
+    WorkingMemoryStore,
+)
 from trainer.qde.brain.memory_decay_engine import (
     DEFAULT_CONTEXT_MISMATCH_DECAY_PER_SECOND,
     DEFAULT_RECENCY_HALF_LIFE_SECONDS,
@@ -146,51 +186,12 @@ from trainer.qde.brain.personality_profiles import (
 )
 from trainer.qde.brain.reflection_engine import TradeReflection, TradeReflectionEngine
 from trainer.qde.brain.self_awareness_engine import SelfAwarenessEngine, SelfAwarenessState
-from trainer.qde.brain.memory import (
-    WorkingMemoryStore,
-    TIMEFRAME_CANDLE_LIMITS,
-    CandleRecord,
-    VolatilityPoint,
-    LiquidityEvent,
-    TrendState,
-    FailedBreakout,
-    SessionTransition,
-    SpreadPoint,
-    CorrelationShift,
-)
-from trainer.qde.brain.episodic import (
-    Episode,
-    EpisodeFeatures,
-    EpisodeOutcome,
-    EpisodePortfolioState,
-    EpisodicIndex,
-    EpisodicMemory,
-    SimilarEpisode,
-)
 from trainer.qde.brain.semantic import (
     ConceptKind,
     ConceptSeed,
     MarketConcept,
     SemanticMemory,
     SemanticRecallResult,
-)
-from trainer.qde.brain.hypothesis import (
-    HypothesisAPI,
-    HypothesisGenerationResult,
-    HypothesisSet,
-    HypothesisScenario,
-    ProbabilitySnapshot,
-    make_hypothesis_set,
-    HypothesisProbabilityEngine,
-    ProbabilityUpdateResult,
-    HypothesisFailureTracker,
-    HypothesisFailureRecord,
-    FailureMode,
-    HypothesisLineage,
-    LineageNode,
-    ResolutionState,
-    HypothesisMemoryBridge,
-    HypothesisMemoryContext,
 )
 from trainer.qde.brain.setup_lifecycle import (
     DEFAULT_SETUP_THRESHOLDS,

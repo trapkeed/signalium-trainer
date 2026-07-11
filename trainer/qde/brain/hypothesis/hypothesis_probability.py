@@ -47,9 +47,9 @@ from dataclasses import dataclass
 
 from trainer.qde.brain.hypothesis.hypothesis_set import HypothesisScenario, HypothesisSet
 
-_EPSILON         = 0.02     # prior floor for active scenarios
-_DEFAULT_DAMPEN  = 0.40     # log-space evidence dampening
-_MAX_ENTROPY_2   = math.log(2)
+_EPSILON = 0.02  # prior floor for active scenarios
+_DEFAULT_DAMPEN = 0.40  # log-space evidence dampening
+_MAX_ENTROPY_2 = math.log(2)
 
 
 # ── Result type ───────────────────────────────────────────────────────────────
@@ -67,20 +67,20 @@ class ProbabilityUpdateResult:
     ``shift``        — total probability mass moved = Σ|new - prior| / 2.
     """
 
-    new_probs:    dict[str, float]
-    prior_probs:  dict[str, float]
-    entropy:      float
-    certainty:    float
-    dominant_id:  str | None
-    shift:        float
+    new_probs: dict[str, float]
+    prior_probs: dict[str, float]
+    entropy: float
+    certainty: float
+    dominant_id: str | None
+    shift: float
 
     def to_dict(self) -> dict:
         return {
-            "new_probs":   {k: round(v, 4) for k, v in self.new_probs.items()},
-            "entropy":     round(self.entropy, 4),
-            "certainty":   round(self.certainty, 4),
+            "new_probs": {k: round(v, 4) for k, v in self.new_probs.items()},
+            "entropy": round(self.entropy, 4),
+            "certainty": round(self.certainty, 4),
             "dominant_id": self.dominant_id,
-            "shift":       round(self.shift, 4),
+            "shift": round(self.shift, 4),
         }
 
 
@@ -108,10 +108,10 @@ class HypothesisProbabilityEngine:
 
     def __init__(
         self,
-        epsilon:   float = _EPSILON,
+        epsilon: float = _EPSILON,
         dampening: float = _DEFAULT_DAMPEN,
     ) -> None:
-        self._eps    = epsilon
+        self._eps = epsilon
         self._dampen = dampening
 
     # ── Primary entry points ──────────────────────────────────────────────
@@ -131,9 +131,9 @@ class HypothesisProbabilityEngine:
 
     def bayesian_update(
         self,
-        hypothesis_set:  HypothesisSet,
-        evidence:        dict[str, float],
-        dampening:       float | None = None,
+        hypothesis_set: HypothesisSet,
+        evidence: dict[str, float],
+        dampening: float | None = None,
     ) -> ProbabilityUpdateResult:
         """Apply a Bayesian-style update to the current distribution.
 
@@ -163,8 +163,12 @@ class HypothesisProbabilityEngine:
         active = [s for s in hypothesis_set.scenarios if s.is_active]
         if not active:
             return ProbabilityUpdateResult(
-                new_probs={}, prior_probs={}, entropy=0.0,
-                certainty=1.0, dominant_id=None, shift=0.0,
+                new_probs={},
+                prior_probs={},
+                entropy=0.0,
+                certainty=1.0,
+                dominant_id=None,
+                shift=0.0,
             )
 
         # Current probabilities as the prior
@@ -186,9 +190,9 @@ class HypothesisProbabilityEngine:
             if not s.is_active:
                 new_probs[s.scenario_id] = 0.0
 
-        entropy  = self._entropy(new_probs)
+        entropy = self._entropy(new_probs)
         n_active = max(2, len(active))
-        max_ent  = math.log(n_active)
+        max_ent = math.log(n_active)
         certainty = max(0.0, min(1.0, 1.0 - entropy / max_ent)) if max_ent > 0 else 1.0
 
         dominant_id = max(new_probs, key=lambda k: new_probs[k]) if new_probs else None
@@ -229,8 +233,9 @@ class HypothesisProbabilityEngine:
         return best if best.probability > threshold else None
 
     def entropy_of(self, hypothesis_set: HypothesisSet) -> float:
-        probs = [s.probability for s in hypothesis_set.scenarios
-                 if s.is_active and s.probability > 0]
+        probs = [
+            s.probability for s in hypothesis_set.scenarios if s.is_active and s.probability > 0
+        ]
         return self._entropy({str(i): p for i, p in enumerate(probs)})
 
     def certainty_of(self, hypothesis_set: HypothesisSet) -> float:

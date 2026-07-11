@@ -65,38 +65,39 @@ class HypothesisScenario:
     but its probability is forced to 0 and is excluded from renormalization.
     """
 
-    scenario_id:          str                    # short key, e.g. "A"
-    label:                str                    # full label, e.g. "Scenario A: trend continuation"
-    hypothesis_id:        str
-    hypothesis:           Hypothesis
-    probability:          float                  = 0.0
-    raw_score:            float                  = 0.0
-    probability_delta:    float                  = 0.0    # last update change
-    rank:                 int                    = 0      # 1 = most probable
-    is_active:            bool                   = True
-    source_narrative_kind: NarrativeKind | None  = None
-    created_at:           float                  = field(default_factory=time.time)
+    scenario_id: str  # short key, e.g. "A"
+    label: str  # full label, e.g. "Scenario A: trend continuation"
+    hypothesis_id: str
+    hypothesis: Hypothesis
+    probability: float = 0.0
+    raw_score: float = 0.0
+    probability_delta: float = 0.0  # last update change
+    rank: int = 0  # 1 = most probable
+    is_active: bool = True
+    source_narrative_kind: NarrativeKind | None = None
+    created_at: float = field(default_factory=time.time)
 
     def deactivate(self) -> None:
-        self.is_active   = False
+        self.is_active = False
         self.probability = 0.0
-        self.rank        = 0
+        self.rank = 0
 
     def to_dict(self) -> dict:
         return {
-            "scenario_id":           self.scenario_id,
-            "label":                 self.label,
-            "hypothesis_id":         self.hypothesis_id,
-            "probability":           round(self.probability, 4),
-            "probability_delta":     round(self.probability_delta, 4),
-            "rank":                  self.rank,
-            "is_active":             self.is_active,
-            "direction":             self.hypothesis.direction.value,
-            "confidence":            round(self.hypothesis.confidence, 4),
-            "status":                self.hypothesis.status.value,
-            "thesis":                self.hypothesis.thesis,
-            "source_narrative_kind": self.source_narrative_kind.value
-                                     if self.source_narrative_kind else None,
+            "scenario_id": self.scenario_id,
+            "label": self.label,
+            "hypothesis_id": self.hypothesis_id,
+            "probability": round(self.probability, 4),
+            "probability_delta": round(self.probability_delta, 4),
+            "rank": self.rank,
+            "is_active": self.is_active,
+            "direction": self.hypothesis.direction.value,
+            "confidence": round(self.hypothesis.confidence, 4),
+            "status": self.hypothesis.status.value,
+            "thesis": self.hypothesis.thesis,
+            "source_narrative_kind": (
+                self.source_narrative_kind.value if self.source_narrative_kind else None
+            ),
         }
 
 
@@ -111,21 +112,21 @@ class ProbabilitySnapshot:
     how the competing scenarios evolved over the life of the set.
     """
 
-    snapshot_id:   str   = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    timestamp:     float = field(default_factory=time.time)
+    snapshot_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    timestamp: float = field(default_factory=time.time)
     probabilities: dict[str, float] = field(default_factory=dict)  # scenario_id → prob
-    entropy:       float = 0.0
-    certainty:     float = 0.0
-    trigger:       str   = "INIT"    # INIT | EVIDENCE | PROMOTION | INVALIDATION | AGE
+    entropy: float = 0.0
+    certainty: float = 0.0
+    trigger: str = "INIT"  # INIT | EVIDENCE | PROMOTION | INVALIDATION | AGE
 
     def to_dict(self) -> dict:
         return {
-            "snapshot_id":   self.snapshot_id,
-            "timestamp":     round(self.timestamp, 3),
+            "snapshot_id": self.snapshot_id,
+            "timestamp": round(self.timestamp, 3),
             "probabilities": {k: round(v, 4) for k, v in self.probabilities.items()},
-            "entropy":       round(self.entropy, 4),
-            "certainty":     round(self.certainty, 4),
-            "trigger":       self.trigger,
+            "entropy": round(self.entropy, 4),
+            "certainty": round(self.certainty, 4),
+            "trigger": self.trigger,
         }
 
     @classmethod
@@ -142,7 +143,7 @@ class ProbabilitySnapshot:
 
 # ── HypothesisSet ─────────────────────────────────────────────────────────────
 
-_MAX_HISTORY = 50    # keep at most this many probability snapshots
+_MAX_HISTORY = 50  # keep at most this many probability snapshots
 
 
 @dataclass
@@ -166,15 +167,15 @@ class HypothesisSet:
         ``update_probabilities`` call.
     """
 
-    set_id:                  str
-    instrument:              str
-    created_at:              float                  = field(default_factory=time.time)
-    last_updated_at:         float                  = field(default_factory=time.time)
-    scenarios:               list[HypothesisScenario] = field(default_factory=list)
-    invalidated_scenario_ids: set[str]              = field(default_factory=set)
-    promoted_scenario_id:    str | None             = None
-    generation_count:        int                    = 0    # update_probabilities calls
-    probability_history:     list[ProbabilitySnapshot] = field(default_factory=list)
+    set_id: str
+    instrument: str
+    created_at: float = field(default_factory=time.time)
+    last_updated_at: float = field(default_factory=time.time)
+    scenarios: list[HypothesisScenario] = field(default_factory=list)
+    invalidated_scenario_ids: set[str] = field(default_factory=set)
+    promoted_scenario_id: str | None = None
+    generation_count: int = 0  # update_probabilities calls
+    probability_history: list[ProbabilitySnapshot] = field(default_factory=list)
 
     # ── Query helpers ─────────────────────────────────────────────────────
 
@@ -234,12 +235,12 @@ class HypothesisSet:
 
     def _add_scenario(
         self,
-        hypothesis:  Hypothesis,
+        hypothesis: Hypothesis,
         narrative_kind: NarrativeKind | None = None,
     ) -> HypothesisScenario:
         """Add a new competing scenario to the set."""
-        idx   = len(self.scenarios)
-        sid   = _LABELS[idx] if idx < len(_LABELS) else str(idx + 1)
+        idx = len(self.scenarios)
+        sid = _LABELS[idx] if idx < len(_LABELS) else str(idx + 1)
         label = f"Scenario {sid}: {hypothesis.thesis}"
         s = HypothesisScenario(
             scenario_id=sid,
@@ -253,9 +254,9 @@ class HypothesisSet:
 
     def _apply_probabilities(
         self,
-        probs:   dict[str, float],
+        probs: dict[str, float],
         trigger: str,
-        now:     float | None = None,
+        now: float | None = None,
     ) -> None:
         """Apply a new probability distribution and record a snapshot.
 
@@ -263,10 +264,10 @@ class HypothesisSet:
         """
         now = now if now is not None else time.time()
         for s in self.scenarios:
-            old     = s.probability
-            new     = probs.get(s.scenario_id, 0.0)
+            old = s.probability
+            new = probs.get(s.scenario_id, 0.0)
             s.probability_delta = new - old
-            s.probability       = new
+            s.probability = new
 
         # Re-rank
         active = sorted(
@@ -280,8 +281,8 @@ class HypothesisSet:
             if not s.is_active:
                 s.rank = 0
 
-        self.generation_count  += 1
-        self.last_updated_at    = now
+        self.generation_count += 1
+        self.last_updated_at = now
 
         snap = ProbabilitySnapshot(
             timestamp=now,
@@ -298,19 +299,19 @@ class HypothesisSet:
 
     def to_dict(self) -> dict:
         return {
-            "set_id":                  self.set_id,
-            "instrument":              self.instrument,
-            "created_at":              round(self.created_at, 3),
-            "last_updated_at":         round(self.last_updated_at, 3),
-            "scenarios":               [s.to_dict() for s in self.scenarios],
+            "set_id": self.set_id,
+            "instrument": self.instrument,
+            "created_at": round(self.created_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
+            "scenarios": [s.to_dict() for s in self.scenarios],
             "invalidated_scenario_ids": list(self.invalidated_scenario_ids),
-            "promoted_scenario_id":    self.promoted_scenario_id,
-            "generation_count":        self.generation_count,
-            "entropy":                 round(self.entropy(), 4),
-            "certainty":               round(self.certainty(), 4),
-            "dominant_scenario_id":    self.dominant.scenario_id if self.dominant else None,
-            "dominant_direction":      self.dominant_direction.value,
-            "probability_history":     [h.to_dict() for h in self.probability_history[-10:]],
+            "promoted_scenario_id": self.promoted_scenario_id,
+            "generation_count": self.generation_count,
+            "entropy": round(self.entropy(), 4),
+            "certainty": round(self.certainty(), 4),
+            "dominant_scenario_id": self.dominant.scenario_id if self.dominant else None,
+            "dominant_direction": self.dominant_direction.value,
+            "probability_history": [h.to_dict() for h in self.probability_history[-10:]],
         }
 
 

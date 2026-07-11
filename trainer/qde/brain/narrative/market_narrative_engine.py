@@ -159,12 +159,15 @@ _NEUTRAL_KINDS = frozenset({NarrativeKind.LIQUIDITY_GRAB})
 _DIRECTION_LABEL: dict[NarrativeKind, tuple[str, str]] = {
     # (bullish thesis fragment, bearish thesis fragment)
     NarrativeKind.TREND_CONTINUATION: ("upward trend continuation", "downward trend continuation"),
-    NarrativeKind.REVERSAL:           ("bullish reversal setup", "bearish reversal setup"),
-    NarrativeKind.ACCUMULATION:       ("accumulation before bullish breakout", ""),
-    NarrativeKind.DISTRIBUTION:       ("", "distribution before bearish breakdown"),
-    NarrativeKind.BREAKOUT:           ("bullish breakout developing", "bearish breakout developing"),
-    NarrativeKind.EXHAUSTION:         ("bearish exhaustion of uptrend", "bullish exhaustion of downtrend"),
-    NarrativeKind.LIQUIDITY_GRAB:     ("bullish recovery after liquidity grab", "bearish recovery after liquidity grab"),
+    NarrativeKind.REVERSAL: ("bullish reversal setup", "bearish reversal setup"),
+    NarrativeKind.ACCUMULATION: ("accumulation before bullish breakout", ""),
+    NarrativeKind.DISTRIBUTION: ("", "distribution before bearish breakdown"),
+    NarrativeKind.BREAKOUT: ("bullish breakout developing", "bearish breakout developing"),
+    NarrativeKind.EXHAUSTION: ("bearish exhaustion of uptrend", "bullish exhaustion of downtrend"),
+    NarrativeKind.LIQUIDITY_GRAB: (
+        "bullish recovery after liquidity grab",
+        "bearish recovery after liquidity grab",
+    ),
 }
 
 
@@ -249,8 +252,10 @@ class MarketNarrativeEngine:
                 )
                 logger.debug(
                     "MarketNarrativeEngine[{}]: evolved {} → conf={:.0%} {}",
-                    instrument, seed.kind.value,
-                    existing.confidence, existing.maturity.value,
+                    instrument,
+                    seed.kind.value,
+                    existing.confidence,
+                    existing.maturity.value,
                 )
             else:
                 # Open a fresh narrative from the seed.
@@ -258,7 +263,9 @@ class MarketNarrativeEngine:
                 self._store.upsert(store, new_narrative)
                 logger.debug(
                     "MarketNarrativeEngine[{}]: opened {} conf={:.0%}",
-                    instrument, seed.kind.value, new_narrative.confidence,
+                    instrument,
+                    seed.kind.value,
+                    new_narrative.confidence,
                 )
 
         # 5. Evolve any other active narratives for which no seed fired this tick
@@ -303,7 +310,10 @@ class MarketNarrativeEngine:
         logger.debug(
             "MarketNarrativeEngine[{}]: {} active narratives, "
             "coherence={:.0%}, opportunity={:.2f}",
-            instrument, len(active), coherence, opportunity_signal,
+            instrument,
+            len(active),
+            coherence,
+            opportunity_signal,
         )
         return result
 
@@ -329,9 +339,7 @@ class MarketNarrativeEngine:
         net_bias = self._conflict_detector.net_bias(active)
 
         for narrative in established:
-            direction, thesis = self._narrative_to_hypothesis_direction(
-                narrative, net_bias, regime
-            )
+            direction, thesis = self._narrative_to_hypothesis_direction(narrative, net_bias, regime)
             if not thesis:
                 continue
             seeds.append(
@@ -428,12 +436,8 @@ class MarketNarrativeEngine:
             ),
             "narrative_net_bias": round(net_bias, 4),
             "conflicts": [c.to_dict() for c in conflicts],
-            "hypothesis_seeds": [
-                s.to_dict() for s in self.suggest_hypothesis_seeds(instrument)
-            ],
-            "opportunity_signal": round(
-                self._compute_opportunity_signal(store, conflicts), 4
-            ),
+            "hypothesis_seeds": [s.to_dict() for s in self.suggest_hypothesis_seeds(instrument)],
+            "opportunity_signal": round(self._compute_opportunity_signal(store, conflicts), 4),
         }
 
     def opportunity_rank_signal(self, instrument: str) -> float:
@@ -466,9 +470,7 @@ class MarketNarrativeEngine:
     def established_narratives_for(self, instrument: str) -> list[SymbolNarrative]:
         return self._store.established(self._get_store(instrument))
 
-    def narrative_of_kind(
-        self, instrument: str, kind: NarrativeKind
-    ) -> SymbolNarrative | None:
+    def narrative_of_kind(self, instrument: str, kind: NarrativeKind) -> SymbolNarrative | None:
         return self._store.get(self._get_store(instrument), kind)
 
     def all_instruments(self) -> list[str]:
@@ -514,9 +516,7 @@ class MarketNarrativeEngine:
         # Penalty: liquidity-grab narrative reduces clarity.
         liq_grab = self._store.get(store, NarrativeKind.LIQUIDITY_GRAB)
         liq_penalty = (
-            liq_grab.confidence * 0.3
-            if liq_grab is not None and liq_grab.is_active()
-            else 0.0
+            liq_grab.confidence * 0.3 if liq_grab is not None and liq_grab.is_active() else 0.0
         )
 
         raw = (

@@ -33,19 +33,17 @@ from dataclasses import dataclass, field
 from trainer.qde.brain.brain_models import Hypothesis, MarketNarrative
 from trainer.qde.brain.brain_types import BeliefDirection, NarrativeTone, TrendMaturity
 from trainer.qde.brain.narrative.narrative_store import (
+    _DEFAULT_MAX_AGE,
     NarrativeKind,
     NarrativeMaturity,
     SymbolNarrative,
-    _DEFAULT_MAX_AGE,
 )
 from trainer.qde.qde_observer_models import SymbolObservationInput
 
 # ── Volatility / liquidity rank helpers (local, mirrors opportunity_scanner) ──
 
 _VOL_RANK: dict[str, int] = {"LOW": 0, "NORMAL": 1, "ELEVATED": 2, "HIGH": 3, "EXTREME": 4}
-_LIQ_RANK: dict[str, int] = {
-    "POOR": 0, "THIN": 0, "LOW": 0, "NORMAL": 1, "GOOD": 2, "EXCELLENT": 2
-}
+_LIQ_RANK: dict[str, int] = {"POOR": 0, "THIN": 0, "LOW": 0, "NORMAL": 1, "GOOD": 2, "EXCELLENT": 2}
 
 # Minimum readiness before directional narratives can be seeded.
 _DIRECTIONAL_READINESS_FLOOR = 0.3
@@ -61,9 +59,9 @@ class NarrativeSeed:
     kind: NarrativeKind
     title: str
     initial_confidence: float
-    evidence: str                     # first supporting-evidence string
-    regime_context: str               # market regime when the seed fired
-    session_context: str              # session quality description
+    evidence: str  # first supporting-evidence string
+    regime_context: str  # market regime when the seed fired
+    session_context: str  # session quality description
     max_age_seconds: float = field(init=False)
 
     def __post_init__(self) -> None:
@@ -131,9 +129,7 @@ class NarrativeBuilder:
         liq_rank = _LIQ_RANK.get(inp.liquidity_state.upper(), 1)
         tone = existing_narrative.tone if existing_narrative else NarrativeTone.NEUTRAL
         trend_maturity = (
-            existing_narrative.trend_maturity
-            if existing_narrative
-            else TrendMaturity.NONE
+            existing_narrative.trend_maturity if existing_narrative else TrendMaturity.NONE
         )
         session_ctx = self._session_context(inp.session_quality)
         regime_ctx = regime
@@ -142,45 +138,71 @@ class NarrativeBuilder:
 
         # Each detector is independent; order does not determine precedence.
         s = self._detect_trend_continuation(
-            instrument, inp, regime, vol_rank, tone, trend_maturity,
-            observer_state, readiness_score, regime_ctx, session_ctx
+            instrument,
+            inp,
+            regime,
+            vol_rank,
+            tone,
+            trend_maturity,
+            observer_state,
+            readiness_score,
+            regime_ctx,
+            session_ctx,
         )
         if s:
             seeds.append(s)
 
         s = self._detect_reversal(
-            instrument, inp, regime, tone, trend_maturity,
-            active_hypotheses, observer_state, readiness_score, dwell_seconds,
-            regime_ctx, session_ctx
+            instrument,
+            inp,
+            regime,
+            tone,
+            trend_maturity,
+            active_hypotheses,
+            observer_state,
+            readiness_score,
+            dwell_seconds,
+            regime_ctx,
+            session_ctx,
         )
         if s:
             seeds.append(s)
 
         s = self._detect_accumulation(
-            instrument, inp, regime, vol_rank, liq_rank,
-            active_hypotheses, regime_ctx, session_ctx
+            instrument, inp, regime, vol_rank, liq_rank, active_hypotheses, regime_ctx, session_ctx
         )
         if s:
             seeds.append(s)
 
         s = self._detect_distribution(
-            instrument, inp, regime, vol_rank, liq_rank,
-            active_hypotheses, regime_ctx, session_ctx
+            instrument, inp, regime, vol_rank, liq_rank, active_hypotheses, regime_ctx, session_ctx
         )
         if s:
             seeds.append(s)
 
         s = self._detect_breakout(
-            instrument, inp, regime, vol_rank,
-            observer_state, readiness_score, regime_ctx, session_ctx
+            instrument,
+            inp,
+            regime,
+            vol_rank,
+            observer_state,
+            readiness_score,
+            regime_ctx,
+            session_ctx,
         )
         if s:
             seeds.append(s)
 
         s = self._detect_exhaustion(
-            instrument, inp, regime, trend_maturity,
-            observer_state, readiness_score, dwell_seconds,
-            regime_ctx, session_ctx
+            instrument,
+            inp,
+            regime,
+            trend_maturity,
+            observer_state,
+            readiness_score,
+            dwell_seconds,
+            regime_ctx,
+            session_ctx,
         )
         if s:
             seeds.append(s)
@@ -271,12 +293,8 @@ class NarrativeBuilder:
 
         # A conflicted hypothesis set (both bullish and bearish active) suggests
         # the directional picture is breaking down.
-        bull_count = sum(
-            1 for h in active_hypotheses if h.direction == BeliefDirection.BULLISH
-        )
-        bear_count = sum(
-            1 for h in active_hypotheses if h.direction == BeliefDirection.BEARISH
-        )
+        bull_count = sum(1 for h in active_hypotheses if h.direction == BeliefDirection.BULLISH)
+        bear_count = sum(1 for h in active_hypotheses if h.direction == BeliefDirection.BEARISH)
         if bull_count > 0 and bear_count > 0:
             reversal_signals += 1
             evidence_parts.append(f"conflicting_hypotheses={bull_count}b/{bear_count}B")

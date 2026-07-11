@@ -71,8 +71,8 @@ from typing import Deque
 DEFAULT_QUALITY_THRESHOLD: float = 0.20
 
 # Adaptive threshold bounds.
-MIN_QUALITY_THRESHOLD: float = 0.10   # never drop below this (market is valid)
-MAX_QUALITY_THRESHOLD: float = 0.55   # never exceed this (would block all entries)
+MIN_QUALITY_THRESHOLD: float = 0.10  # never drop below this (market is valid)
+MAX_QUALITY_THRESHOLD: float = 0.55  # never exceed this (would block all entries)
 
 # Uncertainty threshold above which NO_TRADE is preferred.
 # Mirrors prefers_no_trade(score, threshold=0.55) in uncertainty_engine.py.
@@ -80,7 +80,7 @@ UNCERTAINTY_NO_TRADE_THRESHOLD: float = 0.55
 
 # Entry urgency ceiling without matching conviction.
 IMPULSIVE_URGENCY_THRESHOLD: float = 0.70  # urgency above this is "impulsive"
-IMPULSIVE_CONVICTION_FLOOR: float  = 0.40  # conviction must be at least this
+IMPULSIVE_CONVICTION_FLOOR: float = 0.40  # conviction must be at least this
 
 # Overtrading frequency ratio (today / baseline) above which we guard.
 OVERTRADING_RATIO_THRESHOLD: float = 1.5
@@ -92,11 +92,11 @@ DEFAULT_ROLLING_WINDOW: int = 50
 MAX_SKIPPED_RECORDS: int = 500
 
 # Threshold adjustment step applied by the adaptive engine each update.
-THRESHOLD_STEP_UP: float   = 0.025   # raise quality bar
-THRESHOLD_STEP_DOWN: float = 0.015   # lower quality bar (gentler)
+THRESHOLD_STEP_UP: float = 0.025  # raise quality bar
+THRESHOLD_STEP_DOWN: float = 0.015  # lower quality bar (gentler)
 
 # Resolution window: how long after a skip we wait before calling it NEUTRAL.
-DEFAULT_RESOLUTION_WINDOW_SECONDS: float = 4 * 3600.0   # 4 hours default
+DEFAULT_RESOLUTION_WINDOW_SECONDS: float = 4 * 3600.0  # 4 hours default
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -111,13 +111,13 @@ class WaitReason(str, Enum):
     so callers can compare priority via ``list.index()``.
     """
 
-    COGNITIVE_PASSIVE     = "COGNITIVE_PASSIVE"       # brain said WAIT/IGNORE
-    UNCERTAINTY_HIGH      = "UNCERTAINTY_HIGH"         # uncertainty ≥ 0.55
-    OVERTRADING           = "OVERTRADING"              # trade frequency too high
-    CONFIRMATION_PENDING  = "CONFIRMATION_PENDING"     # brain said MONITOR — setup forming
-    LOW_QUALITY           = "LOW_QUALITY"              # opportunity_score < threshold
-    IMPULSIVE_GUARD       = "IMPULSIVE_GUARD"          # high urgency but low conviction
-    CAPITAL_UNAVAILABLE   = "CAPITAL_UNAVAILABLE"      # PriorityTier.PASS (budget)
+    COGNITIVE_PASSIVE = "COGNITIVE_PASSIVE"  # brain said WAIT/IGNORE
+    UNCERTAINTY_HIGH = "UNCERTAINTY_HIGH"  # uncertainty ≥ 0.55
+    OVERTRADING = "OVERTRADING"  # trade frequency too high
+    CONFIRMATION_PENDING = "CONFIRMATION_PENDING"  # brain said MONITOR — setup forming
+    LOW_QUALITY = "LOW_QUALITY"  # opportunity_score < threshold
+    IMPULSIVE_GUARD = "IMPULSIVE_GUARD"  # high urgency but low conviction
+    CAPITAL_UNAVAILABLE = "CAPITAL_UNAVAILABLE"  # PriorityTier.PASS (budget)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -147,10 +147,10 @@ class SkipOutcome(str, Enum):
         Outcome not yet known (default at creation time).
     """
 
-    CORRECT_SKIP        = "CORRECT_SKIP"
-    MISSED_OPPORTUNITY  = "MISSED_OPPORTUNITY"
-    NEUTRAL             = "NEUTRAL"
-    UNRESOLVED          = "UNRESOLVED"
+    CORRECT_SKIP = "CORRECT_SKIP"
+    MISSED_OPPORTUNITY = "MISSED_OPPORTUNITY"
+    NEUTRAL = "NEUTRAL"
+    UNRESOLVED = "UNRESOLVED"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -174,27 +174,27 @@ class SkippedOpportunity:
     market.
     """
 
-    skip_id:                    str         = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    instrument:                 str         = ""
-    direction:                  str         = ""     # BeliefDirection.value
+    skip_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    direction: str = ""  # BeliefDirection.value
 
     # ── Snapshot at skip time ─────────────────────────────────────────────────
-    opportunity_score_at_skip:  float       = 0.0
-    quality_threshold_at_skip:  float       = DEFAULT_QUALITY_THRESHOLD
-    wait_reasons:               list[WaitReason] = field(default_factory=list)
-    primary_reason:             WaitReason | None = None
-    cognitive_action:           str         = ""     # CognitiveAction.value
-    uncertainty_score:          float       = 0.0
-    conviction_score:           float       = 0.0
-    entry_urgency:              float       = 0.0
-    prospective_no_action_reward: float     = 0.0    # reward signal at skip time
+    opportunity_score_at_skip: float = 0.0
+    quality_threshold_at_skip: float = DEFAULT_QUALITY_THRESHOLD
+    wait_reasons: list[WaitReason] = field(default_factory=list)
+    primary_reason: WaitReason | None = None
+    cognitive_action: str = ""  # CognitiveAction.value
+    uncertainty_score: float = 0.0
+    conviction_score: float = 0.0
+    entry_urgency: float = 0.0
+    prospective_no_action_reward: float = 0.0  # reward signal at skip time
 
     # ── Resolution fields (updated later) ────────────────────────────────────
-    outcome:                    SkipOutcome = SkipOutcome.UNRESOLVED
-    outcome_pnl_estimate:       float       = 0.0    # +ve = avoided loss, -ve = missed profit
-    realized_no_action_reward:  float       = 0.0    # updated on resolution
-    skipped_at:                 float       = field(default_factory=time.time)
-    resolved_at:                float | None = None
+    outcome: SkipOutcome = SkipOutcome.UNRESOLVED
+    outcome_pnl_estimate: float = 0.0  # +ve = avoided loss, -ve = missed profit
+    realized_no_action_reward: float = 0.0  # updated on resolution
+    skipped_at: float = field(default_factory=time.time)
+    resolved_at: float | None = None
 
     @property
     def is_resolved(self) -> bool:
@@ -225,25 +225,25 @@ class SkippedOpportunity:
 
     def to_dict(self) -> dict:
         return {
-            "skip_id":                     self.skip_id,
-            "instrument":                  self.instrument,
-            "direction":                   self.direction,
-            "opportunity_score_at_skip":   round(self.opportunity_score_at_skip, 4),
-            "quality_threshold_at_skip":   round(self.quality_threshold_at_skip, 4),
-            "wait_reasons":                [r.value for r in self.wait_reasons],
-            "primary_reason":              self.primary_reason.value if self.primary_reason else None,
-            "cognitive_action":            self.cognitive_action,
-            "uncertainty_score":           round(self.uncertainty_score, 4),
-            "conviction_score":            round(self.conviction_score, 4),
-            "entry_urgency":               round(self.entry_urgency, 4),
+            "skip_id": self.skip_id,
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "opportunity_score_at_skip": round(self.opportunity_score_at_skip, 4),
+            "quality_threshold_at_skip": round(self.quality_threshold_at_skip, 4),
+            "wait_reasons": [r.value for r in self.wait_reasons],
+            "primary_reason": self.primary_reason.value if self.primary_reason else None,
+            "cognitive_action": self.cognitive_action,
+            "uncertainty_score": round(self.uncertainty_score, 4),
+            "conviction_score": round(self.conviction_score, 4),
+            "entry_urgency": round(self.entry_urgency, 4),
             "prospective_no_action_reward": round(self.prospective_no_action_reward, 4),
-            "outcome":                     self.outcome.value,
-            "outcome_pnl_estimate":        round(self.outcome_pnl_estimate, 4),
-            "realized_no_action_reward":   round(self.realized_no_action_reward, 4),
-            "skipped_at":                  round(self.skipped_at, 3),
-            "resolved_at":                 round(self.resolved_at, 3) if self.resolved_at else None,
-            "is_resolved":                 self.is_resolved,
-            "was_correct":                 self.was_correct,
+            "outcome": self.outcome.value,
+            "outcome_pnl_estimate": round(self.outcome_pnl_estimate, 4),
+            "realized_no_action_reward": round(self.realized_no_action_reward, 4),
+            "skipped_at": round(self.skipped_at, 3),
+            "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
+            "is_resolved": self.is_resolved,
+            "was_correct": self.was_correct,
         }
 
 
@@ -281,23 +281,23 @@ class WaitDecision:
         ``should_wait=False`` (no skip to record).
     """
 
-    should_wait:                   bool
-    wait_reasons:                  tuple[WaitReason, ...]
-    primary_reason:                WaitReason | None
-    prospective_no_action_reward:  float
-    quality_gap:                   float   # threshold - opportunity_score (+ve = below bar)
-    reasoning:                     str
-    skip_record:                   SkippedOpportunity | None  = None
+    should_wait: bool
+    wait_reasons: tuple[WaitReason, ...]
+    primary_reason: WaitReason | None
+    prospective_no_action_reward: float
+    quality_gap: float  # threshold - opportunity_score (+ve = below bar)
+    reasoning: str
+    skip_record: SkippedOpportunity | None = None
 
     def to_dict(self) -> dict:
         return {
-            "should_wait":                  self.should_wait,
-            "wait_reasons":                 [r.value for r in self.wait_reasons],
-            "primary_reason":               self.primary_reason.value if self.primary_reason else None,
+            "should_wait": self.should_wait,
+            "wait_reasons": [r.value for r in self.wait_reasons],
+            "primary_reason": self.primary_reason.value if self.primary_reason else None,
             "prospective_no_action_reward": round(self.prospective_no_action_reward, 4),
-            "quality_gap":                  round(self.quality_gap, 4),
-            "reasoning":                    self.reasoning,
-            "skip_id":                      self.skip_record.skip_id if self.skip_record else None,
+            "quality_gap": round(self.quality_gap, 4),
+            "reasoning": self.reasoning,
+            "skip_id": self.skip_record.skip_id if self.skip_record else None,
         }
 
 
@@ -331,25 +331,25 @@ class PatienceState:
         full skip history on every tick.
     """
 
-    instrument:             str   = ""
+    instrument: str = ""
 
     # ── Rolling counters ──────────────────────────────────────────────────────
-    total_trades:           int   = 0
-    total_skips:            int   = 0
-    correct_skips:          int   = 0       # resolved as CORRECT_SKIP
-    missed_opportunities:   int   = 0       # resolved as MISSED_OPPORTUNITY
-    impulsive_entries:      int   = 0       # entries flagged as impulsive
-    overtrading_events:     int   = 0       # is_overtrading=True detections
+    total_trades: int = 0
+    total_skips: int = 0
+    correct_skips: int = 0  # resolved as CORRECT_SKIP
+    missed_opportunities: int = 0  # resolved as MISSED_OPPORTUNITY
+    impulsive_entries: int = 0  # entries flagged as impulsive
+    overtrading_events: int = 0  # is_overtrading=True detections
 
     # ── Adaptive threshold ────────────────────────────────────────────────────
-    current_threshold:      float = DEFAULT_QUALITY_THRESHOLD
-    last_threshold_update:  float = 0.0
+    current_threshold: float = DEFAULT_QUALITY_THRESHOLD
+    last_threshold_update: float = 0.0
 
     # ── Bounded skip history ──────────────────────────────────────────────────
-    skipped_opportunities:  list[SkippedOpportunity] = field(default_factory=list)
+    skipped_opportunities: list[SkippedOpportunity] = field(default_factory=list)
 
     # ── Recent-decision ring buffer (True=waited, False=acted) ───────────────
-    recent_wait_flags:      Deque[bool] = field(
+    recent_wait_flags: Deque[bool] = field(
         default_factory=lambda: deque(maxlen=DEFAULT_ROLLING_WINDOW)
     )
 
@@ -374,16 +374,16 @@ class PatienceState:
 
     def to_dict(self) -> dict:
         return {
-            "instrument":            self.instrument,
-            "total_trades":          self.total_trades,
-            "total_skips":           self.total_skips,
-            "correct_skips":         self.correct_skips,
-            "missed_opportunities":  self.missed_opportunities,
-            "impulsive_entries":     self.impulsive_entries,
-            "overtrading_events":    self.overtrading_events,
-            "current_threshold":     round(self.current_threshold, 4),
-            "pending_skips":         len(self.pending_skips()),
-            "total_stored_skips":    len(self.skipped_opportunities),
+            "instrument": self.instrument,
+            "total_trades": self.total_trades,
+            "total_skips": self.total_skips,
+            "correct_skips": self.correct_skips,
+            "missed_opportunities": self.missed_opportunities,
+            "impulsive_entries": self.impulsive_entries,
+            "overtrading_events": self.overtrading_events,
+            "current_threshold": round(self.current_threshold, 4),
+            "pending_skips": len(self.pending_skips()),
+            "total_stored_skips": len(self.skipped_opportunities),
         }
 
 
@@ -418,29 +418,29 @@ class PatienceMetrics:
         ``0.5 × discipline_score + 0.3 × (1 - impulsive_rate) + 0.2 × (1 - miss_rate)``
     """
 
-    discipline_score:          float
-    impulsive_entry_rate:      float
-    miss_rate:                 float
-    composite_patience_score:  float
-    total_skips:               int
-    total_trades:              int
-    correct_skips:             int
-    missed_opportunities:      int
-    resolved_skips:            int
-    overtrading_events:        int
+    discipline_score: float
+    impulsive_entry_rate: float
+    miss_rate: float
+    composite_patience_score: float
+    total_skips: int
+    total_trades: int
+    correct_skips: int
+    missed_opportunities: int
+    resolved_skips: int
+    overtrading_events: int
 
     def to_dict(self) -> dict:
         return {
-            "discipline_score":         round(self.discipline_score,         4),
-            "impulsive_entry_rate":     round(self.impulsive_entry_rate,     4),
-            "miss_rate":                round(self.miss_rate,                4),
+            "discipline_score": round(self.discipline_score, 4),
+            "impulsive_entry_rate": round(self.impulsive_entry_rate, 4),
+            "miss_rate": round(self.miss_rate, 4),
             "composite_patience_score": round(self.composite_patience_score, 4),
-            "total_skips":              self.total_skips,
-            "total_trades":             self.total_trades,
-            "correct_skips":            self.correct_skips,
-            "missed_opportunities":     self.missed_opportunities,
-            "resolved_skips":           self.resolved_skips,
-            "overtrading_events":       self.overtrading_events,
+            "total_skips": self.total_skips,
+            "total_trades": self.total_trades,
+            "correct_skips": self.correct_skips,
+            "missed_opportunities": self.missed_opportunities,
+            "resolved_skips": self.resolved_skips,
+            "overtrading_events": self.overtrading_events,
         }
 
 

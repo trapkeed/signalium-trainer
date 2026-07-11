@@ -10,6 +10,15 @@ Three modules:
                                      `MultiTimeframeContextEngine`.
 """
 
+from trainer.qde.brain.context.context_alignment_engine import (
+    AlignmentPattern,
+    ContextAlignmentEngine,
+    CrossTimeframeContext,
+)
+from trainer.qde.brain.context.multi_timeframe_context_engine import (
+    ContextHypothesisSeed,
+    MultiTimeframeContextEngine,
+)
 from trainer.qde.brain.context.timeframe_memory import (
     ALL_CONTEXT_TIMEFRAMES,
     CONTEXT_TIMEFRAME_SECONDS,
@@ -19,15 +28,6 @@ from trainer.qde.brain.context.timeframe_memory import (
     TimeframeObservation,
     coarse_timeframes,
     fine_timeframes,
-)
-from trainer.qde.brain.context.context_alignment_engine import (
-    AlignmentPattern,
-    ContextAlignmentEngine,
-    CrossTimeframeContext,
-)
-from trainer.qde.brain.context.multi_timeframe_context_engine import (
-    ContextHypothesisSeed,
-    MultiTimeframeContextEngine,
 )
 
 __all__ = [

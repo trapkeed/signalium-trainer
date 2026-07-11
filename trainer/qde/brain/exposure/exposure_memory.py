@@ -67,22 +67,22 @@ class ExposureObservation:
     """
 
     # ── Portfolio state BEFORE this trade ────────────────────────────────
-    currency_hhi:              float = 0.0
-    sector_hhi:                float = 0.0
+    currency_hhi: float = 0.0
+    sector_hhi: float = 0.0
     correlation_concentration: float = 0.0
-    regional_hhi:              float = 0.0
-    n_positions_norm:          float = 0.0   # n_open / 10, capped at 1.0
+    regional_hhi: float = 0.0
+    n_positions_norm: float = 0.0  # n_open / 10, capped at 1.0
 
     # ── Candidate trade being considered ─────────────────────────────────
     candidate_instrument: str = ""
-    candidate_direction:  int = 1            # +1 long, −1 short
+    candidate_direction: int = 1  # +1 long, −1 short
 
     # ── Marginal deltas introduced by this trade ─────────────────────────
-    marginal_currency_hhi:    float = 0.0
-    marginal_sector_hhi:      float = 0.0
+    marginal_currency_hhi: float = 0.0
+    marginal_sector_hhi: float = 0.0
     marginal_correlation_risk: float = 0.0
-    marginal_regional_hhi:    float = 0.0
-    marginal_composite:       float = 0.0   # weighted blend of deltas
+    marginal_regional_hhi: float = 0.0
+    marginal_composite: float = 0.0  # weighted blend of deltas
 
     timestamp: float = field(default_factory=time.time)
 
@@ -113,19 +113,19 @@ class ExposureObservation:
 
     def to_dict(self) -> dict:
         return {
-            "currency_hhi":              round(self.currency_hhi, 4),
-            "sector_hhi":                round(self.sector_hhi, 4),
+            "currency_hhi": round(self.currency_hhi, 4),
+            "sector_hhi": round(self.sector_hhi, 4),
             "correlation_concentration": round(self.correlation_concentration, 4),
-            "regional_hhi":              round(self.regional_hhi, 4),
-            "n_positions_norm":          round(self.n_positions_norm, 4),
-            "candidate_instrument":      self.candidate_instrument,
-            "candidate_direction":       self.candidate_direction,
-            "marginal_currency_hhi":     round(self.marginal_currency_hhi, 4),
-            "marginal_sector_hhi":       round(self.marginal_sector_hhi, 4),
+            "regional_hhi": round(self.regional_hhi, 4),
+            "n_positions_norm": round(self.n_positions_norm, 4),
+            "candidate_instrument": self.candidate_instrument,
+            "candidate_direction": self.candidate_direction,
+            "marginal_currency_hhi": round(self.marginal_currency_hhi, 4),
+            "marginal_sector_hhi": round(self.marginal_sector_hhi, 4),
             "marginal_correlation_risk": round(self.marginal_correlation_risk, 4),
-            "marginal_regional_hhi":     round(self.marginal_regional_hhi, 4),
-            "marginal_composite":        round(self.marginal_composite, 4),
-            "timestamp":                 round(self.timestamp, 3),
+            "marginal_regional_hhi": round(self.marginal_regional_hhi, 4),
+            "marginal_composite": round(self.marginal_composite, 4),
+            "timestamp": round(self.timestamp, 3),
         }
 
     @classmethod
@@ -178,19 +178,19 @@ class ExposureOutcome:
         How long the recorded trade was open, in seconds.
     """
 
-    portfolio_return:           float = 0.0   # signed fraction
-    portfolio_max_drawdown:     float = 0.0   # non-negative fraction
-    outcome_quality:            float = 0.5   # 0-1, 0.5 = neutral
-    exposure_pnl_contribution:  float = 0.0   # signed, relative to portfolio
-    duration_seconds:           float = 0.0
+    portfolio_return: float = 0.0  # signed fraction
+    portfolio_max_drawdown: float = 0.0  # non-negative fraction
+    outcome_quality: float = 0.5  # 0-1, 0.5 = neutral
+    exposure_pnl_contribution: float = 0.0  # signed, relative to portfolio
+    duration_seconds: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "portfolio_return":          round(self.portfolio_return, 6),
-            "portfolio_max_drawdown":    round(self.portfolio_max_drawdown, 4),
-            "outcome_quality":           round(self.outcome_quality, 4),
+            "portfolio_return": round(self.portfolio_return, 6),
+            "portfolio_max_drawdown": round(self.portfolio_max_drawdown, 4),
+            "outcome_quality": round(self.outcome_quality, 4),
             "exposure_pnl_contribution": round(self.exposure_pnl_contribution, 6),
-            "duration_seconds":          round(self.duration_seconds, 1),
+            "duration_seconds": round(self.duration_seconds, 1),
         }
 
     @classmethod
@@ -228,10 +228,10 @@ class ExposureOutcome:
 class ExposureRecord:
     """One completed (observation → outcome) pair."""
 
-    record_id:   str                 = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     observation: ExposureObservation = field(default_factory=ExposureObservation)
-    outcome:     ExposureOutcome     = field(default_factory=ExposureOutcome)
-    created_at:  float               = field(default_factory=time.time)
+    outcome: ExposureOutcome = field(default_factory=ExposureOutcome)
+    created_at: float = field(default_factory=time.time)
 
     def recency_weight(self, now: float, tau_days: float = 30.0) -> float:
         """Exponential recency weight: 1.0 when fresh, decays over tau_days."""
@@ -240,10 +240,10 @@ class ExposureRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":   self.record_id,
+            "record_id": self.record_id,
             "observation": self.observation.to_dict(),
-            "outcome":     self.outcome.to_dict(),
-            "created_at":  round(self.created_at, 3),
+            "outcome": self.outcome.to_dict(),
+            "created_at": round(self.created_at, 3),
         }
 
     @classmethod
@@ -283,8 +283,8 @@ class ExposureMemory:
     def record(
         self,
         observation: ExposureObservation,
-        outcome:     ExposureOutcome,
-        now:         float | None = None,
+        outcome: ExposureOutcome,
+        now: float | None = None,
     ) -> ExposureRecord:
         """Append one (observation → outcome) pair.
 
@@ -311,7 +311,7 @@ class ExposureMemory:
     def to_snapshot(self) -> dict:
         return {
             "max_records": self._max_records,
-            "records":     [r.to_dict() for r in self._store],
+            "records": [r.to_dict() for r in self._store],
         }
 
     @classmethod

@@ -60,18 +60,16 @@ from typing import Callable
 from trainer.qde.brain.brain_models import Hypothesis
 from trainer.qde.brain.brain_types import HypothesisStatus
 from trainer.qde.brain.thesis.thesis_types import (
+    DEFAULT_DECAY_PROFILES as DEFAULT_DECAY_PROFILES,  # re-export
+)
+from trainer.qde.brain.thesis.thesis_types import (
     AgingRecord,
     ThesisAgingResult,
     ThesisAgingState,
-    ThesisDecayProfile,
     ThesisEvent,
     ThesisEventType,
     profile_for_class,
 )
-
-# Re-export for convenience — callers can import from this module directly.
-from trainer.qde.brain.thesis.thesis_types import DEFAULT_DECAY_PROFILES  # noqa: F401
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -251,10 +249,7 @@ def age_thesis(
 
     # ── Check expiry threshold after decay ────────────────────────────────────
     if new_conf < profile.expiry_threshold:
-        reason = (
-            f"confidence {new_conf:.4f} below expiry threshold "
-            f"{profile.expiry_threshold}"
-        )
+        reason = f"confidence {new_conf:.4f} below expiry threshold " f"{profile.expiry_threshold}"
         _do_expire(hyp, state, reason, ThesisEventType.EXPIRY, new_conf, now)
         return ThesisAgingResult(
             hypothesis_id=hyp.hypothesis_id,
@@ -379,7 +374,7 @@ def update_confidence(
     hyp.confidence = new_conf
     hyp.last_updated_at = now
 
-    is_confirmation = (event_type == ThesisEventType.CONFIRMATION)
+    is_confirmation = event_type == ThesisEventType.CONFIRMATION
 
     event = ThesisEvent(
         event_type=event_type,
@@ -589,9 +584,9 @@ class ThesisAgingEngine:
     def summary(self) -> dict:
         """Diagnostic snapshot of all tracked aging states."""
         return {
-            "tracked_count":  len(self._states),
-            "expired_count":  sum(1 for s in self._states.values() if s.is_expired),
-            "states":         {hid: s.to_dict() for hid, s in self._states.items()},
+            "tracked_count": len(self._states),
+            "expired_count": sum(1 for s in self._states.values() if s.is_expired),
+            "states": {hid: s.to_dict() for hid, s in self._states.items()},
         }
 
 

@@ -43,10 +43,13 @@ from enum import Enum
 # ── Ordinal rank for volatility state ────────────────────────────────────────
 
 _VOL_STATE_RANK: dict[str, int] = {
-    "LOW": 0, "QUIET": 0,
-    "NORMAL": 1, "MODERATE": 1,
+    "LOW": 0,
+    "QUIET": 0,
+    "NORMAL": 1,
+    "MODERATE": 1,
     "ELEVATED": 2,
-    "HIGH": 3, "VOLATILE": 3,
+    "HIGH": 3,
+    "VOLATILE": 3,
     "EXTREME": 4,
 }
 
@@ -57,22 +60,44 @@ def vol_state_rank(state: str) -> int:
 
 # ── Regime family groupings (used for target inference) ───────────────────────
 
-_TRENDING_REGIMES: frozenset[str] = frozenset({
-    "STRONG_TREND", "TRENDING", "EXPANSION",
-    "TREND_UP", "TREND_DOWN",          # aliases some callers use
-})
-_RANGING_REGIMES: frozenset[str] = frozenset({
-    "RANGE", "COMPRESSION", "ACCUMULATION", "DISTRIBUTION", "CHOP", "CHOPPY",
-})
-_VOLATILE_REGIMES: frozenset[str] = frozenset({
-    "VOLATILE", "BLACK_SWAN", "NEWS_DRIVEN",
-})
-_BREAKOUT_REGIMES: frozenset[str] = frozenset({
-    "BREAKOUT", "FALSE_BREAKOUT",
-})
-_EXHAUSTION_REGIMES: frozenset[str] = frozenset({
-    "REVERSAL", "WEAK_TREND",
-})
+_TRENDING_REGIMES: frozenset[str] = frozenset(
+    {
+        "STRONG_TREND",
+        "TRENDING",
+        "EXPANSION",
+        "TREND_UP",
+        "TREND_DOWN",  # aliases some callers use
+    }
+)
+_RANGING_REGIMES: frozenset[str] = frozenset(
+    {
+        "RANGE",
+        "COMPRESSION",
+        "ACCUMULATION",
+        "DISTRIBUTION",
+        "CHOP",
+        "CHOPPY",
+    }
+)
+_VOLATILE_REGIMES: frozenset[str] = frozenset(
+    {
+        "VOLATILE",
+        "BLACK_SWAN",
+        "NEWS_DRIVEN",
+    }
+)
+_BREAKOUT_REGIMES: frozenset[str] = frozenset(
+    {
+        "BREAKOUT",
+        "FALSE_BREAKOUT",
+    }
+)
+_EXHAUSTION_REGIMES: frozenset[str] = frozenset(
+    {
+        "REVERSAL",
+        "WEAK_TREND",
+    }
+)
 
 
 # ── TransitionTarget ──────────────────────────────────────────────────────────
@@ -87,12 +112,12 @@ class TransitionTarget(str, Enum):
     to adjust attention, conviction, and risk appetite.
     """
 
-    TREND_FORMATION  = "TREND_FORMATION"   # consolidation → directional move
+    TREND_FORMATION = "TREND_FORMATION"  # consolidation → directional move
     TREND_EXHAUSTION = "TREND_EXHAUSTION"  # trend → reversal / range / weakness
-    VOL_EXPANSION    = "VOL_EXPANSION"     # low/normal vol → elevated/high/extreme
-    VOL_CONTRACTION  = "VOL_CONTRACTION"   # elevated vol → low/normal
-    BREAKOUT         = "BREAKOUT"          # range/compression → breakout
-    RANGE_FORMATION  = "RANGE_FORMATION"   # trend/volatile → range/compression
+    VOL_EXPANSION = "VOL_EXPANSION"  # low/normal vol → elevated/high/extreme
+    VOL_CONTRACTION = "VOL_CONTRACTION"  # elevated vol → low/normal
+    BREAKOUT = "BREAKOUT"  # range/compression → breakout
+    RANGE_FORMATION = "RANGE_FORMATION"  # trend/volatile → range/compression
 
 
 def infer_target(from_regime: str, to_regime: str) -> TransitionTarget:
@@ -159,23 +184,23 @@ class RegimeSnapshot:
     built from the continuous/ordinal fields only.
     """
 
-    instrument:           str   = ""
-    timestamp:            float = 0.0
-    atr:                  float = 0.0
-    spread:               float = 0.0
-    volatility:           float = 0.0
-    momentum:             float = 0.0   # -1..+1
-    trend_valid:          bool  = True
-    vol_state_rank:       int   = 1     # 0..4 ordinal
-    volatility_quality:   float = 0.5
+    instrument: str = ""
+    timestamp: float = 0.0
+    atr: float = 0.0
+    spread: float = 0.0
+    volatility: float = 0.0
+    momentum: float = 0.0  # -1..+1
+    trend_valid: bool = True
+    vol_state_rank: int = 1  # 0..4 ordinal
+    volatility_quality: float = 0.5
     microstructure_quality: float = 0.5
-    regime:               str   = ""   # current classified regime (label only)
+    regime: str = ""  # current classified regime (label only)
 
     @classmethod
     def from_observation(
         cls,
         instrument: str,
-        inp: object,          # SymbolObservationInput
+        inp: object,  # SymbolObservationInput
         now: float | None = None,
     ) -> RegimeSnapshot:
         """Construct from a ``SymbolObservationInput`` tick."""
@@ -188,29 +213,25 @@ class RegimeSnapshot:
             volatility=float(getattr(mkt, "volatility", 0.0)),
             momentum=float(getattr(mkt, "momentum", 0.0)),
             trend_valid=bool(getattr(mkt, "trend_valid", True)),
-            vol_state_rank=vol_state_rank(
-                getattr(inp, "volatility_state", "NORMAL")
-            ),
+            vol_state_rank=vol_state_rank(getattr(inp, "volatility_state", "NORMAL")),
             volatility_quality=float(getattr(inp, "volatility_quality", 0.5)),
-            microstructure_quality=float(
-                getattr(inp, "microstructure_quality", 0.5)
-            ),
+            microstructure_quality=float(getattr(inp, "microstructure_quality", 0.5)),
             regime=str(getattr(inp, "market_regime", "")),
         )
 
     def to_dict(self) -> dict:
         return {
-            "instrument":             self.instrument,
-            "timestamp":              round(self.timestamp, 3),
-            "atr":                    round(self.atr, 6),
-            "spread":                 round(self.spread, 6),
-            "volatility":             round(self.volatility, 6),
-            "momentum":               round(self.momentum, 4),
-            "trend_valid":            self.trend_valid,
-            "vol_state_rank":         self.vol_state_rank,
-            "volatility_quality":     round(self.volatility_quality, 4),
+            "instrument": self.instrument,
+            "timestamp": round(self.timestamp, 3),
+            "atr": round(self.atr, 6),
+            "spread": round(self.spread, 6),
+            "volatility": round(self.volatility, 6),
+            "momentum": round(self.momentum, 4),
+            "trend_valid": self.trend_valid,
+            "vol_state_rank": self.vol_state_rank,
+            "volatility_quality": round(self.volatility_quality, 4),
             "microstructure_quality": round(self.microstructure_quality, 4),
-            "regime":                 self.regime,
+            "regime": self.regime,
         }
 
     @classmethod
@@ -232,7 +253,7 @@ class RegimeSnapshot:
 
 # ── TransitionRecord ──────────────────────────────────────────────────────────
 
-_PRE_WINDOW = 10   # number of snapshots stored before each transition
+_PRE_WINDOW = 10  # number of snapshots stored before each transition
 
 
 @dataclass
@@ -245,16 +266,14 @@ class TransitionRecord:
     It is populated by the engine when the record is first created.
     """
 
-    record_id:       str                 = field(
-        default_factory=lambda: str(uuid.uuid4())[:12]
-    )
-    instrument:      str                 = ""
-    from_regime:     str                 = ""
-    to_regime:       str                 = ""
-    target:          TransitionTarget    = TransitionTarget.TREND_FORMATION
-    transition_at:   float               = field(default_factory=time.time)
-    pre_snapshots:   list[RegimeSnapshot] = field(default_factory=list)
-    feature_vector:  list[float]         = field(default_factory=list)
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    from_regime: str = ""
+    to_regime: str = ""
+    target: TransitionTarget = TransitionTarget.TREND_FORMATION
+    transition_at: float = field(default_factory=time.time)
+    pre_snapshots: list[RegimeSnapshot] = field(default_factory=list)
+    feature_vector: list[float] = field(default_factory=list)
 
     def age_hours(self, now: float | None = None) -> float:
         now = now if now is not None else time.time()
@@ -262,13 +281,13 @@ class TransitionRecord:
 
     def to_dict(self) -> dict:
         return {
-            "record_id":      self.record_id,
-            "instrument":     self.instrument,
-            "from_regime":    self.from_regime,
-            "to_regime":      self.to_regime,
-            "target":         self.target.value,
-            "transition_at":  round(self.transition_at, 3),
-            "pre_snapshots":  [s.to_dict() for s in self.pre_snapshots],
+            "record_id": self.record_id,
+            "instrument": self.instrument,
+            "from_regime": self.from_regime,
+            "to_regime": self.to_regime,
+            "target": self.target.value,
+            "transition_at": round(self.transition_at, 3),
+            "pre_snapshots": [s.to_dict() for s in self.pre_snapshots],
             "feature_vector": [round(x, 6) for x in self.feature_vector],
         }
 
@@ -288,8 +307,8 @@ class TransitionRecord:
 
 # ── TransitionMemory ──────────────────────────────────────────────────────────
 
-_DEFAULT_SNAPSHOT_DEPTH     = 200   # rolling snapshots per symbol
-_DEFAULT_MAX_TRANSITIONS    = 500   # maximum stored transition records per symbol
+_DEFAULT_SNAPSHOT_DEPTH = 200  # rolling snapshots per symbol
+_DEFAULT_MAX_TRANSITIONS = 500  # maximum stored transition records per symbol
 
 
 class TransitionMemory:
@@ -305,10 +324,10 @@ class TransitionMemory:
 
     def __init__(
         self,
-        snapshot_depth:   int = _DEFAULT_SNAPSHOT_DEPTH,
-        max_transitions:  int = _DEFAULT_MAX_TRANSITIONS,
+        snapshot_depth: int = _DEFAULT_SNAPSHOT_DEPTH,
+        max_transitions: int = _DEFAULT_MAX_TRANSITIONS,
     ) -> None:
-        self._depth          = snapshot_depth
+        self._depth = snapshot_depth
         self._max_transitions = max_transitions
         # instrument → deque[RegimeSnapshot]
         self._snapshots: dict[str, deque[RegimeSnapshot]] = {}
@@ -318,18 +337,16 @@ class TransitionMemory:
     # ── Ingestion ─────────────────────────────────────────────────────────
 
     def push_snapshot(self, instrument: str, snap: RegimeSnapshot) -> None:
-        q = self._snapshots.setdefault(
-            instrument, deque(maxlen=self._depth)
-        )
+        q = self._snapshots.setdefault(instrument, deque(maxlen=self._depth))
         q.append(snap)
 
     def record_transition(
         self,
-        instrument:  str,
+        instrument: str,
         from_regime: str,
-        to_regime:   str,
-        target:      TransitionTarget | None = None,
-        now:         float | None = None,
+        to_regime: str,
+        target: TransitionTarget | None = None,
+        now: float | None = None,
     ) -> TransitionRecord:
         """Record a confirmed regime change.
 
@@ -387,7 +404,7 @@ class TransitionMemory:
 
     def to_snapshot(self, instrument: str) -> dict:
         return {
-            "snapshots":   [s.to_dict() for s in self.snapshots(instrument)],
+            "snapshots": [s.to_dict() for s in self.snapshots(instrument)],
             "transitions": [r.to_dict() for r in self.transitions(instrument)],
         }
 
@@ -404,9 +421,9 @@ class TransitionMemory:
 
     def transition_statistics(
         self,
-        instrument:      str,
-        recency_lambda:  float = 1.0 / 30.0,   # decay rate: e^(-λ×age_days)
-        now:             float | None = None,
+        instrument: str,
+        recency_lambda: float = 1.0 / 30.0,  # decay rate: e^(-λ×age_days)
+        now: float | None = None,
     ) -> dict:
         """Return transition probability estimates for ``instrument``.
 
@@ -439,6 +456,7 @@ class TransitionMemory:
             List of instruments for which transition data exists.
         """
         import math as _math
+
         now = now if now is not None else __import__("time").time()
 
         records = self.transitions(instrument)
@@ -452,13 +470,13 @@ class TransitionMemory:
         from_regime_counts: dict[str, dict[str, int]] = {}
 
         for rec in records:
-            tv  = rec.target.value
-            age = max(0.0, now - rec.transition_at) / 86400.0   # age in days
-            w   = _math.exp(-recency_lambda * age)
+            tv = rec.target.value
+            age = max(0.0, now - rec.transition_at) / 86400.0  # age in days
+            w = _math.exp(-recency_lambda * age)
 
             target_counts[tv] += 1
             weighted_sums[tv] += w
-            total_weight       += w
+            total_weight += w
 
             fr = rec.from_regime or "UNKNOWN"
             if fr not in from_regime_counts:
@@ -470,18 +488,14 @@ class TransitionMemory:
         # ── Uniform probabilities ─────────────────────────────────────────
         n_targets = len(TransitionTarget)
         if total > 0:
-            target_probs = {
-                tv: round(count / total, 4)
-                for tv, count in target_counts.items()
-            }
+            target_probs = {tv: round(count / total, 4) for tv, count in target_counts.items()}
         else:
             target_probs = {t.value: round(1.0 / n_targets, 4) for t in TransitionTarget}
 
         # ── Recency-weighted probabilities ────────────────────────────────
         if total_weight > 1e-12:
             target_probs_weighted = {
-                tv: round(ws / total_weight, 4)
-                for tv, ws in weighted_sums.items()
+                tv: round(ws / total_weight, 4) for tv, ws in weighted_sums.items()
             }
         else:
             target_probs_weighted = {t.value: round(1.0 / n_targets, 4) for t in TransitionTarget}
@@ -491,16 +505,14 @@ class TransitionMemory:
         for fr, counts in from_regime_counts.items():
             row_total = sum(counts.values())
             if row_total > 0:
-                from_regime_probs[fr] = {
-                    tv: round(c / row_total, 4) for tv, c in counts.items()
-                }
+                from_regime_probs[fr] = {tv: round(c / row_total, 4) for tv, c in counts.items()}
 
         return {
-            "instrument":              instrument,
-            "total_transitions":       total,
-            "target_counts":           target_counts,
-            "target_probabilities":    target_probs,
+            "instrument": instrument,
+            "total_transitions": total,
+            "target_counts": target_counts,
+            "target_probabilities": target_probs,
             "target_probabilities_weighted": target_probs_weighted,
-            "from_regime_probs":       from_regime_probs,
-            "instruments_available":   list(self._transitions.keys()),
+            "from_regime_probs": from_regime_probs,
+            "instruments_available": list(self._transitions.keys()),
         }

@@ -57,11 +57,12 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+# minimum_quality_threshold and patience_score are re-exported from this module for callers.
 from trainer.qde.brain.patience.patience_scoring import (
     compute_no_action_reward,
     compute_realized_reward,
-    minimum_quality_threshold,   # re-export
-    patience_score,               # re-export
+    minimum_quality_threshold,
+    patience_score,
 )
 from trainer.qde.brain.patience.patience_types import (
     DEFAULT_QUALITY_THRESHOLD,
@@ -69,10 +70,6 @@ from trainer.qde.brain.patience.patience_types import (
     IMPULSIVE_CONVICTION_FLOOR,
     IMPULSIVE_URGENCY_THRESHOLD,
     OVERTRADING_RATIO_THRESHOLD,
-    THRESHOLD_STEP_DOWN,
-    THRESHOLD_STEP_UP,
-    MAX_QUALITY_THRESHOLD,
-    MIN_QUALITY_THRESHOLD,
     UNCERTAINTY_NO_TRADE_THRESHOLD,
     PatienceMetrics,
     PatienceState,
@@ -94,12 +91,12 @@ if TYPE_CHECKING:
 
 
 def evaluate_wait_decision(
-    cognitive_decision:     "CognitiveDecision",
-    opp_score:              "OpportunityScore",
-    quality_threshold:      float | None = None,
-    account_features:       "AccountFeatures | None" = None,
-    capital_unavailable:    bool = False,
-    now:                    float | None = None,
+    cognitive_decision: "CognitiveDecision",
+    opp_score: "OpportunityScore",
+    quality_threshold: float | None = None,
+    account_features: "AccountFeatures | None" = None,
+    capital_unavailable: bool = False,
+    now: float | None = None,
 ) -> WaitDecision:
     """Evaluate whether the system should wait rather than act.
 
@@ -300,8 +297,8 @@ class PatienceEngine:
 
     def __init__(
         self,
-        instrument:         str   = "",
-        initial_threshold:  float = DEFAULT_QUALITY_THRESHOLD,
+        instrument: str = "",
+        initial_threshold: float = DEFAULT_QUALITY_THRESHOLD,
     ) -> None:
         self._state = PatienceState(
             instrument=instrument,
@@ -322,11 +319,11 @@ class PatienceEngine:
 
     def evaluate_wait_decision(
         self,
-        cognitive_decision:     "CognitiveDecision",
-        opp_score:              "OpportunityScore",
-        account_features:       "AccountFeatures | None" = None,
-        capital_unavailable:    bool = False,
-        now:                    float | None = None,
+        cognitive_decision: "CognitiveDecision",
+        opp_score: "OpportunityScore",
+        account_features: "AccountFeatures | None" = None,
+        capital_unavailable: bool = False,
+        now: float | None = None,
     ) -> WaitDecision:
         """Evaluate whether to wait.  Uses the current adaptive threshold.
 
@@ -398,10 +395,10 @@ class PatienceEngine:
 
     def resolve_skipped_opportunity(
         self,
-        skip_id:        str,
-        outcome:        SkipOutcome,
-        pnl_estimate:   float = 0.0,
-        now:            float | None = None,
+        skip_id: str,
+        outcome: SkipOutcome,
+        pnl_estimate: float = 0.0,
+        now: float | None = None,
     ) -> SkippedOpportunity | None:
         """Resolve the outcome of a previously skipped opportunity.
 
@@ -478,10 +475,10 @@ class PatienceEngine:
         """Diagnostic snapshot of current patience state and metrics."""
         metrics = self.patience_score()
         return {
-            "state":            self._state.to_dict(),
-            "metrics":          metrics.to_dict(),
+            "state": self._state.to_dict(),
+            "metrics": metrics.to_dict(),
             "adaptive_threshold": round(self.minimum_quality_threshold(), 4),
-            "pending_skips":    len(self.pending_skips()),
+            "pending_skips": len(self.pending_skips()),
         }
 
     # ── Internal threshold adaptation ─────────────────────────────────────────

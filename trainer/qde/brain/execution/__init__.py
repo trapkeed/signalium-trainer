@@ -89,20 +89,6 @@ Design rules
 
 from __future__ import annotations
 
-# ── Slippage predictor ────────────────────────────────────────────────────────
-from trainer.qde.brain.execution.slippage_predictor import (
-    SlippageEstimate,
-    SlippageInput,
-    SlippagePredictor,
-)
-
-# ── Fill probability engine ───────────────────────────────────────────────────
-from trainer.qde.brain.execution.fill_probability_engine import (
-    FillContext,
-    FillProbabilityEngine,
-    FillProbabilitySignal,
-)
-
 # ── Execution quality engine ──────────────────────────────────────────────────
 from trainer.qde.brain.execution.execution_quality_engine import (
     ExecutionConditions,
@@ -112,6 +98,20 @@ from trainer.qde.brain.execution.execution_quality_engine import (
     ExecutionQualityEngine,
     ExecutionQualitySignal,
     ExecutionRecord,
+)
+
+# ── Fill probability engine ───────────────────────────────────────────────────
+from trainer.qde.brain.execution.fill_probability_engine import (
+    FillContext,
+    FillProbabilityEngine,
+    FillProbabilitySignal,
+)
+
+# ── Slippage predictor ────────────────────────────────────────────────────────
+from trainer.qde.brain.execution.slippage_predictor import (
+    SlippageEstimate,
+    SlippageInput,
+    SlippagePredictor,
 )
 
 __all__ = [

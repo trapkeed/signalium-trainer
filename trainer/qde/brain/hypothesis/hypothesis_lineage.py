@@ -36,7 +36,6 @@ Design rules
 from __future__ import annotations
 
 import time
-import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -44,12 +43,13 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_types import BeliefDirection
 
 # Resolution states a lineage node can reach
-ResolutionState = str   # "ACTIVE" | "INVALIDATED" | "CONFIRMED" | "PROMOTED" | "EXPIRED" | "RETIRED"
+ResolutionState = str  # "ACTIVE" | "INVALIDATED" | "CONFIRMED" | "PROMOTED" | "EXPIRED" | "RETIRED"
 
 
 # ── Node ──────────────────────────────────────────────────────────────────────
@@ -73,50 +73,50 @@ class LineageNode:
         of a set, or if the hypothesis resolved before being added to a set).
     """
 
-    hypothesis_id:             str
-    thesis:                    str
-    direction:                 BeliefDirection
-    parent_id:                 str | None
-    children:                  list[str]              = field(default_factory=list)
-    set_id:                    str | None             = None
-    generation:                int                    = 0
-    created_at:                float                  = field(default_factory=time.time)
-    resolved_at:               float | None           = None
-    resolution:                ResolutionState        = "ACTIVE"
-    probability_at_resolution: float                  = 0.0
-    confidence_at_resolution:  float                  = 0.0
+    hypothesis_id: str
+    thesis: str
+    direction: BeliefDirection
+    parent_id: str | None
+    children: list[str] = field(default_factory=list)
+    set_id: str | None = None
+    generation: int = 0
+    created_at: float = field(default_factory=time.time)
+    resolved_at: float | None = None
+    resolution: ResolutionState = "ACTIVE"
+    probability_at_resolution: float = 0.0
+    confidence_at_resolution: float = 0.0
 
     def is_terminal(self) -> bool:
         return self.resolution != "ACTIVE"
 
     def resolve(
         self,
-        resolution:                ResolutionState,
+        resolution: ResolutionState,
         probability_at_resolution: float = 0.0,
-        confidence_at_resolution:  float = 0.0,
-        now:                       float | None = None,
+        confidence_at_resolution: float = 0.0,
+        now: float | None = None,
     ) -> None:
         if self.is_terminal():
             return
-        self.resolution                = resolution
-        self.resolved_at               = now if now is not None else time.time()
+        self.resolution = resolution
+        self.resolved_at = now if now is not None else time.time()
         self.probability_at_resolution = probability_at_resolution
-        self.confidence_at_resolution  = confidence_at_resolution
+        self.confidence_at_resolution = confidence_at_resolution
 
     def to_dict(self) -> dict:
         return {
-            "hypothesis_id":             self.hypothesis_id,
-            "thesis":                    self.thesis,
-            "direction":                 self.direction.value,
-            "parent_id":                 self.parent_id,
-            "children":                  list(self.children),
-            "set_id":                    self.set_id,
-            "generation":                self.generation,
-            "created_at":                round(self.created_at, 3),
-            "resolved_at":               round(self.resolved_at, 3) if self.resolved_at else None,
-            "resolution":                self.resolution,
+            "hypothesis_id": self.hypothesis_id,
+            "thesis": self.thesis,
+            "direction": self.direction.value,
+            "parent_id": self.parent_id,
+            "children": list(self.children),
+            "set_id": self.set_id,
+            "generation": self.generation,
+            "created_at": round(self.created_at, 3),
+            "resolved_at": round(self.resolved_at, 3) if self.resolved_at else None,
+            "resolution": self.resolution,
             "probability_at_resolution": round(self.probability_at_resolution, 4),
-            "confidence_at_resolution":  round(self.confidence_at_resolution, 4),
+            "confidence_at_resolution": round(self.confidence_at_resolution, 4),
         }
 
     @classmethod
@@ -177,12 +177,12 @@ class HypothesisLineage:
     def register(
         self,
         hypothesis_id: str,
-        thesis:        str,
-        direction:     BeliefDirection,
-        parent_id:     str | None   = None,
-        set_id:        str | None   = None,
-        instrument:    str          = "",
-        now:           float | None = None,
+        thesis: str,
+        direction: BeliefDirection,
+        parent_id: str | None = None,
+        set_id: str | None = None,
+        instrument: str = "",
+        now: float | None = None,
     ) -> LineageNode:
         """Register a hypothesis as a lineage node.
 
@@ -231,12 +231,12 @@ class HypothesisLineage:
 
     def spawn_child(
         self,
-        parent_id:      str,
-        child_id:       str,
-        child_thesis:   str,
+        parent_id: str,
+        child_id: str,
+        child_thesis: str,
         child_direction: BeliefDirection,
-        set_id:         str | None   = None,
-        now:            float | None = None,
+        set_id: str | None = None,
+        now: float | None = None,
     ) -> LineageNode | None:
         """Register ``child_id`` as a child of ``parent_id``.
 
@@ -251,19 +251,23 @@ class HypothesisLineage:
             logger.warning(f"[Lineage] spawn_child: cycle detected {parent_id}→{child_id}")
             return None
         return self.register(
-            child_id, child_thesis, child_direction,
-            parent_id=parent_id, set_id=set_id, now=now,
+            child_id,
+            child_thesis,
+            child_direction,
+            parent_id=parent_id,
+            set_id=set_id,
+            now=now,
         )
 
     # ── Resolution ────────────────────────────────────────────────────────
 
     def resolve(
         self,
-        hypothesis_id:             str,
-        resolution:                ResolutionState,
-        probability_at_resolution: float       = 0.0,
-        confidence_at_resolution:  float       = 0.0,
-        now:                       float | None = None,
+        hypothesis_id: str,
+        resolution: ResolutionState,
+        probability_at_resolution: float = 0.0,
+        confidence_at_resolution: float = 0.0,
+        now: float | None = None,
     ) -> bool:
         """Mark a hypothesis as resolved.
 
@@ -321,10 +325,7 @@ class HypothesisLineage:
         parent = self._nodes.get(node.parent_id)
         if parent is None:
             return []
-        return [
-            self._nodes[c] for c in parent.children
-            if c != hypothesis_id and c in self._nodes
-        ]
+        return [self._nodes[c] for c in parent.children if c != hypothesis_id and c in self._nodes]
 
     def roots(self, instrument: str = "") -> list[LineageNode]:
         """All root nodes (generation 0), optionally filtered by instrument."""
@@ -339,7 +340,7 @@ class HypothesisLineage:
         if instrument:
             # filter by set_id prefix or registration order — we check parent lineage
             root_ids = set(self._roots_by_instrument.get(instrument, []))
-            result   = []
+            result = []
             for n in nodes:
                 path = self.lineage_path(n.hypothesis_id)
                 if path and path[0].hypothesis_id in root_ids:
@@ -357,9 +358,7 @@ class HypothesisLineage:
     def to_snapshot(self) -> dict:
         return {
             "nodes": [n.to_dict() for n in self._nodes.values()],
-            "roots_by_instrument": {
-                k: list(v) for k, v in self._roots_by_instrument.items()
-            },
+            "roots_by_instrument": {k: list(v) for k, v in self._roots_by_instrument.items()},
         }
 
     def load_snapshot(self, data: dict) -> None:

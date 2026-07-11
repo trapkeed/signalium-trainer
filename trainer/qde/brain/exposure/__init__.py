@@ -95,19 +95,19 @@ Design rules
 
 from __future__ import annotations
 
+# ── Cluster engine ────────────────────────────────────────────────────────────
+from trainer.qde.brain.exposure.exposure_cluster_engine import (
+    ExposureCluster,
+    ExposureClusterEngine,
+    PositionExposure,
+)
+
 # ── Memory / data models ──────────────────────────────────────────────────────
 from trainer.qde.brain.exposure.exposure_memory import (
     ExposureMemory,
     ExposureObservation,
     ExposureOutcome,
     ExposureRecord,
-)
-
-# ── Cluster engine ────────────────────────────────────────────────────────────
-from trainer.qde.brain.exposure.exposure_cluster_engine import (
-    ExposureCluster,
-    ExposureClusterEngine,
-    PositionExposure,
 )
 
 # ── Saturation engine ─────────────────────────────────────────────────────────

@@ -90,27 +90,27 @@ from typing import Deque
 # ── Timeframe candle limits ───────────────────────────────────────────────────
 
 TIMEFRAME_CANDLE_LIMITS: dict[str, int] = {
-    "M1":  500,
-    "M5":  300,
+    "M1": 500,
+    "M5": 300,
     "M15": 200,
-    "H1":  150,
-    "H4":  100,
+    "H1": 150,
+    "H4": 100,
     # Aliases
-    "1m":  500,
-    "5m":  300,
+    "1m": 500,
+    "5m": 300,
     "15m": 200,
-    "1h":  150,
-    "4h":  100,
-    "1M":  500,
-    "5M":  300,
+    "1h": 150,
+    "4h": 100,
+    "1M": 500,
+    "5M": 300,
     "15M": 200,
-    "1H":  150,
-    "4H":  100,
+    "1H": 150,
+    "4H": 100,
 }
 
-_DEFAULT_CANDLE_LIMIT    = 200   # for unrecognised timeframes
-_DEFAULT_EVOL_DEPTH      = 500   # volatility / trend / spread evolution
-_DEFAULT_EVENTS_DEPTH    = 200   # discrete events (sweeps, breakouts, …)
+_DEFAULT_CANDLE_LIMIT = 200  # for unrecognised timeframes
+_DEFAULT_EVOL_DEPTH = 500  # volatility / trend / spread evolution
+_DEFAULT_EVENTS_DEPTH = 200  # discrete events (sweeps, breakouts, …)
 
 
 # ── Observation record types ──────────────────────────────────────────────────
@@ -124,13 +124,13 @@ class CandleRecord:
     (e.g. ``"M1"``, ``"H1"``).  ``timestamp`` is the bar-open Unix time.
     """
 
-    timeframe:  str   = "M1"
-    timestamp:  float = 0.0
-    open:       float = 0.0
-    high:       float = 0.0
-    low:        float = 0.0
-    close:      float = 0.0
-    volume:     float = 0.0
+    timeframe: str = "M1"
+    timestamp: float = 0.0
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    close: float = 0.0
+    volume: float = 0.0
 
     @property
     def is_up(self) -> bool:
@@ -148,11 +148,11 @@ class CandleRecord:
         return {
             "timeframe": self.timeframe,
             "timestamp": round(self.timestamp, 3),
-            "open":      round(self.open, 6),
-            "high":      round(self.high, 6),
-            "low":       round(self.low, 6),
-            "close":     round(self.close, 6),
-            "volume":    round(self.volume, 4),
+            "open": round(self.open, 6),
+            "high": round(self.high, 6),
+            "low": round(self.low, 6),
+            "close": round(self.close, 6),
+            "volume": round(self.volume, 4),
         }
 
     @classmethod
@@ -179,20 +179,20 @@ class VolatilityPoint:
     ``volatility_quality``   — 0-1 quality / confidence in the reading.
     """
 
-    timestamp:          float = 0.0
-    atr:                float = 0.0
-    spread:             float = 0.0
-    volatility:         float = 0.0
-    vol_state:          str   = "NORMAL"
+    timestamp: float = 0.0
+    atr: float = 0.0
+    spread: float = 0.0
+    volatility: float = 0.0
+    vol_state: str = "NORMAL"
     volatility_quality: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "timestamp":          round(self.timestamp, 3),
-            "atr":                round(self.atr, 6),
-            "spread":             round(self.spread, 6),
-            "volatility":         round(self.volatility, 4),
-            "vol_state":          self.vol_state,
+            "timestamp": round(self.timestamp, 3),
+            "atr": round(self.atr, 6),
+            "spread": round(self.spread, 6),
+            "volatility": round(self.volatility, 4),
+            "vol_state": self.vol_state,
             "volatility_quality": round(self.volatility_quality, 4),
         }
 
@@ -222,22 +222,22 @@ class LiquidityEvent:
                     cluster size).
     """
 
-    event_id:   str   = field(default_factory=lambda: str(uuid.uuid4())[:10])
-    timestamp:  float = 0.0
-    kind:       str   = "SWEEP"
-    level:      float = 0.0
-    direction:  int   = 0
-    bars_ago:   int   = 0
-    magnitude:  float = 0.5
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:10])
+    timestamp: float = 0.0
+    kind: str = "SWEEP"
+    level: float = 0.0
+    direction: int = 0
+    bars_ago: int = 0
+    magnitude: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "event_id":  self.event_id,
+            "event_id": self.event_id,
             "timestamp": round(self.timestamp, 3),
-            "kind":      self.kind,
-            "level":     round(self.level, 6),
+            "kind": self.kind,
+            "level": round(self.level, 6),
             "direction": self.direction,
-            "bars_ago":  self.bars_ago,
+            "bars_ago": self.bars_ago,
             "magnitude": round(self.magnitude, 4),
         }
 
@@ -267,20 +267,20 @@ class TrendState:
                       trend structurally valid.
     """
 
-    timestamp:   float = 0.0
-    direction:   int   = 0
-    maturity:    str   = "NONE"
-    strength:    float = 0.0
-    momentum:    float = 0.0
-    trend_valid: bool  = False
+    timestamp: float = 0.0
+    direction: int = 0
+    maturity: str = "NONE"
+    strength: float = 0.0
+    momentum: float = 0.0
+    trend_valid: bool = False
 
     def to_dict(self) -> dict:
         return {
-            "timestamp":   round(self.timestamp, 3),
-            "direction":   self.direction,
-            "maturity":    self.maturity,
-            "strength":    round(self.strength, 4),
-            "momentum":    round(self.momentum, 4),
+            "timestamp": round(self.timestamp, 3),
+            "direction": self.direction,
+            "maturity": self.maturity,
+            "strength": round(self.strength, 4),
+            "momentum": round(self.momentum, 4),
             "trend_valid": self.trend_valid,
         }
 
@@ -312,21 +312,21 @@ class FailedBreakout:
                                trap.
     """
 
-    event_id:             str   = field(default_factory=lambda: str(uuid.uuid4())[:10])
-    timestamp:            float = 0.0
-    level:                float = 0.0
-    direction:            int   = 1
-    bars_until_reversal:  int   = 1
-    wick_body_ratio:      float = 1.0
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:10])
+    timestamp: float = 0.0
+    level: float = 0.0
+    direction: int = 1
+    bars_until_reversal: int = 1
+    wick_body_ratio: float = 1.0
 
     def to_dict(self) -> dict:
         return {
-            "event_id":            self.event_id,
-            "timestamp":           round(self.timestamp, 3),
-            "level":               round(self.level, 6),
-            "direction":           self.direction,
+            "event_id": self.event_id,
+            "timestamp": round(self.timestamp, 3),
+            "level": round(self.level, 6),
+            "direction": self.direction,
             "bars_until_reversal": self.bars_until_reversal,
-            "wick_body_ratio":     round(self.wick_body_ratio, 4),
+            "wick_body_ratio": round(self.wick_body_ratio, 4),
         }
 
     @classmethod
@@ -349,15 +349,15 @@ class SessionTransition:
     ``to_session``    — the new session label.
     """
 
-    timestamp:    float = 0.0
-    from_session: str   = ""
-    to_session:   str   = ""
+    timestamp: float = 0.0
+    from_session: str = ""
+    to_session: str = ""
 
     def to_dict(self) -> dict:
         return {
-            "timestamp":    round(self.timestamp, 3),
+            "timestamp": round(self.timestamp, 3),
             "from_session": self.from_session,
-            "to_session":   self.to_session,
+            "to_session": self.to_session,
         }
 
     @classmethod
@@ -379,16 +379,16 @@ class SpreadPoint:
     ``microstructure_quality`` — 0-1 from the MIE fill-quality signal.
     """
 
-    timestamp:             float = 0.0
-    spread_pips:           float = 0.0
-    spread_normalized:     float = 0.5
+    timestamp: float = 0.0
+    spread_pips: float = 0.0
+    spread_normalized: float = 0.5
     microstructure_quality: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "timestamp":              round(self.timestamp, 3),
-            "spread_pips":            round(self.spread_pips, 6),
-            "spread_normalized":      round(self.spread_normalized, 4),
+            "timestamp": round(self.timestamp, 3),
+            "spread_pips": round(self.spread_pips, 6),
+            "spread_normalized": round(self.spread_normalized, 4),
             "microstructure_quality": round(self.microstructure_quality, 4),
         }
 
@@ -413,23 +413,23 @@ class CorrelationShift:
     ``significance``        — 0-1 estimated significance of the shift.
     """
 
-    event_id:           str   = field(default_factory=lambda: str(uuid.uuid4())[:10])
-    timestamp:          float = 0.0
-    asset_pair:         str   = ""
+    event_id: str = field(default_factory=lambda: str(uuid.uuid4())[:10])
+    timestamp: float = 0.0
+    asset_pair: str = ""
     correlation_before: float = 0.0
-    correlation_after:  float = 0.0
-    delta:              float = 0.0
-    significance:       float = 0.0
+    correlation_after: float = 0.0
+    delta: float = 0.0
+    significance: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "event_id":           self.event_id,
-            "timestamp":          round(self.timestamp, 3),
-            "asset_pair":         self.asset_pair,
+            "event_id": self.event_id,
+            "timestamp": round(self.timestamp, 3),
+            "asset_pair": self.asset_pair,
             "correlation_before": round(self.correlation_before, 4),
-            "correlation_after":  round(self.correlation_after, 4),
-            "delta":              round(self.delta, 4),
-            "significance":       round(self.significance, 4),
+            "correlation_after": round(self.correlation_after, 4),
+            "delta": round(self.delta, 4),
+            "significance": round(self.significance, 4),
         }
 
     @classmethod
@@ -447,28 +447,36 @@ class CorrelationShift:
 
 # ── Event kind constants ──────────────────────────────────────────────────────
 
-KIND_CANDLE      = "candle"
-KIND_VOLATILITY  = "volatility"
-KIND_LIQUIDITY   = "liquidity"
-KIND_TREND       = "trend"
-KIND_BREAKOUT    = "failed_breakout"
-KIND_SESSION     = "session_transition"
-KIND_SPREAD      = "spread"
+KIND_CANDLE = "candle"
+KIND_VOLATILITY = "volatility"
+KIND_LIQUIDITY = "liquidity"
+KIND_TREND = "trend"
+KIND_BREAKOUT = "failed_breakout"
+KIND_SESSION = "session_transition"
+KIND_SPREAD = "spread"
 KIND_CORRELATION = "correlation"
 
-_ALL_KINDS = frozenset({
-    KIND_CANDLE, KIND_VOLATILITY, KIND_LIQUIDITY, KIND_TREND,
-    KIND_BREAKOUT, KIND_SESSION, KIND_SPREAD, KIND_CORRELATION,
-})
+_ALL_KINDS = frozenset(
+    {
+        KIND_CANDLE,
+        KIND_VOLATILITY,
+        KIND_LIQUIDITY,
+        KIND_TREND,
+        KIND_BREAKOUT,
+        KIND_SESSION,
+        KIND_SPREAD,
+        KIND_CORRELATION,
+    }
+)
 
 # Per-symbol state
-_SymbolCandles      = dict[str, Deque[CandleRecord]]      # timeframe → deque
-_SymbolVolatility   = Deque[VolatilityPoint]
-_SymbolLiquidity    = Deque[LiquidityEvent]
-_SymbolTrend        = Deque[TrendState]
-_SymbolBreakouts    = Deque[FailedBreakout]
-_SymbolSessions     = Deque[SessionTransition]
-_SymbolSpread       = Deque[SpreadPoint]
+_SymbolCandles = dict[str, Deque[CandleRecord]]  # timeframe → deque
+_SymbolVolatility = Deque[VolatilityPoint]
+_SymbolLiquidity = Deque[LiquidityEvent]
+_SymbolTrend = Deque[TrendState]
+_SymbolBreakouts = Deque[FailedBreakout]
+_SymbolSessions = Deque[SessionTransition]
+_SymbolSpread = Deque[SpreadPoint]
 _SymbolCorrelations = Deque[CorrelationShift]
 
 
@@ -504,25 +512,25 @@ class WorkingMemoryStore:
 
     def __init__(
         self,
-        candle_limits:     dict[str, int] | None = None,
-        evol_depth:        int = _DEFAULT_EVOL_DEPTH,
-        events_depth:      int = _DEFAULT_EVENTS_DEPTH,
-        default_tf_limit:  int = _DEFAULT_CANDLE_LIMIT,
+        candle_limits: dict[str, int] | None = None,
+        evol_depth: int = _DEFAULT_EVOL_DEPTH,
+        events_depth: int = _DEFAULT_EVENTS_DEPTH,
+        default_tf_limit: int = _DEFAULT_CANDLE_LIMIT,
     ) -> None:
-        self._candle_limits   = {**TIMEFRAME_CANDLE_LIMITS, **(candle_limits or {})}
-        self._evol_depth      = max(1, evol_depth)
-        self._events_depth    = max(1, events_depth)
+        self._candle_limits = {**TIMEFRAME_CANDLE_LIMITS, **(candle_limits or {})}
+        self._evol_depth = max(1, evol_depth)
+        self._events_depth = max(1, events_depth)
         self._default_tf_limit = max(1, default_tf_limit)
 
         # per-instrument state
-        self._candles:      dict[str, dict[str, Deque[CandleRecord]]]    = {}
-        self._volatility:   dict[str, Deque[VolatilityPoint]]            = {}
-        self._liquidity:    dict[str, Deque[LiquidityEvent]]             = {}
-        self._trend:        dict[str, Deque[TrendState]]                 = {}
-        self._breakouts:    dict[str, Deque[FailedBreakout]]             = {}
-        self._sessions:     dict[str, Deque[SessionTransition]]          = {}
-        self._spread:       dict[str, Deque[SpreadPoint]]                = {}
-        self._correlations: dict[str, Deque[CorrelationShift]]           = {}
+        self._candles: dict[str, dict[str, Deque[CandleRecord]]] = {}
+        self._volatility: dict[str, Deque[VolatilityPoint]] = {}
+        self._liquidity: dict[str, Deque[LiquidityEvent]] = {}
+        self._trend: dict[str, Deque[TrendState]] = {}
+        self._breakouts: dict[str, Deque[FailedBreakout]] = {}
+        self._sessions: dict[str, Deque[SessionTransition]] = {}
+        self._spread: dict[str, Deque[SpreadPoint]] = {}
+        self._correlations: dict[str, Deque[CorrelationShift]] = {}
 
     # ── Write ─────────────────────────────────────────────────────────────
 
@@ -530,9 +538,9 @@ class WorkingMemoryStore:
         self,
         instrument: str,
         event_kind: str,
-        payload:    dict,
-        timeframe:  str | None = None,
-        now:        float | None = None,
+        payload: dict,
+        timeframe: str | None = None,
+        now: float | None = None,
     ) -> None:
         """Append one observation to the appropriate stream.
 
@@ -567,63 +575,49 @@ class WorkingMemoryStore:
             q.append(rec)
 
         elif kind == KIND_VOLATILITY:
-            q = self._volatility.setdefault(
-                instrument, deque(maxlen=self._evol_depth)
-            )
+            q = self._volatility.setdefault(instrument, deque(maxlen=self._evol_depth))
             rec = VolatilityPoint.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_LIQUIDITY:
-            q = self._liquidity.setdefault(
-                instrument, deque(maxlen=self._events_depth)
-            )
+            q = self._liquidity.setdefault(instrument, deque(maxlen=self._events_depth))
             rec = LiquidityEvent.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_TREND:
-            q = self._trend.setdefault(
-                instrument, deque(maxlen=self._evol_depth)
-            )
+            q = self._trend.setdefault(instrument, deque(maxlen=self._evol_depth))
             rec = TrendState.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_BREAKOUT:
-            q = self._breakouts.setdefault(
-                instrument, deque(maxlen=self._events_depth)
-            )
+            q = self._breakouts.setdefault(instrument, deque(maxlen=self._events_depth))
             rec = FailedBreakout.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_SESSION:
-            q = self._sessions.setdefault(
-                instrument, deque(maxlen=self._events_depth)
-            )
+            q = self._sessions.setdefault(instrument, deque(maxlen=self._events_depth))
             rec = SessionTransition.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_SPREAD:
-            q = self._spread.setdefault(
-                instrument, deque(maxlen=self._evol_depth)
-            )
+            q = self._spread.setdefault(instrument, deque(maxlen=self._evol_depth))
             rec = SpreadPoint.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
             q.append(rec)
 
         elif kind == KIND_CORRELATION:
-            q = self._correlations.setdefault(
-                instrument, deque(maxlen=self._events_depth)
-            )
+            q = self._correlations.setdefault(instrument, deque(maxlen=self._events_depth))
             rec = CorrelationShift.from_dict(payload)  # type: ignore[assignment]
             if rec.timestamp == 0.0:
                 rec.timestamp = now
@@ -634,17 +628,17 @@ class WorkingMemoryStore:
     def candles(
         self,
         instrument: str,
-        timeframe:  str,
-        n:          int | None = None,
+        timeframe: str,
+        n: int | None = None,
     ) -> list[CandleRecord]:
         """Return up to ``n`` most recent candles (oldest first).
 
         ``n=None`` returns the full buffer.
         """
-        tf    = _normalize_timeframe(timeframe)
+        tf = _normalize_timeframe(timeframe)
         store = self._candles.get(instrument, {})
-        q     = store.get(tf, deque())
-        bars  = list(q)
+        q = store.get(tf, deque())
+        bars = list(q)
         if n is not None:
             bars = bars[-n:]
         return bars
@@ -653,8 +647,8 @@ class WorkingMemoryStore:
         self,
         instrument: str,
         event_kind: str,
-        n:          int  = 20,
-        since:      float | None = None,
+        n: int = 20,
+        since: float | None = None,
     ) -> list[dict]:
         """Return up to ``n`` most recent observations of ``event_kind``.
 
@@ -724,7 +718,7 @@ class WorkingMemoryStore:
         return sorted(self._candles.get(instrument, {}).keys())
 
     def candle_count(self, instrument: str, timeframe: str) -> int:
-        tf    = _normalize_timeframe(timeframe)
+        tf = _normalize_timeframe(timeframe)
         store = self._candles.get(instrument, {})
         return len(store.get(tf, deque()))
 
@@ -755,13 +749,13 @@ class WorkingMemoryStore:
             tf_candles[tf] = [c.to_dict() for c in q]
 
         return {
-            "candles":      tf_candles,
-            "volatility":   [r.to_dict() for r in self._volatility.get(instrument, [])],
-            "liquidity":    [r.to_dict() for r in self._liquidity.get(instrument, [])],
-            "trend":        [r.to_dict() for r in self._trend.get(instrument, [])],
-            "breakouts":    [r.to_dict() for r in self._breakouts.get(instrument, [])],
-            "sessions":     [r.to_dict() for r in self._sessions.get(instrument, [])],
-            "spread":       [r.to_dict() for r in self._spread.get(instrument, [])],
+            "candles": tf_candles,
+            "volatility": [r.to_dict() for r in self._volatility.get(instrument, [])],
+            "liquidity": [r.to_dict() for r in self._liquidity.get(instrument, [])],
+            "trend": [r.to_dict() for r in self._trend.get(instrument, [])],
+            "breakouts": [r.to_dict() for r in self._breakouts.get(instrument, [])],
+            "sessions": [r.to_dict() for r in self._sessions.get(instrument, [])],
+            "spread": [r.to_dict() for r in self._spread.get(instrument, [])],
             "correlations": [r.to_dict() for r in self._correlations.get(instrument, [])],
         }
 
@@ -790,24 +784,30 @@ class WorkingMemoryStore:
                     pass
             store[instrument] = q2
 
-        _load(self._volatility,   "volatility",   VolatilityPoint,   self._evol_depth)
-        _load(self._liquidity,    "liquidity",     LiquidityEvent,    self._events_depth)
-        _load(self._trend,        "trend",         TrendState,        self._evol_depth)
-        _load(self._breakouts,    "breakouts",     FailedBreakout,    self._events_depth)
-        _load(self._sessions,     "sessions",      SessionTransition, self._events_depth)
-        _load(self._spread,       "spread",        SpreadPoint,       self._evol_depth)
-        _load(self._correlations, "correlations",  CorrelationShift,  self._events_depth)
+        _load(self._volatility, "volatility", VolatilityPoint, self._evol_depth)
+        _load(self._liquidity, "liquidity", LiquidityEvent, self._events_depth)
+        _load(self._trend, "trend", TrendState, self._evol_depth)
+        _load(self._breakouts, "breakouts", FailedBreakout, self._events_depth)
+        _load(self._sessions, "sessions", SessionTransition, self._events_depth)
+        _load(self._spread, "spread", SpreadPoint, self._evol_depth)
+        _load(self._correlations, "correlations", CorrelationShift, self._events_depth)
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 _TF_NORMALIZER: dict[str, str] = {
-    "1M": "M1", "1m": "M1",
-    "5M": "M5", "5m": "M5",
-    "15M": "M15", "15m": "M15",
-    "1H": "H1", "1h": "H1",
-    "4H": "H4", "4h": "H4",
-    "1D": "D1", "1d": "D1",
+    "1M": "M1",
+    "1m": "M1",
+    "5M": "M5",
+    "5m": "M5",
+    "15M": "M15",
+    "15m": "M15",
+    "1H": "H1",
+    "1h": "H1",
+    "4H": "H4",
+    "4h": "H4",
+    "1D": "D1",
+    "1d": "D1",
     "D": "D1",
 }
 

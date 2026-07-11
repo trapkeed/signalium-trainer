@@ -44,6 +44,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_models import Hypothesis
@@ -52,16 +53,16 @@ from trainer.qde.brain.brain_types import BeliefDirection
 # ── Taxonomy ──────────────────────────────────────────────────────────────────
 
 FailureMode = Literal[
-    "CONTRADICTED",    # Direct contradicting evidence exceeded support
-    "REGIME_SHIFT",    # Market regime changed, invalidating the thesis
-    "AGED_OUT",        # Hypothesis expired without resolving
-    "SUPERSEDED",      # A competing scenario was promoted / confirmed
-    "STOP_HIT",        # Price hit stop-loss level that disproves the thesis
-    "UNKNOWN",         # Caller did not provide enough context to classify
+    "CONTRADICTED",  # Direct contradicting evidence exceeded support
+    "REGIME_SHIFT",  # Market regime changed, invalidating the thesis
+    "AGED_OUT",  # Hypothesis expired without resolving
+    "SUPERSEDED",  # A competing scenario was promoted / confirmed
+    "STOP_HIT",  # Price hit stop-loss level that disproves the thesis
+    "UNKNOWN",  # Caller did not provide enough context to classify
 ]
 
-_MAX_RECORDS_PER_KEY = 200    # per (instrument, direction) history cap
-_GLOBAL_MAX          = 1000   # total records cap
+_MAX_RECORDS_PER_KEY = 200  # per (instrument, direction) history cap
+_GLOBAL_MAX = 1000  # total records cap
 
 
 # ── Record ────────────────────────────────────────────────────────────────────
@@ -88,44 +89,45 @@ class HypothesisFailureRecord:
         Suitable for storage in long-term memory or operator inspection.
     """
 
-    failure_id:               str          = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    hypothesis_id:            str          = ""
-    set_id:                   str | None   = None
-    instrument:               str          = ""
-    thesis:                   str          = ""
-    direction:                BeliefDirection = BeliefDirection.NEUTRAL
-    formed_regime:            str          = ""
-    confidence_at_failure:    float        = 0.0
-    reinforcement_count:      int          = 0
-    supporting_evidence:      list[str]    = field(default_factory=list)
-    contradicting_evidence:   list[str]    = field(default_factory=list)
-    invalidation_reason:      str          = ""
-    failure_mode:             FailureMode  = "UNKNOWN"
-    failed_at:                float        = field(default_factory=time.time)
+    failure_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    hypothesis_id: str = ""
+    set_id: str | None = None
+    instrument: str = ""
+    thesis: str = ""
+    direction: BeliefDirection = BeliefDirection.NEUTRAL
+    formed_regime: str = ""
+    confidence_at_failure: float = 0.0
+    reinforcement_count: int = 0
+    supporting_evidence: list[str] = field(default_factory=list)
+    contradicting_evidence: list[str] = field(default_factory=list)
+    invalidation_reason: str = ""
+    failure_mode: FailureMode = "UNKNOWN"
+    failed_at: float = field(default_factory=time.time)
     market_direction_observed: BeliefDirection | None = None
-    winning_scenario_thesis:  str | None   = None
-    lesson:                   str          = ""
+    winning_scenario_thesis: str | None = None
+    lesson: str = ""
 
     def to_dict(self) -> dict:
         return {
-            "failure_id":               self.failure_id,
-            "hypothesis_id":            self.hypothesis_id,
-            "set_id":                   self.set_id,
-            "instrument":               self.instrument,
-            "thesis":                   self.thesis,
-            "direction":                self.direction.value,
-            "formed_regime":            self.formed_regime,
-            "confidence_at_failure":    round(self.confidence_at_failure, 4),
-            "reinforcement_count":      self.reinforcement_count,
-            "supporting_evidence":      self.supporting_evidence[-5:],
-            "contradicting_evidence":   self.contradicting_evidence[-5:],
-            "invalidation_reason":      self.invalidation_reason,
-            "failure_mode":             self.failure_mode,
-            "failed_at":                round(self.failed_at, 3),
-            "market_direction_observed": self.market_direction_observed.value
-                                         if self.market_direction_observed else None,
-            "winning_scenario_thesis":  self.winning_scenario_thesis,
-            "lesson":                   self.lesson,
+            "failure_id": self.failure_id,
+            "hypothesis_id": self.hypothesis_id,
+            "set_id": self.set_id,
+            "instrument": self.instrument,
+            "thesis": self.thesis,
+            "direction": self.direction.value,
+            "formed_regime": self.formed_regime,
+            "confidence_at_failure": round(self.confidence_at_failure, 4),
+            "reinforcement_count": self.reinforcement_count,
+            "supporting_evidence": self.supporting_evidence[-5:],
+            "contradicting_evidence": self.contradicting_evidence[-5:],
+            "invalidation_reason": self.invalidation_reason,
+            "failure_mode": self.failure_mode,
+            "failed_at": round(self.failed_at, 3),
+            "market_direction_observed": (
+                self.market_direction_observed.value if self.market_direction_observed else None
+            ),
+            "winning_scenario_thesis": self.winning_scenario_thesis,
+            "lesson": self.lesson,
         }
 
     @classmethod
@@ -156,16 +158,16 @@ class HypothesisFailureRecord:
 
 
 def _derive_lesson(
-    hyp:              Hypothesis,
-    failure_mode:     FailureMode,
+    hyp: Hypothesis,
+    failure_mode: FailureMode,
     market_direction: BeliefDirection | None,
-    winning_thesis:   str | None,
+    winning_thesis: str | None,
 ) -> str:
     """Derive a natural-language lesson from a failure record."""
     direction_label = hyp.direction.value.title()
-    regime_clause   = f" in {hyp.formed_regime} regime" if hyp.formed_regime else ""
-    winning_clause  = f" — '{winning_thesis}' played out instead" if winning_thesis else ""
-    market_clause   = (
+    regime_clause = f" in {hyp.formed_regime} regime" if hyp.formed_regime else ""
+    winning_clause = f" — '{winning_thesis}' played out instead" if winning_thesis else ""
+    market_clause = (
         f" — market went {market_direction.value.lower()}"
         if market_direction and market_direction != hyp.direction
         else ""
@@ -204,9 +206,9 @@ def _derive_lesson(
 
 
 def _classify_failure_mode(
-    reason:         str,
+    reason: str,
     market_direction: BeliefDirection | None,
-    hyp_direction:  BeliefDirection,
+    hyp_direction: BeliefDirection,
 ) -> FailureMode:
     """Heuristic classification of failure mode from reason string."""
     reason_lower = reason.lower()
@@ -218,7 +220,11 @@ def _classify_failure_mode(
         return "STOP_HIT"
     if "expired" in reason_lower or "stale" in reason_lower or "aged" in reason_lower:
         return "AGED_OUT"
-    if market_direction and market_direction != hyp_direction and market_direction != BeliefDirection.NEUTRAL:
+    if (
+        market_direction
+        and market_direction != hyp_direction
+        and market_direction != BeliefDirection.NEUTRAL
+    ):
         return "CONTRADICTED"
     return "UNKNOWN"
 
@@ -252,13 +258,13 @@ class HypothesisFailureTracker:
 
     def record_failure(
         self,
-        hypothesis:              Hypothesis,
-        set_id:                  str | None       = None,
-        market_direction:        BeliefDirection | None = None,
-        winning_scenario_thesis: str | None       = None,
-        invalidation_reason:     str              = "",
-        failure_mode:            FailureMode | None = None,
-        now:                     float | None     = None,
+        hypothesis: Hypothesis,
+        set_id: str | None = None,
+        market_direction: BeliefDirection | None = None,
+        winning_scenario_thesis: str | None = None,
+        invalidation_reason: str = "",
+        failure_mode: FailureMode | None = None,
+        now: float | None = None,
     ) -> HypothesisFailureRecord:
         """Record a hypothesis failure.
 
@@ -272,7 +278,7 @@ class HypothesisFailureTracker:
             return existing
 
         reason = invalidation_reason or hypothesis.invalidation_reason or ""
-        mode   = failure_mode or _classify_failure_mode(
+        mode = failure_mode or _classify_failure_mode(
             reason, market_direction, hypothesis.direction
         )
         lesson = _derive_lesson(hypothesis, mode, market_direction, winning_scenario_thesis)
@@ -298,7 +304,7 @@ class HypothesisFailureTracker:
 
         key = (hypothesis.instrument, hypothesis.direction.value)
         self._records[key].append(rec)
-        self._by_id[rec.failure_id]          = rec
+        self._by_id[rec.failure_id] = rec
         self._by_id[hypothesis.hypothesis_id] = rec
 
         logger.debug(
@@ -312,12 +318,12 @@ class HypothesisFailureTracker:
     def get_failures(
         self,
         instrument: str,
-        direction:  BeliefDirection | None = None,
-        n:          int = 20,
+        direction: BeliefDirection | None = None,
+        n: int = 20,
     ) -> list[HypothesisFailureRecord]:
         """Most recent failure records for ``instrument``, newest-last."""
         if direction is not None:
-            key  = (instrument, direction.value)
+            key = (instrument, direction.value)
             recs = list(self._records[key])
         else:
             recs = []
@@ -329,7 +335,7 @@ class HypothesisFailureTracker:
     def failure_rate(
         self,
         instrument: str,
-        direction:  BeliefDirection | None = None,
+        direction: BeliefDirection | None = None,
     ) -> float:
         """Fraction of hypotheses that failed (vs zero = no failures on record).
 
@@ -347,7 +353,7 @@ class HypothesisFailureTracker:
     def common_failure_modes(
         self,
         instrument: str,
-        n:          int = 50,
+        n: int = 50,
     ) -> dict[str, int]:
         """Failure mode → count for the most recent ``n`` failures."""
         recs = self.get_failures(instrument, n=n)
@@ -363,8 +369,8 @@ class HypothesisFailureTracker:
 
     def lesson_summary(self, instrument: str, n: int = 3) -> list[str]:
         """Top ``n`` most recent unique lessons for ``instrument``."""
-        recs   = self.get_failures(instrument, n=50)
-        seen   = set()
+        recs = self.get_failures(instrument, n=50)
+        seen = set()
         result = []
         for r in reversed(recs):
             if r.lesson and r.lesson not in seen:
@@ -404,7 +410,7 @@ class HypothesisFailureTracker:
                 if key not in self._records:
                     self._records[key] = deque(maxlen=self._max)
                 self._records[key].append(rec)
-                self._by_id[rec.failure_id]    = rec
+                self._by_id[rec.failure_id] = rec
                 self._by_id[rec.hypothesis_id] = rec
             except Exception:
                 pass

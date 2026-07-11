@@ -75,15 +75,6 @@ Design rules
 
 from __future__ import annotations
 
-# ── Memory / data models ──────────────────────────────────────────────────────
-from trainer.qde.brain.projection.projection_memory import (
-    ProjectionConditions,
-    ProjectionMemory,
-    ProjectionOutcome,
-    ProjectionRecord,
-    DEFAULT_RECENCY_TAU_DAYS,
-)
-
 # ── Duration engine ───────────────────────────────────────────────────────────
 from trainer.qde.brain.projection.expected_duration_engine import (
     DurationProjection,
@@ -92,8 +83,17 @@ from trainer.qde.brain.projection.expected_duration_engine import (
 
 # ── Move / reward / MAE engine (top-level orchestrator) ───────────────────────
 from trainer.qde.brain.projection.expected_move_engine import (
-    ExpectedProjection,
     ExpectedMoveEngine,
+    ExpectedProjection,
+)
+
+# ── Memory / data models ──────────────────────────────────────────────────────
+from trainer.qde.brain.projection.projection_memory import (
+    DEFAULT_RECENCY_TAU_DAYS,
+    ProjectionConditions,
+    ProjectionMemory,
+    ProjectionOutcome,
+    ProjectionRecord,
 )
 
 __all__ = [

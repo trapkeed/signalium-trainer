@@ -86,9 +86,9 @@ from trainer.qde.brain.debate.debate_store import (
     make_debate_record,
 )
 from trainer.qde.brain.debate.ignored_evidence_tracker import (
+    IGNORED_EVIDENCE_MIN_CONVICTION,
     IgnoredEvidenceRecord,
     IgnoredEvidenceTracker,
-    IGNORED_EVIDENCE_MIN_CONVICTION,
 )
 from trainer.qde.brain.debate.overconfidence_tracker import (
     HIGH_CONVICTION_THRESHOLD,

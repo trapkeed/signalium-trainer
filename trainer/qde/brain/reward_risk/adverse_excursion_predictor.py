@@ -146,14 +146,14 @@ class AdverseExcursionInput:
         When > 0, ``stop_hit_probability`` is computed analytically.
     """
 
-    spread_atr_ratio:       float = 0.10
-    atr_pct:                float = 0.005
-    volatility:             float = 0.010
-    session_quality:        float = 0.80
-    momentum:               float = 0.0
-    direction:              int   = 1
+    spread_atr_ratio: float = 0.10
+    atr_pct: float = 0.005
+    volatility: float = 0.010
+    session_quality: float = 0.80
+    momentum: float = 0.0
+    direction: int = 1
     microstructure_quality: float = 0.80
-    stop_distance_atr:      float = 0.0
+    stop_distance_atr: float = 0.0
 
     @property
     def directed_momentum(self) -> float:
@@ -195,21 +195,21 @@ class AdverseExcursionEstimate:
         Retained for blending with historical estimates.
     """
 
-    expected_mae_atr:    float = 0.0
-    mae_p50_atr:         float = 0.0
-    mae_p75_atr:         float = 0.0
-    mae_p90_atr:         float = 0.0
+    expected_mae_atr: float = 0.0
+    mae_p50_atr: float = 0.0
+    mae_p75_atr: float = 0.0
+    mae_p90_atr: float = 0.0
     stop_hit_probability: float = 0.0
-    log_sigma:           float = 0.60
+    log_sigma: float = 0.60
 
     def to_dict(self) -> dict:
         return {
-            "expected_mae_atr":    round(self.expected_mae_atr, 4),
-            "mae_p50_atr":         round(self.mae_p50_atr, 4),
-            "mae_p75_atr":         round(self.mae_p75_atr, 4),
-            "mae_p90_atr":         round(self.mae_p90_atr, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "mae_p50_atr": round(self.mae_p50_atr, 4),
+            "mae_p75_atr": round(self.mae_p75_atr, 4),
+            "mae_p90_atr": round(self.mae_p90_atr, 4),
             "stop_hit_probability": round(self.stop_hit_probability, 4),
-            "log_sigma":           round(self.log_sigma, 4),
+            "log_sigma": round(self.log_sigma, 4),
         }
 
 
@@ -241,9 +241,9 @@ class AdverseExcursionPredictor:
         (if ``stop_distance_atr > 0``) stop-hit probability.
         """
         expected_mae = self._expected_mae(inp)
-        sigma        = self._log_sigma(inp)
+        sigma = self._log_sigma(inp)
         p50, p75, p90 = _lognormal_quantiles(expected_mae, sigma)
-        stop_hit      = _stop_hit_prob(inp.stop_distance_atr, expected_mae, sigma)
+        stop_hit = _stop_hit_prob(inp.stop_distance_atr, expected_mae, sigma)
 
         return AdverseExcursionEstimate(
             expected_mae_atr=round(expected_mae, 6),
@@ -284,15 +284,15 @@ class AdverseExcursionPredictor:
         ``micro_penalty``
             Erratic order flow adds noise excursions.  Adds up to 0.15 ATR.
         """
-        dm       = inp.directed_momentum
+        dm = inp.directed_momentum
         vol_norm = min(1.0, inp.volatility / _VOL_CEIL)
 
         expected_mae = (
-            0.15                                     # irreducible noise floor
-            + inp.spread_atr_ratio * 0.50            # spread = immediate adverse move
-            + vol_norm              * 0.60            # vol contribution
-            + max(0.0, -dm)        * 0.40            # adverse momentum amplification
-            + (1.0 - inp.session_quality) * 0.20     # thin-session gap risk
+            0.15  # irreducible noise floor
+            + inp.spread_atr_ratio * 0.50  # spread = immediate adverse move
+            + vol_norm * 0.60  # vol contribution
+            + max(0.0, -dm) * 0.40  # adverse momentum amplification
+            + (1.0 - inp.session_quality) * 0.20  # thin-session gap risk
             + (1.0 - inp.microstructure_quality) * 0.15  # noisy order flow
         )
         return max(_MAE_FLOOR, expected_mae)
@@ -307,7 +307,7 @@ class AdverseExcursionPredictor:
         """
         sigma = (
             _SIGMA_MIN
-            + (1.0 - inp.session_quality)        * 0.25
+            + (1.0 - inp.session_quality) * 0.25
             + (1.0 - inp.microstructure_quality) * 0.20
         )
         return min(_SIGMA_MAX, sigma)
@@ -318,7 +318,7 @@ class AdverseExcursionPredictor:
 
 def _lognormal_quantiles(
     mean_x: float,
-    sigma:  float,
+    sigma: float,
 ) -> tuple[float, float, float]:
     """Compute P50, P75, P90 of LogNormal(μ, σ) given the mean and σ.
 
@@ -328,17 +328,17 @@ def _lognormal_quantiles(
     Returns (p50, p75, p90) in the same units as mean_x.
     """
     mean_x = max(mean_x, 1e-9)
-    mu     = math.log(mean_x) - sigma ** 2 / 2.0
-    p50    = math.exp(mu + _Z_P50 * sigma)
-    p75    = math.exp(mu + _Z_P75 * sigma)
-    p90    = math.exp(mu + _Z_P90 * sigma)
+    mu = math.log(mean_x) - sigma**2 / 2.0
+    p50 = math.exp(mu + _Z_P50 * sigma)
+    p75 = math.exp(mu + _Z_P75 * sigma)
+    p90 = math.exp(mu + _Z_P90 * sigma)
     return p50, p75, p90
 
 
 def _stop_hit_prob(
     stop_distance_atr: float,
-    expected_mae:      float,
-    sigma:             float,
+    expected_mae: float,
+    sigma: float,
 ) -> float:
     """P(MAE > stop_distance_atr) from the structural log-normal model.
 
@@ -348,6 +348,6 @@ def _stop_hit_prob(
     if stop_distance_atr <= 0.0:
         return 0.0
     expected_mae = max(expected_mae, 1e-9)
-    mu = math.log(expected_mae) - sigma ** 2 / 2.0
-    z  = (math.log(max(stop_distance_atr, 1e-9)) - mu) / sigma
+    mu = math.log(expected_mae) - sigma**2 / 2.0
+    z = (math.log(max(stop_distance_atr, 1e-9)) - mu) / sigma
     return max(0.0, min(1.0, 0.5 * math.erfc(z / _SQRT2)))

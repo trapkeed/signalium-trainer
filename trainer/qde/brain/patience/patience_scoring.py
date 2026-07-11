@@ -64,7 +64,6 @@ from __future__ import annotations
 import math
 
 from trainer.qde.brain.patience.patience_types import (
-    DEFAULT_QUALITY_THRESHOLD,
     MAX_QUALITY_THRESHOLD,
     MIN_QUALITY_THRESHOLD,
     THRESHOLD_STEP_DOWN,
@@ -75,21 +74,20 @@ from trainer.qde.brain.patience.patience_types import (
     WaitReason,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Prospective NO_ACTION reward
 # ─────────────────────────────────────────────────────────────────────────────
 
-_BASE_WAIT_REWARD       = 0.20
-_HIGH_QUALITY_PENALTY   = 0.15   # deducted when opp_score ≥ HIGH_QUALITY_FLOOR
-_HIGH_QUALITY_FLOOR     = 0.65
+_BASE_WAIT_REWARD = 0.20
+_HIGH_QUALITY_PENALTY = 0.15  # deducted when opp_score ≥ HIGH_QUALITY_FLOOR
+_HIGH_QUALITY_FLOOR = 0.65
 
 
 def compute_no_action_reward(
-    wait_reasons:       list[WaitReason],
-    opportunity_score:  float,
-    uncertainty_score:  float = 0.0,
-    quality_gap:        float = 0.0,
+    wait_reasons: list[WaitReason],
+    opportunity_score: float,
+    uncertainty_score: float = 0.0,
+    quality_gap: float = 0.0,
 ) -> float:
     """Compute the prospective NO_ACTION reward at skip time.
 
@@ -115,7 +113,7 @@ def compute_no_action_reward(
     reason_set = set(wait_reasons)
 
     if WaitReason.COGNITIVE_PASSIVE in reason_set:
-        reward += 0.20   # market was incomprehensible → strong basis for waiting
+        reward += 0.20  # market was incomprehensible → strong basis for waiting
 
     if WaitReason.UNCERTAINTY_HIGH in reason_set:
         # Extra reward proportional to excess uncertainty above the threshold
@@ -123,20 +121,20 @@ def compute_no_action_reward(
         reward += 0.15 + 0.20 * excess
 
     if WaitReason.OVERTRADING in reason_set:
-        reward += 0.15   # actively restraining frequency
+        reward += 0.15  # actively restraining frequency
 
     if WaitReason.CONFIRMATION_PENDING in reason_set:
-        reward += 0.10   # discipline of waiting for setup maturity
+        reward += 0.10  # discipline of waiting for setup maturity
 
     if WaitReason.IMPULSIVE_GUARD in reason_set:
-        reward += 0.12   # correctly identified impulse pattern
+        reward += 0.12  # correctly identified impulse pattern
 
     if WaitReason.LOW_QUALITY in reason_set:
         # Proportional to how far below the quality floor the opportunity is
         reward += 0.05 * max(0.0, quality_gap)
 
     if WaitReason.CAPITAL_UNAVAILABLE in reason_set:
-        reward += 0.05   # minor; budget constraint is mechanical not discretionary
+        reward += 0.05  # minor; budget constraint is mechanical not discretionary
 
     # Penalty for being over-cautious on a high-quality opportunity
     if opportunity_score >= _HIGH_QUALITY_FLOOR:
@@ -149,15 +147,15 @@ def compute_no_action_reward(
 # Realized NO_ACTION reward (set on resolution)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_REALIZED_CORRECT_BASE  = +0.60
+_REALIZED_CORRECT_BASE = +0.60
 _REALIZED_CORRECT_RANGE = +0.40
-_REALIZED_MISSED_BASE   = -0.40
-_REALIZED_MISSED_RANGE  = -0.40
+_REALIZED_MISSED_BASE = -0.40
+_REALIZED_MISSED_RANGE = -0.40
 
 
 def compute_realized_reward(
-    outcome:        SkipOutcome,
-    pnl_estimate:   float = 0.0,
+    outcome: SkipOutcome,
+    pnl_estimate: float = 0.0,
 ) -> float:
     """Compute the realized NO_ACTION reward once the outcome is known.
 
@@ -209,31 +207,26 @@ def patience_score(state: PatienceState) -> PatienceMetrics:
     resolved_count = max(1, len(resolved))
 
     discipline = state.correct_skips / resolved_count
-    miss_rate  = state.missed_opportunities / resolved_count
+    miss_rate = state.missed_opportunities / resolved_count
 
     impulsive_rate = (
-        state.impulsive_entries / max(1, state.total_trades)
-        if state.total_trades > 0 else 0.0
+        state.impulsive_entries / max(1, state.total_trades) if state.total_trades > 0 else 0.0
     )
 
-    composite = (
-        0.50 * discipline
-        + 0.30 * (1.0 - impulsive_rate)
-        + 0.20 * (1.0 - miss_rate)
-    )
+    composite = 0.50 * discipline + 0.30 * (1.0 - impulsive_rate) + 0.20 * (1.0 - miss_rate)
     composite = max(0.0, min(1.0, composite))
 
     return PatienceMetrics(
-        discipline_score=          round(discipline,     4),
-        impulsive_entry_rate=      round(impulsive_rate, 4),
-        miss_rate=                 round(miss_rate,      4),
-        composite_patience_score=  round(composite,      4),
-        total_skips=               state.total_skips,
-        total_trades=              state.total_trades,
-        correct_skips=             state.correct_skips,
-        missed_opportunities=      state.missed_opportunities,
-        resolved_skips=            len(resolved),
-        overtrading_events=        state.overtrading_events,
+        discipline_score=round(discipline, 4),
+        impulsive_entry_rate=round(impulsive_rate, 4),
+        miss_rate=round(miss_rate, 4),
+        composite_patience_score=round(composite, 4),
+        total_skips=state.total_skips,
+        total_trades=state.total_trades,
+        correct_skips=state.correct_skips,
+        missed_opportunities=state.missed_opportunities,
+        resolved_skips=len(resolved),
+        overtrading_events=state.overtrading_events,
     )
 
 
@@ -273,17 +266,17 @@ def minimum_quality_threshold(state: PatienceState) -> float:
             min(MAX_QUALITY_THRESHOLD, state.current_threshold),
         )
 
-    discipline   = state.correct_skips   / resolved_count
-    miss_rate_v  = state.missed_opportunities / resolved_count
-    impulsive_r  = state.impulsive_entries / max(1, state.total_trades)
+    discipline = state.correct_skips / resolved_count
+    miss_rate_v = state.missed_opportunities / resolved_count
+    impulsive_r = state.impulsive_entries / max(1, state.total_trades)
 
     adjustment = 0.0
 
     if impulsive_r > 0.30:
-        adjustment += THRESHOLD_STEP_UP    # impulsive entries → raise bar
+        adjustment += THRESHOLD_STEP_UP  # impulsive entries → raise bar
 
     if discipline < 0.40 and len(resolved) >= 5:
-        adjustment += THRESHOLD_STEP_UP    # poor skip accuracy → raise bar
+        adjustment += THRESHOLD_STEP_UP  # poor skip accuracy → raise bar
 
     if miss_rate_v > 0.50 and len(resolved) >= 5:
         adjustment -= THRESHOLD_STEP_DOWN  # missing too many → lower bar slightly

@@ -548,6 +548,7 @@ class ResearchLabAPI:
         # spellings must be normalised before reaching this boundary.
         try:
             from trainer.symbols import batch_assert_canonical
+
             batch_assert_canonical(instruments)
         except ImportError:
             pass

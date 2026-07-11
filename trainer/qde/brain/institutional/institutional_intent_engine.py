@@ -137,6 +137,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.institutional.accumulation_detector import (
@@ -155,25 +156,25 @@ from trainer.qde.brain.institutional.inventory_transfer_detector import (
 
 # ── Hyper-parameters ──────────────────────────────────────────────────────────
 
-_DEFAULT_MAX_RECORDS = 2000   # per-symbol FIFO capacity
-_DEFAULT_K           = 30     # top-K for weighted estimates
-_MIN_INFORMATIVE     = 5      # confidence floor sample count
-_RECENCY_TAU_DAYS    = 14.0   # exponential recency decay
-_N_DIMS              = 8      # InstitutionalConditions vector dimension
+_DEFAULT_MAX_RECORDS = 2000  # per-symbol FIFO capacity
+_DEFAULT_K = 30  # top-K for weighted estimates
+_MIN_INFORMATIVE = 5  # confidence floor sample count
+_RECENCY_TAU_DAYS = 14.0  # exponential recency decay
+_N_DIMS = 8  # InstitutionalConditions vector dimension
 
 # Integration signal bounds
-_CONVICTION_MOD_MIN  = -0.25
-_CONVICTION_MOD_MAX  =  0.25
+_CONVICTION_MOD_MIN = -0.25
+_CONVICTION_MOD_MAX = 0.25
 
 # Dominant-intent float encoding
 _INTENT_IDS = {
-    "accumulation":    0.0,
-    "distribution":    1.0,
-    "transfer":        2.0,
-    "stop_hunt":       3.0,
-    "liquidity_acq":   4.0,
-    "rebalance":       5.0,
-    "neutral":         6.0,
+    "accumulation": 0.0,
+    "distribution": 1.0,
+    "transfer": 2.0,
+    "stop_hunt": 3.0,
+    "liquidity_acq": 4.0,
+    "rebalance": 5.0,
+    "neutral": 6.0,
 }
 
 
@@ -214,16 +215,16 @@ class InstitutionalConditions:
         0-1 distance to the nearest known structural level.
     """
 
-    instrument:             str   = ""
-    range_compression:      float = 0.0
-    absorption_strength:    float = 0.0
-    volume_buy_dominance:   float = 0.5
-    momentum_norm:          float = 0.5   # 0.5 + 0.5 * raw_momentum
-    session_quality:        float = 0.80
+    instrument: str = ""
+    range_compression: float = 0.0
+    absorption_strength: float = 0.0
+    volume_buy_dominance: float = 0.5
+    momentum_norm: float = 0.5  # 0.5 + 0.5 * raw_momentum
+    session_quality: float = 0.80
     microstructure_quality: float = 0.80
-    sweep_recency:          float = 0.0
-    level_proximity:        float = 0.0
-    timestamp:              float = field(default_factory=time.time)
+    sweep_recency: float = 0.0
+    level_proximity: float = 0.0
+    timestamp: float = field(default_factory=time.time)
 
     @staticmethod
     def normalize_momentum(raw_momentum: float) -> float:
@@ -248,16 +249,16 @@ class InstitutionalConditions:
 
     def to_dict(self) -> dict:
         return {
-            "instrument":             self.instrument,
-            "range_compression":      round(self.range_compression, 4),
-            "absorption_strength":    round(self.absorption_strength, 4),
-            "volume_buy_dominance":   round(self.volume_buy_dominance, 4),
-            "momentum_norm":          round(self.momentum_norm, 4),
-            "session_quality":        round(self.session_quality, 4),
+            "instrument": self.instrument,
+            "range_compression": round(self.range_compression, 4),
+            "absorption_strength": round(self.absorption_strength, 4),
+            "volume_buy_dominance": round(self.volume_buy_dominance, 4),
+            "momentum_norm": round(self.momentum_norm, 4),
+            "session_quality": round(self.session_quality, 4),
             "microstructure_quality": round(self.microstructure_quality, 4),
-            "sweep_recency":          round(self.sweep_recency, 4),
-            "level_proximity":        round(self.level_proximity, 4),
-            "timestamp":              round(self.timestamp, 3),
+            "sweep_recency": round(self.sweep_recency, 4),
+            "level_proximity": round(self.level_proximity, 4),
+            "timestamp": round(self.timestamp, 3),
         }
 
     @classmethod
@@ -313,23 +314,23 @@ class InstitutionalOutcome:
         How many bars elapsed before the intent resolved (0 = unknown).
     """
 
-    accumulation_confirmed:  bool  = False
-    distribution_confirmed:  bool  = False
-    hunt_reversal_confirmed: bool  = False
-    liquidity_confirmed:     bool  = False
-    direction_correct:       bool  = False
-    reward_atr:              float = 0.0
-    bars_to_resolution:      int   = 0
+    accumulation_confirmed: bool = False
+    distribution_confirmed: bool = False
+    hunt_reversal_confirmed: bool = False
+    liquidity_confirmed: bool = False
+    direction_correct: bool = False
+    reward_atr: float = 0.0
+    bars_to_resolution: int = 0
 
     def to_dict(self) -> dict:
         return {
-            "accumulation_confirmed":  self.accumulation_confirmed,
-            "distribution_confirmed":  self.distribution_confirmed,
+            "accumulation_confirmed": self.accumulation_confirmed,
+            "distribution_confirmed": self.distribution_confirmed,
             "hunt_reversal_confirmed": self.hunt_reversal_confirmed,
-            "liquidity_confirmed":     self.liquidity_confirmed,
-            "direction_correct":       self.direction_correct,
-            "reward_atr":              round(self.reward_atr, 6),
-            "bars_to_resolution":      self.bars_to_resolution,
+            "liquidity_confirmed": self.liquidity_confirmed,
+            "direction_correct": self.direction_correct,
+            "reward_atr": round(self.reward_atr, 6),
+            "bars_to_resolution": self.bars_to_resolution,
         }
 
     @classmethod
@@ -352,22 +353,20 @@ class InstitutionalOutcome:
 class InstitutionalRecord:
     """One completed (conditions → outcome) learning observation."""
 
-    record_id:   str                     = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    conditions:  InstitutionalConditions = field(default_factory=InstitutionalConditions)
-    outcome:     InstitutionalOutcome    = field(default_factory=InstitutionalOutcome)
-    recorded_at: float                   = field(default_factory=time.time)
+    record_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    conditions: InstitutionalConditions = field(default_factory=InstitutionalConditions)
+    outcome: InstitutionalOutcome = field(default_factory=InstitutionalOutcome)
+    recorded_at: float = field(default_factory=time.time)
 
-    def recency_weight(
-        self, now: float, tau_days: float = _RECENCY_TAU_DAYS
-    ) -> float:
+    def recency_weight(self, now: float, tau_days: float = _RECENCY_TAU_DAYS) -> float:
         elapsed_days = max(0.0, now - self.recorded_at) / 86400.0
         return math.exp(-elapsed_days / max(tau_days, 1e-9))
 
     def to_dict(self) -> dict:
         return {
-            "record_id":   self.record_id,
-            "conditions":  self.conditions.to_dict(),
-            "outcome":     self.outcome.to_dict(),
+            "record_id": self.record_id,
+            "conditions": self.conditions.to_dict(),
+            "outcome": self.outcome.to_dict(),
             "recorded_at": round(self.recorded_at, 3),
         }
 
@@ -392,19 +391,19 @@ class InstitutionalMemory:
     """
 
     def __init__(self, max_records: int = _DEFAULT_MAX_RECORDS) -> None:
-        self._max   = max(1, max_records)
+        self._max = max(1, max_records)
         self._store: dict[str, deque[InstitutionalRecord]] = {}
 
     def record(
         self,
-        instrument:  str,
-        conditions:  InstitutionalConditions,
-        outcome:     InstitutionalOutcome,
-        now:         float | None = None,
+        instrument: str,
+        conditions: InstitutionalConditions,
+        outcome: InstitutionalOutcome,
+        now: float | None = None,
     ) -> InstitutionalRecord:
         now = now if now is not None else time.time()
         rec = InstitutionalRecord(conditions=conditions, outcome=outcome, recorded_at=now)
-        q   = self._store.setdefault(instrument, deque(maxlen=self._max))
+        q = self._store.setdefault(instrument, deque(maxlen=self._max))
         q.append(rec)
         return rec
 
@@ -420,7 +419,7 @@ class InstitutionalMemory:
     def to_snapshot(self, instrument: str) -> dict:
         return {
             "max_records": self._max,
-            "records":     [r.to_dict() for r in self.records(instrument)],
+            "records": [r.to_dict() for r in self.records(instrument)],
         }
 
     def load_snapshot(self, instrument: str, data: dict) -> None:
@@ -474,53 +473,53 @@ class InstitutionalBeliefs:
     """
 
     # Six probabilistic beliefs
-    inst_accumulation_prob:   float = 0.0
-    inst_distribution_prob:   float = 0.0
-    inst_transfer_prob:       float = 0.0
-    inst_stop_hunt_prob:      float = 0.0
-    inst_liquidity_acq_prob:  float = 0.0
-    inst_rebalance_prob:      float = 0.0
+    inst_accumulation_prob: float = 0.0
+    inst_distribution_prob: float = 0.0
+    inst_transfer_prob: float = 0.0
+    inst_stop_hunt_prob: float = 0.0
+    inst_liquidity_acq_prob: float = 0.0
+    inst_rebalance_prob: float = 0.0
 
     # Dominant intent
-    inst_dominant_intent_id:  float = 6.0   # neutral default
-    inst_intent_certainty:    float = 0.0
-    inst_direction_alignment: float = 0.5   # neutral
+    inst_dominant_intent_id: float = 6.0  # neutral default
+    inst_intent_certainty: float = 0.0
+    inst_direction_alignment: float = 0.5  # neutral
 
     # Integration signals
-    inst_conviction_modifier:  float = 0.0
-    inst_opportunity_boost:    float = 0.0
-    inst_timing_confidence:    float = 0.0
+    inst_conviction_modifier: float = 0.0
+    inst_opportunity_boost: float = 0.0
+    inst_timing_confidence: float = 0.0
 
     # Structural passthrough
-    inst_absorption_strength:  float = 0.0
-    inst_range_compression:    float = 0.0
-    inst_volume_signature:     float = 0.0
-    inst_sweep_recency:        float = 0.0
+    inst_absorption_strength: float = 0.0
+    inst_range_compression: float = 0.0
+    inst_volume_signature: float = 0.0
+    inst_sweep_recency: float = 0.0
 
     # Metadata
-    inst_confidence:    float = 0.0
+    inst_confidence: float = 0.0
     inst_is_structural: float = 1.0
 
     def to_dict(self) -> dict:
         return {
-            "inst_accumulation_prob":   round(self.inst_accumulation_prob, 4),
-            "inst_distribution_prob":   round(self.inst_distribution_prob, 4),
-            "inst_transfer_prob":       round(self.inst_transfer_prob, 4),
-            "inst_stop_hunt_prob":      round(self.inst_stop_hunt_prob, 4),
-            "inst_liquidity_acq_prob":  round(self.inst_liquidity_acq_prob, 4),
-            "inst_rebalance_prob":      round(self.inst_rebalance_prob, 4),
-            "inst_dominant_intent_id":  round(self.inst_dominant_intent_id, 1),
-            "inst_intent_certainty":    round(self.inst_intent_certainty, 4),
+            "inst_accumulation_prob": round(self.inst_accumulation_prob, 4),
+            "inst_distribution_prob": round(self.inst_distribution_prob, 4),
+            "inst_transfer_prob": round(self.inst_transfer_prob, 4),
+            "inst_stop_hunt_prob": round(self.inst_stop_hunt_prob, 4),
+            "inst_liquidity_acq_prob": round(self.inst_liquidity_acq_prob, 4),
+            "inst_rebalance_prob": round(self.inst_rebalance_prob, 4),
+            "inst_dominant_intent_id": round(self.inst_dominant_intent_id, 1),
+            "inst_intent_certainty": round(self.inst_intent_certainty, 4),
             "inst_direction_alignment": round(self.inst_direction_alignment, 4),
             "inst_conviction_modifier": round(self.inst_conviction_modifier, 4),
-            "inst_opportunity_boost":   round(self.inst_opportunity_boost, 4),
-            "inst_timing_confidence":   round(self.inst_timing_confidence, 4),
+            "inst_opportunity_boost": round(self.inst_opportunity_boost, 4),
+            "inst_timing_confidence": round(self.inst_timing_confidence, 4),
             "inst_absorption_strength": round(self.inst_absorption_strength, 4),
-            "inst_range_compression":   round(self.inst_range_compression, 4),
-            "inst_volume_signature":    round(self.inst_volume_signature, 4),
-            "inst_sweep_recency":       round(self.inst_sweep_recency, 4),
-            "inst_confidence":          round(self.inst_confidence, 4),
-            "inst_is_structural":       round(self.inst_is_structural, 1),
+            "inst_range_compression": round(self.inst_range_compression, 4),
+            "inst_volume_signature": round(self.inst_volume_signature, 4),
+            "inst_sweep_recency": round(self.inst_sweep_recency, 4),
+            "inst_confidence": round(self.inst_confidence, 4),
+            "inst_is_structural": round(self.inst_is_structural, 1),
         }
 
 
@@ -540,26 +539,26 @@ class InstitutionalIntentEngine:
 
     def __init__(
         self,
-        max_records:      int   = _DEFAULT_MAX_RECORDS,
-        k:                int   = _DEFAULT_K,
+        max_records: int = _DEFAULT_MAX_RECORDS,
+        k: int = _DEFAULT_K,
         recency_tau_days: float = _RECENCY_TAU_DAYS,
-        min_informative:  int   = _MIN_INFORMATIVE,
+        min_informative: int = _MIN_INFORMATIVE,
     ) -> None:
-        self._memory   = InstitutionalMemory(max_records=max_records)
-        self._acc_det  = AccumulationDetector()
+        self._memory = InstitutionalMemory(max_records=max_records)
+        self._acc_det = AccumulationDetector()
         self._dist_det = DistributionDetector()
         self._xfer_det = InventoryTransferDetector()
-        self._k        = k
-        self._tau      = recency_tau_days
-        self._min      = min_informative
+        self._k = k
+        self._tau = recency_tau_days
+        self._min = min_informative
 
     # ── Learning ──────────────────────────────────────────────────────────
 
     def record_outcome(
         self,
-        conditions:  InstitutionalConditions,
-        outcome:     InstitutionalOutcome,
-        now:         float | None = None,
+        conditions: InstitutionalConditions,
+        outcome: InstitutionalOutcome,
+        now: float | None = None,
     ) -> InstitutionalRecord:
         """Append one completed (conditions → intent outcome) observation.
 
@@ -581,10 +580,10 @@ class InstitutionalIntentEngine:
 
     def score(
         self,
-        conditions:   InstitutionalConditions,
-        direction:    int   = 1,
+        conditions: InstitutionalConditions,
+        direction: int = 1,
         sweep_events: list[SweepEvent] | None = None,
-        now:          float | None = None,
+        now: float | None = None,
     ) -> InstitutionalBeliefs:
         """Compute the full institutional intent belief state.
 
@@ -605,85 +604,94 @@ class InstitutionalIntentEngine:
         now = now if now is not None else time.time()
 
         # ── Structural priors ─────────────────────────────────────────────
-        acc_est  = self._acc_det.detect(AccumulationInput(
-            range_compression=conditions.range_compression,
-            absorption_strength=conditions.absorption_strength,
-            volume_buy_dominance=conditions.volume_buy_dominance,
-            momentum=conditions.momentum_norm * 2.0 - 1.0,   # un-normalize
-            session_quality=conditions.session_quality,
-            microstructure_quality=conditions.microstructure_quality,
-            level_proximity=conditions.level_proximity,
-        ))
-        dist_est = self._dist_det.detect(DistributionInput(
-            range_compression=conditions.range_compression,
-            rejection_strength=conditions.absorption_strength,  # shared signal
-            volume_sell_dominance=1.0 - conditions.volume_buy_dominance,
-            momentum=conditions.momentum_norm * 2.0 - 1.0,
-            session_quality=conditions.session_quality,
-            microstructure_quality=conditions.microstructure_quality,
-            level_proximity=conditions.level_proximity,
-        ))
-        xfer_est = self._xfer_det.detect(InventoryTransferInput(
-            sweep_events=sweep_events or [],
-            momentum=conditions.momentum_norm * 2.0 - 1.0,
-            session_quality=conditions.session_quality,
-            microstructure_quality=conditions.microstructure_quality,
-            level_proximity=conditions.level_proximity,
-            level_proximity_direction=1,   # default: approaching
-        ))
+        acc_est = self._acc_det.detect(
+            AccumulationInput(
+                range_compression=conditions.range_compression,
+                absorption_strength=conditions.absorption_strength,
+                volume_buy_dominance=conditions.volume_buy_dominance,
+                momentum=conditions.momentum_norm * 2.0 - 1.0,  # un-normalize
+                session_quality=conditions.session_quality,
+                microstructure_quality=conditions.microstructure_quality,
+                level_proximity=conditions.level_proximity,
+            )
+        )
+        dist_est = self._dist_det.detect(
+            DistributionInput(
+                range_compression=conditions.range_compression,
+                rejection_strength=conditions.absorption_strength,  # shared signal
+                volume_sell_dominance=1.0 - conditions.volume_buy_dominance,
+                momentum=conditions.momentum_norm * 2.0 - 1.0,
+                session_quality=conditions.session_quality,
+                microstructure_quality=conditions.microstructure_quality,
+                level_proximity=conditions.level_proximity,
+            )
+        )
+        xfer_est = self._xfer_det.detect(
+            InventoryTransferInput(
+                sweep_events=sweep_events or [],
+                momentum=conditions.momentum_norm * 2.0 - 1.0,
+                session_quality=conditions.session_quality,
+                microstructure_quality=conditions.microstructure_quality,
+                level_proximity=conditions.level_proximity,
+                level_proximity_direction=1,  # default: approaching
+            )
+        )
 
         # Structural six-belief vector
-        s_acc   = acc_est.accumulation_prob
-        s_dist  = dist_est.distribution_prob
-        s_xfer  = xfer_est.transfer_prob
-        s_hunt  = xfer_est.stop_hunt_prob
-        s_liq   = xfer_est.liquidity_acq_prob
+        s_acc = acc_est.accumulation_prob
+        s_dist = dist_est.distribution_prob
+        s_xfer = xfer_est.transfer_prob
+        s_hunt = xfer_est.stop_hunt_prob
+        s_liq = xfer_est.liquidity_acq_prob
         s_rebal = xfer_est.rebalance_prob
 
         # ── Historical lookup ─────────────────────────────────────────────
         records = self._memory.records(conditions.instrument)
         confidence = 0.0
-        h_acc   = s_acc
-        h_dist  = s_dist
-        h_xfer  = s_xfer
-        h_hunt  = s_hunt
-        h_liq   = s_liq
+        h_acc = s_acc
+        h_dist = s_dist
+        h_xfer = s_xfer
+        h_hunt = s_hunt
+        h_liq = s_liq
         h_rebal = s_rebal
-        n_used  = 0
+        n_used = 0
 
         if records:
-            scored = _score_records(
-                conditions.as_vector(), records, self._tau, now
-            )
+            scored = _score_records(conditions.as_vector(), records, self._tau, now)
             top_k = scored[: self._k]
             if top_k:
-                n_used     = len(top_k)
+                n_used = len(top_k)
                 confidence = min(1.0, n_used / max(self._min, 1))
-                ws         = [w for w, _ in top_k]
-                recs_k     = [r for _, r in top_k]
+                ws = [w for w, _ in top_k]
+                recs_k = [r for _, r in top_k]
 
-                h_acc   = _wfrac(ws, [r.outcome.accumulation_confirmed  for r in recs_k])
-                h_dist  = _wfrac(ws, [r.outcome.distribution_confirmed  for r in recs_k])
-                h_hunt  = _wfrac(ws, [r.outcome.hunt_reversal_confirmed for r in recs_k])
-                h_liq   = _wfrac(ws, [r.outcome.liquidity_confirmed     for r in recs_k])
-                h_dir   = _wfrac(ws, [r.outcome.direction_correct       for r in recs_k])
+                h_acc = _wfrac(ws, [r.outcome.accumulation_confirmed for r in recs_k])
+                h_dist = _wfrac(ws, [r.outcome.distribution_confirmed for r in recs_k])
+                h_hunt = _wfrac(ws, [r.outcome.hunt_reversal_confirmed for r in recs_k])
+                h_liq = _wfrac(ws, [r.outcome.liquidity_confirmed for r in recs_k])
+                h_dir = _wfrac(ws, [r.outcome.direction_correct for r in recs_k])
 
                 # Transfer and rebalance from directional correctness proxy
                 # (no explicit outcome label; infer from reward and direction)
                 pos_rewards = [r.outcome.reward_atr > 0 for r in recs_k]
-                h_xfer  = _wfrac(ws, [r and p for r, p in
-                                       zip(pos_rewards, [r.outcome.direction_correct for r in recs_k])])
+                h_xfer = _wfrac(
+                    ws,
+                    [
+                        r and p
+                        for r, p in zip(pos_rewards, [r.outcome.direction_correct for r in recs_k])
+                    ],
+                )
                 h_rebal = 1.0 - max(h_acc, h_dist, h_hunt, h_liq)  # residual
 
         # ── Blend structural + historical ─────────────────────────────────
         c = confidence
         s = 1.0 - c
 
-        acc   = s * s_acc   + c * h_acc
-        dist  = s * s_dist  + c * h_dist
-        xfer  = s * s_xfer  + c * h_xfer
-        hunt  = s * s_hunt  + c * h_hunt
-        liq   = s * s_liq   + c * h_liq
+        acc = s * s_acc + c * h_acc
+        dist = s * s_dist + c * h_dist
+        xfer = s * s_xfer + c * h_xfer
+        hunt = s * s_hunt + c * h_hunt
+        liq = s * s_liq + c * h_liq
         rebal = s * s_rebal + c * h_rebal
 
         # Clamp all beliefs
@@ -693,23 +701,34 @@ class InstitutionalIntentEngine:
 
         # ── Dominant intent + certainty ───────────────────────────────────
         named = {
-            "accumulation": acc,  "distribution": dist,
-            "transfer":     xfer, "stop_hunt":    hunt,
-            "liquidity_acq": liq, "rebalance":    rebal,
+            "accumulation": acc,
+            "distribution": dist,
+            "transfer": xfer,
+            "stop_hunt": hunt,
+            "liquidity_acq": liq,
+            "rebalance": rebal,
         }
         dom_name, dom_prob, second_prob = _dominant(named)
-        intent_id     = _INTENT_IDS[dom_name]
-        intent_cert   = max(0.0, dom_prob - second_prob)
+        intent_id = _INTENT_IDS[dom_name]
+        intent_cert = max(0.0, dom_prob - second_prob)
 
         # ── Direction alignment ───────────────────────────────────────────
         dir_align = _direction_alignment(dom_name, acc, dist, hunt, liq, direction)
 
         # ── Integration signals ───────────────────────────────────────────
-        conv_mod  = _conviction_modifier(dir_align, dom_prob, confidence)
+        conv_mod = _conviction_modifier(dir_align, dom_prob, confidence)
         opp_boost = _opportunity_boost(dir_align, dom_prob, hunt, acc, liq)
-        timing    = _timing_confidence(hunt, acc, dist, liq, xfer, rebal,
-                                       acc_est.absorption_strength,
-                                       xfer_est.sweep_recency, confidence)
+        timing = _timing_confidence(
+            hunt,
+            acc,
+            dist,
+            liq,
+            xfer,
+            rebal,
+            acc_est.absorption_strength,
+            xfer_est.sweep_recency,
+            confidence,
+        )
 
         return InstitutionalBeliefs(
             inst_accumulation_prob=round(acc, 4),
@@ -734,10 +753,10 @@ class InstitutionalIntentEngine:
 
     def context_for_inference(
         self,
-        conditions:   InstitutionalConditions,
-        direction:    int   = 1,
+        conditions: InstitutionalConditions,
+        direction: int = 1,
         sweep_events: list[SweepEvent] | None = None,
-        now:          float | None = None,
+        now: float | None = None,
     ) -> dict:
         """Return exactly 18 ``inst_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -788,8 +807,8 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
     dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(x * x for x in b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))
@@ -797,16 +816,16 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
 
 def _score_records(
     current_vec: list[float],
-    records:     list[InstitutionalRecord],
-    tau_days:    float,
-    now:         float,
+    records: list[InstitutionalRecord],
+    tau_days: float,
+    now: float,
 ) -> list[tuple[float, InstitutionalRecord]]:
     """Score records by cosine_sim × recency, sorted highest first."""
     scored: list[tuple[float, InstitutionalRecord]] = []
     for rec in records:
-        sim     = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
+        sim = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
         recency = rec.recency_weight(now, tau_days)
-        w       = sim * recency
+        w = sim * recency
         if w > 1e-12:
             scored.append((w, rec))
 
@@ -845,11 +864,11 @@ def _dominant(
 
 
 def _direction_alignment(
-    dom_name:  str,
-    acc:       float,
-    dist:      float,
-    hunt:      float,
-    liq:       float,
+    dom_name: str,
+    acc: float,
+    dist: float,
+    hunt: float,
+    liq: float,
     direction: int,
 ) -> float:
     """0-1 alignment of the dominant intent with the proposed trade direction.
@@ -881,8 +900,8 @@ def _direction_alignment(
 
 
 def _conviction_modifier(
-    dir_align:  float,
-    dom_prob:   float,
+    dir_align: float,
+    dom_prob: float,
     confidence: float,
 ) -> float:
     """−0.25..+0.25 conviction modifier.
@@ -897,19 +916,19 @@ def _conviction_modifier(
 
     Scale: structural weight is 0.4 of the max; history lifts it to 1.0.
     """
-    alignment_signed  = 2.0 * (dir_align - 0.5)   # −1..+1
-    structural_weight = 0.4                         # base modifier from structural alone
-    history_weight    = structural_weight + (1.0 - structural_weight) * confidence
-    raw  = alignment_signed * dom_prob * history_weight
+    alignment_signed = 2.0 * (dir_align - 0.5)  # −1..+1
+    structural_weight = 0.4  # base modifier from structural alone
+    history_weight = structural_weight + (1.0 - structural_weight) * confidence
+    raw = alignment_signed * dom_prob * history_weight
     return max(_CONVICTION_MOD_MIN, min(_CONVICTION_MOD_MAX, raw * _CONVICTION_MOD_MAX))
 
 
 def _opportunity_boost(
-    dir_align:  float,
-    dom_prob:   float,
-    hunt_prob:  float,
-    acc_prob:   float,
-    liq_prob:   float,
+    dir_align: float,
+    dom_prob: float,
+    hunt_prob: float,
+    acc_prob: float,
+    liq_prob: float,
 ) -> float:
     """0-1 opportunity boost for cross-symbol ranker.
 
@@ -921,28 +940,28 @@ def _opportunity_boost(
     Returns 0 when dir_align < 0.5 (opposing intent detected).
     """
     if dir_align < 0.5:
-        return 0.0   # opposing institutional intent → no boost
-    alignment_weight = 2.0 * (dir_align - 0.5)   # 0..1
+        return 0.0  # opposing institutional intent → no boost
+    alignment_weight = 2.0 * (dir_align - 0.5)  # 0..1
     # Hunt reversal is the highest-conviction entry signal
-    hunt_component  = hunt_prob * 0.50
+    hunt_component = hunt_prob * 0.50
     # Accumulation alignment
-    acc_component   = acc_prob * 0.30
+    acc_component = acc_prob * 0.30
     # Liquidity acquisition approaching
-    liq_component   = liq_prob * 0.20
+    liq_component = liq_prob * 0.20
     raw_boost = (hunt_component + acc_component + liq_component) * alignment_weight
     return max(0.0, min(1.0, raw_boost))
 
 
 def _timing_confidence(
-    hunt:        float,
-    acc:         float,
-    dist:        float,
-    liq:         float,
-    xfer:        float,
-    rebal:       float,
-    absorption:  float,
-    sweep_rec:   float,
-    confidence:  float,
+    hunt: float,
+    acc: float,
+    dist: float,
+    liq: float,
+    xfer: float,
+    rebal: float,
+    absorption: float,
+    sweep_rec: float,
+    confidence: float,
 ) -> float:
     """0-1 execution timing confidence.
 
@@ -969,7 +988,7 @@ def _timing_confidence(
     liq_timing = liq * 0.6
 
     # Noise from transfer/rebalance: no clear timing signal
-    noise_penalty = (xfer * 0.3 + rebal * 0.2)
+    noise_penalty = xfer * 0.3 + rebal * 0.2
 
     raw = max(hunt_timing, phase_timing, liq_timing) - noise_penalty * 0.2
     # Scale by confidence: structural only → more modest signal

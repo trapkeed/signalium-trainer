@@ -87,10 +87,12 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_types import BeliefDirection
 from trainer.qde.brain.counterfactual.counterfactual_types import (
+    _SCENARIO_BASE_WEIGHTS,
     MAX_FLIP_RECORDS,
     MAX_PROBABILITY_POINTS,
     MAX_REVERSAL_RECORDS,
@@ -109,10 +111,8 @@ from trainer.qde.brain.counterfactual.counterfactual_types import (
     ThesisReversalRecord,
     ThesisSwitchResult,
     UncertaintySpikeRecord,
-    _SCENARIO_BASE_WEIGHTS,
 )
 from trainer.qde.brain.thesis_manager import Thesis
-
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -143,9 +143,9 @@ def _evidence_matches(evidence_list: list[str], target_items: list[str]) -> int:
 
 def _extract_flip_lesson(
     old_primary_conflicting: list[str],
-    trigger_detail:          str,
-    state:                   CounterfactualState,
-    now:                     float,
+    trigger_detail: str,
+    state: CounterfactualState,
+    now: float,
 ) -> FlipLesson:
     """Derive a ``FlipLesson`` from the conflicting evidence that was
     present in the old primary thesis before the flip.
@@ -161,8 +161,7 @@ def _extract_flip_lesson(
     reference_time = state.last_flip_at or state.created_at
     time_to_flip = max(0.0, now - reference_time)
     could_have_switched_earlier = (
-        bool(old_primary_conflicting)
-        and time_to_flip >= REVERSAL_WINDOW_SECONDS
+        bool(old_primary_conflicting) and time_to_flip >= REVERSAL_WINDOW_SECONDS
     )
     return FlipLesson(
         ignored_warnings=list(old_primary_conflicting),
@@ -173,10 +172,10 @@ def _extract_flip_lesson(
 
 
 def _build_reversal_scenario(
-    primary_side:       BeliefDirection,
-    conflicting_items:  list[str],
-    reversal_weight:    float,
-    now:                float,
+    primary_side: BeliefDirection,
+    conflicting_items: list[str],
+    reversal_weight: float,
+    now: float,
 ) -> CounterfactualScenario:
     """Generate a REVERSAL scenario from conflicting evidence items."""
     opposite = _opposite_direction(primary_side)
@@ -208,10 +207,10 @@ def _build_reversal_scenario(
 
 
 def _build_sideways_scenario(
-    primary_side:    BeliefDirection,
-    uncertainty:     float,
+    primary_side: BeliefDirection,
+    uncertainty: float,
     sideways_weight: float,
-    now:             float,
+    now: float,
 ) -> CounterfactualScenario:
     """Generate a SIDEWAYS/consolidation scenario, weighted by uncertainty."""
     return CounterfactualScenario(
@@ -240,10 +239,10 @@ def _build_sideways_scenario(
 
 
 def _build_acceleration_scenario(
-    primary_side:   BeliefDirection,
-    primary_p:      float,
-    accel_weight:   float,
-    now:            float,
+    primary_side: BeliefDirection,
+    primary_p: float,
+    accel_weight: float,
+    now: float,
 ) -> CounterfactualScenario:
     """Generate an ACCELERATION scenario — same direction, faster."""
     return CounterfactualScenario(
@@ -272,10 +271,10 @@ def _build_acceleration_scenario(
 
 
 def _build_exhaustion_scenario(
-    primary_side:    BeliefDirection,
-    primary_p:       float,
-    exhaust_weight:  float,
-    now:             float,
+    primary_side: BeliefDirection,
+    primary_p: float,
+    exhaust_weight: float,
+    now: float,
 ) -> CounterfactualScenario:
     """Generate an EXHAUSTION scenario — same direction, winding down."""
     return CounterfactualScenario(
@@ -304,7 +303,7 @@ def _build_exhaustion_scenario(
 
 
 def _compute_scenario_weights(
-    primary_p:   float,
+    primary_p: float,
     secondary_p: float,
     uncertainty: float,
 ) -> dict[ScenarioType, float]:
@@ -318,8 +317,7 @@ def _compute_scenario_weights(
 
     # Reversal weight: pulled up by secondary strength, pushed down by primary strength
     base[ScenarioType.REVERSAL] = round(
-        base[ScenarioType.REVERSAL]
-        * (1 + secondary_p - primary_p),
+        base[ScenarioType.REVERSAL] * (1 + secondary_p - primary_p),
         4,
     )
     # Sideways weight: elevated by uncertainty
@@ -347,12 +345,12 @@ def _compute_scenario_weights(
 
 
 def generate_alternatives(
-    primary_thesis:   Thesis,
+    primary_thesis: Thesis,
     secondary_thesis: Thesis | None = None,
     uncertainty_score: float = 0.0,
     *,
-    _state:           CounterfactualState | None = None,
-    now:              float | None = None,
+    _state: CounterfactualState | None = None,
+    now: float | None = None,
 ) -> list[CounterfactualScenario]:
     """Generate alternative counterfactual scenarios for the primary thesis.
 
@@ -386,7 +384,7 @@ def generate_alternatives(
         REVERSAL, SIDEWAYS, ACCELERATION, EXHAUSTION (conditional).
     """
     now = now if now is not None else time.time()
-    primary_p   = primary_thesis.strength()
+    primary_p = primary_thesis.strength()
     secondary_p = secondary_thesis.strength() if secondary_thesis is not None else 0.40
 
     weights = _compute_scenario_weights(primary_p, secondary_p, uncertainty_score)
@@ -437,7 +435,7 @@ def generate_alternatives(
 
     if _state is not None:
         _state.current_scenarios = scenarios
-        _state.last_updated_at   = now
+        _state.last_updated_at = now
 
     return scenarios
 
@@ -446,11 +444,11 @@ def generate_alternatives(
 
 
 def evaluate_alternative(
-    scenario:           CounterfactualScenario,
-    new_evidence:       list[str],
+    scenario: CounterfactualScenario,
+    new_evidence: list[str],
     current_uncertainty: float = 0.0,
     *,
-    _state:             CounterfactualState | None = None,
+    _state: CounterfactualState | None = None,
 ) -> float:
     """Score how well ``new_evidence`` supports the given scenario.
 
@@ -489,14 +487,14 @@ def evaluate_alternative(
     float in [0, 1] — updated probability weight for this scenario.
     """
     trigger_count = max(1, len(scenario.trigger_conditions))
-    inval_count   = max(1, len(scenario.invalidation_signals))
+    inval_count = max(1, len(scenario.invalidation_signals))
 
     trigger_matches = _evidence_matches(new_evidence, scenario.trigger_conditions)
-    inval_matches   = _evidence_matches(new_evidence, scenario.invalidation_signals)
+    inval_matches = _evidence_matches(new_evidence, scenario.invalidation_signals)
 
-    match_ratio  = trigger_matches / trigger_count
-    inval_ratio  = inval_matches   / inval_count
-    raw_score    = match_ratio * (1.0 - inval_ratio)
+    match_ratio = trigger_matches / trigger_count
+    inval_ratio = inval_matches / inval_count
+    raw_score = match_ratio * (1.0 - inval_ratio)
 
     # Blend: prior weight + new evidence signal
     updated = 0.60 * scenario.probability_weight + 0.40 * raw_score
@@ -517,14 +515,14 @@ def evaluate_alternative(
 
 
 def switch_thesis(
-    state:               CounterfactualState,
-    trigger:             FlipTrigger,
-    new_primary_side:    BeliefDirection,
-    new_primary_thesis:  Thesis,
+    state: CounterfactualState,
+    trigger: FlipTrigger,
+    new_primary_side: BeliefDirection,
+    new_primary_thesis: Thesis,
     new_secondary_thesis: Thesis,
-    trigger_detail:      str        = "",
-    uncertainty:         float      = 0.0,
-    now:                 float | None = None,
+    trigger_detail: str = "",
+    uncertainty: float = 0.0,
+    now: float | None = None,
 ) -> ThesisSwitchResult:
     """Perform a thesis switch: primary ↔ secondary.
 
@@ -564,8 +562,8 @@ def switch_thesis(
     now = now if now is not None else time.time()
 
     old_primary_side = state.primary_side
-    prev_primary_p   = new_secondary_thesis.strength()   # old primary is now secondary
-    new_primary_p    = new_primary_thesis.strength()
+    prev_primary_p = new_secondary_thesis.strength()  # old primary is now secondary
+    new_primary_p = new_primary_thesis.strength()
 
     # 1. FlipLesson
     lesson = _extract_flip_lesson(
@@ -622,9 +620,9 @@ def switch_thesis(
                 state.reversal_records = state.reversal_records[-MAX_REVERSAL_RECORDS:]
 
     # 4. Update state sides
-    state.primary_side   = new_primary_side
+    state.primary_side = new_primary_side
     state.secondary_side = new_secondary_thesis.side
-    state.last_flip_at   = now
+    state.last_flip_at = now
 
     # 5. Generate new scenarios for new primary
     new_scenarios = generate_alternatives(
@@ -664,11 +662,11 @@ def switch_thesis(
 
 
 def _append_probability_point(
-    state:       CounterfactualState,
-    primary_p:   float,
+    state: CounterfactualState,
+    primary_p: float,
     secondary_p: float,
     uncertainty: float,
-    now:         float,
+    now: float,
 ) -> None:
     """Append a ``ProbabilityPoint`` and detect uncertainty spikes."""
     # Spike detection before appending
@@ -690,10 +688,10 @@ def _append_probability_point(
 
 
 def _record_spike(
-    state:  CounterfactualState,
+    state: CounterfactualState,
     before: float,
-    after:  float,
-    now:    float,
+    after: float,
+    now: float,
     context: str = "",
 ) -> None:
     """Record an ``UncertaintySpikeRecord``."""
@@ -723,11 +721,11 @@ def _record_spike(
 
 
 def record_probability_point(
-    state:       CounterfactualState,
-    primary_p:   float,
+    state: CounterfactualState,
+    primary_p: float,
     secondary_p: float,
     uncertainty: float,
-    now:         float | None = None,
+    now: float | None = None,
 ) -> ProbabilityPoint:
     """Public helper: sample current thesis strengths and append to evolution.
 
@@ -741,8 +739,8 @@ def record_probability_point(
 
 
 def recommend_switch(
-    state:       CounterfactualState,
-    primary_p:   float,
+    state: CounterfactualState,
+    primary_p: float,
     secondary_p: float,
 ) -> tuple[bool, str]:
     """Return ``(should_switch, reason)`` based on current strength readings.
@@ -764,8 +762,7 @@ def recommend_switch(
 
     if primary_p < PRIMARY_CONFIDENCE_FLOOR:
         return True, (
-            f"confidence_collapse: primary_p={primary_p:.3f} < "
-            f"floor={PRIMARY_CONFIDENCE_FLOOR}"
+            f"confidence_collapse: primary_p={primary_p:.3f} < " f"floor={PRIMARY_CONFIDENCE_FLOOR}"
         )
 
     return False, ""
@@ -822,8 +819,8 @@ class CounterfactualEngine:
 
     def __init__(
         self,
-        instrument:            str             = "",
-        initial_primary_side:  BeliefDirection = BeliefDirection.BULLISH,
+        instrument: str = "",
+        initial_primary_side: BeliefDirection = BeliefDirection.BULLISH,
         initial_secondary_side: BeliefDirection = BeliefDirection.BEARISH,
     ) -> None:
         self.instrument = instrument
@@ -851,10 +848,10 @@ class CounterfactualEngine:
 
     def generate_alternatives(
         self,
-        primary_thesis:    Thesis,
-        secondary_thesis:  Thesis | None = None,
-        uncertainty:       float         = 0.0,
-        now:               float | None  = None,
+        primary_thesis: Thesis,
+        secondary_thesis: Thesis | None = None,
+        uncertainty: float = 0.0,
+        now: float | None = None,
     ) -> list[CounterfactualScenario]:
         """Generate alternative scenarios for the current primary thesis."""
         return generate_alternatives(
@@ -867,8 +864,8 @@ class CounterfactualEngine:
 
     def evaluate_alternative(
         self,
-        scenario:            CounterfactualScenario,
-        new_evidence:        list[str],
+        scenario: CounterfactualScenario,
+        new_evidence: list[str],
         current_uncertainty: float = 0.0,
     ) -> float:
         """Score how well new evidence supports a scenario."""
@@ -881,13 +878,13 @@ class CounterfactualEngine:
 
     def switch_thesis(
         self,
-        trigger:               FlipTrigger,
-        new_primary_side:      BeliefDirection,
-        new_primary_thesis:    Thesis,
-        new_secondary_thesis:  Thesis,
-        trigger_detail:        str         = "",
-        uncertainty:           float       = 0.0,
-        now:                   float | None = None,
+        trigger: FlipTrigger,
+        new_primary_side: BeliefDirection,
+        new_primary_thesis: Thesis,
+        new_secondary_thesis: Thesis,
+        trigger_detail: str = "",
+        uncertainty: float = 0.0,
+        now: float | None = None,
     ) -> ThesisSwitchResult:
         """Perform a thesis switch and record the flip."""
         return switch_thesis(
@@ -905,10 +902,10 @@ class CounterfactualEngine:
 
     def record_probability_point(
         self,
-        primary_p:   float,
+        primary_p: float,
         secondary_p: float,
-        uncertainty: float      = 0.0,
-        now:         float | None = None,
+        uncertainty: float = 0.0,
+        now: float | None = None,
     ) -> ProbabilityPoint:
         """Sample current thesis strengths and append to evolution timeline."""
         return record_probability_point(
@@ -921,7 +918,7 @@ class CounterfactualEngine:
 
     def recommend_switch(
         self,
-        primary_p:   float,
+        primary_p: float,
         secondary_p: float,
     ) -> tuple[bool, str]:
         """Check whether the secondary has overtaken the primary."""

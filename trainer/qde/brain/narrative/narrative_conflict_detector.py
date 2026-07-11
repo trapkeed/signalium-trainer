@@ -44,41 +44,40 @@ from trainer.qde.brain.narrative.narrative_store import (
     SymbolNarrative,
 )
 
-
 # ── Conflict taxonomy ─────────────────────────────────────────────────────
 
 # frozenset({KindA, KindB}) -> (conflict_type, base_severity)
 # Severity is the maximum conflict score for fully-established narratives;
 # actual severity is scaled by each narrative's confidence.
 _DIRECTIONAL_CONFLICTS: dict[frozenset, float] = {
-    frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.REVERSAL}):    0.90,
-    frozenset({NarrativeKind.ACCUMULATION,        NarrativeKind.DISTRIBUTION}): 0.85,
-    frozenset({NarrativeKind.BREAKOUT,            NarrativeKind.EXHAUSTION}):  0.80,
+    frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.REVERSAL}): 0.90,
+    frozenset({NarrativeKind.ACCUMULATION, NarrativeKind.DISTRIBUTION}): 0.85,
+    frozenset({NarrativeKind.BREAKOUT, NarrativeKind.EXHAUSTION}): 0.80,
 }
 
 _STRUCTURAL_CONFLICTS: dict[frozenset, float] = {
     frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.LIQUIDITY_GRAB}): 0.55,
-    frozenset({NarrativeKind.BREAKOUT,            NarrativeKind.LIQUIDITY_GRAB}): 0.60,
-    frozenset({NarrativeKind.ACCUMULATION,        NarrativeKind.LIQUIDITY_GRAB}): 0.45,
+    frozenset({NarrativeKind.BREAKOUT, NarrativeKind.LIQUIDITY_GRAB}): 0.60,
+    frozenset({NarrativeKind.ACCUMULATION, NarrativeKind.LIQUIDITY_GRAB}): 0.45,
 }
 
 _TEMPORAL_CONFLICTS: dict[frozenset, float] = {
-    frozenset({NarrativeKind.BREAKOUT,            NarrativeKind.EXHAUSTION}):   0.75,
-    frozenset({NarrativeKind.TREND_CONTINUATION,  NarrativeKind.EXHAUSTION}):   0.70,
-    frozenset({NarrativeKind.REVERSAL,            NarrativeKind.ACCUMULATION}): 0.50,
-    frozenset({NarrativeKind.REVERSAL,            NarrativeKind.DISTRIBUTION}): 0.50,
+    frozenset({NarrativeKind.BREAKOUT, NarrativeKind.EXHAUSTION}): 0.75,
+    frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.EXHAUSTION}): 0.70,
+    frozenset({NarrativeKind.REVERSAL, NarrativeKind.ACCUMULATION}): 0.50,
+    frozenset({NarrativeKind.REVERSAL, NarrativeKind.DISTRIBUTION}): 0.50,
 }
 
 # Directionality implied by each kind: +1 bullish, -1 bearish, 0 neutral.
 # Used to compute net directional bias when conflicts are present.
 _KIND_BIAS: dict[NarrativeKind, float] = {
-    NarrativeKind.TREND_CONTINUATION: 0.0,   # direction depends on current regime
-    NarrativeKind.REVERSAL:           0.0,   # same — depends on which way trend runs
-    NarrativeKind.ACCUMULATION:       0.6,   # typically bullish buildup
-    NarrativeKind.DISTRIBUTION:      -0.6,   # typically bearish buildup
-    NarrativeKind.BREAKOUT:           0.0,   # direction-agnostic
-    NarrativeKind.EXHAUSTION:        -0.3,   # bearish undertone (move failing)
-    NarrativeKind.LIQUIDITY_GRAB:     0.0,   # ambiguous direction
+    NarrativeKind.TREND_CONTINUATION: 0.0,  # direction depends on current regime
+    NarrativeKind.REVERSAL: 0.0,  # same — depends on which way trend runs
+    NarrativeKind.ACCUMULATION: 0.6,  # typically bullish buildup
+    NarrativeKind.DISTRIBUTION: -0.6,  # typically bearish buildup
+    NarrativeKind.BREAKOUT: 0.0,  # direction-agnostic
+    NarrativeKind.EXHAUSTION: -0.3,  # bearish undertone (move failing)
+    NarrativeKind.LIQUIDITY_GRAB: 0.0,  # ambiguous direction
 }
 
 
@@ -91,9 +90,9 @@ class NarrativeConflict:
 
     kind_a: NarrativeKind
     kind_b: NarrativeKind
-    conflict_type: str          # "DIRECTIONAL" | "STRUCTURAL" | "TEMPORAL"
-    base_severity: float        # 0-1 from the taxonomy table
-    severity: float             # 0-1, scaled by the two narratives' confidence
+    conflict_type: str  # "DIRECTIONAL" | "STRUCTURAL" | "TEMPORAL"
+    base_severity: float  # 0-1 from the taxonomy table
+    severity: float  # 0-1, scaled by the two narratives' confidence
     description: str
 
     def to_dict(self) -> dict:
@@ -116,9 +115,7 @@ class NarrativeConflictDetector:
     Stateless — safe to share and reuse across symbols.
     """
 
-    def detect(
-        self, narratives: list[SymbolNarrative]
-    ) -> list[NarrativeConflict]:
+    def detect(self, narratives: list[SymbolNarrative]) -> list[NarrativeConflict]:
         """Return all detected conflicts among the given narratives.
 
         Only *active* (non-EXPIRED), *actionable* (DEVELOPING or ESTABLISHED)
@@ -126,8 +123,7 @@ class NarrativeConflictDetector:
         be considered a committed position worth conflicting with.
         """
         candidates = [
-            n for n in narratives
-            if n.is_active() and n.maturity != NarrativeMaturity.FORMING
+            n for n in narratives if n.is_active() and n.maturity != NarrativeMaturity.FORMING
         ]
         if len(candidates) < 2:
             return []
@@ -206,8 +202,8 @@ class NarrativeConflictDetector:
 
         for table, conflict_type in (
             (_DIRECTIONAL_CONFLICTS, "DIRECTIONAL"),
-            (_STRUCTURAL_CONFLICTS,  "STRUCTURAL"),
-            (_TEMPORAL_CONFLICTS,    "TEMPORAL"),
+            (_STRUCTURAL_CONFLICTS, "STRUCTURAL"),
+            (_TEMPORAL_CONFLICTS, "TEMPORAL"),
         ):
             base = table.get(pair)
             if base is None:

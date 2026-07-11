@@ -92,9 +92,9 @@ class CrossTimeframeContext:
     as_of: float = field(default_factory=time.time)
 
     pattern: AlignmentPattern = AlignmentPattern.MIXED
-    pattern_confidence: float = 0.0     # 0–1
+    pattern_confidence: float = 0.0  # 0–1
 
-    alignment_score: float = 0.0        # 0 = fully opposed, 1 = fully aligned
+    alignment_score: float = 0.0  # 0 = fully opposed, 1 = fully aligned
 
     # Coarse group (MN/W1/D1/H4): duration-weighted average momentum
     coarse_momentum: float = 0.0
@@ -161,8 +161,8 @@ _MIN_CONTRIBUTING = 3
 _SIGN_THRESHOLD = 0.12
 
 # Alignment score thresholds
-_ALIGNMENT_HIGH = 0.65   # above this → strongly aligned
-_ALIGNMENT_LOW  = 0.35   # below this → clear disagreement
+_ALIGNMENT_HIGH = 0.65  # above this → strongly aligned
+_ALIGNMENT_LOW = 0.35  # below this → clear disagreement
 
 # Exhaustion: the normalised strengthening score must exceed this to
 # classify as EXHAUSTION rather than ALIGNED.
@@ -175,7 +175,7 @@ _CONTINUATION_TREND_MIN = 0.04
 # contribution (beyond the per-observation is_fresh check).
 _MAX_STALENESS = 2.5
 
-import math as _math
+import math as _math  # noqa: E402
 
 
 def _sign_t(x: float, threshold: float = _SIGN_THRESHOLD) -> int:
@@ -233,11 +233,7 @@ class ContextAlignmentEngine:
         """
         ts = now if now is not None else time.time()
 
-        fresh = {
-            tf: obs
-            for tf, obs in observations.items()
-            if obs.is_fresh(_MAX_STALENESS)
-        }
+        fresh = {tf: obs for tf, obs in observations.items() if obs.is_fresh(_MAX_STALENESS)}
 
         if len(fresh) < _MIN_CONTRIBUTING:
             return CrossTimeframeContext(
@@ -251,24 +247,23 @@ class ContextAlignmentEngine:
             )
 
         coarse_obs = {tf: o for tf, o in fresh.items() if tf in coarse_timeframes()}
-        fine_obs   = {tf: o for tf, o in fresh.items() if tf in fine_timeframes()}
+        fine_obs = {tf: o for tf, o in fresh.items() if tf in fine_timeframes()}
 
         coarse_mom = _weighted_momentum(coarse_obs)
-        fine_mom   = _weighted_momentum(fine_obs) if fine_obs else 0.0
+        fine_mom = _weighted_momentum(fine_obs) if fine_obs else 0.0
 
-        dom_dir    = _sign_t(coarse_mom)
-        alignment  = self._alignment_score(fresh)
-        pb_depth   = self._pullback_depth(coarse_obs, fine_obs)
+        dom_dir = _sign_t(coarse_mom)
+        alignment = self._alignment_score(fresh)
+        pb_depth = self._pullback_depth(coarse_obs, fine_obs)
 
         any_transition = any(
-            memory.recently_crossed_zero(instrument, tf, lookback=4)
-            for tf in fresh
+            memory.recently_crossed_zero(instrument, tf, lookback=4) for tf in fresh
         )
 
         coarse_trends = [memory.momentum_trend(instrument, tf) for tf in coarse_obs]
-        fine_trends   = [memory.momentum_trend(instrument, tf) for tf in fine_obs]
+        fine_trends = [memory.momentum_trend(instrument, tf) for tf in fine_obs]
         avg_coarse_trend = _mean(coarse_trends)
-        avg_fine_trend   = _mean(fine_trends)
+        avg_fine_trend = _mean(fine_trends)
 
         pattern, confidence = self._classify(
             coarse_mom=coarse_mom,
@@ -327,7 +322,7 @@ class ContextAlignmentEngine:
     def _pullback_depth(
         self,
         coarse_obs: dict[ContextTimeframe, TimeframeObservation],
-        fine_obs:   dict[ContextTimeframe, TimeframeObservation],
+        fine_obs: dict[ContextTimeframe, TimeframeObservation],
     ) -> float:
         """Continuous approximation of how far the fine-TF counter-move has
         penetrated the coarse-TF structure, using range_position.
@@ -341,7 +336,7 @@ class ContextAlignmentEngine:
         if not coarse_obs or not fine_obs:
             return 0.0
         coarse_rp = _mean([o.range_position for o in coarse_obs.values()])
-        fine_rp   = _mean([o.range_position for o in fine_obs.values()])
+        fine_rp = _mean([o.range_position for o in fine_obs.values()])
         return min(1.0, abs(coarse_rp - fine_rp))
 
     def _classify(
@@ -362,7 +357,7 @@ class ContextAlignmentEngine:
         or a timeframe name.
         """
         coarse_sign = _sign_t(coarse_mom)
-        fine_sign   = _sign_t(fine_mom)
+        fine_sign = _sign_t(fine_mom)
 
         # ── TRANSITION ────────────────────────────────────────────────────
         # A zero-crossing happened recently; the context is changing but
@@ -398,10 +393,7 @@ class ContextAlignmentEngine:
             exhaustion_score = 0.0
 
         # EXHAUSTION: aligned direction but momentum measurably weakening
-        if (
-            alignment > _ALIGNMENT_LOW
-            and exhaustion_score > _EXHAUSTION_THRESHOLD
-        ):
+        if alignment > _ALIGNMENT_LOW and exhaustion_score > _EXHAUSTION_THRESHOLD:
             conf = 0.45 + 0.35 * min(1.0, exhaustion_score)
             return AlignmentPattern.EXHAUSTION, min(conf, 0.85)
 
@@ -437,9 +429,9 @@ class ContextAlignmentEngine:
         asserting "the trend is X" or "the market is bullish".
         """
         coarse_present = [tf.value for tf in coarse_timeframes() if tf in obs]
-        fine_present   = [tf.value for tf in fine_timeframes()   if tf in obs]
-        coarse_names   = "/".join(coarse_present) or "coarse"
-        fine_names     = "/".join(fine_present)   or "fine"
+        fine_present = [tf.value for tf in fine_timeframes() if tf in obs]
+        coarse_names = "/".join(coarse_present) or "coarse"
+        fine_names = "/".join(fine_present) or "fine"
 
         def _dir(m: float) -> str:
             s = _sign_t(m)

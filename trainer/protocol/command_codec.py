@@ -28,8 +28,7 @@ from __future__ import annotations
 
 import json
 
-from trainer.protocol.command_types import CommandAction, ProtocolCommand
-
+from trainer.protocol.command_types import ProtocolCommand
 
 # ─────────────────────────────────────────────────────────────────────────
 # Public API
@@ -44,14 +43,14 @@ def serialize_command(cmd: ProtocolCommand) -> dict:
     directly to ``json.dumps()`` with no custom encoder.
     """
     return {
-        "command_id":         cmd.command_id,
-        "qde_version":        cmd.qde_version,
-        "position_id":        cmd.position_id,
-        "symbol":             cmd.symbol,
-        "action":             cmd.action.value,
-        "payload":            _serialise_payload(cmd.payload),
-        "expires_at":         round(cmd.expires_at, 3),
-        "created_at":         round(cmd.created_at, 3),
+        "command_id": cmd.command_id,
+        "qde_version": cmd.qde_version,
+        "position_id": cmd.position_id,
+        "symbol": cmd.symbol,
+        "action": cmd.action.value,
+        "payload": _serialise_payload(cmd.payload),
+        "expires_at": round(cmd.expires_at, 3),
+        "created_at": round(cmd.created_at, 3),
         "source_decision_id": cmd.source_decision_id,
     }
 

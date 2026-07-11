@@ -18,10 +18,10 @@ Covers:
 from __future__ import annotations
 
 import time
-import uuid
 
 import pytest
 
+from trainer.market_data.symbol_normalizer import SymbolNormalizer
 from trainer.symbols import (
     SymbolTranslationError,
     SymbolTranslationLayer,
@@ -34,12 +34,11 @@ from trainer.symbols import (
     reset_translator,
     translate,
 )
-from trainer.market_data.symbol_normalizer import SymbolNormalizer
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
@@ -76,8 +75,8 @@ def test_03_is_canonical_symbol_false_for_broker_variant():
     n = SymbolNormalizer()
     assert n.is_canonical_symbol("EURUSD.r") is False
     assert n.is_canonical_symbol("EURUSDm") is False
-    assert n.is_canonical_symbol("GOLD") is False       # builtin alias, not canonical
-    assert n.is_canonical_symbol("EUR/USD") is False    # builtin alias, not canonical
+    assert n.is_canonical_symbol("GOLD") is False  # builtin alias, not canonical
+    assert n.is_canonical_symbol("EUR/USD") is False  # builtin alias, not canonical
     assert n.is_canonical_symbol("UNKNOWN_XYZ") is False
 
 
@@ -202,7 +201,7 @@ def test_20_is_canonical_false_for_empty():
 
 def test_21_assert_canonical_passes_for_canonical():
     layer = _fresh_layer()
-    layer.assert_canonical("EURUSD")   # must not raise
+    layer.assert_canonical("EURUSD")  # must not raise
     layer.assert_canonical("XAUUSD")
     layer.assert_canonical("US30")
 
@@ -233,7 +232,7 @@ def test_25_assert_canonical_error_contains_symbol():
 
 def test_26_assert_canonical_error_is_value_error_subclass():
     layer = _fresh_layer()
-    with pytest.raises(ValueError):   # SymbolTranslationError subclasses ValueError
+    with pytest.raises(ValueError):  # SymbolTranslationError subclasses ValueError
         layer.assert_canonical("GOLD")
 
 
@@ -393,30 +392,35 @@ def test_49_module_level_batch_assert_canonical():
 
 def test_50_outcome_path_accepts_canonical():
     from trainer.training_signals.outcome_path import TradeOutcomePath
+
     path = TradeOutcomePath(instrument="EURUSD", direction=1, entry_price=1.10)
     assert path.instrument == "EURUSD"
 
 
 def test_51_outcome_path_rejects_broker_variant():
     from trainer.training_signals.outcome_path import TradeOutcomePath
+
     with pytest.raises(SymbolTranslationError):
         TradeOutcomePath(instrument="EURUSD.r", direction=1, entry_price=1.10)
 
 
 def test_52_outcome_path_rejects_builtin_alias():
     from trainer.training_signals.outcome_path import TradeOutcomePath
+
     with pytest.raises(SymbolTranslationError):
         TradeOutcomePath(instrument="GOLD", direction=1, entry_price=1900.0)
 
 
 def test_53_outcome_path_rejects_unknown():
     from trainer.training_signals.outcome_path import TradeOutcomePath
+
     with pytest.raises(SymbolTranslationError):
         TradeOutcomePath(instrument="UNKNOWNXYZ", direction=1, entry_price=1.0)
 
 
 def test_54_outcome_path_accepts_all_defaults():
     from trainer.training_signals.outcome_path import TradeOutcomePath
+
     # All symbols in DEFAULT_SYMBOLS must pass
     for sym in ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "US30", "NAS100"]:
         path = TradeOutcomePath(instrument=sym, direction=1, entry_price=1.0)
@@ -429,7 +433,8 @@ def test_54_outcome_path_accepts_all_defaults():
 
 
 def _make_snapshot_and_reasoning():
-    from trainer.memory.decision_models import DecisionSnapshot, DecisionReasoning
+    from trainer.memory.decision_models import DecisionReasoning, DecisionSnapshot
+
     snap = DecisionSnapshot()
     reason = DecisionReasoning()
     return snap, reason
@@ -437,6 +442,7 @@ def _make_snapshot_and_reasoning():
 
 def test_55_decision_record_accepts_canonical():
     from trainer.memory.decision_models import DecisionRecord, DecisionType
+
     snap, reason = _make_snapshot_and_reasoning()
     rec = DecisionRecord.create(DecisionType.BUY, "EURUSD", snap, reason)
     assert rec.instrument == "EURUSD"
@@ -444,6 +450,7 @@ def test_55_decision_record_accepts_canonical():
 
 def test_56_decision_record_rejects_broker_variant():
     from trainer.memory.decision_models import DecisionRecord, DecisionType
+
     snap, reason = _make_snapshot_and_reasoning()
     with pytest.raises(SymbolTranslationError):
         DecisionRecord.create(DecisionType.BUY, "EURUSD.r", snap, reason)
@@ -451,6 +458,7 @@ def test_56_decision_record_rejects_broker_variant():
 
 def test_57_decision_record_rejects_builtin_alias():
     from trainer.memory.decision_models import DecisionRecord, DecisionType
+
     snap, reason = _make_snapshot_and_reasoning()
     with pytest.raises(SymbolTranslationError):
         DecisionRecord.create(DecisionType.BUY, "GOLD", snap, reason)
@@ -458,6 +466,7 @@ def test_57_decision_record_rejects_builtin_alias():
 
 def test_58_decision_record_rejects_unknown():
     from trainer.memory.decision_models import DecisionRecord, DecisionType
+
     snap, reason = _make_snapshot_and_reasoning()
     with pytest.raises(SymbolTranslationError):
         DecisionRecord.create(DecisionType.NO_TRADE, "UNKNOWNXYZ", snap, reason)
@@ -465,6 +474,7 @@ def test_58_decision_record_rejects_unknown():
 
 def test_59_decision_record_accepts_multiple_canonicals():
     from trainer.memory.decision_models import DecisionRecord, DecisionType
+
     snap, reason = _make_snapshot_and_reasoning()
     for sym in ["GBPUSD", "USDJPY", "XAUUSD"]:
         rec = DecisionRecord.create(DecisionType.NO_TRADE, sym, snap, reason)
@@ -478,6 +488,7 @@ def test_59_decision_record_accepts_multiple_canonicals():
 
 def _make_open_cmd(symbol: str) -> "object":
     from trainer.protocol import open_position_command
+
     return open_position_command(
         position_id="",
         symbol=symbol,
@@ -492,16 +503,20 @@ def _make_open_cmd(symbol: str) -> "object":
 
 
 def test_63_validate_command_passes_for_canonical():
-    from trainer.protocol import validate_command, open_position_command
+    from trainer.protocol import validate_command
+
     cmd = _make_open_cmd("EURUSD")
     result = validate_command(cmd)
     # should be valid — no canonical-symbol errors
-    symbol_errors = [e for e in result.errors if "canonical" in e.lower() or "not a canonical" in e.lower()]
+    symbol_errors = [
+        e for e in result.errors if "canonical" in e.lower() or "not a canonical" in e.lower()
+    ]
     assert symbol_errors == [], symbol_errors
 
 
 def test_64_validate_command_fails_for_broker_variant():
     from trainer.protocol import validate_command
+
     cmd = _make_open_cmd("EURUSD.r")
     result = validate_command(cmd)
     assert not result.valid
@@ -510,6 +525,7 @@ def test_64_validate_command_fails_for_broker_variant():
 
 def test_65_validate_command_fails_for_builtin_alias():
     from trainer.protocol import validate_command
+
     cmd = _make_open_cmd("GOLD")
     result = validate_command(cmd)
     assert not result.valid
@@ -518,6 +534,7 @@ def test_65_validate_command_fails_for_builtin_alias():
 
 def test_66_validate_command_fails_for_unknown_symbol():
     from trainer.protocol import validate_command
+
     cmd = _make_open_cmd("UNKNOWNXYZ")
     result = validate_command(cmd)
     assert not result.valid
@@ -532,6 +549,7 @@ def test_66_validate_command_fails_for_unknown_symbol():
 def _rl_api():
     from trainer.research_lab.research_lab_api import ResearchLabAPI
     from trainer.research_lab.rl_database import ResearchLabDatabase
+
     db = ResearchLabDatabase(":memory:")
     return ResearchLabAPI(db=db)
 
@@ -545,7 +563,7 @@ def _create_completed_experiment(api):
     )
     exp_id = resp.data["experiment_id"]
     # advance to RUNNING
-    from trainer.research_lab.rl_database import ResearchLabDatabase
+
     db_rec = api._db.get_experiment(exp_id)
     db_rec["status"] = "RUNNING"
     db_rec["training_started_at"] = time.time()
@@ -616,10 +634,12 @@ def test_73_symbols_package_does_not_import_qde_inference():
     """trainer.symbols must never import qde_inference."""
     import importlib
     import sys
+
     mod = sys.modules.get("trainer.symbols.translation")
     if mod is None:
         mod = importlib.import_module("trainer.symbols.translation")
     import inspect
+
     source = inspect.getsource(mod)
     assert "qde_inference" not in source
 
@@ -628,10 +648,12 @@ def test_74_symbols_package_does_not_import_execution():
     """trainer.symbols must never import trainer.execution."""
     import importlib
     import sys
+
     mod = sys.modules.get("trainer.symbols.translation")
     if mod is None:
         mod = importlib.import_module("trainer.symbols.translation")
     import inspect
+
     source = inspect.getsource(mod)
     assert "trainer.execution" not in source
 

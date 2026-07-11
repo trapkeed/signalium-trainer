@@ -62,7 +62,7 @@ def validate_command(
     unit tests can inject a fixed timestamp without monkeypatching.
     """
     now = now if now is not None else time.time()
-    errors:   list[str] = []
+    errors: list[str] = []
     warnings: list[str] = []
 
     _check_envelope(cmd, now, errors, warnings)
@@ -101,17 +101,14 @@ def _check_envelope(
     # ── temporal validity ────────────────────────────────────────────────
     if cmd.expires_at <= now:
         errors.append(
-            f"Command has already expired "
-            f"(expires_at={cmd.expires_at:.3f}, now={now:.3f})."
+            f"Command has already expired " f"(expires_at={cmd.expires_at:.3f}, now={now:.3f})."
         )
     elif cmd.expires_at - now < 1.0:
         warnings.append("Command TTL < 1 s; may expire before the EA processes it.")
 
     # ── position_id presence ─────────────────────────────────────────────
     if cmd.action in _NEEDS_POSITION_ID and not cmd.position_id:
-        errors.append(
-            f"position_id is required for {cmd.action.value} commands."
-        )
+        errors.append(f"position_id is required for {cmd.action.value} commands.")
 
     # ── canonical symbol enforcement ─────────────────────────────────────
     # Commands carry a canonical symbol in the envelope; broker-decorated
@@ -119,6 +116,7 @@ def _check_envelope(
     if cmd.symbol and cmd.symbol.strip():
         try:
             from trainer.symbols import is_canonical
+
             if not is_canonical(cmd.symbol):
                 errors.append(
                     f"symbol {cmd.symbol!r} is not a canonical symbol. "
@@ -183,9 +181,7 @@ def _check_open(p: dict, errors: list[str], warnings: list[str]) -> None:
         warnings.append("OPEN_POSITION: take_profit is 0 — consider setting a take-profit level.")
     # Limit/Stop orders need a price
     if order_type in ("LIMIT", "STOP") and float(p.get("entry_price", 0.0)) <= 0.0:
-        errors.append(
-            f"OPEN_POSITION: entry_price must be > 0 for {order_type} orders."
-        )
+        errors.append(f"OPEN_POSITION: entry_price must be > 0 for {order_type} orders.")
 
 
 def _check_close(p: dict, errors: list[str], warnings: list[str]) -> None:
@@ -199,9 +195,7 @@ def _check_close(p: dict, errors: list[str], warnings: list[str]) -> None:
 def _check_partial_close(p: dict, errors: list[str], warnings: list[str]) -> None:
     frac = float(p.get("close_fraction", 0.0))
     if not (0.0 < frac <= 1.0):
-        errors.append(
-            f"PARTIAL_CLOSE: close_fraction must be in (0, 1], got {frac}."
-        )
+        errors.append(f"PARTIAL_CLOSE: close_fraction must be in (0, 1], got {frac}.")
     if not p.get("reason"):
         warnings.append("PARTIAL_CLOSE: reason not specified.")
 
@@ -228,9 +222,7 @@ def _check_add(p: dict, errors: list[str], warnings: list[str]) -> None:
             f"ADD_POSITION: order_type must be one of {sorted(_VALID_ORDER_TYPES)}, got '{order_type}'."
         )
     if order_type in ("LIMIT", "STOP") and float(p.get("entry_price", 0.0)) <= 0.0:
-        errors.append(
-            f"ADD_POSITION: entry_price must be > 0 for {order_type} orders."
-        )
+        errors.append(f"ADD_POSITION: entry_price must be > 0 for {order_type} orders.")
 
 
 def _check_cancel(p: dict, errors: list[str], warnings: list[str]) -> None:

@@ -31,24 +31,23 @@ Design constraints
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.conviction_engine import ConvictionScore
-from trainer.qde.brain.debate_engine import DebateVerdict
 from trainer.qde.brain.debate.debate_quality import DebateQualityScore
 from trainer.qde.brain.debate.ignored_evidence_tracker import IgnoredEvidenceRecord
 from trainer.qde.brain.debate.overconfidence_tracker import OverconfidenceEvent
+from trainer.qde.brain.debate_engine import DebateVerdict
 
 # C2 soft imports
 try:
@@ -57,13 +56,13 @@ try:
         EpisodeFeatures,
         EpisodeOutcome,
         EpisodePortfolioState,
-        EpisodicMemory,
     )
+
     _HAS_EPISODIC = True
 except ImportError:
     _HAS_EPISODIC = False
 
-MAX_STORED_RECORDS = 500   # in-process deque cap (episodic memory is the durable store)
+MAX_STORED_RECORDS = 500  # in-process deque cap (episodic memory is the durable store)
 
 
 # -------------------------------------------------------------------
@@ -82,21 +81,21 @@ class DebateRecord:
     no event was detected in the corresponding check.
     """
 
-    debate_id:            str   = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    instrument:           str   = ""
-    opportunity_id:       str   = ""
-    hypothesis_id:        str   = ""
+    debate_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
+    instrument: str = ""
+    opportunity_id: str = ""
+    hypothesis_id: str = ""
 
     # Sub-component snapshots stored as dicts for clean serialisation
-    verdict:              dict  = field(default_factory=dict)
-    conviction:           dict  = field(default_factory=dict)
-    quality:              dict  = field(default_factory=dict)
-    bull_thesis:          dict  = field(default_factory=dict)
-    bear_thesis:          dict  = field(default_factory=dict)
+    verdict: dict = field(default_factory=dict)
+    conviction: dict = field(default_factory=dict)
+    quality: dict = field(default_factory=dict)
+    bull_thesis: dict = field(default_factory=dict)
+    bear_thesis: dict = field(default_factory=dict)
     overconfidence_event: dict | None = None
-    ignored_evidence:     dict | None = None
+    ignored_evidence: dict | None = None
 
-    created_at:           float = field(default_factory=time.time)
+    created_at: float = field(default_factory=time.time)
 
     # Convenience accessors (derived from stored dicts — no extra storage)
     @property
@@ -129,48 +128,48 @@ class DebateRecord:
 
     def to_dict(self) -> dict:
         return {
-            "debate_id":            self.debate_id,
-            "instrument":           self.instrument,
-            "opportunity_id":       self.opportunity_id,
-            "hypothesis_id":        self.hypothesis_id,
-            "verdict":              self.verdict,
-            "conviction":           self.conviction,
-            "quality":              self.quality,
-            "bull_thesis":          self.bull_thesis,
-            "bear_thesis":          self.bear_thesis,
+            "debate_id": self.debate_id,
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "hypothesis_id": self.hypothesis_id,
+            "verdict": self.verdict,
+            "conviction": self.conviction,
+            "quality": self.quality,
+            "bull_thesis": self.bull_thesis,
+            "bear_thesis": self.bear_thesis,
             "overconfidence_event": self.overconfidence_event,
-            "ignored_evidence":     self.ignored_evidence,
-            "created_at":           round(self.created_at, 3),
+            "ignored_evidence": self.ignored_evidence,
+            "created_at": round(self.created_at, 3),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "DebateRecord":
         return cls(
-            debate_id=d.get("debate_id",      str(uuid.uuid4())[:12]),
-            instrument=d.get("instrument",     ""),
+            debate_id=d.get("debate_id", str(uuid.uuid4())[:12]),
+            instrument=d.get("instrument", ""),
             opportunity_id=d.get("opportunity_id", ""),
-            hypothesis_id=d.get("hypothesis_id",  ""),
-            verdict=d.get("verdict",           {}),
-            conviction=d.get("conviction",     {}),
-            quality=d.get("quality",           {}),
-            bull_thesis=d.get("bull_thesis",   {}),
-            bear_thesis=d.get("bear_thesis",   {}),
+            hypothesis_id=d.get("hypothesis_id", ""),
+            verdict=d.get("verdict", {}),
+            conviction=d.get("conviction", {}),
+            quality=d.get("quality", {}),
+            bull_thesis=d.get("bull_thesis", {}),
+            bear_thesis=d.get("bear_thesis", {}),
             overconfidence_event=d.get("overconfidence_event"),
             ignored_evidence=d.get("ignored_evidence"),
-            created_at=d.get("created_at",     0.0),
+            created_at=d.get("created_at", 0.0),
         )
 
 
 def make_debate_record(
-    verdict:              DebateVerdict,
-    conviction:           ConvictionScore,
-    quality:              DebateQualityScore,
-    bull_thesis_dict:     dict,
-    bear_thesis_dict:     dict,
+    verdict: DebateVerdict,
+    conviction: ConvictionScore,
+    quality: DebateQualityScore,
+    bull_thesis_dict: dict,
+    bear_thesis_dict: dict,
     overconfidence_event: OverconfidenceEvent | None = None,
-    ignored_evidence:     IgnoredEvidenceRecord | None = None,
-    debate_id:            str                 = "",
-    now:                  float | None        = None,
+    ignored_evidence: IgnoredEvidenceRecord | None = None,
+    debate_id: str = "",
+    now: float | None = None,
 ) -> DebateRecord:
     """Factory: build a ``DebateRecord`` from the live objects produced
     by the various C5 engines.  Snapshots all inputs at call time.
@@ -214,18 +213,18 @@ def _debate_to_features(record: DebateRecord) -> dict:
     v = record.verdict
     c = record.conviction
     return {
-        "volatility":        float(v.get("bull_strength", 0.5)),   # proxy: bull pressure
-        "momentum":          float(v.get("bear_strength", 0.5)) * 2.0 - 1.0,  # [-1,1]
-        "trend_strength":    float(v.get("margin",        0.0)),
-        "range_compression": float(q.get("evidence_density",  0.5)),
-        "absorption":        float(q.get("evidence_balance",  0.5)),
-        "volume_balance":    float(c.get("conviction",    0.5)),
-        "session_quality":   float(q.get("overall_score", 0.5)),
-        "microstructure":    float(q.get("conviction_alignment", 0.5)),
-        "regime_numeric":    float(q.get("timeliness",    0.5)),
-        "hypothesis_conf":   float(c.get("confidence",    0.5)),
-        "attention_weight":  1.0 if record.has_overconfidence else 0.0,
-        "spread_norm":       1.0 if record.has_ignored_evidence else 0.0,
+        "volatility": float(v.get("bull_strength", 0.5)),  # proxy: bull pressure
+        "momentum": float(v.get("bear_strength", 0.5)) * 2.0 - 1.0,  # [-1,1]
+        "trend_strength": float(v.get("margin", 0.0)),
+        "range_compression": float(q.get("evidence_density", 0.5)),
+        "absorption": float(q.get("evidence_balance", 0.5)),
+        "volume_balance": float(c.get("conviction", 0.5)),
+        "session_quality": float(q.get("overall_score", 0.5)),
+        "microstructure": float(q.get("conviction_alignment", 0.5)),
+        "regime_numeric": float(q.get("timeliness", 0.5)),
+        "hypothesis_conf": float(c.get("confidence", 0.5)),
+        "attention_weight": 1.0 if record.has_overconfidence else 0.0,
+        "spread_norm": 1.0 if record.has_ignored_evidence else 0.0,
     }
 
 
@@ -252,9 +251,9 @@ class DebateMemoryBridge:
     def __init__(
         self,
         episodic_memory: object | None = None,
-        max_in_process:  int           = MAX_STORED_RECORDS,
+        max_in_process: int = MAX_STORED_RECORDS,
     ) -> None:
-        self._episodic       = episodic_memory
+        self._episodic = episodic_memory
         self._max_in_process = max_in_process
         # instrument → deque of DebateRecord
         self._local: dict[str, deque[DebateRecord]] = defaultdict(
@@ -266,7 +265,7 @@ class DebateMemoryBridge:
     def store_debate(
         self,
         record: DebateRecord,
-        now:    float | None = None,
+        now: float | None = None,
     ) -> str:
         """Persist a ``DebateRecord`` to episodic memory and the local
         deque.
@@ -278,9 +277,7 @@ class DebateMemoryBridge:
         self._local[record.instrument].append(record)
 
         if not _HAS_EPISODIC or self._episodic is None:
-            logger.debug(
-                f"[DebateMemoryBridge] stored locally (no episodic): {record.debate_id}"
-            )
+            logger.debug(f"[DebateMemoryBridge] stored locally (no episodic): {record.debate_id}")
             return record.debate_id
 
         return self._store_episodic(record, now)
@@ -288,7 +285,7 @@ class DebateMemoryBridge:
     def recent_debates(
         self,
         instrument: str,
-        n:          int = 20,
+        n: int = 20,
     ) -> list[DebateRecord]:
         """Return the ``n`` most-recent debates for ``instrument`` from
         the local in-process deque, newest first.
@@ -304,10 +301,7 @@ class DebateMemoryBridge:
 
     def to_snapshot(self) -> dict:
         return {
-            "records": {
-                instr: [r.to_dict() for r in deq]
-                for instr, deq in self._local.items()
-            }
+            "records": {instr: [r.to_dict() for r in deq] for instr, deq in self._local.items()}
         }
 
     def load_snapshot(self, data: dict) -> None:
@@ -326,8 +320,8 @@ class DebateMemoryBridge:
         """Write the debate as an Episode.  Returns episode_id or ""."""
         try:
             feat_dict = _debate_to_features(record)
-            feat      = EpisodeFeatures.from_dict(feat_dict)  # type: ignore[name-defined]
-            outcome   = EpisodeOutcome(  # type: ignore[name-defined]
+            feat = EpisodeFeatures.from_dict(feat_dict)  # type: ignore[name-defined]
+            outcome = EpisodeOutcome(  # type: ignore[name-defined]
                 direction_correct=record.conclusive,
                 reward_atr=record.margin,
                 resolved=True,

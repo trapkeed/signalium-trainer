@@ -46,7 +46,6 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ─────────────────────────────────────────────────────────────────────────
 # CommandAction
 # ─────────────────────────────────────────────────────────────────────────
@@ -55,13 +54,13 @@ from enum import Enum
 class CommandAction(str, Enum):
     """The seven normalised command verbs the QDE issues to the EA."""
 
-    OPEN_POSITION  = "OPEN_POSITION"
+    OPEN_POSITION = "OPEN_POSITION"
     CLOSE_POSITION = "CLOSE_POSITION"
-    PARTIAL_CLOSE  = "PARTIAL_CLOSE"
-    MOVE_SL        = "MOVE_SL"
-    MOVE_TP        = "MOVE_TP"
-    ADD_POSITION   = "ADD_POSITION"
-    CANCEL_ORDER   = "CANCEL_ORDER"
+    PARTIAL_CLOSE = "PARTIAL_CLOSE"
+    MOVE_SL = "MOVE_SL"
+    MOVE_TP = "MOVE_TP"
+    ADD_POSITION = "ADD_POSITION"
+    CANCEL_ORDER = "CANCEL_ORDER"
 
     def requires_existing_position(self) -> bool:
         """True for actions that target an already-open position."""
@@ -91,23 +90,23 @@ class CommandAction(str, Enum):
 class OpenPositionPayload:
     """Payload for OPEN_POSITION commands."""
 
-    direction:   str   = "BUY"      # "BUY" | "SELL"
-    size_lots:   float = 0.0
-    order_type:  str   = "MARKET"   # "MARKET" | "LIMIT" | "STOP"
-    entry_price: float = 0.0        # 0.0 → current market price
-    stop_loss:   float = 0.0
+    direction: str = "BUY"  # "BUY" | "SELL"
+    size_lots: float = 0.0
+    order_type: str = "MARKET"  # "MARKET" | "LIMIT" | "STOP"
+    entry_price: float = 0.0  # 0.0 → current market price
+    stop_loss: float = 0.0
     take_profit: float = 0.0
-    comment:     str   = ""
+    comment: str = ""
 
     def to_dict(self) -> dict:
         return {
-            "direction":   self.direction,
-            "size_lots":   round(self.size_lots, 4),
-            "order_type":  self.order_type,
+            "direction": self.direction,
+            "size_lots": round(self.size_lots, 4),
+            "order_type": self.order_type,
             "entry_price": round(self.entry_price, 5),
-            "stop_loss":   round(self.stop_loss, 5),
+            "stop_loss": round(self.stop_loss, 5),
             "take_profit": round(self.take_profit, 5),
-            "comment":     self.comment,
+            "comment": self.comment,
         }
 
     @classmethod
@@ -127,8 +126,10 @@ class OpenPositionPayload:
 class ClosePositionPayload:
     """Payload for CLOSE_POSITION commands."""
 
-    reason:  str   = "MANUAL"  # e.g. "THESIS_INVALIDATED" | "TAKE_PROFIT" | "STOP_LOSS" | "MANUAL" | "TIMEOUT"
-    urgency: float = 1.0       # 0-1; 1 = execute immediately at market
+    reason: str = (
+        "MANUAL"  # e.g. "THESIS_INVALIDATED" | "TAKE_PROFIT" | "STOP_LOSS" | "MANUAL" | "TIMEOUT"
+    )
+    urgency: float = 1.0  # 0-1; 1 = execute immediately at market
 
     def to_dict(self) -> dict:
         return {"reason": self.reason, "urgency": round(self.urgency, 4)}
@@ -142,8 +143,8 @@ class ClosePositionPayload:
 class PartialClosePayload:
     """Payload for PARTIAL_CLOSE commands."""
 
-    close_fraction: float = 0.5   # 0 < fraction ≤ 1.0
-    reason:         str   = "REDUCE"
+    close_fraction: float = 0.5  # 0 < fraction ≤ 1.0
+    reason: str = "REDUCE"
 
     def to_dict(self) -> dict:
         return {"close_fraction": round(self.close_fraction, 4), "reason": self.reason}
@@ -161,14 +162,16 @@ class MoveSLPayload:
     """Payload for MOVE_SL commands."""
 
     new_stop_loss: float = 0.0
-    reason:        str   = "TRAIL"  # "BREAKEVEN" | "TRAIL" | "CONVICTION_DROP"
+    reason: str = "TRAIL"  # "BREAKEVEN" | "TRAIL" | "CONVICTION_DROP"
 
     def to_dict(self) -> dict:
         return {"new_stop_loss": round(self.new_stop_loss, 5), "reason": self.reason}
 
     @classmethod
     def from_dict(cls, d: dict) -> "MoveSLPayload":
-        return cls(new_stop_loss=float(d.get("new_stop_loss", 0.0)), reason=d.get("reason", "TRAIL"))
+        return cls(
+            new_stop_loss=float(d.get("new_stop_loss", 0.0)), reason=d.get("reason", "TRAIL")
+        )
 
 
 @dataclass
@@ -176,7 +179,7 @@ class MoveTPPayload:
     """Payload for MOVE_TP commands."""
 
     new_take_profit: float = 0.0
-    reason:          str   = "TARGET_ADVANCE"
+    reason: str = "TARGET_ADVANCE"
 
     def to_dict(self) -> dict:
         return {"new_take_profit": round(self.new_take_profit, 5), "reason": self.reason}
@@ -193,16 +196,16 @@ class MoveTPPayload:
 class AddPositionPayload:
     """Payload for ADD_POSITION (scale-in) commands."""
 
-    size_lots:      float = 0.0
-    order_type:     str   = "MARKET"
-    entry_price:    float = 0.0   # 0.0 → current market price
-    new_stop_loss:  float = 0.0   # combined stop for the total (enlarged) position; 0.0 = unchanged
+    size_lots: float = 0.0
+    order_type: str = "MARKET"
+    entry_price: float = 0.0  # 0.0 → current market price
+    new_stop_loss: float = 0.0  # combined stop for the total (enlarged) position; 0.0 = unchanged
 
     def to_dict(self) -> dict:
         return {
-            "size_lots":     round(self.size_lots, 4),
-            "order_type":    self.order_type,
-            "entry_price":   round(self.entry_price, 5),
+            "size_lots": round(self.size_lots, 4),
+            "order_type": self.order_type,
+            "entry_price": round(self.entry_price, 5),
             "new_stop_loss": round(self.new_stop_loss, 5),
         }
 
@@ -221,7 +224,7 @@ class CancelOrderPayload:
     """Payload for CANCEL_ORDER commands."""
 
     order_id: str = ""
-    reason:   str = "SIGNAL_EXPIRED"
+    reason: str = "SIGNAL_EXPIRED"
 
     def to_dict(self) -> dict:
         return {"order_id": self.order_id, "reason": self.reason}
@@ -233,13 +236,13 @@ class CancelOrderPayload:
 
 # Dispatch table: action → typed payload class (used by validator / codec)
 PAYLOAD_CLASS: dict[CommandAction, type] = {
-    CommandAction.OPEN_POSITION:  OpenPositionPayload,
+    CommandAction.OPEN_POSITION: OpenPositionPayload,
     CommandAction.CLOSE_POSITION: ClosePositionPayload,
-    CommandAction.PARTIAL_CLOSE:  PartialClosePayload,
-    CommandAction.MOVE_SL:        MoveSLPayload,
-    CommandAction.MOVE_TP:        MoveTPPayload,
-    CommandAction.ADD_POSITION:   AddPositionPayload,
-    CommandAction.CANCEL_ORDER:   CancelOrderPayload,
+    CommandAction.PARTIAL_CLOSE: PartialClosePayload,
+    CommandAction.MOVE_SL: MoveSLPayload,
+    CommandAction.MOVE_TP: MoveTPPayload,
+    CommandAction.ADD_POSITION: AddPositionPayload,
+    CommandAction.CANCEL_ORDER: CancelOrderPayload,
 }
 
 
@@ -262,17 +265,17 @@ class ProtocolCommand:
     """
 
     # Required fields on every command
-    command_id:         str           = field(default_factory=lambda: str(uuid.uuid4()))
-    qde_version:        str           = ""
-    position_id:        str           = ""
-    symbol:             str           = ""
-    action:             CommandAction = CommandAction.OPEN_POSITION
-    payload:            dict          = field(default_factory=dict)
-    expires_at:         float         = field(default_factory=lambda: time.time() + 30.0)
-    created_at:         float         = field(default_factory=time.time)
+    command_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    qde_version: str = ""
+    position_id: str = ""
+    symbol: str = ""
+    action: CommandAction = CommandAction.OPEN_POSITION
+    payload: dict = field(default_factory=dict)
+    expires_at: float = field(default_factory=lambda: time.time() + 30.0)
+    created_at: float = field(default_factory=time.time)
 
     # Optional traceability link back to the originating decision
-    source_decision_id: str           = ""
+    source_decision_id: str = ""
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -290,14 +293,14 @@ class ProtocolCommand:
 
     def to_dict(self) -> dict:
         return {
-            "command_id":         self.command_id,
-            "qde_version":        self.qde_version,
-            "position_id":        self.position_id,
-            "symbol":             self.symbol,
-            "action":             self.action.value,
-            "payload":            dict(self.payload),
-            "expires_at":         round(self.expires_at, 3),
-            "created_at":         round(self.created_at, 3),
+            "command_id": self.command_id,
+            "qde_version": self.qde_version,
+            "position_id": self.position_id,
+            "symbol": self.symbol,
+            "action": self.action.value,
+            "payload": dict(self.payload),
+            "expires_at": round(self.expires_at, 3),
+            "created_at": round(self.created_at, 3),
             "source_decision_id": self.source_decision_id,
         }
 
@@ -329,17 +332,17 @@ class CommandValidationResult:
     ``errors`` contains blocking failures; ``warnings`` are non-blocking.
     """
 
-    valid:    bool       = True
-    errors:   list[str]  = field(default_factory=list)
-    warnings: list[str]  = field(default_factory=list)
+    valid: bool = True
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def __bool__(self) -> bool:
         return self.valid
 
     def to_dict(self) -> dict:
         return {
-            "valid":    self.valid,
-            "errors":   list(self.errors),
+            "valid": self.valid,
+            "errors": list(self.errors),
             "warnings": list(self.warnings),
         }
 

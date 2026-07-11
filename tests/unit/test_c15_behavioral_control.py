@@ -28,8 +28,6 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-
 from trainer.qde.brain.behavioral import (
     AGGRESSION_DRIFT_MILD,
     DRAWDOWN_CAUTION_THRESHOLD,
@@ -39,7 +37,6 @@ from trainer.qde.brain.behavioral import (
     LOSING_STREAK_CAUTION,
     LOSING_STREAK_DEFENSIVE,
     MAX_BEHAVIORAL_HISTORY,
-    OVERCONFIDENCE_RATE_MILD,
     PATHOLOGY_CAUTION_THRESHOLD,
     PATHOLOGY_DEFENSIVE_THRESHOLD,
     WINNING_STREAK_AGGRESSIVE,
@@ -72,6 +69,7 @@ _T0 = 1_700_000_000.0
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def _signals(
     confidences: list[float] | None = None,
@@ -130,6 +128,7 @@ def _assessment(
 # 1. CognitiveState enum
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestCognitiveState:
     def test_four_values(self):
         expected = {"CAUTION", "NORMAL", "AGGRESSIVE", "DEFENSIVE"}
@@ -142,8 +141,8 @@ class TestCognitiveState:
     def test_severity_ordering(self):
         """AGGRESSIVE < NORMAL < CAUTION < DEFENSIVE in severity."""
         assert state_severity(CognitiveState.AGGRESSIVE) < state_severity(CognitiveState.NORMAL)
-        assert state_severity(CognitiveState.NORMAL)     < state_severity(CognitiveState.CAUTION)
-        assert state_severity(CognitiveState.CAUTION)    < state_severity(CognitiveState.DEFENSIVE)
+        assert state_severity(CognitiveState.NORMAL) < state_severity(CognitiveState.CAUTION)
+        assert state_severity(CognitiveState.CAUTION) < state_severity(CognitiveState.DEFENSIVE)
 
     def test_severity_all_distinct(self):
         severities = [state_severity(s) for s in CognitiveState]
@@ -153,6 +152,7 @@ class TestCognitiveState:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. BehavioralSignals
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBehavioralSignals:
     def test_defaults(self):
@@ -187,6 +187,7 @@ class TestBehavioralSignals:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3. Internal signal functions
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestConfidenceInflation:
     def test_sparse_returns_zero(self):
@@ -328,11 +329,13 @@ class TestEuphoriaRisk:
         assert result == 0.0
 
     def test_long_streak_raises_euphoria(self):
-        result = _euphoria_risk(consecutive_wins=WINNING_STREAK_EUPHORIA + 2, confidence_inflation=0.0)
+        result = _euphoria_risk(
+            consecutive_wins=WINNING_STREAK_EUPHORIA + 2, confidence_inflation=0.0
+        )
         assert result > 0.0
 
     def test_inflation_raises_euphoria(self):
-        result_low  = _euphoria_risk(consecutive_wins=4, confidence_inflation=0.0)
+        result_low = _euphoria_risk(consecutive_wins=4, confidence_inflation=0.0)
         result_high = _euphoria_risk(consecutive_wins=4, confidence_inflation=0.30)
         assert result_high > result_low
 
@@ -353,12 +356,12 @@ class TestLossSpiralRisk:
         assert result == 0.0
 
     def test_losses_raise_spiral(self):
-        result_low  = _loss_spiral_risk(1, 0.0, 1.0)
+        result_low = _loss_spiral_risk(1, 0.0, 1.0)
         result_high = _loss_spiral_risk(5, 0.0, 1.0)
         assert result_high > result_low
 
     def test_drawdown_raises_spiral(self):
-        result_low  = _loss_spiral_risk(2, 0.02, 1.0)
+        result_low = _loss_spiral_risk(2, 0.02, 1.0)
         result_high = _loss_spiral_risk(2, 0.10, 1.0)
         assert result_high > result_low
 
@@ -419,29 +422,39 @@ class TestPathologyScore:
 # 4. _recommend_state FSM
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestRecommendState:
     def test_losing_streak_defensive_threshold(self):
         state, trigger = _recommend_state(
             consecutive_losses=LOSING_STREAK_DEFENSIVE,
-            consecutive_wins=0, current_drawdown=0.0,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            consecutive_wins=0,
+            current_drawdown=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.DEFENSIVE
         assert "losing_streak" in trigger
 
     def test_drawdown_defensive(self):
         state, _ = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0,
+            consecutive_losses=0,
+            consecutive_wins=0,
             current_drawdown=DRAWDOWN_DEFENSIVE_THRESHOLD,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.DEFENSIVE
 
     def test_high_pathology_defensive(self):
         state, _ = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0, current_drawdown=0.0,
+            consecutive_losses=0,
+            consecutive_wins=0,
+            current_drawdown=0.0,
             pathology=PATHOLOGY_DEFENSIVE_THRESHOLD,
-            euphoria=0.0, loss_spiral=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.DEFENSIVE
 
@@ -450,15 +463,21 @@ class TestRecommendState:
             consecutive_losses=0,
             consecutive_wins=WINNING_STREAK_EUPHORIA,
             current_drawdown=0.0,
-            pathology=0.0, euphoria=0.8, loss_spiral=0.0,
+            pathology=0.0,
+            euphoria=0.8,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.CAUTION
         assert "euphoria" in trigger.lower()
 
     def test_euphoria_risk_from_aggressive(self):
         state, _ = _recommend_state(
-            consecutive_losses=0, consecutive_wins=4, current_drawdown=0.0,
-            pathology=0.0, euphoria=EUPHORIA_RISK_THRESHOLD + 0.01, loss_spiral=0.0,
+            consecutive_losses=0,
+            consecutive_wins=4,
+            current_drawdown=0.0,
+            pathology=0.0,
+            euphoria=EUPHORIA_RISK_THRESHOLD + 0.01,
+            loss_spiral=0.0,
             current_state=CognitiveState.AGGRESSIVE,
         )
         assert state == CognitiveState.CAUTION
@@ -466,24 +485,33 @@ class TestRecommendState:
     def test_mild_losing_streak_caution(self):
         state, _ = _recommend_state(
             consecutive_losses=LOSING_STREAK_CAUTION,
-            consecutive_wins=0, current_drawdown=0.0,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            consecutive_wins=0,
+            current_drawdown=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.CAUTION
 
     def test_pathology_caution(self):
         state, _ = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0, current_drawdown=0.0,
+            consecutive_losses=0,
+            consecutive_wins=0,
+            current_drawdown=0.0,
             pathology=PATHOLOGY_CAUTION_THRESHOLD,
-            euphoria=0.0, loss_spiral=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
         )
         assert state == CognitiveState.CAUTION
 
     def test_defensive_recovery_to_caution(self):
         state, trigger = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0,
+            consecutive_losses=0,
+            consecutive_wins=0,
             current_drawdown=DRAWDOWN_CAUTION_THRESHOLD - 0.01,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
             current_state=CognitiveState.DEFENSIVE,
         )
         assert state == CognitiveState.CAUTION
@@ -494,16 +522,21 @@ class TestRecommendState:
             consecutive_losses=0,
             consecutive_wins=WINNING_STREAK_AGGRESSIVE,
             current_drawdown=0.0,
-            pathology=0.10, euphoria=0.10, loss_spiral=0.0,
+            pathology=0.10,
+            euphoria=0.10,
+            loss_spiral=0.0,
             current_state=CognitiveState.NORMAL,
         )
         assert state == CognitiveState.AGGRESSIVE
 
     def test_caution_resolved_to_normal(self):
         state, trigger = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0,
+            consecutive_losses=0,
+            consecutive_wins=0,
             current_drawdown=0.01,
-            pathology=0.10, euphoria=0.0, loss_spiral=0.0,
+            pathology=0.10,
+            euphoria=0.0,
+            loss_spiral=0.0,
             current_state=CognitiveState.CAUTION,
         )
         assert state == CognitiveState.NORMAL
@@ -511,8 +544,12 @@ class TestRecommendState:
 
     def test_normal_no_trigger_stays_normal(self):
         state, trigger = _recommend_state(
-            consecutive_losses=0, consecutive_wins=0, current_drawdown=0.0,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            consecutive_losses=0,
+            consecutive_wins=0,
+            current_drawdown=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
             current_state=CognitiveState.NORMAL,
         )
         assert state == CognitiveState.NORMAL
@@ -523,7 +560,9 @@ class TestRecommendState:
             consecutive_losses=0,
             consecutive_wins=WINNING_STREAK_AGGRESSIVE - 1,
             current_drawdown=0.0,
-            pathology=0.0, euphoria=0.0, loss_spiral=0.0,
+            pathology=0.0,
+            euphoria=0.0,
+            loss_spiral=0.0,
             current_state=CognitiveState.AGGRESSIVE,
         )
         assert state == CognitiveState.NORMAL
@@ -533,18 +572,21 @@ class TestRecommendState:
 # 5. evaluate_behavior()
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestEvaluateBehavior:
     def test_returns_behavioral_assessment(self):
         result = evaluate_behavior(_signals())
         assert isinstance(result, BehavioralAssessment)
 
     def test_normal_signals_no_pathology(self):
-        result = evaluate_behavior(_signals(
-            confidences=[0.65, 0.60, 0.70],
-            outcomes=[1.0, 1.0, 1.0],
-            aggressiveness=[0.45, 0.45, 0.45],
-            risk_per_trade=[0.02, 0.02, 0.02],
-        ))
+        result = evaluate_behavior(
+            _signals(
+                confidences=[0.65, 0.60, 0.70],
+                outcomes=[1.0, 1.0, 1.0],
+                aggressiveness=[0.45, 0.45, 0.45],
+                risk_per_trade=[0.02, 0.02, 0.02],
+            )
+        )
         assert result.recommended_state == CognitiveState.NORMAL
         assert result.pathology_score < PATHOLOGY_CAUTION_THRESHOLD
 
@@ -557,30 +599,35 @@ class TestEvaluateBehavior:
         assert result.recommended_state in (CognitiveState.CAUTION, CognitiveState.DEFENSIVE)
 
     def test_severe_drawdown_defensive(self):
-        result = evaluate_behavior(_signals(
-            drawdown=DRAWDOWN_DEFENSIVE_THRESHOLD,
-            drawdown_peak_agg=0.70,
-            aggressiveness=[0.70, 0.75],
-        ))
+        result = evaluate_behavior(
+            _signals(
+                drawdown=DRAWDOWN_DEFENSIVE_THRESHOLD,
+                drawdown_peak_agg=0.70,
+                aggressiveness=[0.70, 0.75],
+            )
+        )
         assert result.recommended_state == CognitiveState.DEFENSIVE
 
     def test_high_confidence_inflation_caution(self):
         # Predict 0.80, lose every trade → inflation = +0.80
-        result = evaluate_behavior(_signals(
-            confidences=[0.80] * 5,
-            outcomes=[0.0] * 5,
-        ))
-        assert result.confidence_inflation > INFLATION_MILD_THRESHOLD
-        assert result.recommended_state in (
-            CognitiveState.CAUTION, CognitiveState.DEFENSIVE
+        result = evaluate_behavior(
+            _signals(
+                confidences=[0.80] * 5,
+                outcomes=[0.0] * 5,
+            )
         )
+        assert result.confidence_inflation > INFLATION_MILD_THRESHOLD
+        assert result.recommended_state in (CognitiveState.CAUTION, CognitiveState.DEFENSIVE)
 
     def test_winning_streak_aggressive(self):
-        result = evaluate_behavior(_signals(
-            consecutive_wins=WINNING_STREAK_AGGRESSIVE,
-            confidences=[0.60] * 6,
-            outcomes=[1.0] * 6,
-        ), current_state=CognitiveState.NORMAL)
+        result = evaluate_behavior(
+            _signals(
+                consecutive_wins=WINNING_STREAK_AGGRESSIVE,
+                confidences=[0.60] * 6,
+                outcomes=[1.0] * 6,
+            ),
+            current_state=CognitiveState.NORMAL,
+        )
         assert result.recommended_state == CognitiveState.AGGRESSIVE
 
     def test_euphoria_after_wins_then_caution(self):
@@ -606,15 +653,24 @@ class TestEvaluateBehavior:
     def test_metacognition_signals_used(self):
         """Pre-computed metacognition signals should influence the assessment."""
         baseline = evaluate_behavior(_signals(overconfidence_score=0.0))
-        with_meta = evaluate_behavior(_signals(overconfidence_score=0.80, metacognition_caution=0.70))
+        with_meta = evaluate_behavior(
+            _signals(overconfidence_score=0.80, metacognition_caution=0.70)
+        )
         assert with_meta.pathology_score > baseline.pathology_score
 
     def test_to_dict_keys(self):
         d = evaluate_behavior(_signals()).to_dict()
         for key in (
-            "confidence_inflation", "overconfidence_level", "drawdown_response_quality",
-            "aggressiveness_drift", "risk_escalation_rate", "pathology_score",
-            "euphoria_risk", "loss_spiral_risk", "recommended_state", "reasoning",
+            "confidence_inflation",
+            "overconfidence_level",
+            "drawdown_response_quality",
+            "aggressiveness_drift",
+            "risk_escalation_rate",
+            "pathology_score",
+            "euphoria_risk",
+            "loss_spiral_risk",
+            "recommended_state",
+            "reasoning",
         ):
             assert key in d
 
@@ -630,6 +686,7 @@ class TestEvaluateBehavior:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 6. adjust_state()
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestAdjustState:
     def test_worsening_immediate(self):
@@ -685,6 +742,7 @@ class TestAdjustState:
 # 7. BehavioralRecord
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestBehavioralRecord:
     def _record(self, prev: CognitiveState, new: CognitiveState) -> BehavioralRecord:
         return BehavioralRecord(
@@ -708,8 +766,16 @@ class TestBehavioralRecord:
     def test_to_dict_keys(self):
         r = self._record(CognitiveState.NORMAL, CognitiveState.DEFENSIVE)
         d = r.to_dict()
-        for key in ("record_id", "previous_state", "new_state", "assessment",
-                    "session_label", "recorded_at", "trigger", "is_transition"):
+        for key in (
+            "record_id",
+            "previous_state",
+            "new_state",
+            "assessment",
+            "session_label",
+            "recorded_at",
+            "trigger",
+            "is_transition",
+        ):
             assert key in d
 
     def test_to_dict_values(self):
@@ -723,6 +789,7 @@ class TestBehavioralRecord:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 8. BehavioralControlEngine
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBehavioralControlEngine:
     def test_instantiates_default(self):
@@ -806,15 +873,22 @@ class TestBehavioralControlEngine:
     def test_summary_keys(self):
         engine = BehavioralControlEngine(instrument="GOLD")
         d = engine.summary()
-        for key in ("instrument", "current_state", "history_size",
-                    "transition_count", "time_in_defensive",
-                    "time_in_caution", "time_in_aggressive"):
+        for key in (
+            "instrument",
+            "current_state",
+            "history_size",
+            "transition_count",
+            "time_in_defensive",
+            "time_in_caution",
+            "time_in_aggressive",
+        ):
             assert key in d
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 9. behavior_report()
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBehaviorReport:
     def test_returns_dict(self):
@@ -828,10 +902,17 @@ class TestBehaviorReport:
         engine.adjust_state(engine.evaluate_behavior(_signals()))
         report = engine.behavior_report()
         for key in (
-            "instrument", "current_state", "state_history",
-            "transition_count", "time_in_state", "latest_assessment",
-            "pathology_trend", "euphoria_events", "loss_spiral_events",
-            "history_size", "generated_at",
+            "instrument",
+            "current_state",
+            "state_history",
+            "transition_count",
+            "time_in_state",
+            "latest_assessment",
+            "pathology_trend",
+            "euphoria_events",
+            "loss_spiral_events",
+            "history_size",
+            "generated_at",
         ):
             assert key in report
 
@@ -896,6 +977,7 @@ class TestBehaviorReport:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 10. End-to-end behavioral scenarios
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestBehavioralScenarios:
     def test_losses_reduce_aggressiveness(self):
@@ -1005,17 +1087,20 @@ class TestBehavioralScenarios:
 # 11. Import sanity
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestImportSanity:
     def test_all_spec_callables_importable(self):
         from trainer.qde.brain.behavioral import (
-            evaluate_behavior,
             adjust_state,
             behavior_report,
+            evaluate_behavior,
         )
+
         assert all(callable(fn) for fn in (evaluate_behavior, adjust_state, behavior_report))
 
     def test_cognitive_state_importable(self):
         from trainer.qde.brain.behavioral import CognitiveState
+
         assert CognitiveState.CAUTION.value == "CAUTION"
         assert CognitiveState.AGGRESSIVE.value == "AGGRESSIVE"
         assert CognitiveState.DEFENSIVE.value == "DEFENSIVE"
@@ -1023,11 +1108,13 @@ class TestImportSanity:
 
     def test_behavioral_control_engine_importable(self):
         from trainer.qde.brain.behavioral import BehavioralControlEngine
+
         engine = BehavioralControlEngine(instrument="TEST")
         assert engine.state == CognitiveState.NORMAL
 
     def test_package_path_correct(self):
         import trainer.qde.brain.behavioral as pkg
+
         assert hasattr(pkg, "CognitiveState")
         assert hasattr(pkg, "evaluate_behavior")
         assert hasattr(pkg, "adjust_state")

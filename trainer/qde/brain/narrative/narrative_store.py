@@ -28,20 +28,19 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ── Vocabulary ────────────────────────────────────────────────────────────
 
 
 class NarrativeKind(str, Enum):
     """Named market narrative archetypes the QDE can recognise and track."""
 
-    TREND_CONTINUATION = "TREND_CONTINUATION"   # existing trend sustaining
-    REVERSAL = "REVERSAL"                        # trend losing steam, setup flipping
-    ACCUMULATION = "ACCUMULATION"                # quiet range, smart-money building
-    DISTRIBUTION = "DISTRIBUTION"                # range after run, supply emerging
-    BREAKOUT = "BREAKOUT"                        # imminent or active range escape
-    EXHAUSTION = "EXHAUSTION"                    # move running out of fuel
-    LIQUIDITY_GRAB = "LIQUIDITY_GRAB"            # stop-hunt / wick below/above range
+    TREND_CONTINUATION = "TREND_CONTINUATION"  # existing trend sustaining
+    REVERSAL = "REVERSAL"  # trend losing steam, setup flipping
+    ACCUMULATION = "ACCUMULATION"  # quiet range, smart-money building
+    DISTRIBUTION = "DISTRIBUTION"  # range after run, supply emerging
+    BREAKOUT = "BREAKOUT"  # imminent or active range escape
+    EXHAUSTION = "EXHAUSTION"  # move running out of fuel
+    LIQUIDITY_GRAB = "LIQUIDITY_GRAB"  # stop-hunt / wick below/above range
 
 
 class NarrativeMaturity(str, Enum):
@@ -52,23 +51,23 @@ class NarrativeMaturity(str, Enum):
     is what should *seed* a hypothesis, not place a trade directly.
     """
 
-    FORMING = "FORMING"           # just detected, thin evidence
-    DEVELOPING = "DEVELOPING"     # gathering evidence, moderate confidence
-    ESTABLISHED = "ESTABLISHED"   # well-supported, should seed hypotheses
-    FADING = "FADING"             # conflicting evidence outgrowing support
-    EXPIRED = "EXPIRED"           # aged out or explicitly invalidated
+    FORMING = "FORMING"  # just detected, thin evidence
+    DEVELOPING = "DEVELOPING"  # gathering evidence, moderate confidence
+    ESTABLISHED = "ESTABLISHED"  # well-supported, should seed hypotheses
+    FADING = "FADING"  # conflicting evidence outgrowing support
+    EXPIRED = "EXPIRED"  # aged out or explicitly invalidated
 
 
 # Per-kind default lifespan — directional narratives that have not been
 # recently reinforced should fade faster than structural/cycle narratives.
 _DEFAULT_MAX_AGE: dict[NarrativeKind, float] = {
     NarrativeKind.TREND_CONTINUATION: 8.0 * 3600,
-    NarrativeKind.REVERSAL:           4.0 * 3600,
-    NarrativeKind.ACCUMULATION:      12.0 * 3600,
-    NarrativeKind.DISTRIBUTION:      12.0 * 3600,
-    NarrativeKind.BREAKOUT:           2.0 * 3600,
-    NarrativeKind.EXHAUSTION:         3.0 * 3600,
-    NarrativeKind.LIQUIDITY_GRAB:     1.0 * 3600,
+    NarrativeKind.REVERSAL: 4.0 * 3600,
+    NarrativeKind.ACCUMULATION: 12.0 * 3600,
+    NarrativeKind.DISTRIBUTION: 12.0 * 3600,
+    NarrativeKind.BREAKOUT: 2.0 * 3600,
+    NarrativeKind.EXHAUSTION: 3.0 * 3600,
+    NarrativeKind.LIQUIDITY_GRAB: 1.0 * 3600,
 }
 
 MAX_EVIDENCE_ITEMS = 20  # truncation cap per evidence list (mirrors brain_models)
@@ -129,9 +128,7 @@ class SymbolNarrative:
 
     # ── Mutation helpers ─────────────────────────────────────────────────
 
-    def reinforce(
-        self, evidence: str, boost: float = 0.12, now: float | None = None
-    ) -> None:
+    def reinforce(self, evidence: str, boost: float = 0.12, now: float | None = None) -> None:
         now = now if now is not None else time.time()
         self.supporting_evidence.append(evidence)
         if len(self.supporting_evidence) > MAX_EVIDENCE_ITEMS:
@@ -141,9 +138,7 @@ class SymbolNarrative:
         self.last_updated_at = now
         self._recompute_maturity()
 
-    def weaken(
-        self, evidence: str, penalty: float = 0.15, now: float | None = None
-    ) -> None:
+    def weaken(self, evidence: str, penalty: float = 0.15, now: float | None = None) -> None:
         now = now if now is not None else time.time()
         self.conflicting_evidence.append(evidence)
         if len(self.conflicting_evidence) > MAX_EVIDENCE_ITEMS:
@@ -169,11 +164,7 @@ class SymbolNarrative:
             self.maturity = NarrativeMaturity.FADING
             return
         # Established: high confidence, repeated reinforcement, positive balance
-        if (
-            self.confidence >= 0.70
-            and self.reinforcement_count >= 3
-            and balance >= 0.60
-        ):
+        if self.confidence >= 0.70 and self.reinforcement_count >= 3 and balance >= 0.60:
             self.maturity = NarrativeMaturity.ESTABLISHED
         elif self.confidence >= 0.45 and self.reinforcement_count >= 1:
             self.maturity = NarrativeMaturity.DEVELOPING
@@ -215,15 +206,11 @@ class NarrativeStore:
     (`MarketNarrativeEngine._stores`), this class holds none of its own.
     """
 
-    def upsert(
-        self, store: dict[str, SymbolNarrative], narrative: SymbolNarrative
-    ) -> None:
+    def upsert(self, store: dict[str, SymbolNarrative], narrative: SymbolNarrative) -> None:
         """Insert or replace the narrative for its kind."""
         store[narrative.kind.value] = narrative
 
-    def get(
-        self, store: dict[str, SymbolNarrative], kind: NarrativeKind
-    ) -> SymbolNarrative | None:
+    def get(self, store: dict[str, SymbolNarrative], kind: NarrativeKind) -> SymbolNarrative | None:
         return store.get(kind.value)
 
     def active(self, store: dict[str, SymbolNarrative]) -> list[SymbolNarrative]:
@@ -233,22 +220,16 @@ class NarrativeStore:
         return [n for n in store.values() if n.is_actionable()]
 
     def established(self, store: dict[str, SymbolNarrative]) -> list[SymbolNarrative]:
-        return [
-            n for n in store.values() if n.maturity == NarrativeMaturity.ESTABLISHED
-        ]
+        return [n for n in store.values() if n.maturity == NarrativeMaturity.ESTABLISHED]
 
-    def dominant(
-        self, store: dict[str, SymbolNarrative]
-    ) -> SymbolNarrative | None:
+    def dominant(self, store: dict[str, SymbolNarrative]) -> SymbolNarrative | None:
         """The active narrative with the highest confidence."""
         candidates = self.active(store)
         if not candidates:
             return None
         return max(candidates, key=lambda n: n.confidence)
 
-    def expire_stale(
-        self, store: dict[str, SymbolNarrative], now: float | None = None
-    ) -> int:
+    def expire_stale(self, store: dict[str, SymbolNarrative], now: float | None = None) -> int:
         """Age out narratives that have exceeded their `max_age_seconds`.
         Returns the number expired.
         """

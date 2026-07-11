@@ -43,7 +43,6 @@ from trainer.qde.brain.brain_types import BeliefDirection
 from trainer.qde.brain.conviction_engine import (
     ConvictionProfile,
     ConvictionScore,
-    compute_conviction,
 )
 from trainer.qde.brain.decision.decision_types import (
     CognitiveAction,
@@ -51,7 +50,6 @@ from trainer.qde.brain.decision.decision_types import (
     DecisionInput,
 )
 from trainer.qde.brain.uncertainty_engine import (
-    UncertaintyLevel,
     UncertaintyScore,
     does_not_understand_market,
     prefers_no_trade,
@@ -64,14 +62,14 @@ if TYPE_CHECKING:
 # Thresholds
 # -------------------------------------------------------------------
 
-CONVICTION_ACTION_THRESHOLD  = 0.45   # conviction ≥ this → eligible for BUY/SELL
-CONVICTION_MONITOR_THRESHOLD = 0.20   # conviction ≥ this → MONITOR rather than IGNORE
-MIN_HYPOTHESES_FOR_MONITOR   = 1      # need at least this many active hypotheses
-MAX_OPEN_POSITIONS_SOFT      = 4      # soft limit: reduce size above this count
-DAILY_LOSS_LIMIT_PCT         = -0.03  # reduce risk below this daily P&L
-HOLD_HORIZON_BASE_SECONDS    = 14_400.0  # 4 hours baseline
-SIZE_MAX                     = 1.0
-SIZE_POSITION_PENALTY        = 0.3    # deduct from size if already in the same direction
+CONVICTION_ACTION_THRESHOLD = 0.45  # conviction ≥ this → eligible for BUY/SELL
+CONVICTION_MONITOR_THRESHOLD = 0.20  # conviction ≥ this → MONITOR rather than IGNORE
+MIN_HYPOTHESES_FOR_MONITOR = 1  # need at least this many active hypotheses
+MAX_OPEN_POSITIONS_SOFT = 4  # soft limit: reduce size above this count
+DAILY_LOSS_LIMIT_PCT = -0.03  # reduce risk below this daily P&L
+HOLD_HORIZON_BASE_SECONDS = 14_400.0  # 4 hours baseline
+SIZE_MAX = 1.0
+SIZE_POSITION_PENALTY = 0.3  # deduct from size if already in the same direction
 
 
 # -------------------------------------------------------------------
@@ -80,9 +78,9 @@ SIZE_POSITION_PENALTY        = 0.3    # deduct from size if already in the same 
 
 
 def compute_decision(
-    inp:      DecisionInput,
-    calib:    "CalibrationProfile | None" = None,
-    now:      float | None                = None,
+    inp: DecisionInput,
+    calib: "CalibrationProfile | None" = None,
+    now: float | None = None,
 ) -> CognitiveDecision:
     """Translate a fully-populated ``DecisionInput`` into a
     ``CognitiveDecision``.
@@ -94,12 +92,12 @@ def compute_decision(
 
     action, direction, hyp = _classify_action(inp)
 
-    raw_confidence  = hyp.confidence if hyp else 0.0
-    calib_bias      = calib.confidence_bias if calib else 0.0
+    raw_confidence = hyp.confidence if hyp else 0.0
+    calib_bias = calib.confidence_bias if calib else 0.0
     calibrated_conf = max(0.05, min(0.95, raw_confidence + calib_bias))
 
-    conv_score      = inp.conviction.conviction if inp.conviction else 0.0
-    conv_profile    = inp.conviction.profile.value if inp.conviction else ConvictionProfile.MIXED.value
+    conv_score = inp.conviction.conviction if inp.conviction else 0.0
+    conv_profile = inp.conviction.profile.value if inp.conviction else ConvictionProfile.MIXED.value
 
     risk_signal, entry_urgency, hold_horizon, size_signal = _compute_signals(
         action=action,
@@ -112,9 +110,9 @@ def compute_decision(
         direction=direction,
     )
 
-    oc_flagged  = bool(inp.debate_record and inp.debate_record.has_overconfidence)
-    ie_flagged  = bool(inp.debate_record and inp.debate_record.has_ignored_evidence)
-    debate_id   = inp.debate_record.debate_id if inp.debate_record else None
+    oc_flagged = bool(inp.debate_record and inp.debate_record.has_overconfidence)
+    ie_flagged = bool(inp.debate_record and inp.debate_record.has_ignored_evidence)
+    debate_id = inp.debate_record.debate_id if inp.debate_record else None
 
     reasoning = _brief_reasoning(action, direction, inp, hyp)
 
@@ -214,14 +212,14 @@ def _classify_action(
 
 
 def _compute_signals(
-    action:                    CognitiveAction,
-    uncertainty:               UncertaintyScore,
-    conviction:                ConvictionScore | None,
-    portfolio_open_positions:  int,
-    portfolio_daily_pnl_pct:   float,
-    has_existing_position:     bool,
+    action: CognitiveAction,
+    uncertainty: UncertaintyScore,
+    conviction: ConvictionScore | None,
+    portfolio_open_positions: int,
+    portfolio_daily_pnl_pct: float,
+    has_existing_position: bool,
     existing_position_direction: BeliefDirection | None,
-    direction:                 BeliefDirection,
+    direction: BeliefDirection,
 ) -> tuple[float, float, float, float]:
     """Return (risk_signal, entry_urgency, hold_horizon, size_signal)."""
 
@@ -238,9 +236,7 @@ def _compute_signals(
         risk_signal = max(0.0, risk_signal + portfolio_daily_pnl_pct * 5.0)
 
     conv = conviction.conviction if conviction else 0.0
-    persist = (
-        conviction.components.persistence_strength if conviction else 0.0
-    )
+    persist = conviction.components.persistence_strength if conviction else 0.0
 
     if action.is_passive():
         return risk_signal, 0.0, 0.0, 0.0
@@ -277,8 +273,8 @@ def _select_hypothesis(
 
 def _dominant_direction(
     active_hypotheses: "list[Hypothesis]",
-    debate_record:     object | None,
-    narrative:         object | None,
+    debate_record: object | None,
+    narrative: object | None,
 ) -> BeliefDirection:
     """Best available direction signal, priority: debate > hypotheses > narrative."""
     # Debate dominates if conclusive
@@ -315,10 +311,10 @@ def _dominant_direction(
 
 
 def _brief_reasoning(
-    action:    CognitiveAction,
+    action: CognitiveAction,
     direction: BeliefDirection,
-    inp:       DecisionInput,
-    hyp:       "Hypothesis | None",
+    inp: DecisionInput,
+    hyp: "Hypothesis | None",
 ) -> str:
     """One-sentence summary used in CognitiveDecision.reasoning.
 

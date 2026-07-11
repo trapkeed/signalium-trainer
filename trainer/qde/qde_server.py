@@ -718,9 +718,7 @@ def platform_inference(req: PlatformInferenceRequest) -> dict:
         "size_signal": 0.0,
         "entry_urgency": 0.0,
         "exit_horizon": 0.5,
-        "reasoning": (
-            f"No trained model active for {req.symbol} — defaulting to FLAT stance."
-        ),
+        "reasoning": (f"No trained model active for {req.symbol} — defaulting to FLAT stance."),
     }
 
 

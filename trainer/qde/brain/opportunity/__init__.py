@@ -74,24 +74,24 @@ Design rules
 
 from __future__ import annotations
 
+# ── Capital / attention allocator ─────────────────────────────────────────────
+from trainer.qde.brain.opportunity.capital_priority_engine import (
+    CapitalAllocation,
+    CapitalPriorityEngine,
+    PriorityTier,
+)
+
 # ── Input bag ─────────────────────────────────────────────────────────────────
 from trainer.qde.brain.opportunity.opportunity_cost_engine import (
-    OpportunityInput,
     OpportunityCost,
     OpportunityCostEngine,
+    OpportunityInput,
 )
 
 # ── Cross-symbol ranker ───────────────────────────────────────────────────────
 from trainer.qde.brain.opportunity.opportunity_ranker import (
-    RankedOpportunity,
     OpportunityRanker,
-)
-
-# ── Capital / attention allocator ─────────────────────────────────────────────
-from trainer.qde.brain.opportunity.capital_priority_engine import (
-    PriorityTier,
-    CapitalAllocation,
-    CapitalPriorityEngine,
+    RankedOpportunity,
 )
 
 # ── C11: expected-utility scoring, classification, and ranking ────────────────
@@ -99,8 +99,8 @@ from trainer.qde.brain.opportunity.opportunity_score import (
     OpportunityClass,
     OpportunityScore,
     classify_opportunity,
-    score_opportunity,
     rank_opportunities,
+    score_opportunity,
 )
 
 __all__ = [

@@ -35,6 +35,16 @@ cluster, have been taken, or may exist next.  It is distinct from
 
 from __future__ import annotations
 
+# ── Detector ──────────────────────────────────────────────────────────────────
+from trainer.qde.brain.liquidity.liquidity_event_detector import (
+    LiquidityEventDetector,
+)
+
+# ── Engine ────────────────────────────────────────────────────────────────────
+from trainer.qde.brain.liquidity.liquidity_map_engine import (
+    LiquidityMapEngine,
+)
+
 # ── Memory / data models ──────────────────────────────────────────────────────
 from trainer.qde.brain.liquidity.liquidity_memory import (
     LEVEL_TYPE_SIDE,
@@ -49,19 +59,9 @@ from trainer.qde.brain.liquidity.liquidity_memory import (
     OHLCBar,
 )
 
-# ── Detector ──────────────────────────────────────────────────────────────────
-from trainer.qde.brain.liquidity.liquidity_event_detector import (
-    LiquidityEventDetector,
-)
-
 # ── Tracker ───────────────────────────────────────────────────────────────────
 from trainer.qde.brain.liquidity.liquidity_tracker import (
     LiquidityTracker,
-)
-
-# ── Engine ────────────────────────────────────────────────────────────────────
-from trainer.qde.brain.liquidity.liquidity_map_engine import (
-    LiquidityMapEngine,
 )
 
 __all__ = [

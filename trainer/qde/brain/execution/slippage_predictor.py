@@ -57,18 +57,18 @@ from trainer.execution.execution_types import OrderType
 # 1.0 = filled immediately at market; 0.0 = purely passive.
 # This scalar drives how much market-impact slippage is attributed.
 _AGGRESSIVENESS: dict[OrderType, float] = {
-    OrderType.MARKET:      1.00,
-    OrderType.STOP:        0.80,  # triggers → fills like market
-    OrderType.STOP_LIMIT:  0.50,  # trigger → limit; may miss fill in fast move
-    OrderType.LIMIT:       0.20,  # rests passively; gets adverse selection instead
+    OrderType.MARKET: 1.00,
+    OrderType.STOP: 0.80,  # triggers → fills like market
+    OrderType.STOP_LIMIT: 0.50,  # trigger → limit; may miss fill in fast move
+    OrderType.LIMIT: 0.20,  # rests passively; gets adverse selection instead
     OrderType.CONDITIONAL: 0.10,  # most passive
 }
 _DEFAULT_AGGRESSIVENESS = 0.60
 
 # Normative spread-to-ATR ratios: below LOW = tight; above HIGH = very wide.
 # Used only to shape the "expected vs worst-case" spread between estimates.
-_SPREAD_ATR_LOW  = 0.05   # e.g., EURUSD in London session
-_SPREAD_ATR_HIGH = 0.50   # e.g., XAUUSD around news / thin session
+_SPREAD_ATR_LOW = 0.05  # e.g., EURUSD in London session
+_SPREAD_ATR_HIGH = 0.50  # e.g., XAUUSD around news / thin session
 
 
 # ── SlippageInput ─────────────────────────────────────────────────────────────
@@ -111,13 +111,13 @@ class SlippageInput:
         microstructure (wide spreads, thin depth); 1 = clean.
     """
 
-    spread_atr_ratio:      float     = 0.10
-    atr_pct:               float     = 0.005
-    volatility:            float     = 0.01
-    session_quality:       float     = 0.80
-    momentum:              float     = 0.0      # −1..+1
-    order_type:            OrderType = OrderType.MARKET
-    microstructure_quality: float    = 0.5      # 0-1
+    spread_atr_ratio: float = 0.10
+    atr_pct: float = 0.005
+    volatility: float = 0.01
+    session_quality: float = 0.80
+    momentum: float = 0.0  # −1..+1
+    order_type: OrderType = OrderType.MARKET
+    microstructure_quality: float = 0.5  # 0-1
 
 
 # ── SlippageEstimate ──────────────────────────────────────────────────────────
@@ -156,21 +156,21 @@ class SlippageEstimate:
         wide.  A convenience field so callers don't have to re-normalise.
     """
 
-    expected_slippage_atr:   float     = 0.0
-    worst_case_slippage_atr: float     = 0.0
-    spread_cost_atr:         float     = 0.0
-    favorable_probability:   float     = 0.0
-    order_aggressiveness:    float     = 1.0
-    spread_risk:             float     = 0.0
+    expected_slippage_atr: float = 0.0
+    worst_case_slippage_atr: float = 0.0
+    spread_cost_atr: float = 0.0
+    favorable_probability: float = 0.0
+    order_aggressiveness: float = 1.0
+    spread_risk: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "expected_slippage_atr":   round(self.expected_slippage_atr, 6),
+            "expected_slippage_atr": round(self.expected_slippage_atr, 6),
             "worst_case_slippage_atr": round(self.worst_case_slippage_atr, 6),
-            "spread_cost_atr":         round(self.spread_cost_atr, 6),
-            "favorable_probability":   round(self.favorable_probability, 4),
-            "order_aggressiveness":    round(self.order_aggressiveness, 4),
-            "spread_risk":             round(self.spread_risk, 4),
+            "spread_cost_atr": round(self.spread_cost_atr, 6),
+            "favorable_probability": round(self.favorable_probability, 4),
+            "order_aggressiveness": round(self.order_aggressiveness, 4),
+            "spread_risk": round(self.spread_risk, 4),
         }
 
 
@@ -211,7 +211,7 @@ class SlippagePredictor:
     def estimate(self, inp: SlippageInput) -> SlippageEstimate:
         """Compute the structural slippage estimate for the given conditions."""
         aggressiveness = _AGGRESSIVENESS.get(inp.order_type, _DEFAULT_AGGRESSIVENESS)
-        sar            = max(0.0, inp.spread_atr_ratio)
+        sar = max(0.0, inp.spread_atr_ratio)
 
         # ── 1. Spread cost (half-spread) ──────────────────────────────────
         spread_cost = sar * 0.5
@@ -221,9 +221,9 @@ class SlippagePredictor:
             spread_cost = 0.0
 
         # ── 2. Market impact ──────────────────────────────────────────────
-        vol_factor  = 1.0 + max(0.0, inp.volatility / 0.02 - 1.0) * 0.5
+        vol_factor = 1.0 + max(0.0, inp.volatility / 0.02 - 1.0) * 0.5
         thin_factor = 1.0 + (1.0 - max(0.0, min(1.0, inp.session_quality))) * 0.8
-        impact      = aggressiveness * sar * 0.30 * vol_factor * thin_factor
+        impact = aggressiveness * sar * 0.30 * vol_factor * thin_factor
 
         # ── 3. Microstructure friction ────────────────────────────────────
         friction = (1.0 - max(0.0, min(1.0, inp.microstructure_quality))) * sar * 0.20
@@ -235,7 +235,7 @@ class SlippagePredictor:
         if aggressiveness < 0.5:
             # Adverse momentum increases adverse selection (price keeps going
             # away after the limit is hit, suggesting the fill was "wrong").
-            mom_factor     = max(0.0, -inp.momentum)   # worse when momentum < 0
+            mom_factor = max(0.0, -inp.momentum)  # worse when momentum < 0
             adverse_selection = (1.0 - aggressiveness) * sar * 0.15 * (1.0 + mom_factor)
 
         expected = spread_cost + impact + friction + adverse_selection
@@ -243,11 +243,11 @@ class SlippagePredictor:
 
         # ── 5. Worst-case ─────────────────────────────────────────────────
         stress_mult = 1.0 + (1.0 - inp.session_quality) * (1.0 - inp.microstructure_quality)
-        worst_case  = expected * max(1.0, stress_mult)
+        worst_case = expected * max(1.0, stress_mult)
 
         # ── 6. Favorable-fill probability (mostly for passive orders) ─────
-        favorable_prob = max(0.0,
-            (1.0 - aggressiveness) * inp.microstructure_quality * inp.session_quality * 0.25
+        favorable_prob = max(
+            0.0, (1.0 - aggressiveness) * inp.microstructure_quality * inp.session_quality * 0.25
         )
 
         # ── 7. Spread risk (normalized) ───────────────────────────────────

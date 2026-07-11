@@ -27,7 +27,6 @@ trap_bars, 20) bars for the same reason.
 from __future__ import annotations
 
 import time as _time_module
-from dataclasses import dataclass, field
 
 from trainer.qde.brain.liquidity.liquidity_memory import (
     LevelSide,
@@ -42,13 +41,13 @@ from trainer.qde.brain.liquidity.liquidity_memory import (
 
 # ── Tuneable defaults ─────────────────────────────────────────────────────────
 
-_SWING_LOOKBACK       = 5      # bars each side to confirm a swing
-_EQUAL_TOL_PCT        = 0.001  # 0.1%: levels within this → equal high/low
-_DEDUP_TOL_PCT        = 0.002  # 0.2%: skip new level if existing one this close
-_SWEEP_REVERSAL_BARS  = 3      # bars for close-back to count as a sweep
-_TRAP_BARS            = 5      # bars for reversal after apparent breakout close
-_CLUSTER_TOL_PCT      = 0.003  # 0.3%: levels within this → STOP_CLUSTER
-_MIN_CLUSTER_SIZE     = 3
+_SWING_LOOKBACK = 5  # bars each side to confirm a swing
+_EQUAL_TOL_PCT = 0.001  # 0.1%: levels within this → equal high/low
+_DEDUP_TOL_PCT = 0.002  # 0.2%: skip new level if existing one this close
+_SWEEP_REVERSAL_BARS = 3  # bars for close-back to count as a sweep
+_TRAP_BARS = 5  # bars for reversal after apparent breakout close
+_CLUSTER_TOL_PCT = 0.003  # 0.3%: levels within this → STOP_CLUSTER
+_MIN_CLUSTER_SIZE = 3
 _PERIOD_DEDUP_TOL_PCT = 0.002  # 0.2%: skip period extreme if map already has it
 
 
@@ -71,32 +70,32 @@ class LiquidityEventDetector:
 
     def __init__(
         self,
-        swing_lookback:     int   = _SWING_LOOKBACK,
-        equal_tol_pct:      float = _EQUAL_TOL_PCT,
-        dedup_tol_pct:      float = _DEDUP_TOL_PCT,
-        sweep_reversal_bars: int  = _SWEEP_REVERSAL_BARS,
-        trap_bars:          int   = _TRAP_BARS,
-        cluster_tol_pct:    float = _CLUSTER_TOL_PCT,
-        min_cluster_size:   int   = _MIN_CLUSTER_SIZE,
-        period_dedup_tol:   float = _PERIOD_DEDUP_TOL_PCT,
+        swing_lookback: int = _SWING_LOOKBACK,
+        equal_tol_pct: float = _EQUAL_TOL_PCT,
+        dedup_tol_pct: float = _DEDUP_TOL_PCT,
+        sweep_reversal_bars: int = _SWEEP_REVERSAL_BARS,
+        trap_bars: int = _TRAP_BARS,
+        cluster_tol_pct: float = _CLUSTER_TOL_PCT,
+        min_cluster_size: int = _MIN_CLUSTER_SIZE,
+        period_dedup_tol: float = _PERIOD_DEDUP_TOL_PCT,
     ) -> None:
-        self._swing_lb     = swing_lookback
-        self._eq_tol       = equal_tol_pct
-        self._dedup_tol    = dedup_tol_pct
-        self._sweep_bars   = sweep_reversal_bars
-        self._trap_bars    = trap_bars
-        self._cluster_tol  = cluster_tol_pct
-        self._min_cluster  = min_cluster_size
+        self._swing_lb = swing_lookback
+        self._eq_tol = equal_tol_pct
+        self._dedup_tol = dedup_tol_pct
+        self._sweep_bars = sweep_reversal_bars
+        self._trap_bars = trap_bars
+        self._cluster_tol = cluster_tol_pct
+        self._min_cluster = min_cluster_size
         self._period_dedup = period_dedup_tol
 
     # ── Main entry point ──────────────────────────────────────────────────
 
     def scan(
         self,
-        instrument:   str,
-        bars:         list[OHLCBar],
+        instrument: str,
+        bars: list[OHLCBar],
         existing_map: LiquidityMap,
-        now:          float | None = None,
+        now: float | None = None,
     ) -> tuple[list[LiquidityLevel], list[LiquidityEvent]]:
         """Full detection pass over the bar history.
 
@@ -116,41 +115,43 @@ class LiquidityEventDetector:
 
         # Precompute sets of already-known prices to avoid re-emitting them.
         known_high: set[float] = {
-            lv.price for lv in existing_map.levels.values()
+            lv.price
+            for lv in existing_map.levels.values()
             if lv.side == LevelSide.HIGH and lv.is_active()
         }
         known_low: set[float] = {
-            lv.price for lv in existing_map.levels.values()
+            lv.price
+            for lv in existing_map.levels.values()
             if lv.side == LevelSide.LOW and lv.is_active()
         }
 
         # 1. Swing highs / lows from recent bars.
-        swing_highs, swing_lows = self._detect_swings(
-            instrument, bars, ts, known_high, known_low
-        )
+        swing_highs, swing_lows = self._detect_swings(instrument, bars, ts, known_high, known_low)
         new_levels.extend(swing_highs)
         new_levels.extend(swing_lows)
 
         for lv in swing_highs + swing_lows:
-            new_events.append(LiquidityEvent(
-                instrument=instrument,
-                event_type=LiquidityEventType.LEVEL_FORMED,
-                level_id=lv.level_id,
-                level_type=lv.level_type,
-                level_price=lv.price,
-                bar_timestamp=lv.source_bar_timestamp,
-                detected_at=ts,
-                context=f"swing({self._swing_lb}-bar window)",
-            ))
+            new_events.append(
+                LiquidityEvent(
+                    instrument=instrument,
+                    event_type=LiquidityEventType.LEVEL_FORMED,
+                    level_id=lv.level_id,
+                    level_type=lv.level_type,
+                    level_price=lv.price,
+                    bar_timestamp=lv.source_bar_timestamp,
+                    detected_at=ts,
+                    context=f"swing({self._swing_lb}-bar window)",
+                )
+            )
 
         # 2. Equal-level classification over new + existing active levels.
         all_high = [
-            lv for lv in existing_map.levels.values()
+            lv
+            for lv in existing_map.levels.values()
             if lv.side == LevelSide.HIGH and lv.is_active()
         ] + swing_highs
         all_low = [
-            lv for lv in existing_map.levels.values()
-            if lv.side == LevelSide.LOW and lv.is_active()
+            lv for lv in existing_map.levels.values() if lv.side == LevelSide.LOW and lv.is_active()
         ] + swing_lows
 
         eq_events = self._mark_equal_levels(instrument, all_high, all_low, ts)
@@ -164,17 +165,12 @@ class LiquidityEventDetector:
         new_events.extend(period_events)
 
         # 4. Sweeps and breakout traps against existing intact levels.
-        sweep_evts, trap_evts = self._detect_sweeps_and_traps(
-            instrument, bars, existing_map, ts
-        )
+        sweep_evts, trap_evts = self._detect_sweeps_and_traps(instrument, bars, existing_map, ts)
         new_events.extend(sweep_evts)
         new_events.extend(trap_evts)
 
         # 5. Stop clusters over the union of existing + new active levels.
-        all_active = (
-            [lv for lv in existing_map.levels.values() if lv.is_active()]
-            + new_levels
-        )
+        all_active = [lv for lv in existing_map.levels.values() if lv.is_active()] + new_levels
         cluster_levels, cluster_evts = self._detect_stop_clusters(
             instrument, all_active, ts, existing_map
         )
@@ -187,11 +183,11 @@ class LiquidityEventDetector:
 
     def _detect_swings(
         self,
-        instrument:  str,
-        bars:        list[OHLCBar],
-        ts:          float,
-        known_high:  set[float],
-        known_low:   set[float],
+        instrument: str,
+        bars: list[OHLCBar],
+        ts: float,
+        known_high: set[float],
+        known_low: set[float],
     ) -> tuple[list[LiquidityLevel], list[LiquidityLevel]]:
         """Detect new swing highs and lows in the most recent bars.
 
@@ -202,19 +198,19 @@ class LiquidityEventDetector:
         Only scans the last ``4 × swing_lookback`` bars from the end
         (minus the ``lb``-bar confirmation tail) to bound each-tick cost.
         """
-        lb    = self._swing_lb
-        n     = len(bars)
+        lb = self._swing_lb
+        n = len(bars)
         start = max(lb, n - lb * 4)
-        end   = n - lb  # need lb bars after to confirm the swing
+        end = n - lb  # need lb bars after to confirm the swing
 
         highs: list[LiquidityLevel] = []
-        lows:  list[LiquidityLevel] = []
+        lows: list[LiquidityLevel] = []
 
         for i in range(start, end):
             lo_i = max(0, i - lb)
             hi_i = min(n, i + lb + 1)
             window_h = [bars[j].high for j in range(lo_i, hi_i)]
-            window_l = [bars[j].low  for j in range(lo_i, hi_i)]
+            window_l = [bars[j].low for j in range(lo_i, hi_i)]
             bh = bars[i].high
             bl = bars[i].low
 
@@ -250,10 +246,10 @@ class LiquidityEventDetector:
 
     def _mark_equal_levels(
         self,
-        instrument:   str,
-        high_levels:  list[LiquidityLevel],
-        low_levels:   list[LiquidityLevel],
-        ts:           float,
+        instrument: str,
+        high_levels: list[LiquidityLevel],
+        low_levels: list[LiquidityLevel],
+        ts: float,
     ) -> list[LiquidityEvent]:
         """Classify swing pairs/clusters as EQUAL_HIGH / EQUAL_LOW.
 
@@ -267,7 +263,7 @@ class LiquidityEventDetector:
 
         for group, eq_type in [
             (high_levels, LiquidityLevelType.EQUAL_HIGH),
-            (low_levels,  LiquidityLevelType.EQUAL_LOW),
+            (low_levels, LiquidityLevelType.EQUAL_LOW),
         ]:
             clusters = self._cluster_by_price(group, self._eq_tol)
             for cluster in clusters:
@@ -284,19 +280,18 @@ class LiquidityEventDetector:
                 intact = [lv for lv in cluster if lv.is_active()]
                 if len(intact) >= 2:
                     avg_p = sum(lv.price for lv in intact) / len(intact)
-                    events.append(LiquidityEvent(
-                        instrument=instrument,
-                        event_type=LiquidityEventType.CLUSTER_FORMED,
-                        level_id=intact[0].level_id,
-                        level_type=eq_type,
-                        level_price=avg_p,
-                        bar_timestamp=ts,
-                        detected_at=ts,
-                        context=(
-                            f"{len(intact)} equal levels "
-                            f"within {self._eq_tol:.2%}"
-                        ),
-                    ))
+                    events.append(
+                        LiquidityEvent(
+                            instrument=instrument,
+                            event_type=LiquidityEventType.CLUSTER_FORMED,
+                            level_id=intact[0].level_id,
+                            level_type=eq_type,
+                            level_price=avg_p,
+                            bar_timestamp=ts,
+                            detected_at=ts,
+                            context=(f"{len(intact)} equal levels " f"within {self._eq_tol:.2%}"),
+                        )
+                    )
 
         return events
 
@@ -304,9 +299,9 @@ class LiquidityEventDetector:
 
     def _detect_period_extremes(
         self,
-        instrument:   str,
-        bars:         list[OHLCBar],
-        ts:           float,
+        instrument: str,
+        bars: list[OHLCBar],
+        ts: float,
         existing_map: LiquidityMap,
     ) -> tuple[list[LiquidityLevel], list[LiquidityEvent]]:
         """Identify the highest and lowest price in each session block,
@@ -330,15 +325,15 @@ class LiquidityEventDetector:
 
         def _session_key(t: float) -> str:
             hour = _time_module.gmtime(t).tm_hour
-            day  = _day_key(t)
+            day = _day_key(t)
             if hour < 8:
                 return f"as-{day}"
             if hour < 16:
                 return f"lo-{day}"
             return f"ny-{day}"
 
-        day_bars:     dict[str, list[OHLCBar]] = defaultdict(list)
-        week_bars:    dict[str, list[OHLCBar]] = defaultdict(list)
+        day_bars: dict[str, list[OHLCBar]] = defaultdict(list)
+        week_bars: dict[str, list[OHLCBar]] = defaultdict(list)
         session_bars: dict[str, list[OHLCBar]] = defaultdict(list)
 
         for bar in bars:
@@ -360,21 +355,21 @@ class LiquidityEventDetector:
         new_events: list[LiquidityEvent] = []
 
         for period_dict, high_type, low_type in [
-            (day_bars,     LiquidityLevelType.DAILY_HIGH,   LiquidityLevelType.DAILY_LOW),
-            (week_bars,    LiquidityLevelType.WEEKLY_HIGH,  LiquidityLevelType.WEEKLY_LOW),
+            (day_bars, LiquidityLevelType.DAILY_HIGH, LiquidityLevelType.DAILY_LOW),
+            (week_bars, LiquidityLevelType.WEEKLY_HIGH, LiquidityLevelType.WEEKLY_LOW),
             (session_bars, LiquidityLevelType.SESSION_HIGH, LiquidityLevelType.SESSION_LOW),
         ]:
             for _key, period_b in period_dict.items():
                 if not period_b:
                     continue
-                ph  = max(b.high  for b in period_b)
-                pl  = min(b.low   for b in period_b)
+                ph = max(b.high for b in period_b)
+                pl = min(b.low for b in period_b)
                 tsh = next(b.timestamp for b in period_b if b.high == ph)
-                tsl = next(b.timestamp for b in period_b if b.low  == pl)
+                tsl = next(b.timestamp for b in period_b if b.low == pl)
 
                 for p, lt, side, src_t in [
                     (ph, high_type, LevelSide.HIGH, tsh),
-                    (pl, low_type,  LevelSide.LOW,  tsl),
+                    (pl, low_type, LevelSide.LOW, tsl),
                 ]:
                     if self._price_near_set(p, already_in_map, self._period_dedup):
                         continue
@@ -388,16 +383,18 @@ class LiquidityEventDetector:
                         source_bar_timestamp=src_t,
                     )
                     new_levels.append(lv)
-                    new_events.append(LiquidityEvent(
-                        instrument=instrument,
-                        event_type=LiquidityEventType.LEVEL_FORMED,
-                        level_id=lv.level_id,
-                        level_type=lt,
-                        level_price=p,
-                        bar_timestamp=src_t,
-                        detected_at=ts,
-                        context=lt.value.lower(),
-                    ))
+                    new_events.append(
+                        LiquidityEvent(
+                            instrument=instrument,
+                            event_type=LiquidityEventType.LEVEL_FORMED,
+                            level_id=lv.level_id,
+                            level_type=lt,
+                            level_price=p,
+                            bar_timestamp=src_t,
+                            detected_at=ts,
+                            context=lt.value.lower(),
+                        )
+                    )
 
         return new_levels, new_events
 
@@ -405,10 +402,10 @@ class LiquidityEventDetector:
 
     def _detect_sweeps_and_traps(
         self,
-        instrument:   str,
-        bars:         list[OHLCBar],
+        instrument: str,
+        bars: list[OHLCBar],
         existing_map: LiquidityMap,
-        ts:           float,
+        ts: float,
     ) -> tuple[list[LiquidityEvent], list[LiquidityEvent]]:
         """Detect level sweeps and breakout traps in recent bars.
 
@@ -425,14 +422,15 @@ class LiquidityEventDetector:
         already-resolved levels.
         """
         sweep_events: list[LiquidityEvent] = []
-        trap_events:  list[LiquidityEvent] = []
+        trap_events: list[LiquidityEvent] = []
 
         if len(bars) < 2:
             return sweep_events, trap_events
 
-        window = bars[-max(self._sweep_bars + self._trap_bars + 4, 24):]
+        window = bars[-max(self._sweep_bars + self._trap_bars + 4, 24) :]
         intact = [
-            lv for lv in existing_map.levels.values()
+            lv
+            for lv in existing_map.levels.values()
             if lv.status in (LevelStatus.INTACT, LevelStatus.TESTED)
         ]
 
@@ -442,10 +440,15 @@ class LiquidityEventDetector:
                 if lv.side == LevelSide.HIGH:
                     # Sweep: wick above and close back below
                     if bar.high > p * (1.0 + 1e-5) and bar.close < p:
-                        sweep_events.append(self._sweep_event(
-                            instrument, lv, bar, ts,
-                            f"high={bar.high:.5f} > {p:.5f}, close={bar.close:.5f}",
-                        ))
+                        sweep_events.append(
+                            self._sweep_event(
+                                instrument,
+                                lv,
+                                bar,
+                                ts,
+                                f"high={bar.high:.5f} > {p:.5f}, close={bar.close:.5f}",
+                            )
+                        )
                         lv.status = LevelStatus.SWEPT
                         lv.sweep_count += 1
                         lv.last_status_change_at = ts
@@ -453,12 +456,17 @@ class LiquidityEventDetector:
 
                     # Breakout trap: close above, then returns below
                     if bar.close > p:
-                        subsequent = window[i + 1: i + 1 + self._trap_bars]
+                        subsequent = window[i + 1 : i + 1 + self._trap_bars]
                         if any(b.close < p for b in subsequent):
-                            trap_events.append(self._trap_event(
-                                instrument, lv, bar, ts,
-                                f"close={bar.close:.5f} > {p:.5f}, returned",
-                            ))
+                            trap_events.append(
+                                self._trap_event(
+                                    instrument,
+                                    lv,
+                                    bar,
+                                    ts,
+                                    f"close={bar.close:.5f} > {p:.5f}, returned",
+                                )
+                            )
                             lv.level_type = LiquidityLevelType.BREAKOUT_TRAP
                             lv.last_status_change_at = ts
                             break
@@ -466,10 +474,15 @@ class LiquidityEventDetector:
                 elif lv.side == LevelSide.LOW:
                     # Sweep: wick below and close back above
                     if bar.low < p * (1.0 - 1e-5) and bar.close > p:
-                        sweep_events.append(self._sweep_event(
-                            instrument, lv, bar, ts,
-                            f"low={bar.low:.5f} < {p:.5f}, close={bar.close:.5f}",
-                        ))
+                        sweep_events.append(
+                            self._sweep_event(
+                                instrument,
+                                lv,
+                                bar,
+                                ts,
+                                f"low={bar.low:.5f} < {p:.5f}, close={bar.close:.5f}",
+                            )
+                        )
                         lv.status = LevelStatus.SWEPT
                         lv.sweep_count += 1
                         lv.last_status_change_at = ts
@@ -477,12 +490,17 @@ class LiquidityEventDetector:
 
                     # Breakout trap: close below, then returns above
                     if bar.close < p:
-                        subsequent = window[i + 1: i + 1 + self._trap_bars]
+                        subsequent = window[i + 1 : i + 1 + self._trap_bars]
                         if any(b.close > p for b in subsequent):
-                            trap_events.append(self._trap_event(
-                                instrument, lv, bar, ts,
-                                f"close={bar.close:.5f} < {p:.5f}, returned",
-                            ))
+                            trap_events.append(
+                                self._trap_event(
+                                    instrument,
+                                    lv,
+                                    bar,
+                                    ts,
+                                    f"close={bar.close:.5f} < {p:.5f}, returned",
+                                )
+                            )
                             lv.level_type = LiquidityLevelType.BREAKOUT_TRAP
                             lv.last_status_change_at = ts
                             break
@@ -493,9 +511,9 @@ class LiquidityEventDetector:
 
     def _detect_stop_clusters(
         self,
-        instrument:   str,
-        all_levels:   list[LiquidityLevel],
-        ts:           float,
+        instrument: str,
+        all_levels: list[LiquidityLevel],
+        ts: float,
         existing_map: LiquidityMap,
     ) -> tuple[list[LiquidityLevel], list[LiquidityEvent]]:
         """Find dense price clusters of ≥ ``_min_cluster_size`` active
@@ -506,13 +524,14 @@ class LiquidityEventDetector:
         nearby in the map.
         """
         new_levels: list[LiquidityLevel] = []
-        events:     list[LiquidityEvent] = []
+        events: list[LiquidityEvent] = []
 
         if len(all_levels) < self._min_cluster:
             return new_levels, events
 
         existing_cluster_prices: set[float] = {
-            lv.price for lv in existing_map.levels.values()
+            lv.price
+            for lv in existing_map.levels.values()
             if lv.level_type == LiquidityLevelType.STOP_CLUSTER
         }
 
@@ -536,16 +555,18 @@ class LiquidityEventDetector:
             )
             new_levels.append(sc)
             existing_cluster_prices.add(avg_p)
-            events.append(LiquidityEvent(
-                instrument=instrument,
-                event_type=LiquidityEventType.STOP_CLUSTER_FOUND,
-                level_id=sc.level_id,
-                level_type=LiquidityLevelType.STOP_CLUSTER,
-                level_price=avg_p,
-                bar_timestamp=ts,
-                detected_at=ts,
-                context=f"{len(cluster)} levels within {self._cluster_tol:.2%}",
-            ))
+            events.append(
+                LiquidityEvent(
+                    instrument=instrument,
+                    event_type=LiquidityEventType.STOP_CLUSTER_FOUND,
+                    level_id=sc.level_id,
+                    level_type=LiquidityLevelType.STOP_CLUSTER,
+                    level_price=avg_p,
+                    bar_timestamp=ts,
+                    detected_at=ts,
+                    context=f"{len(cluster)} levels within {self._cluster_tol:.2%}",
+                )
+            )
 
         return new_levels, events
 
@@ -557,9 +578,7 @@ class LiquidityEventDetector:
         return any(abs(price - kp) / max(price, 1e-9) <= tol for kp in known)
 
     @staticmethod
-    def _cluster_by_price(
-        levels: list[LiquidityLevel], tol: float
-    ) -> list[list[LiquidityLevel]]:
+    def _cluster_by_price(levels: list[LiquidityLevel], tol: float) -> list[list[LiquidityLevel]]:
         """Group levels into price-adjacent clusters.
 
         Two levels belong to the same cluster if the price difference

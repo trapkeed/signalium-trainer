@@ -33,12 +33,10 @@ Data model
 from __future__ import annotations
 
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 
 from trainer.qde.brain.narrative.narrative_store import NarrativeKind, NarrativeMaturity
-
 
 # ── Time Horizons ─────────────────────────────────────────────────────────────
 
@@ -46,18 +44,18 @@ from trainer.qde.brain.narrative.narrative_store import NarrativeKind, Narrative
 class NarrativeHorizon(str, Enum):
     """Time-scale at which a market narrative operates."""
 
-    MICRO      = "MICRO"       # 2–6 hours   (intra-session structure)
-    SESSION    = "SESSION"     # 1–2 days    (single / adjacent session)
+    MICRO = "MICRO"  # 2–6 hours   (intra-session structure)
+    SESSION = "SESSION"  # 1–2 days    (single / adjacent session)
     SHORT_TERM = "SHORT_TERM"  # 1–2 weeks   (swing perspective)
-    MACRO      = "MACRO"       # 1–3 months  (positional / trend backdrop)
+    MACRO = "MACRO"  # 1–3 months  (positional / trend backdrop)
 
 
 # Canonical expected age range per horizon (seconds)
 HORIZON_WINDOWS: dict[NarrativeHorizon, tuple[float, float]] = {
-    NarrativeHorizon.MICRO:      (2  * 3_600,  6  * 3_600),    # 2–6 h
-    NarrativeHorizon.SESSION:    (1  * 86_400, 2  * 86_400),   # 1–2 d
-    NarrativeHorizon.SHORT_TERM: (7  * 86_400, 14 * 86_400),   # 1–2 wk
-    NarrativeHorizon.MACRO:      (30 * 86_400, 90 * 86_400),   # 1–3 mo
+    NarrativeHorizon.MICRO: (2 * 3_600, 6 * 3_600),  # 2–6 h
+    NarrativeHorizon.SESSION: (1 * 86_400, 2 * 86_400),  # 1–2 d
+    NarrativeHorizon.SHORT_TERM: (7 * 86_400, 14 * 86_400),  # 1–2 wk
+    NarrativeHorizon.MACRO: (30 * 86_400, 90 * 86_400),  # 1–3 mo
 }
 
 # Canonical iteration order — most granular first
@@ -73,14 +71,16 @@ HORIZON_ORDER: list[NarrativeHorizon] = [
 # re-importing the detector's private tables — we only need a superset test
 # for cross-horizon alignment; the per-tick confidence-weighted logic lives
 # in the conflict detector).
-_INCOMPATIBLE_PAIRS: frozenset[frozenset] = frozenset({
-    frozenset({NarrativeKind.ACCUMULATION,       NarrativeKind.DISTRIBUTION}),
-    frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.REVERSAL}),
-    frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.EXHAUSTION}),
-    frozenset({NarrativeKind.BREAKOUT,           NarrativeKind.EXHAUSTION}),
-})
+_INCOMPATIBLE_PAIRS: frozenset[frozenset] = frozenset(
+    {
+        frozenset({NarrativeKind.ACCUMULATION, NarrativeKind.DISTRIBUTION}),
+        frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.REVERSAL}),
+        frozenset({NarrativeKind.TREND_CONTINUATION, NarrativeKind.EXHAUSTION}),
+        frozenset({NarrativeKind.BREAKOUT, NarrativeKind.EXHAUSTION}),
+    }
+)
 
-MAX_LINEAGE_ENTRIES  = 200  # rolling cap per (instrument, kind) story
+MAX_LINEAGE_ENTRIES = 200  # rolling cap per (instrument, kind) story
 MAX_SESSION_SNAPSHOTS = 90  # rolling cap — roughly 3 months of daily sessions
 
 
@@ -96,17 +96,17 @@ class StoryNode:
     Immutability means the lineage is never accidentally mutated in place.
     """
 
-    horizon:           NarrativeHorizon
-    kind:              NarrativeKind
-    narrative_id:      str
-    confidence:        float          # 0-1
-    maturity:          str            # NarrativeMaturity.value
-    supporting_count:  int
+    horizon: NarrativeHorizon
+    kind: NarrativeKind
+    narrative_id: str
+    confidence: float  # 0-1
+    maturity: str  # NarrativeMaturity.value
+    supporting_count: int
     conflicting_count: int
-    evidence_balance:  float          # supporting / total (0.5 when no evidence)
-    formed_at:         float
-    last_updated_at:   float
-    summary:           str            # human-readable snapshot for logs/dashboards
+    evidence_balance: float  # supporting / total (0.5 when no evidence)
+    formed_at: float
+    last_updated_at: float
+    summary: str  # human-readable snapshot for logs/dashboards
 
     # ── Computed helpers ──────────────────────────────────────────────────
 
@@ -126,17 +126,17 @@ class StoryNode:
 
     def to_dict(self) -> dict:
         return {
-            "horizon":           self.horizon.value,
-            "kind":              self.kind.value,
-            "narrative_id":      self.narrative_id,
-            "confidence":        round(self.confidence, 4),
-            "maturity":          self.maturity,
-            "supporting_count":  self.supporting_count,
+            "horizon": self.horizon.value,
+            "kind": self.kind.value,
+            "narrative_id": self.narrative_id,
+            "confidence": round(self.confidence, 4),
+            "maturity": self.maturity,
+            "supporting_count": self.supporting_count,
             "conflicting_count": self.conflicting_count,
-            "evidence_balance":  round(self.evidence_balance, 4),
-            "formed_at":         round(self.formed_at, 3),
-            "last_updated_at":   round(self.last_updated_at, 3),
-            "summary":           self.summary,
+            "evidence_balance": round(self.evidence_balance, 4),
+            "formed_at": round(self.formed_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
+            "summary": self.summary,
         }
 
 
@@ -146,11 +146,11 @@ class StoryNode:
 class LineageEventType(str, Enum):
     """Types of events that can appear in NarrativeLineage."""
 
-    FORMED      = "FORMED"       # narrative first detected at this horizon
-    REINFORCED  = "REINFORCED"   # new supporting evidence added
-    WEAKENED    = "WEAKENED"     # conflicting evidence registered
-    CONFIRMED   = "CONFIRMED"    # same kind active at ≥2 horizons simultaneously
-    EXPIRED     = "EXPIRED"      # narrative aged out or explicitly closed
+    FORMED = "FORMED"  # narrative first detected at this horizon
+    REINFORCED = "REINFORCED"  # new supporting evidence added
+    WEAKENED = "WEAKENED"  # conflicting evidence registered
+    CONFIRMED = "CONFIRMED"  # same kind active at ≥2 horizons simultaneously
+    EXPIRED = "EXPIRED"  # narrative aged out or explicitly closed
     SESSION_NEW = "SESSION_NEW"  # new trading session started (lineage marker)
 
 
@@ -162,27 +162,27 @@ class LineageEntry:
     and capped at ``MAX_LINEAGE_ENTRIES``.
     """
 
-    entry_id:          str               # short UUID for external reference
-    horizon:           NarrativeHorizon
-    kind:              NarrativeKind
-    event_type:        LineageEventType
-    evidence:          str               # free-text evidence note
+    entry_id: str  # short UUID for external reference
+    horizon: NarrativeHorizon
+    kind: NarrativeKind
+    event_type: LineageEventType
+    evidence: str  # free-text evidence note
     confidence_before: float
-    confidence_after:  float
-    session_label:     str               # e.g. "2024-01-15_LONDON"
-    occurred_at:       float
+    confidence_after: float
+    session_label: str  # e.g. "2024-01-15_LONDON"
+    occurred_at: float
 
     def to_dict(self) -> dict:
         return {
-            "entry_id":          self.entry_id,
-            "horizon":           self.horizon.value,
-            "kind":              self.kind.value,
-            "event_type":        self.event_type.value,
-            "evidence":          self.evidence,
+            "entry_id": self.entry_id,
+            "horizon": self.horizon.value,
+            "kind": self.kind.value,
+            "event_type": self.event_type.value,
+            "evidence": self.evidence,
             "confidence_before": round(self.confidence_before, 4),
-            "confidence_after":  round(self.confidence_after, 4),
-            "session_label":     self.session_label,
-            "occurred_at":       round(self.occurred_at, 3),
+            "confidence_after": round(self.confidence_after, 4),
+            "session_label": self.session_label,
+            "occurred_at": round(self.occurred_at, 3),
         }
 
 
@@ -203,18 +203,18 @@ class SessionSnapshot:
     between ``update_narrative()`` calls.
     """
 
-    session_label:      str                      # e.g. "2024-01-15_LONDON"
-    recorded_at:        float
-    nodes:              dict[str, StoryNode]     # horizon.value → StoryNode
-    dominant_kind:      str | None               # NarrativeKind.value or None
-    overall_confidence: float                    # mean confidence across active nodes
+    session_label: str  # e.g. "2024-01-15_LONDON"
+    recorded_at: float
+    nodes: dict[str, StoryNode]  # horizon.value → StoryNode
+    dominant_kind: str | None  # NarrativeKind.value or None
+    overall_confidence: float  # mean confidence across active nodes
 
     def to_dict(self) -> dict:
         return {
-            "session_label":      self.session_label,
-            "recorded_at":        round(self.recorded_at, 3),
-            "nodes":              {h: n.to_dict() for h, n in self.nodes.items()},
-            "dominant_kind":      self.dominant_kind,
+            "session_label": self.session_label,
+            "recorded_at": round(self.recorded_at, 3),
+            "nodes": {h: n.to_dict() for h, n in self.nodes.items()},
+            "dominant_kind": self.dominant_kind,
             "overall_confidence": round(self.overall_confidence, 4),
         }
 
@@ -230,9 +230,9 @@ class NarrativeLineage:
     ``session_snapshots`` — appended chronologically, capped at MAX_SESSION_SNAPSHOTS.
     """
 
-    instrument:        str
-    kind:              NarrativeKind
-    entries:           list[LineageEntry]    = field(default_factory=list)
+    instrument: str
+    kind: NarrativeKind
+    entries: list[LineageEntry] = field(default_factory=list)
     session_snapshots: list[SessionSnapshot] = field(default_factory=list)
 
     # ── Mutation ──────────────────────────────────────────────────────────
@@ -277,12 +277,12 @@ class NarrativeLineage:
 
     def to_dict(self) -> dict:
         return {
-            "instrument":         self.instrument,
-            "kind":               self.kind.value,
-            "entry_count":        len(self.entries),
-            "session_count":      self.distinct_session_count(),
-            "entries":            [e.to_dict() for e in self.entries[:20]],
-            "session_snapshots":  [s.to_dict() for s in self.session_snapshots[-10:]],
+            "instrument": self.instrument,
+            "kind": self.kind.value,
+            "entry_count": len(self.entries),
+            "session_count": self.distinct_session_count(),
+            "entries": [e.to_dict() for e in self.entries[:20]],
+            "session_snapshots": [s.to_dict() for s in self.session_snapshots[-10:]],
         }
 
 
@@ -305,19 +305,19 @@ class NarrativeStory:
     connect today's behaviour with previous sessions.
     """
 
-    story_id:         str
-    instrument:       str
-    primary_kind:     NarrativeKind
-    nodes:            dict[str, StoryNode]  = field(default_factory=dict)
-    lineage:          NarrativeLineage      = field(
+    story_id: str
+    instrument: str
+    primary_kind: NarrativeKind
+    nodes: dict[str, StoryNode] = field(default_factory=dict)
+    lineage: NarrativeLineage = field(
         default_factory=lambda: NarrativeLineage(
             instrument="", kind=NarrativeKind.TREND_CONTINUATION
         )
     )
-    formed_at:        float                 = field(default_factory=time.time)
-    last_updated_at:  float                 = field(default_factory=time.time)
-    session_count:    int                   = 0
-    is_multi_session: bool                  = False
+    formed_at: float = field(default_factory=time.time)
+    last_updated_at: float = field(default_factory=time.time)
+    session_count: int = 0
+    is_multi_session: bool = False
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -349,17 +349,17 @@ class NarrativeStory:
 
     def to_dict(self) -> dict:
         return {
-            "story_id":         self.story_id,
-            "instrument":       self.instrument,
-            "primary_kind":     self.primary_kind.value,
-            "nodes":            {h: n.to_dict() for h, n in self.nodes.items()},
-            "active_horizons":  [n.horizon.value for n in self.active_nodes()],
-            "formed_at":        round(self.formed_at, 3),
-            "last_updated_at":  round(self.last_updated_at, 3),
-            "session_count":    self.session_count,
+            "story_id": self.story_id,
+            "instrument": self.instrument,
+            "primary_kind": self.primary_kind.value,
+            "nodes": {h: n.to_dict() for h, n in self.nodes.items()},
+            "active_horizons": [n.horizon.value for n in self.active_nodes()],
+            "formed_at": round(self.formed_at, 3),
+            "last_updated_at": round(self.last_updated_at, 3),
+            "session_count": self.session_count,
             "is_multi_session": self.is_multi_session,
-            "mean_confidence":  round(self.mean_confidence(), 4),
-            "horizon_count":    self.horizon_count(),
+            "mean_confidence": round(self.mean_confidence(), 4),
+            "horizon_count": self.horizon_count(),
         }
 
 
@@ -383,31 +383,31 @@ class StoryStrength:
     )
     """
 
-    instrument:               str
-    kind:                     NarrativeKind | None  # None → composite across all kinds
-    overall_score:            float                  # headline 0-1
-    horizon_scores:           dict[str, float]       # horizon.value → 0-1
-    cross_horizon_alignment:  float                  # 0-1
-    session_continuity_score: float                  # 0-1
-    longevity_bonus:          float                  # 0-1
-    active_horizon_count:     int
-    dominant_kind:            NarrativeKind | None
-    is_multi_session:         bool
-    reasoning:                str                    # compact log string
+    instrument: str
+    kind: NarrativeKind | None  # None → composite across all kinds
+    overall_score: float  # headline 0-1
+    horizon_scores: dict[str, float]  # horizon.value → 0-1
+    cross_horizon_alignment: float  # 0-1
+    session_continuity_score: float  # 0-1
+    longevity_bonus: float  # 0-1
+    active_horizon_count: int
+    dominant_kind: NarrativeKind | None
+    is_multi_session: bool
+    reasoning: str  # compact log string
 
     def to_dict(self) -> dict:
         return {
-            "instrument":               self.instrument,
-            "kind":                     self.kind.value if self.kind else None,
-            "overall_score":            round(self.overall_score, 4),
-            "horizon_scores":           {h: round(v, 4) for h, v in self.horizon_scores.items()},
-            "cross_horizon_alignment":  round(self.cross_horizon_alignment, 4),
+            "instrument": self.instrument,
+            "kind": self.kind.value if self.kind else None,
+            "overall_score": round(self.overall_score, 4),
+            "horizon_scores": {h: round(v, 4) for h, v in self.horizon_scores.items()},
+            "cross_horizon_alignment": round(self.cross_horizon_alignment, 4),
             "session_continuity_score": round(self.session_continuity_score, 4),
-            "longevity_bonus":          round(self.longevity_bonus, 4),
-            "active_horizon_count":     self.active_horizon_count,
-            "dominant_kind":            self.dominant_kind.value if self.dominant_kind else None,
-            "is_multi_session":         self.is_multi_session,
-            "reasoning":                self.reasoning,
+            "longevity_bonus": round(self.longevity_bonus, 4),
+            "active_horizon_count": self.active_horizon_count,
+            "dominant_kind": self.dominant_kind.value if self.dominant_kind else None,
+            "is_multi_session": self.is_multi_session,
+            "reasoning": self.reasoning,
         }
 
 

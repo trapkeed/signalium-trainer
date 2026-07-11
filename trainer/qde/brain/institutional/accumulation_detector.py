@@ -45,17 +45,16 @@ Design rules
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 # ── Tuneable defaults ─────────────────────────────────────────────────────────
 
-_SHORT_WINDOW      = 8    # bars for recent range/volume measurement
-_LONG_WINDOW       = 24   # bars for baseline range measurement
-_TOUCH_TOLERANCE   = 0.002  # 0.2%: price within this of low-zone counts as a touch
-_MAX_TOUCHES       = 5    # touch count that saturates absorption signal
-_PROB_FLOOR        = 0.0   # minimum structural probability
-_MOMENTUM_UP_BIAS  = 0.0   # no directional bias in structural model
+_SHORT_WINDOW = 8  # bars for recent range/volume measurement
+_LONG_WINDOW = 24  # bars for baseline range measurement
+_TOUCH_TOLERANCE = 0.002  # 0.2%: price within this of low-zone counts as a touch
+_MAX_TOUCHES = 5  # touch count that saturates absorption signal
+_PROB_FLOOR = 0.0  # minimum structural probability
+_MOMENTUM_UP_BIAS = 0.0  # no directional bias in structural model
 
 
 # ── BarSnapshot ───────────────────────────────────────────────────────────────
@@ -74,11 +73,11 @@ class BarSnapshot:
     graph clean.
     """
 
-    open:      float = 0.0
-    high:      float = 0.0
-    low:       float = 0.0
-    close:     float = 0.0
-    volume:    float = 1.0   # unit volume when actual volume is unavailable
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    close: float = 0.0
+    volume: float = 1.0  # unit volume when actual volume is unavailable
     timestamp: float = 0.0
 
     @property
@@ -159,16 +158,16 @@ class AccumulationInput:
     bars: list[BarSnapshot] | None = None
 
     # Context scalars
-    momentum:               float = 0.0
-    session_quality:        float = 0.80
+    momentum: float = 0.0
+    session_quality: float = 0.80
     microstructure_quality: float = 0.80
-    level_proximity:        float = 0.0
+    level_proximity: float = 0.0
 
     # Pre-computed signal overrides (auto-filled by from_bars)
-    range_compression:      float = 0.0
-    absorption_strength:    float = 0.0
-    volume_buy_dominance:   float = 0.5
-    momentum_divergence:    float = 0.0
+    range_compression: float = 0.0
+    absorption_strength: float = 0.0
+    volume_buy_dominance: float = 0.5
+    momentum_divergence: float = 0.0
 
 
 # ── AccumulationEstimate ──────────────────────────────────────────────────────
@@ -206,21 +205,21 @@ class AccumulationEstimate:
         the engine to weight the structural prior.
     """
 
-    accumulation_prob:    float = 0.0
-    range_compression:    float = 0.0
-    absorption_strength:  float = 0.0
+    accumulation_prob: float = 0.0
+    range_compression: float = 0.0
+    absorption_strength: float = 0.0
     volume_buy_dominance: float = 0.5
-    momentum_divergence:  float = 0.0
-    structural_quality:   float = 0.5
+    momentum_divergence: float = 0.0
+    structural_quality: float = 0.5
 
     def to_dict(self) -> dict:
         return {
-            "accumulation_prob":    round(self.accumulation_prob, 4),
-            "range_compression":    round(self.range_compression, 4),
-            "absorption_strength":  round(self.absorption_strength, 4),
+            "accumulation_prob": round(self.accumulation_prob, 4),
+            "range_compression": round(self.range_compression, 4),
+            "absorption_strength": round(self.absorption_strength, 4),
             "volume_buy_dominance": round(self.volume_buy_dominance, 4),
-            "momentum_divergence":  round(self.momentum_divergence, 4),
-            "structural_quality":   round(self.structural_quality, 4),
+            "momentum_divergence": round(self.momentum_divergence, 4),
+            "structural_quality": round(self.structural_quality, 4),
         }
 
 
@@ -242,15 +241,15 @@ class AccumulationDetector:
 
     def __init__(
         self,
-        short_window:    int   = _SHORT_WINDOW,
-        long_window:     int   = _LONG_WINDOW,
+        short_window: int = _SHORT_WINDOW,
+        long_window: int = _LONG_WINDOW,
         touch_tolerance: float = _TOUCH_TOLERANCE,
-        max_touches:     int   = _MAX_TOUCHES,
+        max_touches: int = _MAX_TOUCHES,
     ) -> None:
-        self._sw   = short_window
-        self._lw   = long_window
+        self._sw = short_window
+        self._lw = long_window
         self._ttol = touch_tolerance
-        self._mt   = max_touches
+        self._mt = max_touches
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -269,7 +268,7 @@ class AccumulationDetector:
             md = inp.momentum_divergence
 
         prob = self._accumulation_prob(rc, ab, vb, md, inp.level_proximity)
-        sq   = self._structural_quality(inp.session_quality, inp.microstructure_quality)
+        sq = self._structural_quality(inp.session_quality, inp.microstructure_quality)
 
         return AccumulationEstimate(
             accumulation_prob=round(max(0.0, min(1.0, prob)), 4),
@@ -282,11 +281,11 @@ class AccumulationDetector:
 
     def from_bars(
         self,
-        bars:                   list[BarSnapshot],
-        momentum:               float = 0.0,
-        session_quality:        float = 0.80,
+        bars: list[BarSnapshot],
+        momentum: float = 0.0,
+        session_quality: float = 0.80,
         microstructure_quality: float = 0.80,
-        level_proximity:        float = 0.0,
+        level_proximity: float = 0.0,
     ) -> AccumulationEstimate:
         """Convenience: compute signals from raw bars and detect."""
         inp = AccumulationInput(
@@ -302,11 +301,11 @@ class AccumulationDetector:
 
     def _accumulation_prob(
         self,
-        range_compression:    float,
-        absorption_strength:  float,
+        range_compression: float,
+        absorption_strength: float,
         volume_buy_dominance: float,
-        momentum_divergence:  float,
-        level_proximity:      float,
+        momentum_divergence: float,
+        level_proximity: float,
     ) -> float:
         """Structural accumulation probability from four components.
 
@@ -342,9 +341,7 @@ class AccumulationDetector:
             + 0.05 * level_proximity
         )
 
-    def _structural_quality(
-        self, session_quality: float, microstructure_quality: float
-    ) -> float:
+    def _structural_quality(self, session_quality: float, microstructure_quality: float) -> float:
         """Reliability weight for the structural observation.
 
         Higher quality = we trust the structural signals more.
@@ -376,12 +373,14 @@ class AccumulationDetector:
         sw = min(self._sw, n // 2)
         lw = min(self._lw, n)
 
-        recent_bars   = bars[max(0, n - sw):]
-        baseline_bars = bars[max(0, n - lw): max(0, n - sw)]
+        recent_bars = bars[max(0, n - sw) :]
+        baseline_bars = bars[max(0, n - lw) : max(0, n - sw)]
 
         # ── Range compression ─────────────────────────────────────────────
-        recent_range   = _mean([b.full_range for b in recent_bars])
-        baseline_range = _mean([b.full_range for b in baseline_bars]) if baseline_bars else recent_range
+        recent_range = _mean([b.full_range for b in recent_bars])
+        baseline_range = (
+            _mean([b.full_range for b in baseline_bars]) if baseline_bars else recent_range
+        )
         if baseline_range > 1e-12:
             range_compression = max(0.0, 1.0 - recent_range / baseline_range)
         else:
@@ -391,36 +390,33 @@ class AccumulationDetector:
         # A bar "touches" the zone if its low is within tolerance of the
         # window's lowest low.  "Closes above" means close > low_zone
         # (the actual zone price), not above the wider tolerance band.
-        window_bars = bars[max(0, n - self._lw):]
+        window_bars = bars[max(0, n - self._lw) :]
         if window_bars:
-            low_zone    = min(b.low for b in window_bars)
-            touch_ceil  = low_zone * (1.0 + self._ttol)   # zone upper edge
-            touches     = sum(
-                1 for b in window_bars
-                if b.low <= touch_ceil and b.close > low_zone
-            )
+            low_zone = min(b.low for b in window_bars)
+            touch_ceil = low_zone * (1.0 + self._ttol)  # zone upper edge
+            touches = sum(1 for b in window_bars if b.low <= touch_ceil and b.close > low_zone)
             absorption = min(1.0, touches / max(self._mt, 1))
         else:
             absorption = 0.0
 
         # ── Volume buy dominance ──────────────────────────────────────────
-        up_bars   = [b for b in recent_bars if b.is_up]
+        up_bars = [b for b in recent_bars if b.is_up]
         down_bars = [b for b in recent_bars if not b.is_up]
-        avg_up_v  = _mean([b.volume for b in up_bars])   if up_bars   else 0.0
-        avg_dn_v  = _mean([b.volume for b in down_bars]) if down_bars else 0.0
-        total_v   = avg_up_v + avg_dn_v
-        vb        = (avg_up_v / total_v) if total_v > 1e-12 else 0.5
+        avg_up_v = _mean([b.volume for b in up_bars]) if up_bars else 0.0
+        avg_dn_v = _mean([b.volume for b in down_bars]) if down_bars else 0.0
+        total_v = avg_up_v + avg_dn_v
+        vb = (avg_up_v / total_v) if total_v > 1e-12 else 0.5
 
         # ── Momentum divergence: price near lows but range compressing ────
         # Divergence = price_position_in_range is LOW but range_compression
         # is HIGH.  High divergence suggests buy pressure absorbing downside.
         window_high = max((b.high for b in window_bars), default=0.0)
-        window_low  = min((b.low  for b in window_bars), default=0.0)
+        window_low = min((b.low for b in window_bars), default=0.0)
         price_range = window_high - window_low
         if price_range > 1e-12 and window_bars:
             close_position = (window_bars[-1].close - window_low) / price_range
             # Divergence: price is LOW (close_position near 0) but range_compression is HIGH
-            price_at_low_score = 1.0 - close_position   # high when close is near low
+            price_at_low_score = 1.0 - close_position  # high when close is near low
             momentum_divergence = price_at_low_score * range_compression
         else:
             momentum_divergence = 0.0

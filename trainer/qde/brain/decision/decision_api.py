@@ -49,26 +49,25 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_types import BeliefDirection
 from trainer.qde.brain.conviction_engine import (
     ConvictionProfile,
     ConvictionScore,
-    ConvictionComponents,
     compute_conviction,
 )
 from trainer.qde.brain.decision.decision_engine import compute_decision
 from trainer.qde.brain.decision.decision_memory import DecisionMemoryBridge
 from trainer.qde.brain.decision.decision_reasoning import ReasoningEngine
 from trainer.qde.brain.decision.decision_types import (
-    CognitiveAction,
     CognitiveDecision,
     ConfidenceReport,
     DecisionInput,
     DecisionReasoning,
 )
-from trainer.qde.brain.uncertainty_engine import UncertaintyLevel, compute_uncertainty
+from trainer.qde.brain.uncertainty_engine import compute_uncertainty
 
 if TYPE_CHECKING:
     from trainer.qde.brain.brain_models import BrainState
@@ -92,18 +91,18 @@ class DecisionAPI:
         self,
         memory_bridge: DecisionMemoryBridge | None = None,
     ) -> None:
-        self._bridge    = memory_bridge or DecisionMemoryBridge()
+        self._bridge = memory_bridge or DecisionMemoryBridge()
         self._reasoning = ReasoningEngine()
 
     # ── Primary API ───────────────────────────────────────────────────
 
     def make_decision(
         self,
-        instrument:      str,
-        brain_state:     "BrainState",
-        debate_record:   "DebateRecord | None" = None,
-        portfolio_state: dict | None           = None,
-        now:             float | None          = None,
+        instrument: str,
+        brain_state: "BrainState",
+        debate_record: "DebateRecord | None" = None,
+        portfolio_state: dict | None = None,
+        now: float | None = None,
     ) -> CognitiveDecision:
         """Translate accumulated cognition into a ``CognitiveDecision``.
 
@@ -139,7 +138,7 @@ class DecisionAPI:
             ``confidence_report()``.
         """
         now = now if now is not None else time.time()
-        ps  = portfolio_state or {}
+        ps = portfolio_state or {}
 
         active_hyps = brain_state.active_hypotheses()
 
@@ -205,10 +204,10 @@ class DecisionAPI:
 
     def explain_decision(
         self,
-        decision:     CognitiveDecision,
-        brain_state:  "BrainState",
+        decision: CognitiveDecision,
+        brain_state: "BrainState",
         debate_record: "DebateRecord | None" = None,
-        now:          float | None           = None,
+        now: float | None = None,
     ) -> DecisionReasoning:
         """Produce a structured chain-of-thought for ``decision``.
 
@@ -240,9 +239,9 @@ class DecisionAPI:
 
     def confidence_report(
         self,
-        decision:    CognitiveDecision,
+        decision: CognitiveDecision,
         brain_state: "BrainState",
-        now:         float | None = None,
+        now: float | None = None,
     ) -> ConfidenceReport:
         """Produce a full confidence breakdown for ``decision``.
 
@@ -267,11 +266,11 @@ class DecisionAPI:
             Full confidence accounting including calibration bias,
             historical accuracy delta, and alignment warning.
         """
-        now   = now if now is not None else time.time()
+        now = now if now is not None else time.time()
         calib = brain_state.calibration
 
-        raw        = decision.confidence
-        bias       = calib.confidence_bias
+        raw = decision.confidence
+        bias = calib.confidence_bias
         calibrated = max(0.05, min(0.95, raw + bias))
 
         # Historical accuracy delta (requires recent episodic recall)
@@ -283,15 +282,14 @@ class DecisionAPI:
         # Conviction component breakdown — read from conviction_engine output
         # stored in decision fields; avoid re-computing.
         conv_breakdown: dict = {
-            "conviction_score":   round(decision.conviction_score, 4),
+            "conviction_score": round(decision.conviction_score, 4),
             "conviction_profile": decision.conviction_profile,
-            "uncertainty_score":  round(decision.uncertainty_score, 4),
-            "risk_signal":        round(decision.risk_signal, 4),
+            "uncertainty_score": round(decision.uncertainty_score, 4),
+            "risk_signal": round(decision.risk_signal, 4),
         }
 
         alignment_warning = (
-            decision.conviction_profile
-            == ConvictionProfile.HIGH_CONFIDENCE_LOW_CONVICTION.value
+            decision.conviction_profile == ConvictionProfile.HIGH_CONFIDENCE_LOW_CONVICTION.value
         )
 
         return ConfidenceReport(
@@ -315,8 +313,8 @@ class DecisionAPI:
     def recent_decisions(
         self,
         instrument: str,
-        n:          int        = 20,
-        action:     str | None = None,
+        n: int = 20,
+        action: str | None = None,
     ) -> list[CognitiveDecision]:
         """Recent decisions from the local deque, newest first."""
         return self._bridge.recent_decisions(instrument, n=n, action=action)
@@ -352,10 +350,7 @@ class DecisionAPI:
         as a rough proxy for historical confidence accuracy.  Returns None
         if fewer than 4 actionable decisions are recorded.
         """
-        actionable = [
-            d for d in self._bridge.recent_decisions(instrument, n=50)
-            if d.is_actionable
-        ]
+        actionable = [d for d in self._bridge.recent_decisions(instrument, n=50) if d.is_actionable]
         if len(actionable) < 4:
             return None
         # "Won" = decision had lower-than-average uncertainty (proxy heuristic;

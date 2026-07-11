@@ -57,14 +57,15 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 # ── Hyper-parameters ──────────────────────────────────────────────────────────
 
-_DEFAULT_MAX_EPISODES   = 5000    # per symbol
-_DEFAULT_K              = 50      # top-K for similarity search
+_DEFAULT_MAX_EPISODES = 5000  # per symbol
+_DEFAULT_K = 50  # top-K for similarity search
 _RECENCY_LAMBDA_DEFAULT = 1.0 / 14.0  # decay halves ~every 10 days (e^-1 at 14)
-_MIN_SIM_THRESHOLD      = 0.0     # minimum cosine similarity to include in results
+_MIN_SIM_THRESHOLD = 0.0  # minimum cosine similarity to include in results
 
 
 # ── EpisodeFeatures ───────────────────────────────────────────────────────────
@@ -97,25 +98,25 @@ class EpisodeFeatures:
     Additional raw features can be stored in ``extra`` for future use.
     """
 
-    volatility:        float = 0.5
-    momentum:          float = 0.0   # −1..+1
-    trend_strength:    float = 0.0
+    volatility: float = 0.5
+    momentum: float = 0.0  # −1..+1
+    trend_strength: float = 0.0
     range_compression: float = 0.0
-    absorption:        float = 0.0
-    volume_balance:    float = 0.5   # 0.5=neutral
-    session_quality:   float = 0.8
-    microstructure:    float = 0.8
-    regime_numeric:    float = 0.5   # 0-1 regime encoding
-    hypothesis_conf:   float = 0.0
-    attention_weight:  float = 0.5
-    spread_norm:       float = 0.5
-    extra:             dict  = field(default_factory=dict)
+    absorption: float = 0.0
+    volume_balance: float = 0.5  # 0.5=neutral
+    session_quality: float = 0.8
+    microstructure: float = 0.8
+    regime_numeric: float = 0.5  # 0-1 regime encoding
+    hypothesis_conf: float = 0.0
+    attention_weight: float = 0.5
+    spread_norm: float = 0.5
+    extra: dict = field(default_factory=dict)
 
     def as_vector(self) -> list[float]:
         """12-dimensional cosine-similarity feature vector."""
         return [
             self.volatility,
-            (self.momentum + 1.0) / 2.0,   # normalize −1..+1 → 0..1
+            (self.momentum + 1.0) / 2.0,  # normalize −1..+1 → 0..1
             self.trend_strength,
             self.range_compression,
             self.absorption,
@@ -130,19 +131,19 @@ class EpisodeFeatures:
 
     def to_dict(self) -> dict:
         return {
-            "volatility":        round(self.volatility, 4),
-            "momentum":          round(self.momentum, 4),
-            "trend_strength":    round(self.trend_strength, 4),
+            "volatility": round(self.volatility, 4),
+            "momentum": round(self.momentum, 4),
+            "trend_strength": round(self.trend_strength, 4),
             "range_compression": round(self.range_compression, 4),
-            "absorption":        round(self.absorption, 4),
-            "volume_balance":    round(self.volume_balance, 4),
-            "session_quality":   round(self.session_quality, 4),
-            "microstructure":    round(self.microstructure, 4),
-            "regime_numeric":    round(self.regime_numeric, 4),
-            "hypothesis_conf":   round(self.hypothesis_conf, 4),
-            "attention_weight":  round(self.attention_weight, 4),
-            "spread_norm":       round(self.spread_norm, 4),
-            "extra":             self.extra,
+            "absorption": round(self.absorption, 4),
+            "volume_balance": round(self.volume_balance, 4),
+            "session_quality": round(self.session_quality, 4),
+            "microstructure": round(self.microstructure, 4),
+            "regime_numeric": round(self.regime_numeric, 4),
+            "hypothesis_conf": round(self.hypothesis_conf, 4),
+            "attention_weight": round(self.attention_weight, 4),
+            "spread_norm": round(self.spread_norm, 4),
+            "extra": self.extra,
         }
 
     @classmethod
@@ -177,12 +178,12 @@ class EpisodePortfolioState:
     account).
     """
 
-    open_positions:    int   = 0
-    total_exposure:    float = 0.0   # 0-1 fraction of capital deployed
-    unrealized_pnl:    float = 0.0   # ATR units
-    drawdown:          float = 0.0   # 0-1 current drawdown
-    session_pnl:       float = 0.0   # ATR units in the current session
-    equity_normalized: float = 1.0   # current equity / starting equity
+    open_positions: int = 0
+    total_exposure: float = 0.0  # 0-1 fraction of capital deployed
+    unrealized_pnl: float = 0.0  # ATR units
+    drawdown: float = 0.0  # 0-1 current drawdown
+    session_pnl: float = 0.0  # ATR units in the current session
+    equity_normalized: float = 1.0  # current equity / starting equity
 
     def exposure_bucket(self) -> str:
         """Coarse bucket for index partitioning."""
@@ -194,11 +195,11 @@ class EpisodePortfolioState:
 
     def to_dict(self) -> dict:
         return {
-            "open_positions":    self.open_positions,
-            "total_exposure":    round(self.total_exposure, 4),
-            "unrealized_pnl":    round(self.unrealized_pnl, 4),
-            "drawdown":          round(self.drawdown, 4),
-            "session_pnl":       round(self.session_pnl, 4),
+            "open_positions": self.open_positions,
+            "total_exposure": round(self.total_exposure, 4),
+            "unrealized_pnl": round(self.unrealized_pnl, 4),
+            "drawdown": round(self.drawdown, 4),
+            "session_pnl": round(self.session_pnl, 4),
             "equity_normalized": round(self.equity_normalized, 4),
         }
 
@@ -231,25 +232,25 @@ class EpisodeOutcome:
     ``resolved``          — True once the outcome is known.
     """
 
-    direction_correct: bool  = False
-    reward_atr:        float = 0.0
-    mae_atr:           float = 0.0
-    mfe_atr:           float = 0.0
-    bars_to_close:     int   = 0
-    exit_reason:       str   = ""
-    market_moved:      float = 0.0
-    resolved:          bool  = False
+    direction_correct: bool = False
+    reward_atr: float = 0.0
+    mae_atr: float = 0.0
+    mfe_atr: float = 0.0
+    bars_to_close: int = 0
+    exit_reason: str = ""
+    market_moved: float = 0.0
+    resolved: bool = False
 
     def to_dict(self) -> dict:
         return {
             "direction_correct": self.direction_correct,
-            "reward_atr":        round(self.reward_atr, 6),
-            "mae_atr":           round(self.mae_atr, 6),
-            "mfe_atr":           round(self.mfe_atr, 6),
-            "bars_to_close":     self.bars_to_close,
-            "exit_reason":       self.exit_reason,
-            "market_moved":      round(self.market_moved, 6),
-            "resolved":          self.resolved,
+            "reward_atr": round(self.reward_atr, 6),
+            "mae_atr": round(self.mae_atr, 6),
+            "mfe_atr": round(self.mfe_atr, 6),
+            "bars_to_close": self.bars_to_close,
+            "exit_reason": self.exit_reason,
+            "market_moved": round(self.market_moved, 6),
+            "resolved": self.resolved,
         }
 
     @classmethod
@@ -279,62 +280,58 @@ class Episode:
       outcome, trade result, regime context, session context.
     """
 
-    episode_id:          str                  = field(
-        default_factory=lambda: str(uuid.uuid4())[:14]
-    )
+    episode_id: str = field(default_factory=lambda: str(uuid.uuid4())[:14])
     # 1. symbol
-    instrument:          str                  = ""
+    instrument: str = ""
     # 2. timestamp
-    timestamp:           float                = field(default_factory=time.time)
+    timestamp: float = field(default_factory=time.time)
     # 3. raw features (float vector + metadata)
-    features:            EpisodeFeatures      = field(default_factory=EpisodeFeatures)
+    features: EpisodeFeatures = field(default_factory=EpisodeFeatures)
     # 4. portfolio state
-    portfolio:           EpisodePortfolioState = field(
-        default_factory=EpisodePortfolioState
-    )
+    portfolio: EpisodePortfolioState = field(default_factory=EpisodePortfolioState)
     # 5. active hypotheses (snapshot of live hypothesis dicts at the time)
-    active_hypotheses:   list[dict]           = field(default_factory=list)
+    active_hypotheses: list[dict] = field(default_factory=list)
     # 6. chosen action
-    action:              str                  = "NO_TRADE"  # ENTER|EXIT|SCALE|NO_TRADE
+    action: str = "NO_TRADE"  # ENTER|EXIT|SCALE|NO_TRADE
     # 7. confidence
-    confidence:          float                = 0.0
+    confidence: float = 0.0
     # 8. reasoning (narrative/thesis summary)
-    reasoning:           str                  = ""
+    reasoning: str = ""
     # 9. outcome
-    outcome:             EpisodeOutcome       = field(default_factory=EpisodeOutcome)
+    outcome: EpisodeOutcome = field(default_factory=EpisodeOutcome)
     # 10. trade result (alias: outcome.reward_atr — kept as a top-level
     #     convenience field so callers don't need to unwrap outcome)
-    trade_result_atr:    float                = 0.0
+    trade_result_atr: float = 0.0
     # 11. regime context
-    regime_context:      str                  = ""   # e.g. "TRENDING", "RANGE"
+    regime_context: str = ""  # e.g. "TRENDING", "RANGE"
     # 12. session context
-    session_context:     str                  = ""   # e.g. "LONDON", "NY"
+    session_context: str = ""  # e.g. "LONDON", "NY"
 
     # Optional: which concept (if any) this episode was assigned to by
     # SemanticMemory.  Populated externally after semantic clustering.
-    concept_id:          str                  = ""
+    concept_id: str = ""
 
     def resolve(self, outcome: EpisodeOutcome) -> None:
         """Populate outcome fields after the trade closes."""
-        self.outcome           = outcome
-        self.trade_result_atr  = outcome.reward_atr
+        self.outcome = outcome
+        self.trade_result_atr = outcome.reward_atr
 
     def to_dict(self) -> dict:
         return {
-            "episode_id":         self.episode_id,
-            "instrument":         self.instrument,
-            "timestamp":          round(self.timestamp, 3),
-            "features":           self.features.to_dict(),
-            "portfolio":          self.portfolio.to_dict(),
-            "active_hypotheses":  self.active_hypotheses,
-            "action":             self.action,
-            "confidence":         round(self.confidence, 4),
-            "reasoning":          self.reasoning,
-            "outcome":            self.outcome.to_dict(),
-            "trade_result_atr":   round(self.trade_result_atr, 6),
-            "regime_context":     self.regime_context,
-            "session_context":    self.session_context,
-            "concept_id":         self.concept_id,
+            "episode_id": self.episode_id,
+            "instrument": self.instrument,
+            "timestamp": round(self.timestamp, 3),
+            "features": self.features.to_dict(),
+            "portfolio": self.portfolio.to_dict(),
+            "active_hypotheses": self.active_hypotheses,
+            "action": self.action,
+            "confidence": round(self.confidence, 4),
+            "reasoning": self.reasoning,
+            "outcome": self.outcome.to_dict(),
+            "trade_result_atr": round(self.trade_result_atr, 6),
+            "regime_context": self.regime_context,
+            "session_context": self.session_context,
+            "concept_id": self.concept_id,
         }
 
     @classmethod
@@ -375,29 +372,29 @@ class SimilarEpisode:
     ``session_context``     — session label at the time.
     """
 
-    similarity:           float
-    recency_weight:       float
-    combined_weight:      float
-    outcome:              EpisodeOutcome
+    similarity: float
+    recency_weight: float
+    combined_weight: float
+    outcome: EpisodeOutcome
     historical_confidence: float
-    reward_atr:           float
-    episode_id:           str
-    regime_context:       str
-    session_context:      str
-    action:               str
+    reward_atr: float
+    episode_id: str
+    regime_context: str
+    session_context: str
+    action: str
 
     def to_dict(self) -> dict:
         return {
-            "episode_id":            self.episode_id,
-            "similarity":            round(self.similarity, 4),
-            "recency_weight":        round(self.recency_weight, 4),
-            "combined_weight":       round(self.combined_weight, 4),
+            "episode_id": self.episode_id,
+            "similarity": round(self.similarity, 4),
+            "recency_weight": round(self.recency_weight, 4),
+            "combined_weight": round(self.combined_weight, 4),
             "historical_confidence": round(self.historical_confidence, 4),
-            "reward_atr":            round(self.reward_atr, 6),
-            "regime_context":        self.regime_context,
-            "session_context":       self.session_context,
-            "action":                self.action,
-            "outcome":               self.outcome.to_dict(),
+            "reward_atr": round(self.reward_atr, 6),
+            "regime_context": self.regime_context,
+            "session_context": self.session_context,
+            "action": self.action,
+            "outcome": self.outcome.to_dict(),
         }
 
 
@@ -421,8 +418,8 @@ class EpisodicIndex:
 
     def __init__(self) -> None:
         # Each key maps to list[episode_id]
-        self._by_session:   dict[str, list[str]] = defaultdict(list)
-        self._by_vol:       dict[str, list[str]] = defaultdict(list)
+        self._by_session: dict[str, list[str]] = defaultdict(list)
+        self._by_vol: dict[str, list[str]] = defaultdict(list)
         self._by_structure: dict[str, list[str]] = defaultdict(list)
         self._by_portfolio: dict[str, list[str]] = defaultdict(list)
 
@@ -483,15 +480,15 @@ class EpisodicMemory:
 
     def __init__(
         self,
-        max_episodes:     int   = _DEFAULT_MAX_EPISODES,
-        k:                int   = _DEFAULT_K,
-        recency_lambda:   float = _RECENCY_LAMBDA_DEFAULT,
-        min_sim:          float = _MIN_SIM_THRESHOLD,
+        max_episodes: int = _DEFAULT_MAX_EPISODES,
+        k: int = _DEFAULT_K,
+        recency_lambda: float = _RECENCY_LAMBDA_DEFAULT,
+        min_sim: float = _MIN_SIM_THRESHOLD,
     ) -> None:
-        self._max         = max(1, max_episodes)
-        self._k           = max(1, k)
-        self._lambda      = max(1e-9, recency_lambda)
-        self._min_sim     = min_sim
+        self._max = max(1, max_episodes)
+        self._k = max(1, k)
+        self._lambda = max(1e-9, recency_lambda)
+        self._min_sim = min_sim
 
         # instrument → deque[Episode]  (oldest first)
         self._store: dict[str, deque[Episode]] = {}
@@ -513,10 +510,10 @@ class EpisodicMemory:
         if episode.timestamp == 0.0:
             episode.timestamp = now
 
-        sym   = episode.instrument
+        sym = episode.instrument
         store = self._store.setdefault(sym, deque())
         by_id = self._by_id.setdefault(sym, {})
-        idx   = self._index.setdefault(sym, EpisodicIndex())
+        idx = self._index.setdefault(sym, EpisodicIndex())
 
         # Evict oldest if at capacity
         if len(store) >= self._max:
@@ -549,15 +546,15 @@ class EpisodicMemory:
 
     def recall(
         self,
-        instrument:   str,
-        n:            int   = 50,
-        session:      str | None = None,
-        vol_state:    str | None = None,   # "low" | "medium" | "high"
-        regime:       str | None = None,
-        portfolio:    str | None = None,   # "light" | "moderate" | "heavy"
-        action:       str | None = None,
+        instrument: str,
+        n: int = 50,
+        session: str | None = None,
+        vol_state: str | None = None,  # "low" | "medium" | "high"
+        regime: str | None = None,
+        portfolio: str | None = None,  # "light" | "moderate" | "heavy"
+        action: str | None = None,
         resolved_only: bool = False,
-        since:        float | None = None,
+        since: float | None = None,
     ) -> list[Episode]:
         """Retrieve recent episodes filtered by one or more dimensions.
 
@@ -580,7 +577,7 @@ class EpisodicMemory:
         if store is None:
             return []
 
-        idx   = self._index.get(instrument, EpisodicIndex())
+        idx = self._index.get(instrument, EpisodicIndex())
         by_id = self._by_id.get(instrument, {})
 
         # Collect candidate IDs from indexes (AND of non-None filters)
@@ -601,9 +598,7 @@ class EpisodicMemory:
             _intersect(idx.ids_for_portfolio(portfolio))
 
         if candidate_ids is not None:
-            candidates = [
-                by_id[eid] for eid in candidate_ids if eid in by_id
-            ]
+            candidates = [by_id[eid] for eid in candidate_ids if eid in by_id]
         else:
             candidates = list(store)
 
@@ -621,13 +616,13 @@ class EpisodicMemory:
 
     def retrieve_similar(
         self,
-        features:      EpisodeFeatures,
-        instrument:    str,
-        k:             int   | None = None,
-        session:       str | None = None,
-        regime:        str | None = None,
+        features: EpisodeFeatures,
+        instrument: str,
+        k: int | None = None,
+        session: str | None = None,
+        regime: str | None = None,
         resolved_only: bool = True,
-        now:           float | None = None,
+        now: float | None = None,
     ) -> list[SimilarEpisode]:
         """Find the K most similar historical episodes to ``features``.
 
@@ -655,7 +650,7 @@ class EpisodicMemory:
         now:            Override current time.
         """
         now = now if now is not None else time.time()
-        k   = k if k is not None else self._k
+        k = k if k is not None else self._k
 
         query = features.as_vector()
 
@@ -673,7 +668,7 @@ class EpisodicMemory:
             if sim < self._min_sim:
                 continue
             age_days = max(0.0, now - ep.timestamp) / 86400.0
-            rw       = math.exp(-self._lambda * age_days)
+            rw = math.exp(-self._lambda * age_days)
             scored.append((sim, rw, ep))
 
         # Sort by combined weight descending
@@ -707,7 +702,7 @@ class EpisodicMemory:
         """
         if not results:
             return 0.0
-        total_w  = sum(r.combined_weight for r in results)
+        total_w = sum(r.combined_weight for r in results)
         if total_w < 1e-12:
             return 0.0
         return sum(r.reward_atr * r.combined_weight for r in results) / total_w
@@ -743,13 +738,13 @@ class EpisodicMemory:
     def to_snapshot(self, instrument: str) -> dict:
         return {
             "max_episodes": self._max,
-            "episodes":     [ep.to_dict() for ep in self._store.get(instrument, [])],
+            "episodes": [ep.to_dict() for ep in self._store.get(instrument, [])],
         }
 
     def load_snapshot(self, instrument: str, data: dict) -> None:
         q: deque[Episode] = deque()
         by_id: dict[str, Episode] = {}
-        idx   = EpisodicIndex()
+        idx = EpisodicIndex()
 
         for d in data.get("episodes", []):
             try:
@@ -772,9 +767,9 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     """Cosine similarity ∈ [−1, 1].  Returns 0.0 for zero vectors."""
     if len(a) != len(b):
         return 0.0
-    dot  = sum(x * y for x, y in zip(a, b))
-    na   = math.sqrt(sum(x * x for x in a))
-    nb   = math.sqrt(sum(x * x for x in b))
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
     if na < 1e-12 or nb < 1e-12:
         return 0.0
     return max(-1.0, min(1.0, dot / (na * nb)))

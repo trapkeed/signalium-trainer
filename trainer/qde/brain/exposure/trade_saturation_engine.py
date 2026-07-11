@@ -72,10 +72,10 @@ from typing import TYPE_CHECKING
 
 from trainer.portfolio.portfolio_instruments import InstrumentRegistry
 from trainer.qde.brain.exposure.exposure_cluster_engine import (
+    _N_POS_CAP,
     ExposureCluster,
     ExposureClusterEngine,
     PositionExposure,
-    _N_POS_CAP,
 )
 from trainer.qde.brain.exposure.exposure_memory import (
     ExposureMemory,
@@ -90,27 +90,27 @@ if TYPE_CHECKING:
 # ── Learning hyper-parameters ──────────────────────────────────────────────────
 
 # Top-K nearest-neighbour records used to estimate historical quality.
-_DEFAULT_K          = 20
+_DEFAULT_K = 20
 # Minimum records before the historical signal gets non-zero weight.
-_MIN_INFORMATIVE    = 5
+_MIN_INFORMATIVE = 5
 # Recency half-life for outcome records (days).
-_RECENCY_TAU_DAYS   = 30.0
+_RECENCY_TAU_DAYS = 30.0
 # L2 distance at which similarity falls to 0.5 (soft-scale parameter).
-_DISTANCE_SCALE     = 0.5
+_DISTANCE_SCALE = 0.5
 
 # Integration-signal bounds — derived from saturation_score, not from
 # hardcoded thresholds.
-_SIZE_MOD_MIN          = 0.50
-_SIZE_MOD_MAX          = 1.00   # concentration can only shrink size, never grow it
-_CONVICTION_DRAG_MAX   = -0.30
-_RANK_PENALTY_MAX      =  0.25
-_RISK_MOD_MAX          = -0.30
+_SIZE_MOD_MIN = 0.50
+_SIZE_MOD_MAX = 1.00  # concentration can only shrink size, never grow it
+_CONVICTION_DRAG_MAX = -0.30
+_RANK_PENALTY_MAX = 0.25
+_RISK_MOD_MAX = -0.30
 
 # Composite concentration dimension weights (must match exposure_cluster_engine)
-_W_CURRENCY     = 0.35
-_W_SECTOR       = 0.20
-_W_CORRELATION  = 0.30
-_W_REGIONAL     = 0.15
+_W_CURRENCY = 0.35
+_W_SECTOR = 0.20
+_W_CORRELATION = 0.30
+_W_REGIONAL = 0.15
 
 
 # ── SaturationSignal ──────────────────────────────────────────────────────────
@@ -141,55 +141,53 @@ class SaturationSignal:
     boundary belongs to ``qde_inference``).
     """
 
-    instrument:                 str   = ""
-    direction:                  int   = 1
+    instrument: str = ""
+    direction: int = 1
 
     # ── Cluster snapshots ────────────────────────────────────────────────
-    cluster_before:             ExposureCluster = field(
-        default_factory=ExposureCluster)
-    cluster_after:              ExposureCluster = field(
-        default_factory=ExposureCluster)
+    cluster_before: ExposureCluster = field(default_factory=ExposureCluster)
+    cluster_after: ExposureCluster = field(default_factory=ExposureCluster)
 
     # ── Marginal deltas ──────────────────────────────────────────────────
-    marginal_currency_hhi:     float = 0.0
-    marginal_sector_hhi:       float = 0.0
+    marginal_currency_hhi: float = 0.0
+    marginal_sector_hhi: float = 0.0
     marginal_correlation_risk: float = 0.0
-    marginal_regional_hhi:     float = 0.0
-    marginal_composite:        float = 0.0
+    marginal_regional_hhi: float = 0.0
+    marginal_composite: float = 0.0
 
     # ── Learning signals ─────────────────────────────────────────────────
-    historical_outcome_quality: float = 0.5   # 0-1, 0.5 = neutral/thin
-    history_confidence:         float = 0.0   # 0-1
-    structural_saturation:      float = 0.0   # raw marginal composite HHI
+    historical_outcome_quality: float = 0.5  # 0-1, 0.5 = neutral/thin
+    history_confidence: float = 0.0  # 0-1
+    structural_saturation: float = 0.0  # raw marginal composite HHI
 
     # ── Combined score ───────────────────────────────────────────────────
-    saturation_score:          float = 0.0   # 0-1, primary output
+    saturation_score: float = 0.0  # 0-1, primary output
 
     # ── Integration signals ──────────────────────────────────────────────
-    size_modifier:             float = 1.0   # 0.5..1.0
-    conviction_modifier:       float = 0.0   # -0.3..0
-    rank_penalty:              float = 0.0   # 0..0.25
-    risk_appetite_modifier:    float = 0.0   # -0.3..0
+    size_modifier: float = 1.0  # 0.5..1.0
+    conviction_modifier: float = 0.0  # -0.3..0
+    rank_penalty: float = 0.0  # 0..0.25
+    risk_appetite_modifier: float = 0.0  # -0.3..0
 
     def to_dict(self) -> dict:
         return {
-            "instrument":                 self.instrument,
-            "direction":                  self.direction,
-            "cluster_before":             self.cluster_before.to_dict(),
-            "cluster_after":              self.cluster_after.to_dict(),
-            "marginal_currency_hhi":      round(self.marginal_currency_hhi, 4),
-            "marginal_sector_hhi":        round(self.marginal_sector_hhi, 4),
-            "marginal_correlation_risk":  round(self.marginal_correlation_risk, 4),
-            "marginal_regional_hhi":      round(self.marginal_regional_hhi, 4),
-            "marginal_composite":         round(self.marginal_composite, 4),
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "cluster_before": self.cluster_before.to_dict(),
+            "cluster_after": self.cluster_after.to_dict(),
+            "marginal_currency_hhi": round(self.marginal_currency_hhi, 4),
+            "marginal_sector_hhi": round(self.marginal_sector_hhi, 4),
+            "marginal_correlation_risk": round(self.marginal_correlation_risk, 4),
+            "marginal_regional_hhi": round(self.marginal_regional_hhi, 4),
+            "marginal_composite": round(self.marginal_composite, 4),
             "historical_outcome_quality": round(self.historical_outcome_quality, 4),
-            "history_confidence":         round(self.history_confidence, 4),
-            "structural_saturation":      round(self.structural_saturation, 4),
-            "saturation_score":           round(self.saturation_score, 4),
-            "size_modifier":              round(self.size_modifier, 4),
-            "conviction_modifier":        round(self.conviction_modifier, 4),
-            "rank_penalty":               round(self.rank_penalty, 4),
-            "risk_appetite_modifier":     round(self.risk_appetite_modifier, 4),
+            "history_confidence": round(self.history_confidence, 4),
+            "structural_saturation": round(self.structural_saturation, 4),
+            "saturation_score": round(self.saturation_score, 4),
+            "size_modifier": round(self.size_modifier, 4),
+            "conviction_modifier": round(self.conviction_modifier, 4),
+            "rank_penalty": round(self.rank_penalty, 4),
+            "risk_appetite_modifier": round(self.risk_appetite_modifier, 4),
         }
 
 
@@ -217,10 +215,10 @@ def _integration_signals(saturation_score: float) -> tuple[float, float, float, 
     rank_penalty, risk_appetite_modifier).
     """
     s = max(0.0, min(1.0, saturation_score))
-    size_mod  = _SIZE_MOD_MAX + (_SIZE_MOD_MIN - _SIZE_MOD_MAX) * s
-    conv_mod  = _CONVICTION_DRAG_MAX * s
-    rank_pen  = _RANK_PENALTY_MAX * s
-    risk_mod  = _RISK_MOD_MAX * s
+    size_mod = _SIZE_MOD_MAX + (_SIZE_MOD_MIN - _SIZE_MOD_MAX) * s
+    conv_mod = _CONVICTION_DRAG_MAX * s
+    rank_pen = _RANK_PENALTY_MAX * s
+    risk_mod = _RISK_MOD_MAX * s
     return (
         round(max(_SIZE_MOD_MIN, min(_SIZE_MOD_MAX, size_mod)), 4),
         round(max(_CONVICTION_DRAG_MAX, min(0.0, conv_mod)), 4),
@@ -261,23 +259,23 @@ class TradeSaturationEngine:
 
     def __init__(
         self,
-        registry:       InstrumentRegistry | None = None,
-        max_records:    int   = 2000,
-        k:              int   = _DEFAULT_K,
-        recency_tau:    float = _RECENCY_TAU_DAYS,
+        registry: InstrumentRegistry | None = None,
+        max_records: int = 2000,
+        k: int = _DEFAULT_K,
+        recency_tau: float = _RECENCY_TAU_DAYS,
     ) -> None:
         self._cluster_engine = ExposureClusterEngine(registry=registry)
-        self._memory         = ExposureMemory(max_records=max_records)
-        self._k              = k
-        self._tau            = recency_tau
+        self._memory = ExposureMemory(max_records=max_records)
+        self._k = k
+        self._tau = recency_tau
 
     # ── Learning ──────────────────────────────────────────────────────────
 
     def record_outcome(
         self,
         observation: ExposureObservation,
-        outcome:     ExposureOutcome,
-        now:         float | None = None,
+        outcome: ExposureOutcome,
+        now: float | None = None,
     ) -> ExposureRecord:
         """Append one (observation → outcome) pair to the learning store.
 
@@ -285,17 +283,18 @@ class TradeSaturationEngine:
         trade-entry time (not exit time — concentration at entry is what
         matters for learning).
         """
-        return self._memory.record(observation, outcome,
-                                   now=now if now is not None else time.time())
+        return self._memory.record(
+            observation, outcome, now=now if now is not None else time.time()
+        )
 
     # ── Signal computation ────────────────────────────────────────────────
 
     def score(
         self,
-        candidate:         PositionExposure,
+        candidate: PositionExposure,
         current_positions: list[PositionExposure],
-        corr_matrix:       "CorrelationMatrix | None" = None,
-        now:               float | None = None,
+        corr_matrix: "CorrelationMatrix | None" = None,
+        now: float | None = None,
     ) -> SaturationSignal:
         """Compute the full saturation signal for a candidate trade.
 
@@ -316,10 +315,10 @@ class TradeSaturationEngine:
         )
 
         # ── Marginal deltas ────────────────────────────────────────────
-        d_currency = after.currency_hhi       - before.currency_hhi
-        d_sector   = after.sector_hhi         - before.sector_hhi
-        d_corr     = after.correlation_concentration - before.correlation_concentration
-        d_regional = after.regional_hhi       - before.regional_hhi
+        d_currency = after.currency_hhi - before.currency_hhi
+        d_sector = after.sector_hhi - before.sector_hhi
+        d_corr = after.correlation_concentration - before.correlation_concentration
+        d_regional = after.regional_hhi - before.regional_hhi
         d_composite = after.composite_concentration - before.composite_concentration
 
         # ── Structural saturation ─────────────────────────────────────
@@ -333,10 +332,7 @@ class TradeSaturationEngine:
         # concentrated portfolio (before>0, small delta) scores high.
         # This reflects the economic reality: concentration risk is a
         # property of the *existing* portfolio, not of the instrument alone.
-        structural = (
-            0.65 * before.composite_concentration
-            + 0.35 * max(0.0, d_composite)
-        )
+        structural = 0.65 * before.composite_concentration + 0.35 * max(0.0, d_composite)
         structural = min(1.0, structural)
 
         # ── Historical signal ──────────────────────────────────────────
@@ -378,10 +374,10 @@ class TradeSaturationEngine:
 
     def context_for_inference(
         self,
-        candidate:         PositionExposure,
+        candidate: PositionExposure,
         current_positions: list[PositionExposure],
-        corr_matrix:       "CorrelationMatrix | None" = None,
-        now:               float | None = None,
+        corr_matrix: "CorrelationMatrix | None" = None,
+        now: float | None = None,
     ) -> dict:
         """Return 14 ``exp_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -402,31 +398,30 @@ class TradeSaturationEngine:
         exp_historical_quality     — learned outcome quality at this conc
         exp_history_confidence     — confidence in historical signal
         """
-        sig = self.score(candidate, current_positions,
-                         corr_matrix=corr_matrix, now=now)
-        b   = sig.cluster_before
+        sig = self.score(candidate, current_positions, corr_matrix=corr_matrix, now=now)
+        b = sig.cluster_before
         return {
-            "exp_currency_hhi":          round(b.currency_hhi, 4),
-            "exp_sector_hhi":            round(b.sector_hhi, 4),
-            "exp_correlation_conc":      round(b.correlation_concentration, 4),
-            "exp_regional_hhi":          round(b.regional_hhi, 4),
-            "exp_composite_conc":        round(b.composite_concentration, 4),
-            "exp_dominant_currency":     b.dominant_currency,
+            "exp_currency_hhi": round(b.currency_hhi, 4),
+            "exp_sector_hhi": round(b.sector_hhi, 4),
+            "exp_correlation_conc": round(b.correlation_concentration, 4),
+            "exp_regional_hhi": round(b.regional_hhi, 4),
+            "exp_composite_conc": round(b.composite_concentration, 4),
+            "exp_dominant_currency": b.dominant_currency,
             "exp_marginal_currency_hhi": round(sig.marginal_currency_hhi, 4),
-            "exp_marginal_composite":    round(sig.marginal_composite, 4),
-            "exp_saturation_score":      round(sig.saturation_score, 4),
-            "exp_size_modifier":         round(sig.size_modifier, 4),
-            "exp_conviction_modifier":   round(sig.conviction_modifier, 4),
-            "exp_rank_penalty":          round(sig.rank_penalty, 4),
-            "exp_historical_quality":    round(sig.historical_outcome_quality, 4),
-            "exp_history_confidence":    round(sig.history_confidence, 4),
+            "exp_marginal_composite": round(sig.marginal_composite, 4),
+            "exp_saturation_score": round(sig.saturation_score, 4),
+            "exp_size_modifier": round(sig.size_modifier, 4),
+            "exp_conviction_modifier": round(sig.conviction_modifier, 4),
+            "exp_rank_penalty": round(sig.rank_penalty, 4),
+            "exp_historical_quality": round(sig.historical_outcome_quality, 4),
+            "exp_history_confidence": round(sig.history_confidence, 4),
         }
 
     # ── Convenience ──────────────────────────────────────────────────────
 
     def current_cluster(
         self,
-        positions:   list[PositionExposure],
+        positions: list[PositionExposure],
         corr_matrix: "CorrelationMatrix | None" = None,
     ) -> ExposureCluster:
         """Current portfolio exposure cluster without a candidate trade."""
@@ -434,9 +429,9 @@ class TradeSaturationEngine:
 
     def build_observation(
         self,
-        candidate:         PositionExposure,
+        candidate: PositionExposure,
         current_positions: list[PositionExposure],
-        corr_matrix:       "CorrelationMatrix | None" = None,
+        corr_matrix: "CorrelationMatrix | None" = None,
     ) -> ExposureObservation:
         """Build an ``ExposureObservation`` to store at trade-entry time.
 
@@ -477,7 +472,7 @@ class TradeSaturationEngine:
         self,
         before: ExposureCluster,
         n_open: int,
-        now:    float,
+        now: float,
     ) -> tuple[float, float]:
         """Estimate quality at the current concentration from memory.
 
@@ -502,10 +497,10 @@ class TradeSaturationEngine:
         scored: list[tuple[float, ExposureRecord]] = []
         for rec in records:
             hist_vec = rec.observation.as_vector()
-            dist     = _l2_distance(query, hist_vec)
-            sim      = _similarity(dist)
-            recency  = rec.recency_weight(now, tau_days=self._tau)
-            w        = sim * recency
+            dist = _l2_distance(query, hist_vec)
+            sim = _similarity(dist)
+            recency = rec.recency_weight(now, tau_days=self._tau)
+            w = sim * recency
             if w > 1e-10:
                 scored.append((w, rec))
 
@@ -516,11 +511,11 @@ class TradeSaturationEngine:
         scored.sort(key=lambda t: t[0], reverse=True)
         top_k = scored[: self._k]
 
-        total_w  = sum(w for w, _ in top_k)
+        total_w = sum(w for w, _ in top_k)
         if total_w < 1e-12:
             return 0.5, 0.0
 
         weighted_quality = sum(w * r.outcome.outcome_quality for w, r in top_k) / total_w
-        confidence       = min(1.0, len(top_k) / max(_MIN_INFORMATIVE, 1))
+        confidence = min(1.0, len(top_k) / max(_MIN_INFORMATIVE, 1))
 
         return max(0.0, min(1.0, weighted_quality)), round(confidence, 4)

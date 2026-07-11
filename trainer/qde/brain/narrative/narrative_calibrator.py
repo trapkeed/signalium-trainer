@@ -60,11 +60,11 @@ from trainer.qde.brain.narrative.narrative_store import (
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-_MIN_SAMPLES_FOR_ADJUSTMENT = 5     # below this, factor = 1.0 (no adjustment)
-_FACTOR_FLOOR               = 0.70  # never scale confidence below 70% of original
-_FACTOR_CEIL                = 1.30  # never scale confidence above 130% of original
-_MIN_CONFIDENCE_FLOOR       = 0.05  # floor on calibrated confidence
-_MAX_CONFIDENCE_CEIL        = 0.92  # ceiling on calibrated confidence
+_MIN_SAMPLES_FOR_ADJUSTMENT = 5  # below this, factor = 1.0 (no adjustment)
+_FACTOR_FLOOR = 0.70  # never scale confidence below 70% of original
+_FACTOR_CEIL = 1.30  # never scale confidence above 130% of original
+_MIN_CONFIDENCE_FLOOR = 0.05  # floor on calibrated confidence
+_MAX_CONFIDENCE_CEIL = 0.92  # ceiling on calibrated confidence
 
 
 # ── Output type ───────────────────────────────────────────────────────────────
@@ -83,21 +83,21 @@ class CalibrationResult:
     ``quality_score``         — the ``NarrativeQualityScore`` used.
     """
 
-    kind:                   NarrativeKind
-    original_confidence:    float
-    calibrated_confidence:  float
-    factor:                 float
-    data_driven:            bool
-    quality_score:          NarrativeQualityScore | None = None
+    kind: NarrativeKind
+    original_confidence: float
+    calibrated_confidence: float
+    factor: float
+    data_driven: bool
+    quality_score: NarrativeQualityScore | None = None
 
     def to_dict(self) -> dict:
         return {
-            "kind":                  self.kind.value,
-            "original_confidence":   round(self.original_confidence, 4),
+            "kind": self.kind.value,
+            "original_confidence": round(self.original_confidence, 4),
             "calibrated_confidence": round(self.calibrated_confidence, 4),
-            "factor":                round(self.factor, 4),
-            "data_driven":           self.data_driven,
-            "quality_score":         self.quality_score.to_dict() if self.quality_score else None,
+            "factor": round(self.factor, 4),
+            "data_driven": self.data_driven,
+            "quality_score": self.quality_score.to_dict() if self.quality_score else None,
         }
 
 
@@ -124,23 +124,23 @@ class NarrativeCalibrator:
 
     def __init__(
         self,
-        min_samples:     int   = _MIN_SAMPLES_FOR_ADJUSTMENT,
-        factor_floor:    float = _FACTOR_FLOOR,
-        factor_ceil:     float = _FACTOR_CEIL,
-        conf_floor:      float = _MIN_CONFIDENCE_FLOOR,
-        conf_ceil:       float = _MAX_CONFIDENCE_CEIL,
+        min_samples: int = _MIN_SAMPLES_FOR_ADJUSTMENT,
+        factor_floor: float = _FACTOR_FLOOR,
+        factor_ceil: float = _FACTOR_CEIL,
+        conf_floor: float = _MIN_CONFIDENCE_FLOOR,
+        conf_ceil: float = _MAX_CONFIDENCE_CEIL,
     ) -> None:
         self._min_samples = min_samples
-        self._floor       = factor_floor
-        self._ceil        = factor_ceil
-        self._conf_floor  = conf_floor
-        self._conf_ceil   = conf_ceil
+        self._floor = factor_floor
+        self._ceil = factor_ceil
+        self._conf_floor = conf_floor
+        self._conf_ceil = conf_ceil
 
     # ── Primary calibration entry points ─────────────────────────────────
 
     def calibrate_seed(
         self,
-        seed:    NarrativeSeed,
+        seed: NarrativeSeed,
         quality: NarrativeQualityScore,
     ) -> NarrativeSeed:
         """Return a shallow-copy of ``seed`` with adjusted ``initial_confidence``.
@@ -151,8 +151,11 @@ class NarrativeCalibrator:
         new_conf = self._apply(seed.initial_confidence, result.factor)
         # Build a modified copy — NarrativeSeed is a dataclass
         new_seed = copy.copy(seed)
-        object.__setattr__(new_seed, "initial_confidence", new_conf) \
-            if hasattr(new_seed, "__dataclass_fields__") else None
+        (
+            object.__setattr__(new_seed, "initial_confidence", new_conf)
+            if hasattr(new_seed, "__dataclass_fields__")
+            else None
+        )
         # Dataclasses are not frozen, so direct attribute set works
         new_seed.initial_confidence = new_conf
         return new_seed
@@ -160,8 +163,8 @@ class NarrativeCalibrator:
     def recalibrate_confidence(
         self,
         confidence: float,
-        kind:       NarrativeKind,
-        quality:    NarrativeQualityScore,
+        kind: NarrativeKind,
+        quality: NarrativeQualityScore,
     ) -> float:
         """Return a recalibrated confidence value.
 
@@ -175,8 +178,8 @@ class NarrativeCalibrator:
     def calibrate_narrative(
         self,
         narrative: SymbolNarrative,
-        quality:   NarrativeQualityScore,
-        apply:     bool = False,
+        quality: NarrativeQualityScore,
+        apply: bool = False,
     ) -> CalibrationResult:
         """Compute (and optionally apply) calibration to a live narrative.
 
@@ -215,7 +218,7 @@ class NarrativeCalibrator:
 
     def compute_factor(
         self,
-        kind:    NarrativeKind,
+        kind: NarrativeKind,
         quality: NarrativeQualityScore,
     ) -> CalibrationResult:
         """Compute the scaling factor for ``kind`` given ``quality``.
@@ -243,7 +246,7 @@ class NarrativeCalibrator:
             )
 
         raw_factor = 0.5 + quality.reliability
-        factor     = max(self._floor, min(self._ceil, raw_factor))
+        factor = max(self._floor, min(self._ceil, raw_factor))
 
         return CalibrationResult(
             kind=kind,
@@ -256,7 +259,7 @@ class NarrativeCalibrator:
 
     def factor_for_kind(
         self,
-        kind:            NarrativeKind,
+        kind: NarrativeKind,
         quality_by_kind: dict[str, NarrativeQualityScore],
     ) -> float:
         """Convenience wrapper: get the factor from a {kind.value: score} dict."""

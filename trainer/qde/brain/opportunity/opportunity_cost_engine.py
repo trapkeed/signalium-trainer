@@ -67,9 +67,7 @@ active opportunity from signals already in hand:
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 
 # Minimum expected duration used as the denominator when computing
 # capital efficiency — avoids divide-by-zero on very short setups and
@@ -97,32 +95,32 @@ class OpportunityInput:
     """
 
     # ── Identity ──────────────────────────────────────────────────────────
-    instrument:             str   = ""
-    direction:              int   = 1      # +1 long, −1 short
-    opportunity_id:         str   = ""
-    setup_state:            str   = ""    # SetupState.value
+    instrument: str = ""
+    direction: int = 1  # +1 long, −1 short
+    opportunity_id: str = ""
+    setup_state: str = ""  # SetupState.value
 
     # ── Conviction / confidence — from ConvictionScore ─────────────────
-    conviction:             float = 0.0   # 0-1
-    confidence:             float = 0.0   # 0-1 (P(hypothesis correct))
-    conviction_profile:     str   = ""    # ConvictionProfile.value
+    conviction: float = 0.0  # 0-1
+    confidence: float = 0.0  # 0-1 (P(hypothesis correct))
+    conviction_profile: str = ""  # ConvictionProfile.value
 
     # ── Uncertainty — from UncertaintyScore ────────────────────────────
-    uncertainty:            float = 0.5   # 0-1 (higher = more ambiguous)
-    uncertainty_level:      str   = ""    # UncertaintyLevel.value
+    uncertainty: float = 0.5  # 0-1 (higher = more ambiguous)
+    uncertainty_level: str = ""  # UncertaintyLevel.value
 
     # ── Projection — from ExpectedProjection ───────────────────────────
-    expected_reward_atr:    float = 0.0   # signed, ATR multiples
-    expected_mae_atr:       float = 0.0   # non-negative
+    expected_reward_atr: float = 0.0  # signed, ATR multiples
+    expected_mae_atr: float = 0.0  # non-negative
     expected_duration_seconds: float = 0.0
-    reward_sufficiency_score:  float = 0.5  # 0-1, learned percentile
-    reward_risk_ratio:         float = 0.0  # reward / mae
+    reward_sufficiency_score: float = 0.5  # 0-1, learned percentile
+    reward_risk_ratio: float = 0.0  # reward / mae
     proj_opportunity_rank_signal: float = 0.0
-    proj_position_size_modifier:  float = 1.0
-    proj_risk_appetite_modifier:  float = 0.0
+    proj_position_size_modifier: float = 1.0
+    proj_risk_appetite_modifier: float = 0.0
 
     # ── Attention — from AttentionScoreAllocator ────────────────────────
-    attention_weight: float = 0.0   # normalized cross-symbol weight
+    attention_weight: float = 0.0  # normalized cross-symbol weight
 
     # ── Execution friction — C11 additions ─────────────────────────────
     # These four fields are optional (all default to neutral values) so
@@ -130,14 +128,14 @@ class OpportunityInput:
     # unchanged.  Callers that have execution-engine context should
     # populate them from ``SlippagePredictor`` / ``FillProbabilityEngine``
     # and the MIE liquidity signal.
-    spread_cost_atr:       float = 0.0   # gross spread expressed in ATR units
-    slippage_estimate_atr: float = 0.0   # estimated execution slippage in ATR
-    liquidity_quality:     float = 0.5   # 0-1, from MIE/liquidity layer
-    portfolio_interaction: float = 0.0   # −1 = concentrating, +1 = diversifying
+    spread_cost_atr: float = 0.0  # gross spread expressed in ATR units
+    slippage_estimate_atr: float = 0.0  # estimated execution slippage in ATR
+    liquidity_quality: float = 0.5  # 0-1, from MIE/liquidity layer
+    portfolio_interaction: float = 0.0  # −1 = concentrating, +1 = diversifying
 
     # ── Position context ────────────────────────────────────────────────
-    has_open_position:  bool  = False
-    confirmation_ticks: int   = 0
+    has_open_position: bool = False
+    confirmation_ticks: int = 0
     state_dwell_seconds: float = 0.0
 
     @property
@@ -154,32 +152,32 @@ class OpportunityInput:
 
     def to_dict(self) -> dict:
         return {
-            "instrument":                 self.instrument,
-            "direction":                  self.direction,
-            "opportunity_id":             self.opportunity_id,
-            "setup_state":                self.setup_state,
-            "conviction":                 round(self.conviction, 4),
-            "confidence":                 round(self.confidence, 4),
-            "conviction_profile":         self.conviction_profile,
-            "uncertainty":                round(self.uncertainty, 4),
-            "uncertainty_level":          self.uncertainty_level,
-            "expected_reward_atr":        round(self.expected_reward_atr, 4),
-            "expected_mae_atr":           round(self.expected_mae_atr, 4),
-            "expected_duration_seconds":  round(self.expected_duration_seconds, 1),
-            "reward_sufficiency_score":   round(self.reward_sufficiency_score, 4),
-            "reward_risk_ratio":          round(self.reward_risk_ratio, 4),
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "opportunity_id": self.opportunity_id,
+            "setup_state": self.setup_state,
+            "conviction": round(self.conviction, 4),
+            "confidence": round(self.confidence, 4),
+            "conviction_profile": self.conviction_profile,
+            "uncertainty": round(self.uncertainty, 4),
+            "uncertainty_level": self.uncertainty_level,
+            "expected_reward_atr": round(self.expected_reward_atr, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "expected_duration_seconds": round(self.expected_duration_seconds, 1),
+            "reward_sufficiency_score": round(self.reward_sufficiency_score, 4),
+            "reward_risk_ratio": round(self.reward_risk_ratio, 4),
             "proj_opportunity_rank_signal": round(self.proj_opportunity_rank_signal, 4),
-            "proj_position_size_modifier":  round(self.proj_position_size_modifier, 4),
-            "proj_risk_appetite_modifier":  round(self.proj_risk_appetite_modifier, 4),
-            "attention_weight":           round(self.attention_weight, 4),
+            "proj_position_size_modifier": round(self.proj_position_size_modifier, 4),
+            "proj_risk_appetite_modifier": round(self.proj_risk_appetite_modifier, 4),
+            "attention_weight": round(self.attention_weight, 4),
             # C11 execution-friction fields
-            "spread_cost_atr":            round(self.spread_cost_atr, 4),
-            "slippage_estimate_atr":      round(self.slippage_estimate_atr, 4),
-            "liquidity_quality":          round(self.liquidity_quality, 4),
-            "portfolio_interaction":      round(self.portfolio_interaction, 4),
-            "has_open_position":          self.has_open_position,
-            "confirmation_ticks":         self.confirmation_ticks,
-            "state_dwell_seconds":        round(self.state_dwell_seconds, 1),
+            "spread_cost_atr": round(self.spread_cost_atr, 4),
+            "slippage_estimate_atr": round(self.slippage_estimate_atr, 4),
+            "liquidity_quality": round(self.liquidity_quality, 4),
+            "portfolio_interaction": round(self.portfolio_interaction, 4),
+            "has_open_position": self.has_open_position,
+            "confirmation_ticks": self.confirmation_ticks,
+            "state_dwell_seconds": round(self.state_dwell_seconds, 1),
         }
 
 
@@ -211,21 +209,21 @@ class OpportunityCost:
         efficient).  Ties broken by insertion order.
     """
 
-    instrument:              str   = ""
-    opportunity_id:          str   = ""
-    capital_efficiency:      float = 0.0   # ATR/hour
-    opportunity_cost_score:  float = 0.0   # 0-1
-    forgone_efficiency:      float = 0.0   # ATR/hour (best - this)
-    efficiency_rank:         int   = 1
+    instrument: str = ""
+    opportunity_id: str = ""
+    capital_efficiency: float = 0.0  # ATR/hour
+    opportunity_cost_score: float = 0.0  # 0-1
+    forgone_efficiency: float = 0.0  # ATR/hour (best - this)
+    efficiency_rank: int = 1
 
     def to_dict(self) -> dict:
         return {
-            "instrument":             self.instrument,
-            "opportunity_id":         self.opportunity_id,
-            "capital_efficiency":     round(self.capital_efficiency, 4),
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "capital_efficiency": round(self.capital_efficiency, 4),
             "opportunity_cost_score": round(self.opportunity_cost_score, 4),
-            "forgone_efficiency":     round(self.forgone_efficiency, 4),
-            "efficiency_rank":        self.efficiency_rank,
+            "forgone_efficiency": round(self.forgone_efficiency, 4),
+            "efficiency_rank": self.efficiency_rank,
         }
 
 
@@ -284,15 +282,15 @@ class OpportunityCostEngine:
         ]
 
         best_eff = max(eff for _, eff in efficiencies) if efficiencies else 0.0
-        best_eff = max(best_eff, 1e-9)   # avoid /0 when all candidates have 0 reward
+        best_eff = max(best_eff, 1e-9)  # avoid /0 when all candidates have 0 reward
 
         # ── Sort by efficiency descending to assign ranks ─────────────
         ranked = sorted(efficiencies, key=lambda t: t[1], reverse=True)
 
         result: dict[str, OpportunityCost] = {}
         for rank_idx, (inp, eff) in enumerate(ranked, start=1):
-            forgone       = best_eff - eff
-            cost_score    = max(0.0, min(1.0, forgone / best_eff))
+            forgone = best_eff - eff
+            cost_score = max(0.0, min(1.0, forgone / best_eff))
             cost = OpportunityCost(
                 instrument=inp.instrument,
                 opportunity_id=inp.opportunity_id,

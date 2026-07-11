@@ -161,12 +161,6 @@ from trainer.qde.brain.institutional.distribution_detector import (
     DistributionEstimate,
     DistributionInput,
 )
-from trainer.qde.brain.institutional.inventory_transfer_detector import (
-    InventoryTransferDetector,
-    InventoryTransferEstimate,
-    InventoryTransferInput,
-    SweepEvent,
-)
 
 # ── Learned engine ────────────────────────────────────────────────────────────
 from trainer.qde.brain.institutional.institutional_intent_engine import (
@@ -176,6 +170,12 @@ from trainer.qde.brain.institutional.institutional_intent_engine import (
     InstitutionalMemory,
     InstitutionalOutcome,
     InstitutionalRecord,
+)
+from trainer.qde.brain.institutional.inventory_transfer_detector import (
+    InventoryTransferDetector,
+    InventoryTransferEstimate,
+    InventoryTransferInput,
+    SweepEvent,
 )
 
 __all__ = [

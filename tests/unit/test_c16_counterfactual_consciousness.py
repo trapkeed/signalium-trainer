@@ -51,11 +51,7 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
-import time
-
 from trainer.qde.brain.brain_types import BeliefDirection
-from trainer.qde.brain.thesis_manager import Thesis
 from trainer.qde.brain.counterfactual import (
     MAX_FLIP_RECORDS,
     MAX_PROBABILITY_POINTS,
@@ -76,10 +72,11 @@ from trainer.qde.brain.counterfactual import (
     UncertaintySpikeRecord,
     evaluate_alternative,
     generate_alternatives,
-    record_probability_point,
     recommend_switch,
+    record_probability_point,
     switch_thesis,
 )
+from trainer.qde.brain.thesis_manager import Thesis
 
 _T0 = 1_700_000_000.0
 
@@ -87,6 +84,7 @@ _T0 = 1_700_000_000.0
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def _thesis(
     side: BeliefDirection = BeliefDirection.BULLISH,
@@ -136,6 +134,7 @@ def _state(
 # 1. Enums
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestEnums:
     def test_scenario_type_values(self):
         expected = {"CONTINUATION", "REVERSAL", "SIDEWAYS", "ACCELERATION", "EXHAUSTION"}
@@ -143,8 +142,11 @@ class TestEnums:
 
     def test_flip_trigger_values(self):
         expected = {
-            "EVIDENCE_SHIFT", "UNCERTAINTY_SPIKE",
-            "CONFIDENCE_COLLAPSE", "SECONDARY_DOMINANCE", "FORCED",
+            "EVIDENCE_SHIFT",
+            "UNCERTAINTY_SPIKE",
+            "CONFIDENCE_COLLAPSE",
+            "SECONDARY_DOMINANCE",
+            "FORCED",
         }
         assert {t.value for t in FlipTrigger} == expected
 
@@ -158,6 +160,7 @@ class TestEnums:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. ProbabilityPoint
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestProbabilityPoint:
     def test_spread_positive_when_primary_leads(self):
@@ -184,6 +187,7 @@ class TestProbabilityPoint:
 # 3. CounterfactualScenario
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestCounterfactualScenario:
     def _scenario(self) -> CounterfactualScenario:
         return CounterfactualScenario(
@@ -202,9 +206,16 @@ class TestCounterfactualScenario:
     def test_to_dict_keys(self):
         d = self._scenario().to_dict()
         for k in (
-            "scenario_id", "scenario_type", "direction", "trigger_conditions",
-            "probability_weight", "expected_observations", "invalidation_signals",
-            "confidence_if_correct", "source_evidence", "created_at",
+            "scenario_id",
+            "scenario_type",
+            "direction",
+            "trigger_conditions",
+            "probability_weight",
+            "expected_observations",
+            "invalidation_signals",
+            "confidence_if_correct",
+            "source_evidence",
+            "created_at",
         ):
             assert k in d
 
@@ -218,6 +229,7 @@ class TestCounterfactualScenario:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 4. FlipLesson
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestFlipLesson:
     def test_to_dict_keys(self):
@@ -254,6 +266,7 @@ class TestFlipLesson:
 # 5. ThesisFlipRecord
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestThesisFlipRecord:
     def _record(self) -> ThesisFlipRecord:
         return ThesisFlipRecord(
@@ -272,9 +285,16 @@ class TestThesisFlipRecord:
     def test_to_dict_keys(self):
         d = self._record().to_dict()
         for k in (
-            "flip_id", "previous_primary_side", "new_primary_side", "trigger",
-            "trigger_detail", "primary_p_before", "secondary_p_before",
-            "evidence_snapshot", "flip_lesson", "flipped_at",
+            "flip_id",
+            "previous_primary_side",
+            "new_primary_side",
+            "trigger",
+            "trigger_detail",
+            "primary_p_before",
+            "secondary_p_before",
+            "evidence_snapshot",
+            "flip_lesson",
+            "flipped_at",
         ):
             assert k in d
 
@@ -290,6 +310,7 @@ class TestThesisFlipRecord:
 # 6. ThesisReversalRecord
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestThesisReversalRecord:
     def test_to_dict_keys(self):
         r = ThesisReversalRecord(
@@ -301,8 +322,14 @@ class TestThesisReversalRecord:
             reversed_at=_T0,
         )
         d = r.to_dict()
-        for k in ("reversal_id", "returning_to_side", "intermediate_side",
-                  "seconds_elapsed", "flip_id", "reversed_at"):
+        for k in (
+            "reversal_id",
+            "returning_to_side",
+            "intermediate_side",
+            "seconds_elapsed",
+            "flip_id",
+            "reversed_at",
+        ):
             assert k in d
 
     def test_values(self):
@@ -323,6 +350,7 @@ class TestThesisReversalRecord:
 # 7. UncertaintySpikeRecord
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestUncertaintySpikeRecord:
     def test_to_dict_keys(self):
         r = UncertaintySpikeRecord(
@@ -336,14 +364,23 @@ class TestUncertaintySpikeRecord:
             spiked_at=_T0,
         )
         d = r.to_dict()
-        for k in ("spike_id", "instrument", "uncertainty_before", "uncertainty_after",
-                  "delta", "level_after", "context", "spiked_at"):
+        for k in (
+            "spike_id",
+            "instrument",
+            "uncertainty_before",
+            "uncertainty_after",
+            "delta",
+            "level_after",
+            "context",
+            "spiked_at",
+        ):
             assert k in d
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 8. CounterfactualState
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestCounterfactualState:
     def test_flip_count_empty(self):
@@ -362,10 +399,17 @@ class TestCounterfactualState:
         s = _state()
         d = s.to_snapshot()
         for k in (
-            "instrument", "primary_side", "secondary_side",
-            "flip_count", "reversal_count", "spike_count",
-            "reversal_rate", "last_probability", "scenario_count",
-            "created_at", "last_updated_at",
+            "instrument",
+            "primary_side",
+            "secondary_side",
+            "flip_count",
+            "reversal_count",
+            "spike_count",
+            "reversal_rate",
+            "last_probability",
+            "scenario_count",
+            "created_at",
+            "last_updated_at",
         ):
             assert k in d
 
@@ -381,6 +425,7 @@ class TestCounterfactualState:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 9. generate_alternatives()
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestGenerateAlternatives:
     def test_returns_list_of_scenarios(self):
@@ -412,15 +457,13 @@ class TestGenerateAlternatives:
         assert ScenarioType.EXHAUSTION not in types
 
     def test_strong_primary_includes_acceleration(self):
-        strong = _thesis(confidence=0.75, historical=0.70,
-                         supporting=["s1", "s2", "s3"])
+        strong = _thesis(confidence=0.75, historical=0.70, supporting=["s1", "s2", "s3"])
         result = generate_alternatives(strong, now=_T0)
         types = {s.scenario_type for s in result}
         assert ScenarioType.ACCELERATION in types
 
     def test_very_strong_primary_includes_exhaustion(self):
-        very_strong = _thesis(confidence=0.85, historical=0.75,
-                               supporting=["s1", "s2", "s3", "s4"])
+        very_strong = _thesis(confidence=0.85, historical=0.75, supporting=["s1", "s2", "s3", "s4"])
         result = generate_alternatives(very_strong, now=_T0)
         types = {s.scenario_type for s in result}
         assert ScenarioType.EXHAUSTION in types
@@ -443,19 +486,19 @@ class TestGenerateAlternatives:
         assert reversal.source_evidence or reversal.trigger_conditions
 
     def test_high_uncertainty_raises_sideways_weight(self):
-        low_unc  = generate_alternatives(_bull(), uncertainty_score=0.0, now=_T0)
+        low_unc = generate_alternatives(_bull(), uncertainty_score=0.0, now=_T0)
         high_unc = generate_alternatives(_bull(), uncertainty_score=0.80, now=_T0)
-        sw_low  = next(s for s in low_unc  if s.scenario_type == ScenarioType.SIDEWAYS)
+        sw_low = next(s for s in low_unc if s.scenario_type == ScenarioType.SIDEWAYS)
         sw_high = next(s for s in high_unc if s.scenario_type == ScenarioType.SIDEWAYS)
         assert sw_high.probability_weight >= sw_low.probability_weight
 
     def test_strong_secondary_raises_reversal_weight(self):
         strong_secondary = _bear(confidence=0.85)
-        weak_secondary   = _bear(confidence=0.35)
+        weak_secondary = _bear(confidence=0.35)
         r_strong = generate_alternatives(_bull(), secondary_thesis=strong_secondary, now=_T0)
-        r_weak   = generate_alternatives(_bull(), secondary_thesis=weak_secondary, now=_T0)
+        r_weak = generate_alternatives(_bull(), secondary_thesis=weak_secondary, now=_T0)
         rev_strong = next(s for s in r_strong if s.scenario_type == ScenarioType.REVERSAL)
-        rev_weak   = next(s for s in r_weak   if s.scenario_type == ScenarioType.REVERSAL)
+        rev_weak = next(s for s in r_weak if s.scenario_type == ScenarioType.REVERSAL)
         assert rev_strong.probability_weight >= rev_weak.probability_weight
 
     def test_stores_on_state(self):
@@ -482,6 +525,7 @@ class TestGenerateAlternatives:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 10. evaluate_alternative()
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestEvaluateAlternative:
     def _reversal_scenario(self, weight: float = 0.30) -> CounterfactualScenario:
@@ -538,19 +582,20 @@ class TestEvaluateAlternative:
     def test_sideways_gets_uncertainty_bonus(self):
         s = self._sideways_scenario(weight=0.20)
         without_unc = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.0)
-        with_unc    = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.80)
+        with_unc = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.80)
         assert with_unc > without_unc
 
     def test_reversal_no_uncertainty_bonus(self):
         s = self._reversal_scenario(weight=0.30)
         without_unc = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.0)
-        with_unc    = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.80)
+        with_unc = evaluate_alternative(s, new_evidence=[], current_uncertainty=0.80)
         assert abs(with_unc - without_unc) < 1e-6  # no bonus for REVERSAL
 
     def test_result_bounded_01(self):
         s = self._reversal_scenario(weight=0.99)
-        r = evaluate_alternative(s, new_evidence=["bearish divergence", "support breaks"],
-                                 current_uncertainty=1.0)
+        r = evaluate_alternative(
+            s, new_evidence=["bearish divergence", "support breaks"], current_uncertainty=1.0
+        )
         assert 0.0 <= r <= 1.0
 
     def test_result_nonnegative_on_empty(self):
@@ -571,6 +616,7 @@ class TestEvaluateAlternative:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 11. switch_thesis()
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestSwitchThesis:
     def test_returns_thesis_switch_result(self):
@@ -741,15 +787,19 @@ class TestSwitchThesis:
         st = _state(primary_side=BeliefDirection.BULLISH)
 
         switch_thesis(
-            state=st, trigger=FlipTrigger.FORCED,
+            state=st,
+            trigger=FlipTrigger.FORCED,
             new_primary_side=BeliefDirection.BEARISH,
-            new_primary_thesis=_bear(), new_secondary_thesis=_bull(),
+            new_primary_thesis=_bear(),
+            new_secondary_thesis=_bull(),
             now=_T0,
         )
         switch_thesis(
-            state=st, trigger=FlipTrigger.FORCED,
+            state=st,
+            trigger=FlipTrigger.FORCED,
             new_primary_side=BeliefDirection.BULLISH,
-            new_primary_thesis=_bull(), new_secondary_thesis=_bear(),
+            new_primary_thesis=_bull(),
+            new_secondary_thesis=_bear(),
             now=_T0 + 60,
         )
         assert len(st.reversal_records) == 1
@@ -761,7 +811,8 @@ class TestSwitchThesis:
             side = sides[i % 2]
             other = sides[(i + 1) % 2]
             switch_thesis(
-                state=st, trigger=FlipTrigger.FORCED,
+                state=st,
+                trigger=FlipTrigger.FORCED,
                 new_primary_side=side,
                 new_primary_thesis=_thesis(side=side),
                 new_secondary_thesis=_thesis(side=other),
@@ -772,9 +823,11 @@ class TestSwitchThesis:
     def test_to_dict_has_required_keys(self):
         st = _state()
         result = switch_thesis(
-            state=st, trigger=FlipTrigger.FORCED,
+            state=st,
+            trigger=FlipTrigger.FORCED,
             new_primary_side=BeliefDirection.BEARISH,
-            new_primary_thesis=_bear(), new_secondary_thesis=_bull(),
+            new_primary_thesis=_bear(),
+            new_secondary_thesis=_bull(),
             now=_T0,
         )
         d = result.to_dict()
@@ -786,11 +839,13 @@ class TestSwitchThesis:
 # 12. record_probability_point()
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestRecordProbabilityPoint:
     def test_appends_point(self):
         st = _state()
-        pt = record_probability_point(st, primary_p=0.65, secondary_p=0.50,
-                                       uncertainty=0.20, now=_T0)
+        pt = record_probability_point(
+            st, primary_p=0.65, secondary_p=0.50, uncertainty=0.20, now=_T0
+        )
         assert isinstance(pt, ProbabilityPoint)
         assert len(st.probability_evolution) == 1
 
@@ -806,17 +861,17 @@ class TestRecordProbabilityPoint:
         st = _state()
         record_probability_point(st, 0.60, 0.50, uncertainty=0.10, now=_T0)
         # Jump uncertainty by > UNCERTAINTY_SPIKE_DELTA
-        record_probability_point(st, 0.55, 0.50,
-                                  uncertainty=0.10 + UNCERTAINTY_SPIKE_DELTA + 0.05,
-                                  now=_T0 + 10)
+        record_probability_point(
+            st, 0.55, 0.50, uncertainty=0.10 + UNCERTAINTY_SPIKE_DELTA + 0.05, now=_T0 + 10
+        )
         assert len(st.uncertainty_spikes) == 1
 
     def test_no_spike_below_threshold(self):
         st = _state()
         record_probability_point(st, 0.60, 0.50, uncertainty=0.20, now=_T0)
-        record_probability_point(st, 0.60, 0.50,
-                                  uncertainty=0.20 + UNCERTAINTY_SPIKE_DELTA - 0.01,
-                                  now=_T0 + 10)
+        record_probability_point(
+            st, 0.60, 0.50, uncertainty=0.20 + UNCERTAINTY_SPIKE_DELTA - 0.01, now=_T0 + 10
+        )
         assert len(st.uncertainty_spikes) == 0
 
     def test_cap_at_max_probability_points(self):
@@ -827,8 +882,9 @@ class TestRecordProbabilityPoint:
 
     def test_values_stored_correctly(self):
         st = _state()
-        pt = record_probability_point(st, primary_p=0.72, secondary_p=0.48,
-                                       uncertainty=0.15, now=_T0)
+        pt = record_probability_point(
+            st, primary_p=0.72, secondary_p=0.48, uncertainty=0.15, now=_T0
+        )
         assert abs(pt.primary_p - 0.72) < 1e-4
         assert abs(pt.secondary_p - 0.48) < 1e-4
         assert abs(pt.uncertainty - 0.15) < 1e-4
@@ -838,10 +894,11 @@ class TestRecordProbabilityPoint:
 # 13. recommend_switch()
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestRecommendSwitch:
     def test_secondary_dominance_recommends_switch(self):
         st = _state()
-        primary_p   = 0.40
+        primary_p = 0.40
         secondary_p = 0.40 + SWITCH_MARGIN + 0.05
         should, reason = recommend_switch(st, primary_p=primary_p, secondary_p=secondary_p)
         assert should is True
@@ -869,7 +926,7 @@ class TestRecommendSwitch:
 
     def test_just_below_switch_margin_no_switch(self):
         st = _state()
-        primary_p   = 0.50
+        primary_p = 0.50
         secondary_p = 0.50 + SWITCH_MARGIN - 0.01
         should, _ = recommend_switch(st, primary_p=primary_p, secondary_p=secondary_p)
         assert should is False
@@ -883,6 +940,7 @@ class TestRecommendSwitch:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 14. CounterfactualEngine
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestCounterfactualEngine:
     def test_instantiates_default(self):
@@ -953,8 +1011,14 @@ class TestCounterfactualEngine:
     def test_snapshot_keys(self):
         engine = CounterfactualEngine(instrument="AUDUSD")
         d = engine.snapshot()
-        for k in ("instrument", "primary_side", "secondary_side",
-                  "flip_count", "reversal_count", "spike_count"):
+        for k in (
+            "instrument",
+            "primary_side",
+            "secondary_side",
+            "flip_count",
+            "reversal_count",
+            "spike_count",
+        ):
             assert k in d
 
     def test_instances_isolated(self):
@@ -1019,6 +1083,7 @@ class TestCounterfactualEngine:
 # 15. End-to-end scenarios
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestEndToEndScenarios:
     def test_continuous_what_if_monitoring(self):
         """Generate alternatives every tick; reversal scenario's weight rises as
@@ -1033,9 +1098,10 @@ class TestEndToEndScenarios:
         rev_t0 = next(s for s in scenarios_t0 if s.scenario_type == ScenarioType.REVERSAL)
 
         # More conflicting evidence arrives
-        bull_weakened = _bull(confidence=0.55, conflicting=[
-            "momentum divergence", "volume declining", "key level rejected"
-        ])
+        bull_weakened = _bull(
+            confidence=0.55,
+            conflicting=["momentum divergence", "volume declining", "key level rejected"],
+        )
         bear_stronger = _bear(confidence=0.65)
 
         scenarios_t1 = engine.generate_alternatives(
@@ -1044,8 +1110,9 @@ class TestEndToEndScenarios:
         rev_t1 = next(s for s in scenarios_t1 if s.scenario_type == ScenarioType.REVERSAL)
 
         # Reversal scenario should have grown more plausible (higher weight or more triggers)
-        assert rev_t1.probability_weight >= rev_t0.probability_weight or \
-               len(rev_t1.trigger_conditions) >= len(rev_t0.trigger_conditions)
+        assert rev_t1.probability_weight >= rev_t0.probability_weight or len(
+            rev_t1.trigger_conditions
+        ) >= len(rev_t0.trigger_conditions)
 
     def test_rapid_flip_back_detected_as_reversal(self):
         """BULL → BEAR within 10s → BULL again within window → reversal."""
@@ -1091,11 +1158,13 @@ class TestEndToEndScenarios:
         engine = CounterfactualEngine(instrument="EURUSD")
 
         # Primary bull thesis has been ignoring conflicting evidence
-        old_bull = _bull(conflicting=[
-            "bearish divergence on daily",
-            "volume declining on rallies",
-            "rejection at key resistance",
-        ])
+        old_bull = _bull(
+            conflicting=[
+                "bearish divergence on daily",
+                "volume declining on rallies",
+                "rejection at key resistance",
+            ]
+        )
 
         result = engine.switch_thesis(
             trigger=FlipTrigger.EVIDENCE_SHIFT,
@@ -1116,37 +1185,43 @@ class TestEndToEndScenarios:
 # 16. Import sanity
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestImportSanity:
     def test_spec_callables_importable(self):
         from trainer.qde.brain.counterfactual import (
-            generate_alternatives,
             evaluate_alternative,
+            generate_alternatives,
             switch_thesis,
         )
-        assert all(callable(fn) for fn in (
-            generate_alternatives, evaluate_alternative, switch_thesis
-        ))
+
+        assert all(
+            callable(fn) for fn in (generate_alternatives, evaluate_alternative, switch_thesis)
+        )
 
     def test_engine_importable(self):
         from trainer.qde.brain.counterfactual import CounterfactualEngine
+
         e = CounterfactualEngine()
         assert e.primary_side == BeliefDirection.BULLISH
 
     def test_all_types_importable(self):
         from trainer.qde.brain.counterfactual import (
-            ScenarioType, FlipTrigger,
-            ProbabilityPoint, CounterfactualScenario,
-            FlipLesson, ThesisFlipRecord, ThesisReversalRecord,
-            UncertaintySpikeRecord, ThesisSwitchResult, CounterfactualState,
+            FlipTrigger,
+            ScenarioType,
         )
+
         assert ScenarioType.REVERSAL.value == "REVERSAL"
         assert FlipTrigger.FORCED.value == "FORCED"
 
     def test_package_path(self):
         import trainer.qde.brain.counterfactual as pkg
+
         for name in (
-            "generate_alternatives", "evaluate_alternative", "switch_thesis",
-            "CounterfactualEngine", "CognitiveState" if False else "CounterfactualState",
+            "generate_alternatives",
+            "evaluate_alternative",
+            "switch_thesis",
+            "CounterfactualEngine",
+            "CognitiveState" if False else "CounterfactualState",
         ):
             if name == "CounterfactualState":
                 assert hasattr(pkg, name)

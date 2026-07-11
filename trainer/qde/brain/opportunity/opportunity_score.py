@@ -118,7 +118,7 @@ Relationship to existing opportunity infrastructure
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 from trainer.qde.brain.opportunity.opportunity_cost_engine import OpportunityInput
@@ -148,16 +148,16 @@ _MIN_DURATION_H: float = 0.083  # 5 minutes
 # Portfolio interaction floor/ceiling used in the score (avoids starving
 # or completely dominating the score with a single portfolio factor).
 _PORT_FLOOR: float = 0.70
-_PORT_CEIL:  float = 1.00
+_PORT_CEIL: float = 1.00
 
 # Liquidity quality floor (even with zero measured liquidity quality, the
 # setup is not wholly unscorable — it is just heavily penalised).
 _LIQ_FLOOR: float = 0.40
 
 # Duration class boundaries in seconds.
-_MICRO_SCALP_MAX_S:   float = 300.0      # < 5 min
-_SCALP_MAX_S:         float = 7_200.0    # < 2 hr
-_INTRADAY_MAX_S:      float = 28_800.0   # < 8 hr
+_MICRO_SCALP_MAX_S: float = 300.0  # < 5 min
+_SCALP_MAX_S: float = 7_200.0  # < 2 hr
+_INTRADAY_MAX_S: float = 28_800.0  # < 8 hr
 _MULTI_SESSION_MAX_S: float = 259_200.0  # < 72 hr  (3 days)
 
 
@@ -175,11 +175,11 @@ class OpportunityClass(str, Enum):
     setup matures and the duration estimate changes.
     """
 
-    MICRO_SCALP   = "MICRO_SCALP"    # < 5 minutes
-    SCALP         = "SCALP"          # 5 minutes – 2 hours
-    INTRADAY      = "INTRADAY"       # 2 – 8 hours
+    MICRO_SCALP = "MICRO_SCALP"  # < 5 minutes
+    SCALP = "SCALP"  # 5 minutes – 2 hours
+    INTRADAY = "INTRADAY"  # 2 – 8 hours
     MULTI_SESSION = "MULTI_SESSION"  # 8 hours – 3 days
-    SWING         = "SWING"          # ≥ 3 days
+    SWING = "SWING"  # ≥ 3 days
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -206,23 +206,23 @@ class OpportunityScore:
     """
 
     # ── Identity ──────────────────────────────────────────────────────────────
-    instrument:              str   = ""
-    opportunity_id:          str   = ""
-    setup_state:             str   = ""
-    direction:               int   = 1
+    instrument: str = ""
+    opportunity_id: str = ""
+    setup_state: str = ""
+    direction: int = 1
 
     # ── Opportunity class ────────────────────────────────────────────────────
     opportunity_class: OpportunityClass = OpportunityClass.INTRADAY
 
     # ── Eight factor scores (all 0-1) ────────────────────────────────────────
-    prob_success:               float = 0.0  # conviction × confidence
-    expected_return_score:      float = 0.0  # log-utility of net gain
-    expected_loss_score:        float = 0.0  # inverse log-utility of expected MAE
-    spread_cost_score:          float = 0.0  # fraction of return surviving spread
-    slippage_score:             float = 0.0  # fraction of return surviving slippage
-    duration_score:             float = 0.0  # capital-velocity proxy
+    prob_success: float = 0.0  # conviction × confidence
+    expected_return_score: float = 0.0  # log-utility of net gain
+    expected_loss_score: float = 0.0  # inverse log-utility of expected MAE
+    spread_cost_score: float = 0.0  # fraction of return surviving spread
+    slippage_score: float = 0.0  # fraction of return surviving slippage
+    duration_score: float = 0.0  # capital-velocity proxy
     portfolio_interaction_score: float = 0.0  # diversification benefit
-    liquidity_quality_score:    float = 0.0  # fill-quality proxy
+    liquidity_quality_score: float = 0.0  # fill-quality proxy
 
     # ── Headline score ───────────────────────────────────────────────────────
     opportunity_score: float = 0.0  # probability-gated geometric combination
@@ -231,48 +231,48 @@ class OpportunityScore:
     rank: int = 0
 
     # ── Input passthrough for consumers ──────────────────────────────────────
-    conviction:               float = 0.0
-    confidence:               float = 0.0
-    uncertainty:              float = 0.5
-    expected_reward_atr:      float = 0.0
-    expected_mae_atr:         float = 0.0
-    spread_cost_atr:          float = 0.0
-    slippage_estimate_atr:    float = 0.0
+    conviction: float = 0.0
+    confidence: float = 0.0
+    uncertainty: float = 0.5
+    expected_reward_atr: float = 0.0
+    expected_mae_atr: float = 0.0
+    spread_cost_atr: float = 0.0
+    slippage_estimate_atr: float = 0.0
     expected_duration_seconds: float = 0.0
-    liquidity_quality:        float = 0.5
-    portfolio_interaction:    float = 0.0
-    is_actionable:            bool  = False
+    liquidity_quality: float = 0.5
+    portfolio_interaction: float = 0.0
+    is_actionable: bool = False
 
     def to_dict(self) -> dict:
         return {
-            "rank":                    self.rank,
-            "instrument":              self.instrument,
-            "opportunity_id":          self.opportunity_id,
-            "setup_state":             self.setup_state,
-            "direction":               self.direction,
-            "opportunity_class":       self.opportunity_class.value,
-            "opportunity_score":       round(self.opportunity_score, 4),
+            "rank": self.rank,
+            "instrument": self.instrument,
+            "opportunity_id": self.opportunity_id,
+            "setup_state": self.setup_state,
+            "direction": self.direction,
+            "opportunity_class": self.opportunity_class.value,
+            "opportunity_score": round(self.opportunity_score, 4),
             # Eight factors
-            "prob_success":            round(self.prob_success, 4),
-            "expected_return_score":   round(self.expected_return_score, 4),
-            "expected_loss_score":     round(self.expected_loss_score, 4),
-            "spread_cost_score":       round(self.spread_cost_score, 4),
-            "slippage_score":          round(self.slippage_score, 4),
-            "duration_score":          round(self.duration_score, 4),
+            "prob_success": round(self.prob_success, 4),
+            "expected_return_score": round(self.expected_return_score, 4),
+            "expected_loss_score": round(self.expected_loss_score, 4),
+            "spread_cost_score": round(self.spread_cost_score, 4),
+            "slippage_score": round(self.slippage_score, 4),
+            "duration_score": round(self.duration_score, 4),
             "portfolio_interaction_score": round(self.portfolio_interaction_score, 4),
             "liquidity_quality_score": round(self.liquidity_quality_score, 4),
             # Context passthrough
-            "conviction":              round(self.conviction, 4),
-            "confidence":              round(self.confidence, 4),
-            "uncertainty":             round(self.uncertainty, 4),
-            "expected_reward_atr":     round(self.expected_reward_atr, 4),
-            "expected_mae_atr":        round(self.expected_mae_atr, 4),
-            "spread_cost_atr":         round(self.spread_cost_atr, 4),
-            "slippage_estimate_atr":   round(self.slippage_estimate_atr, 4),
+            "conviction": round(self.conviction, 4),
+            "confidence": round(self.confidence, 4),
+            "uncertainty": round(self.uncertainty, 4),
+            "expected_reward_atr": round(self.expected_reward_atr, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "spread_cost_atr": round(self.spread_cost_atr, 4),
+            "slippage_estimate_atr": round(self.slippage_estimate_atr, 4),
             "expected_duration_seconds": round(self.expected_duration_seconds, 1),
-            "liquidity_quality":       round(self.liquidity_quality, 4),
-            "portfolio_interaction":   round(self.portfolio_interaction, 4),
-            "is_actionable":           self.is_actionable,
+            "liquidity_quality": round(self.liquidity_quality, 4),
+            "portfolio_interaction": round(self.portfolio_interaction, 4),
+            "is_actionable": self.is_actionable,
         }
 
 
@@ -383,8 +383,8 @@ def score_opportunity(inp: OpportunityInput) -> OpportunityScore:
 
     # ── Friction adjustments ──────────────────────────────────────────────────
     friction_total = inp.spread_cost_atr + inp.slippage_estimate_atr
-    net_gain_atr   = max(0.0, inp.expected_reward_atr - friction_total)
-    net_loss_atr   = inp.expected_mae_atr + friction_total
+    net_gain_atr = max(0.0, inp.expected_reward_atr - friction_total)
+    net_loss_atr = inp.expected_mae_atr + friction_total
 
     # ── Factor 2: expected return score (log utility, concave) ───────────────
     # log1p(x / REF_ATR) grows sub-linearly.  Normalized by the maximum
@@ -432,13 +432,13 @@ def score_opportunity(inp: OpportunityInput) -> OpportunityScore:
     # multiplied by p_success so a low-probability setup cannot score well
     # regardless of how clean the execution parameters are.
     geo_product = (
-        _safe_pow(expected_return_score,       0.25)
-        * _safe_pow(expected_loss_score,       0.20)
-        * _safe_pow(spread_cost_score,         0.12)
-        * _safe_pow(slippage_score,            0.12)
-        * _safe_pow(duration_score,            0.10)
+        _safe_pow(expected_return_score, 0.25)
+        * _safe_pow(expected_loss_score, 0.20)
+        * _safe_pow(spread_cost_score, 0.12)
+        * _safe_pow(slippage_score, 0.12)
+        * _safe_pow(duration_score, 0.10)
         * _safe_pow(portfolio_interaction_score, 0.08)
-        * _safe_pow(liquidity_quality_score,   0.13)
+        * _safe_pow(liquidity_quality_score, 0.13)
     )
     opportunity_score = min(1.0, p_success * geo_product)
 

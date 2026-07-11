@@ -52,14 +52,14 @@ DEFAULT_TTL_SECONDS: float = 30.0
 
 
 def generate_command(
-    action:             CommandAction | str,
-    position_id:        str,
-    symbol:             str,
-    payload:            dict,
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    action: CommandAction | str,
+    position_id: str,
+    symbol: str,
+    payload: dict,
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Generate a ``ProtocolCommand`` ready for dispatch.
 
@@ -111,19 +111,19 @@ def generate_command(
 
 
 def open_position_command(
-    position_id:        str,
-    symbol:             str,
-    direction:          str,
-    size_lots:          float,
-    stop_loss:          float,
-    take_profit:        float   = 0.0,
-    order_type:         str     = "MARKET",
-    entry_price:        float   = 0.0,
-    comment:            str     = "",
-    qde_version:        str     = "",
-    ttl_seconds:        float   = DEFAULT_TTL_SECONDS,
-    source_decision_id: str     = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    direction: str,
+    size_lots: float,
+    stop_loss: float,
+    take_profit: float = 0.0,
+    order_type: str = "MARKET",
+    entry_price: float = 0.0,
+    comment: str = "",
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build an OPEN_POSITION command."""
     payload = OpenPositionPayload(
@@ -148,14 +148,14 @@ def open_position_command(
 
 
 def close_position_command(
-    position_id:        str,
-    symbol:             str,
-    reason:             str   = "MANUAL",
-    urgency:            float = 1.0,
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    reason: str = "MANUAL",
+    urgency: float = 1.0,
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build a CLOSE_POSITION command."""
     payload = ClosePositionPayload(reason=reason, urgency=urgency).to_dict()
@@ -172,14 +172,14 @@ def close_position_command(
 
 
 def partial_close_command(
-    position_id:        str,
-    symbol:             str,
-    close_fraction:     float,
-    reason:             str   = "REDUCE",
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    close_fraction: float,
+    reason: str = "REDUCE",
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build a PARTIAL_CLOSE command."""
     payload = PartialClosePayload(close_fraction=close_fraction, reason=reason).to_dict()
@@ -196,14 +196,14 @@ def partial_close_command(
 
 
 def move_sl_command(
-    position_id:        str,
-    symbol:             str,
-    new_stop_loss:      float,
-    reason:             str   = "TRAIL",
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    new_stop_loss: float,
+    reason: str = "TRAIL",
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build a MOVE_SL command."""
     payload = MoveSLPayload(new_stop_loss=new_stop_loss, reason=reason).to_dict()
@@ -220,14 +220,14 @@ def move_sl_command(
 
 
 def move_tp_command(
-    position_id:        str,
-    symbol:             str,
-    new_take_profit:    float,
-    reason:             str   = "TARGET_ADVANCE",
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    new_take_profit: float,
+    reason: str = "TARGET_ADVANCE",
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build a MOVE_TP command."""
     payload = MoveTPPayload(new_take_profit=new_take_profit, reason=reason).to_dict()
@@ -244,16 +244,16 @@ def move_tp_command(
 
 
 def add_position_command(
-    position_id:        str,
-    symbol:             str,
-    size_lots:          float,
-    order_type:         str   = "MARKET",
-    entry_price:        float = 0.0,
-    new_stop_loss:      float = 0.0,
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    size_lots: float,
+    order_type: str = "MARKET",
+    entry_price: float = 0.0,
+    new_stop_loss: float = 0.0,
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build an ADD_POSITION (scale-in) command."""
     payload = AddPositionPayload(
@@ -275,14 +275,14 @@ def add_position_command(
 
 
 def cancel_order_command(
-    position_id:        str,
-    symbol:             str,
-    order_id:           str   = "",
-    reason:             str   = "SIGNAL_EXPIRED",
-    qde_version:        str   = "",
-    ttl_seconds:        float = DEFAULT_TTL_SECONDS,
-    source_decision_id: str   = "",
-    now:                float | None = None,
+    position_id: str,
+    symbol: str,
+    order_id: str = "",
+    reason: str = "SIGNAL_EXPIRED",
+    qde_version: str = "",
+    ttl_seconds: float = DEFAULT_TTL_SECONDS,
+    source_decision_id: str = "",
+    now: float | None = None,
 ) -> ProtocolCommand:
     """Build a CANCEL_ORDER command."""
     payload = CancelOrderPayload(order_id=order_id, reason=reason).to_dict()

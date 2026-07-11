@@ -41,18 +41,17 @@ Dependency direction
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)  # type: ignore[assignment]
 
 from trainer.qde.brain.brain_models import Hypothesis
 from trainer.qde.brain.conviction_engine import ConvictionScore, compute_conviction
-from trainer.qde.brain.debate_engine import DebateEngine, DebateVerdict
 from trainer.qde.brain.debate.debate_quality import DebateQualityScore, measure_quality
 from trainer.qde.brain.debate.debate_store import (
     DebateMemoryBridge,
@@ -61,6 +60,7 @@ from trainer.qde.brain.debate.debate_store import (
 )
 from trainer.qde.brain.debate.ignored_evidence_tracker import IgnoredEvidenceTracker
 from trainer.qde.brain.debate.overconfidence_tracker import OverconfidenceTracker
+from trainer.qde.brain.debate_engine import DebateEngine, DebateVerdict
 
 if TYPE_CHECKING:
     from trainer.qde.brain.hypothesis_engine import HypothesisEngine
@@ -96,25 +96,25 @@ class DebateAPI:
 
     def __init__(
         self,
-        debate_engine:             DebateEngine,
-        hypothesis_engine:         "HypothesisEngine",
-        overconfidence_tracker:    OverconfidenceTracker | None  = None,
-        ignored_evidence_tracker:  IgnoredEvidenceTracker | None = None,
-        memory_bridge:             DebateMemoryBridge | None     = None,
+        debate_engine: DebateEngine,
+        hypothesis_engine: "HypothesisEngine",
+        overconfidence_tracker: OverconfidenceTracker | None = None,
+        ignored_evidence_tracker: IgnoredEvidenceTracker | None = None,
+        memory_bridge: DebateMemoryBridge | None = None,
     ) -> None:
-        self._engine      = debate_engine
-        self._hyp_engine  = hypothesis_engine
-        self._oc_tracker  = overconfidence_tracker  or OverconfidenceTracker()
-        self._ie_tracker  = ignored_evidence_tracker or IgnoredEvidenceTracker()
-        self._bridge      = memory_bridge            or DebateMemoryBridge()
+        self._engine = debate_engine
+        self._hyp_engine = hypothesis_engine
+        self._oc_tracker = overconfidence_tracker or OverconfidenceTracker()
+        self._ie_tracker = ignored_evidence_tracker or IgnoredEvidenceTracker()
+        self._bridge = memory_bridge or DebateMemoryBridge()
 
     # ── Primary API ───────────────────────────────────────────────────
 
     def create_debate(
         self,
-        instrument:     str,
+        instrument: str,
         opportunity_id: str,
-        now:            float | None = None,
+        now: float | None = None,
     ) -> DebateRecord | None:
         """Run a complete debate cycle for one opportunity and return the
         result as a ``DebateRecord``.
@@ -136,9 +136,7 @@ class DebateAPI:
         now = now if now is not None else time.time()
 
         # ── Step 1: evaluate (also syncs theses) ─────────────────────
-        verdict: DebateVerdict | None = self._engine.evaluate(
-            instrument, opportunity_id, now=now
-        )
+        verdict: DebateVerdict | None = self._engine.evaluate(instrument, opportunity_id, now=now)
         if verdict is None:
             logger.debug(
                 f"[DebateAPI] create_debate: opportunity {opportunity_id} "
@@ -147,9 +145,9 @@ class DebateAPI:
             return None
 
         # ── Step 2: locate hypothesis ─────────────────────────────────
-        brain   = self._engine._brain
-        state   = brain.get_state(instrument)
-        opp     = state.opportunities.get(opportunity_id)
+        brain = self._engine._brain
+        state = brain.get_state(instrument)
+        opp = state.opportunities.get(opportunity_id)
         if opp is None:
             return None
 
@@ -167,6 +165,7 @@ class DebateAPI:
                 ConvictionComponents,
                 ConvictionProfile,
             )
+
             conviction = ConvictionScore(
                 hypothesis_id=opp.hypothesis_id,
                 instrument=instrument,
@@ -184,7 +183,7 @@ class DebateAPI:
             conviction=conviction,
             bull_thesis=opp.bull_thesis,
             bear_thesis=opp.bear_thesis,
-            debate_id="",   # filled in below after record creation
+            debate_id="",  # filled in below after record creation
             now=now,
         )
 
@@ -234,7 +233,7 @@ class DebateAPI:
     def calculate_conviction(
         self,
         hypothesis: Hypothesis,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> ConvictionScore:
         """Thin delegate to ``compute_conviction()``.
 
@@ -247,7 +246,7 @@ class DebateAPI:
     def store_debate(
         self,
         record: DebateRecord,
-        now:    float | None = None,
+        now: float | None = None,
     ) -> str:
         """Persist a ``DebateRecord`` to episodic memory (if available)
         and the local in-process deque.
@@ -261,9 +260,9 @@ class DebateAPI:
 
     def create_and_store(
         self,
-        instrument:     str,
+        instrument: str,
         opportunity_id: str,
-        now:            float | None = None,
+        now: float | None = None,
     ) -> DebateRecord | None:
         """Create a debate and immediately persist it.
 
@@ -279,22 +278,18 @@ class DebateAPI:
         """Fraction of recent debates that triggered an overconfidence event."""
         return self._oc_tracker.overconfidence_rate(instrument, window=window)
 
-    def common_ignored_signals(
-        self, instrument: str, top_n: int = 10
-    ) -> dict[str, int]:
+    def common_ignored_signals(self, instrument: str, top_n: int = 10) -> dict[str, int]:
         """Most frequently ignored evidence strings."""
         return self._ie_tracker.common_ignored_signals(instrument, top_n=top_n)
 
-    def recent_debates(
-        self, instrument: str, n: int = 20
-    ) -> list[DebateRecord]:
+    def recent_debates(self, instrument: str, n: int = 20) -> list[DebateRecord]:
         """Recent stored debates from the local deque, newest first."""
         return self._bridge.recent_debates(instrument, n=n)
 
     def overconfidence_events(
         self,
         instrument: str,
-        n:          int = 20,
+        n: int = 20,
     ) -> list[dict]:
         """Recent overconfidence events as dicts, newest first."""
         return [e.to_dict() for e in self._oc_tracker.get_events(instrument, n=n)]
@@ -302,7 +297,7 @@ class DebateAPI:
     def ignored_evidence_records(
         self,
         instrument: str,
-        n:          int = 20,
+        n: int = 20,
     ) -> list[dict]:
         """Recent ignored-evidence records as dicts, newest first."""
         return [r.to_dict() for r in self._ie_tracker.get_records(instrument, n=n)]
@@ -310,8 +305,8 @@ class DebateAPI:
     def resolve_overconfidence(
         self,
         event_id: str,
-        outcome:  str,
-        now:      float | None = None,
+        outcome: str,
+        now: float | None = None,
     ) -> bool:
         """Mark an overconfidence event as resolved with a trade outcome."""
         return self._oc_tracker.resolve_event(event_id, outcome, now=now)
@@ -321,9 +316,9 @@ class DebateAPI:
     def to_snapshot(self) -> dict:
         """Serialise all stateful sub-components."""
         return {
-            "overconfidence_tracker":   self._oc_tracker.to_snapshot(),
+            "overconfidence_tracker": self._oc_tracker.to_snapshot(),
             "ignored_evidence_tracker": self._ie_tracker.to_snapshot(),
-            "memory_bridge":            self._bridge.to_snapshot(),
+            "memory_bridge": self._bridge.to_snapshot(),
         }
 
     def load_snapshot(self, data: dict) -> None:

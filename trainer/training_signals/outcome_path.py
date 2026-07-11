@@ -37,6 +37,7 @@ class TradeOutcomePath:
 
     def __post_init__(self) -> None:
         from trainer.symbols import assert_canonical
+
         assert_canonical(self.instrument)
 
     def favorable_excursion(self, bar: OHLCBar) -> float:

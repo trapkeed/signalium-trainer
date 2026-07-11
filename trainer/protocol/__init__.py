@@ -50,6 +50,7 @@ from trainer.protocol.command_codec import (
     to_json,
 )
 from trainer.protocol.command_types import (
+    PAYLOAD_CLASS,
     AddPositionPayload,
     CancelOrderPayload,
     ClosePositionPayload,
@@ -58,7 +59,6 @@ from trainer.protocol.command_types import (
     MoveSLPayload,
     MoveTPPayload,
     OpenPositionPayload,
-    PAYLOAD_CLASS,
     PartialClosePayload,
     ProtocolCommand,
 )

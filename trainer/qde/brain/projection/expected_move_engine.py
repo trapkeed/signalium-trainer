@@ -46,14 +46,14 @@ Design rules
 
 from __future__ import annotations
 
-import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.brain.projection.expected_duration_engine import (
@@ -73,16 +73,16 @@ from trainer.qde.brain.projection.projection_memory import (
 
 # ── Estimation hyper-parameters (no pip targets anywhere) ─────────────────────
 
-_DEFAULT_K          = 30    # top-K records for weighted estimation
-_MIN_INFORMATIVE    = 5     # confidence floor sample count
-_DEFAULT_WINDOW     = 500   # max records pulled from memory per call
+_DEFAULT_K = 30  # top-K records for weighted estimation
+_MIN_INFORMATIVE = 5  # confidence floor sample count
+_DEFAULT_WINDOW = 500  # max records pulled from memory per call
 
 # ── Integration-signal bounds ─────────────────────────────────────────────────
 
-_POS_SIZE_MIN       = 0.50  # smallest allowed size modifier
-_POS_SIZE_MAX       = 2.00  # largest allowed size modifier
-_RISK_DRAG_MAX      = -0.50 # most negative risk appetite modifier
-_RISK_BOOST_MAX     =  0.25 # most positive risk appetite modifier
+_POS_SIZE_MIN = 0.50  # smallest allowed size modifier
+_POS_SIZE_MAX = 2.00  # largest allowed size modifier
+_RISK_DRAG_MAX = -0.50  # most negative risk appetite modifier
+_RISK_BOOST_MAX = 0.25  # most positive risk appetite modifier
 
 
 # ── ExpectedProjection ────────────────────────────────────────────────────────
@@ -116,53 +116,53 @@ class ExpectedProjection:
         high expected reward and low vol → positive.
     """
 
-    instrument:              str   = ""
-    direction:               int   = 0     # +1 long, −1 short
+    instrument: str = ""
+    direction: int = 0  # +1 long, −1 short
 
     # ── Magnitude estimates (ATR multiples) ────────────────────────────────
-    expected_move_atr:       float = 0.0   # |expected price move| / ATR
-    expected_return_pct:     float = 0.0   # signed expected return fraction
-    expected_reward_atr:     float = 0.0   # signed reward in ATR units
-    expected_mae_atr:        float = 0.0   # expected adverse excursion / ATR
-    expected_mfe_atr:        float = 0.0   # expected favorable excursion / ATR
-    reward_risk_ratio:       float = 0.0   # expected_reward_atr / expected_mae_atr
+    expected_move_atr: float = 0.0  # |expected price move| / ATR
+    expected_return_pct: float = 0.0  # signed expected return fraction
+    expected_reward_atr: float = 0.0  # signed reward in ATR units
+    expected_mae_atr: float = 0.0  # expected adverse excursion / ATR
+    expected_mfe_atr: float = 0.0  # expected favorable excursion / ATR
+    reward_risk_ratio: float = 0.0  # expected_reward_atr / expected_mae_atr
 
     # ── Duration / volatility ──────────────────────────────────────────────
     expected_duration_seconds: float = 0.0
-    expected_volatility:       float = 0.0
-    volatility_percentile:     float = 0.5
+    expected_volatility: float = 0.0
+    volatility_percentile: float = 0.5
 
     # ── Learned quality signals ────────────────────────────────────────────
     reward_sufficiency_score: float = 0.5
-    reward_percentile:        float = 0.5  # within this instrument's history
-    confidence:               float = 0.0
-    sample_count:             int   = 0
+    reward_percentile: float = 0.5  # within this instrument's history
+    confidence: float = 0.0
+    sample_count: int = 0
 
     # ── Pre-computed integration signals ──────────────────────────────────
-    opportunity_rank_signal:  float = 0.0
-    position_size_modifier:   float = 1.0
-    risk_appetite_modifier:   float = 0.0
+    opportunity_rank_signal: float = 0.0
+    position_size_modifier: float = 1.0
+    risk_appetite_modifier: float = 0.0
 
     def to_dict(self) -> dict:
         return {
-            "instrument":               self.instrument,
-            "direction":                self.direction,
-            "expected_move_atr":        round(self.expected_move_atr, 4),
-            "expected_return_pct":      round(self.expected_return_pct, 6),
-            "expected_reward_atr":      round(self.expected_reward_atr, 4),
-            "expected_mae_atr":         round(self.expected_mae_atr, 4),
-            "expected_mfe_atr":         round(self.expected_mfe_atr, 4),
-            "reward_risk_ratio":        round(self.reward_risk_ratio, 4),
+            "instrument": self.instrument,
+            "direction": self.direction,
+            "expected_move_atr": round(self.expected_move_atr, 4),
+            "expected_return_pct": round(self.expected_return_pct, 6),
+            "expected_reward_atr": round(self.expected_reward_atr, 4),
+            "expected_mae_atr": round(self.expected_mae_atr, 4),
+            "expected_mfe_atr": round(self.expected_mfe_atr, 4),
+            "reward_risk_ratio": round(self.reward_risk_ratio, 4),
             "expected_duration_seconds": round(self.expected_duration_seconds, 1),
-            "expected_volatility":      round(self.expected_volatility, 8),
-            "volatility_percentile":    round(self.volatility_percentile, 4),
+            "expected_volatility": round(self.expected_volatility, 8),
+            "volatility_percentile": round(self.volatility_percentile, 4),
             "reward_sufficiency_score": round(self.reward_sufficiency_score, 4),
-            "reward_percentile":        round(self.reward_percentile, 4),
-            "confidence":               round(self.confidence, 4),
-            "sample_count":             self.sample_count,
-            "opportunity_rank_signal":  round(self.opportunity_rank_signal, 4),
-            "position_size_modifier":   round(self.position_size_modifier, 4),
-            "risk_appetite_modifier":   round(self.risk_appetite_modifier, 4),
+            "reward_percentile": round(self.reward_percentile, 4),
+            "confidence": round(self.confidence, 4),
+            "sample_count": self.sample_count,
+            "opportunity_rank_signal": round(self.opportunity_rank_signal, 4),
+            "position_size_modifier": round(self.position_size_modifier, 4),
+            "risk_appetite_modifier": round(self.risk_appetite_modifier, 4),
         }
 
 
@@ -174,10 +174,10 @@ _DEFAULT_PROJECTION = ExpectedProjection(position_size_modifier=1.0)
 
 
 def _score_records(
-    current_vec:     list[float],
-    records:         list[ProjectionRecord],
+    current_vec: list[float],
+    records: list[ProjectionRecord],
     recency_tau_days: float,
-    now:             float,
+    now: float,
 ) -> list[tuple[float, ProjectionRecord]]:
     """Return (weight, record) pairs sorted highest-weight first.
 
@@ -188,9 +188,9 @@ def _score_records(
     """
     scored: list[tuple[float, ProjectionRecord]] = []
     for rec in records:
-        sim     = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
+        sim = max(0.0, _cosine_sim(current_vec, rec.conditions.as_vector()))
         recency = rec.recency_weight(now, recency_tau_days)
-        w       = sim * recency
+        w = sim * recency
         if w > 1e-10:
             scored.append((w, rec))
 
@@ -207,11 +207,11 @@ def _score_records(
 
 def _compute_signals(
     expected_reward_atr: float,
-    expected_mae_atr:    float,
+    expected_mae_atr: float,
     expected_volatility: float,
     volatility_percentile: float,
-    reward_percentile:   float,
-    confidence:          float,
+    reward_percentile: float,
+    confidence: float,
 ) -> tuple[float, float, float, float]:
     """Return (reward_sufficiency, opportunity_rank, position_size, risk_appetite).
 
@@ -233,10 +233,10 @@ def _compute_signals(
 
     # Risk appetite: vol percentile drives negative; reward sufficiency drives positive
     # Both scaled by confidence so thin history stays near zero.
-    risk_drag   = volatility_percentile * abs(_RISK_DRAG_MAX) * confidence
-    risk_boost  = sufficiency * _RISK_BOOST_MAX * confidence
-    risk_mod    = risk_boost - risk_drag
-    risk_mod    = max(_RISK_DRAG_MAX, min(_RISK_BOOST_MAX, risk_mod))
+    risk_drag = volatility_percentile * abs(_RISK_DRAG_MAX) * confidence
+    risk_boost = sufficiency * _RISK_BOOST_MAX * confidence
+    risk_mod = risk_boost - risk_drag
+    risk_mod = max(_RISK_DRAG_MAX, min(_RISK_BOOST_MAX, risk_mod))
 
     return sufficiency, opp_rank, size_mod, risk_mod
 
@@ -256,16 +256,16 @@ class ExpectedMoveEngine:
 
     def __init__(
         self,
-        max_records:       int   = 1000,
-        k:                 int   = _DEFAULT_K,
-        recency_tau_days:  float = DEFAULT_RECENCY_TAU_DAYS,
-        min_samples:       int   = _MIN_INFORMATIVE,
+        max_records: int = 1000,
+        k: int = _DEFAULT_K,
+        recency_tau_days: float = DEFAULT_RECENCY_TAU_DAYS,
+        min_samples: int = _MIN_INFORMATIVE,
     ) -> None:
-        self._memory   = ProjectionMemory(max_records=max_records)
+        self._memory = ProjectionMemory(max_records=max_records)
         self._duration = ExpectedDurationEngine()
-        self._k        = k
-        self._tau      = recency_tau_days
-        self._min      = min_samples
+        self._k = k
+        self._tau = recency_tau_days
+        self._min = min_samples
 
         # Per-call cache: (instrument, direction, vec_tuple) → ExpectedProjection.
         # Keyed by conditions vector so different conditions for the same symbol
@@ -277,11 +277,11 @@ class ExpectedMoveEngine:
 
     def record_outcome(
         self,
-        instrument:  str,
-        direction:   int,
-        conditions:  ProjectionConditions,
-        outcome:     ProjectionOutcome,
-        now:         float | None = None,
+        instrument: str,
+        direction: int,
+        conditions: ProjectionConditions,
+        outcome: ProjectionOutcome,
+        now: float | None = None,
     ) -> ProjectionRecord:
         """Append one completed (conditions → outcome) observation.
 
@@ -303,10 +303,10 @@ class ExpectedMoveEngine:
 
     def project(
         self,
-        instrument:  str,
-        conditions:  ProjectionConditions,
-        direction:   int,
-        now:         float | None = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        direction: int,
+        now: float | None = None,
     ) -> ExpectedProjection:
         """Compute all five estimates for one opportunity.
 
@@ -339,8 +339,8 @@ class ExpectedMoveEngine:
         self,
         instrument: str,
         conditions: ProjectionConditions,
-        direction:  int,
-        now:        float,
+        direction: int,
+        now: float,
     ) -> ExpectedProjection:
         records = self._memory.records(instrument)
         if not records:
@@ -351,8 +351,8 @@ class ExpectedMoveEngine:
             )
 
         current_vec = conditions.as_vector()
-        scored      = _score_records(current_vec, records, self._tau, now)
-        top_k       = scored[:self._k]
+        scored = _score_records(current_vec, records, self._tau, now)
+        top_k = scored[: self._k]
 
         if not top_k:
             return ExpectedProjection(
@@ -362,26 +362,25 @@ class ExpectedMoveEngine:
             )
 
         weights = [t[0] for t in top_k]
-        recs    = [t[1] for t in top_k]
+        recs = [t[1] for t in top_k]
 
         # ── Weighted metric estimates ──────────────────────────────────────
-        exp_move    = _weighted_mean([r.outcome.realized_move_pct for r in recs], weights)
-        exp_ret     = _weighted_mean([r.outcome.realized_return_pct for r in recs], weights)
+        exp_move = _weighted_mean([r.outcome.realized_move_pct for r in recs], weights)
+        exp_ret = _weighted_mean([r.outcome.realized_return_pct for r in recs], weights)
 
         # For reward/MAE/MFE: weight more heavily toward same-direction records
         dir_weights = [
-            w * (1.5 if r.direction == direction else 0.5)
-            for w, r in zip(weights, recs)
+            w * (1.5 if r.direction == direction else 0.5) for w, r in zip(weights, recs)
         ]
-        exp_reward  = _weighted_mean([r.outcome.reward_atr for r in recs], dir_weights)
-        exp_mae     = _weighted_mean([r.outcome.mae_atr    for r in recs], dir_weights)
-        exp_mfe     = _weighted_mean([r.outcome.mfe_atr    for r in recs], dir_weights)
+        exp_reward = _weighted_mean([r.outcome.reward_atr for r in recs], dir_weights)
+        exp_mae = _weighted_mean([r.outcome.mae_atr for r in recs], dir_weights)
+        exp_mfe = _weighted_mean([r.outcome.mfe_atr for r in recs], dir_weights)
 
         rrr = exp_reward / max(exp_mae, 1e-6)
 
         # ── Percentile ranks (unweighted, vs all records) ──────────────────
         all_rewards = [r.outcome.reward_atr for r in records]
-        reward_pct  = _percentile_rank(exp_reward, all_rewards)
+        reward_pct = _percentile_rank(exp_reward, all_rewards)
 
         # ── Duration + volatility from duration engine ─────────────────────
         dur_proj: DurationProjection = self._duration.project(
@@ -395,7 +394,7 @@ class ExpectedMoveEngine:
             now=now,
         )
 
-        n_used     = len(top_k)
+        n_used = len(top_k)
         confidence = min(1.0, n_used / max(self._min, 1))
 
         # ── Integration signals ────────────────────────────────────────────
@@ -433,10 +432,10 @@ class ExpectedMoveEngine:
 
     def context_for_inference(
         self,
-        instrument:  str,
-        conditions:  ProjectionConditions,
-        direction:   int,
-        now:         float | None = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        direction: int,
+        now: float | None = None,
     ) -> dict:
         """Return ``proj_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -460,34 +459,34 @@ class ExpectedMoveEngine:
         proj_risk_appetite_modifier  — −0.50..+0.25 risk signal
         """
         now = now if now is not None else time.time()
-        ep  = self.project(instrument, conditions, direction, now)
+        ep = self.project(instrument, conditions, direction, now)
         return {
-            "proj_expected_move_atr":       round(ep.expected_move_atr, 4),
-            "proj_expected_return_pct":     round(ep.expected_return_pct, 6),
-            "proj_expected_reward_atr":     round(ep.expected_reward_atr, 4),
-            "proj_expected_mae_atr":        round(ep.expected_mae_atr, 4),
-            "proj_expected_mfe_atr":        round(ep.expected_mfe_atr, 4),
-            "proj_reward_risk_ratio":       round(ep.reward_risk_ratio, 4),
-            "proj_reward_sufficiency":      round(ep.reward_sufficiency_score, 4),
-            "proj_reward_percentile":       round(ep.reward_percentile, 4),
-            "proj_expected_duration_s":     round(ep.expected_duration_seconds, 1),
-            "proj_expected_volatility":     round(ep.expected_volatility, 8),
-            "proj_volatility_percentile":   round(ep.volatility_percentile, 4),
-            "proj_confidence":              round(ep.confidence, 4),
-            "proj_sample_count":            ep.sample_count,
+            "proj_expected_move_atr": round(ep.expected_move_atr, 4),
+            "proj_expected_return_pct": round(ep.expected_return_pct, 6),
+            "proj_expected_reward_atr": round(ep.expected_reward_atr, 4),
+            "proj_expected_mae_atr": round(ep.expected_mae_atr, 4),
+            "proj_expected_mfe_atr": round(ep.expected_mfe_atr, 4),
+            "proj_reward_risk_ratio": round(ep.reward_risk_ratio, 4),
+            "proj_reward_sufficiency": round(ep.reward_sufficiency_score, 4),
+            "proj_reward_percentile": round(ep.reward_percentile, 4),
+            "proj_expected_duration_s": round(ep.expected_duration_seconds, 1),
+            "proj_expected_volatility": round(ep.expected_volatility, 8),
+            "proj_volatility_percentile": round(ep.volatility_percentile, 4),
+            "proj_confidence": round(ep.confidence, 4),
+            "proj_sample_count": ep.sample_count,
             "proj_opportunity_rank_signal": round(ep.opportunity_rank_signal, 4),
-            "proj_position_size_modifier":  round(ep.position_size_modifier, 4),
-            "proj_risk_appetite_modifier":  round(ep.risk_appetite_modifier, 4),
+            "proj_position_size_modifier": round(ep.position_size_modifier, 4),
+            "proj_risk_appetite_modifier": round(ep.risk_appetite_modifier, 4),
         }
 
     # ── Integration point 2: opportunity rank signal ──────────────────────
 
     def opportunity_rank_signal(
         self,
-        instrument:  str,
-        conditions:  ProjectionConditions,
-        direction:   int,
-        now:         float | None = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        direction: int,
+        now: float | None = None,
     ) -> float:
         """Return 0-1 score for opportunity ranking.
 
@@ -501,10 +500,10 @@ class ExpectedMoveEngine:
 
     def position_size_modifier(
         self,
-        instrument:  str,
-        conditions:  ProjectionConditions,
-        direction:   int,
-        now:         float | None = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        direction: int,
+        now: float | None = None,
     ) -> float:
         """Return a 0.5..2.0 multiplier for position sizing.
 
@@ -519,10 +518,10 @@ class ExpectedMoveEngine:
 
     def risk_appetite_modifier(
         self,
-        instrument:  str,
-        conditions:  ProjectionConditions,
-        direction:   int,
-        now:         float | None = None,
+        instrument: str,
+        conditions: ProjectionConditions,
+        direction: int,
+        now: float | None = None,
     ) -> float:
         """Return a −0.50..+0.25 risk appetite signal.
 

@@ -52,27 +52,26 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger(__name__)
 
 from trainer.qde.brain.regime.transition_memory import (
+    RegimeSnapshot,
     TransitionMemory,
     TransitionTarget,
-    RegimeSnapshot,
-    infer_target,
 )
 from trainer.qde.brain.regime.transition_predictor import (
+    _DEFAULT_DECAY_TAU_HOURS,
+    _DEFAULT_WINDOW,
+    _MIN_INFORMATIVE,
     TransitionPredictor,
     TransitionProbabilityMap,
-    TransitionFeatureVector,
-    _DEFAULT_WINDOW,
-    _DEFAULT_DECAY_TAU_HOURS,
-    _MIN_INFORMATIVE,
 )
 
 # ── Conviction modifier bounds ────────────────────────────────────────────────
 
-_MAX_CONVICTION_BOOST = 0.20   # cap on positive modifier (concentrated signal)
-_MAX_CONVICTION_DRAG  = 0.10   # cap on negative modifier (high uncertainty)
+_MAX_CONVICTION_BOOST = 0.20  # cap on positive modifier (concentrated signal)
+_MAX_CONVICTION_DRAG = 0.10  # cap on negative modifier (high uncertainty)
 
 # Targets that each directionally increase or decrease conviction:
 # "trending" targets = clearer environment → small boost when dominant
@@ -83,13 +82,13 @@ _BULLISH_CONVICTION_TARGETS = {
 }
 _BEARISH_CONVICTION_TARGETS = {
     TransitionTarget.TREND_EXHAUSTION,
-    TransitionTarget.VOL_EXPANSION,    # chaotic → harder to hold conviction
+    TransitionTarget.VOL_EXPANSION,  # chaotic → harder to hold conviction
 }
 
 # ── Risk appetite modifier bounds ─────────────────────────────────────────────
 
-_MAX_RISK_DRAG   = -0.40   # VOL_EXPANSION dominant → tighten significantly
-_MAX_RISK_BOOST  =  0.20   # VOL_CONTRACTION dominant → loosen slightly
+_MAX_RISK_DRAG = -0.40  # VOL_EXPANSION dominant → tighten significantly
+_MAX_RISK_BOOST = 0.20  # VOL_CONTRACTION dominant → loosen slightly
 
 # ── Attention signal targets (any imminent transition is worth watching) ──────
 
@@ -97,6 +96,7 @@ _HIGH_ATTENTION_TARGETS = set(TransitionTarget)  # all — any shift is salient
 
 
 # ── Default prediction cache sentinel ─────────────────────────────────────────
+
 
 def _empty_probs() -> dict[str, float]:
     n = len(TransitionTarget)
@@ -119,20 +119,20 @@ class RegimeTransitionEngine:
 
     def __init__(
         self,
-        snapshot_depth:    int   = 200,
-        max_transitions:   int   = 500,
-        window:            int   = _DEFAULT_WINDOW,
+        snapshot_depth: int = 200,
+        max_transitions: int = 500,
+        window: int = _DEFAULT_WINDOW,
         recency_tau_hours: float = _DEFAULT_DECAY_TAU_HOURS,
-        min_samples:       int   = _MIN_INFORMATIVE,
+        min_samples: int = _MIN_INFORMATIVE,
     ) -> None:
-        self._memory    = TransitionMemory(
+        self._memory = TransitionMemory(
             snapshot_depth=snapshot_depth,
             max_transitions=max_transitions,
         )
-        self._predictor  = TransitionPredictor()
-        self._window     = window
-        self._tau        = recency_tau_hours
-        self._min        = min_samples
+        self._predictor = TransitionPredictor()
+        self._window = window
+        self._tau = recency_tau_hours
+        self._min = min_samples
 
         # Prediction cache: instrument → (timestamp, TransitionProbabilityMap)
         # Re-computed lazily on the next predict() call after a new snapshot
@@ -145,8 +145,8 @@ class RegimeTransitionEngine:
     def on_observation(
         self,
         instrument: str,
-        inp:        object,    # SymbolObservationInput
-        now:        float | None = None,
+        inp: object,  # SymbolObservationInput
+        now: float | None = None,
     ) -> None:
         """Record one tick's features for ``instrument``.
 
@@ -154,18 +154,18 @@ class RegimeTransitionEngine:
         avoid a hard import in this package — the duck-typed attribute
         access matches the real class exactly.
         """
-        now  = now if now is not None else time.time()
+        now = now if now is not None else time.time()
         snap = RegimeSnapshot.from_observation(instrument, inp, now)
         self._memory.push_snapshot(instrument, snap)
         self._dirty.add(instrument)
 
     def record_transition(
         self,
-        instrument:  str,
+        instrument: str,
         from_regime: str,
-        to_regime:   str,
-        target:      TransitionTarget | str | None = None,
-        now:         float | None = None,
+        to_regime: str,
+        target: TransitionTarget | str | None = None,
+        now: float | None = None,
     ) -> None:
         """Notify the engine that the upstream classifier detected a regime
         change for ``instrument``.
@@ -185,21 +185,16 @@ class RegimeTransitionEngine:
             except ValueError:
                 target = None
 
-        record = self._memory.record_transition(
-            instrument, from_regime, to_regime, target, now
-        )
+        record = self._memory.record_transition(instrument, from_regime, to_regime, target, now)
 
         # Cache the feature vector on the record immediately
         snaps = self._memory.snapshots(instrument)
-        fv    = self._predictor.extract_feature_vector(
-            snaps, desired_window=self._window
-        )
+        fv = self._predictor.extract_feature_vector(snaps, desired_window=self._window)
         record.feature_vector = fv.as_list()
 
         self._dirty.add(instrument)
         logger.debug(
-            f"[RTE] {instrument}: {from_regime} → {to_regime} "
-            f"({record.target.value}) recorded"
+            f"[RTE] {instrument}: {from_regime} → {to_regime} " f"({record.target.value}) recorded"
         )
 
     # ── Prediction ────────────────────────────────────────────────────────
@@ -207,7 +202,7 @@ class RegimeTransitionEngine:
     def predict(
         self,
         instrument: str,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> TransitionProbabilityMap:
         """Return the current ``TransitionProbabilityMap`` for ``instrument``.
 
@@ -239,7 +234,7 @@ class RegimeTransitionEngine:
     def context_for_inference(
         self,
         instrument: str,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> dict:
         """Return ``regime_*`` keys for ``QDEInferenceInput.brain_context``.
 
@@ -268,49 +263,66 @@ class RegimeTransitionEngine:
         regime_trend_valid_ratio     — fraction of recent ticks with trend_valid
         regime_atr_cv                — ATR coefficient of variation (compression signal)
         """
-        now    = now if now is not None else time.time()
-        pm     = self.predict(instrument, now)
-        probs  = pm.probabilities
-        fv     = pm.feature_vector
+        now = now if now is not None else time.time()
+        pm = self.predict(instrument, now)
+        probs = pm.probabilities
+        fv = pm.feature_vector
 
         # Last transition age
-        last   = self._memory.last_transition(instrument)
-        age_h  = last.age_hours(now) if last else -1.0
+        last = self._memory.last_transition(instrument)
+        age_h = last.age_hours(now) if last else -1.0
 
         ctx: dict = {
-            "regime_current":               self._memory.current_regime(instrument),
-            "regime_transition_count":      self._memory.transition_count(instrument),
+            "regime_current": self._memory.current_regime(instrument),
+            "regime_transition_count": self._memory.transition_count(instrument),
             "regime_last_transition_age_h": round(age_h, 2),
-            "regime_top_target":            pm.top_target,
-            "regime_top_prob":              round(pm.top_probability, 4),
-            "regime_entropy":               round(pm.entropy, 4),
-            "regime_confidence":            round(pm.confidence, 4),
-            "regime_sample_count":          pm.sample_count,
+            "regime_top_target": pm.top_target,
+            "regime_top_prob": round(pm.top_probability, 4),
+            "regime_entropy": round(pm.entropy, 4),
+            "regime_confidence": round(pm.confidence, 4),
+            "regime_sample_count": pm.sample_count,
             # Per-target probabilities
-            "regime_trend_form_prob":    round(probs.get(TransitionTarget.TREND_FORMATION.value,  0.0), 4),
-            "regime_trend_exh_prob":     round(probs.get(TransitionTarget.TREND_EXHAUSTION.value, 0.0), 4),
-            "regime_vol_expand_prob":    round(probs.get(TransitionTarget.VOL_EXPANSION.value,    0.0), 4),
-            "regime_vol_contract_prob":  round(probs.get(TransitionTarget.VOL_CONTRACTION.value,  0.0), 4),
-            "regime_breakout_prob":      round(probs.get(TransitionTarget.BREAKOUT.value,         0.0), 4),
-            "regime_range_form_prob":    round(probs.get(TransitionTarget.RANGE_FORMATION.value,  0.0), 4),
+            "regime_trend_form_prob": round(
+                probs.get(TransitionTarget.TREND_FORMATION.value, 0.0), 4
+            ),
+            "regime_trend_exh_prob": round(
+                probs.get(TransitionTarget.TREND_EXHAUSTION.value, 0.0), 4
+            ),
+            "regime_vol_expand_prob": round(
+                probs.get(TransitionTarget.VOL_EXPANSION.value, 0.0), 4
+            ),
+            "regime_vol_contract_prob": round(
+                probs.get(TransitionTarget.VOL_CONTRACTION.value, 0.0), 4
+            ),
+            "regime_breakout_prob": round(probs.get(TransitionTarget.BREAKOUT.value, 0.0), 4),
+            "regime_range_form_prob": round(
+                probs.get(TransitionTarget.RANGE_FORMATION.value, 0.0), 4
+            ),
         }
 
         # Feature vector components (raw, for model use)
         if fv is not None:
-            ctx.update({
-                "regime_atr_slope":          round(fv.atr_slope, 6),
-                "regime_spread_slope":       round(fv.spread_slope, 6),
-                "regime_momentum_slope":     round(fv.momentum_slope, 6),
-                "regime_vol_rank_slope":     round(fv.vol_rank_slope, 6),
-                "regime_trend_valid_ratio":  round(fv.trend_valid_ratio, 4),
-                "regime_atr_cv":             round(fv.atr_cv, 6),
-            })
+            ctx.update(
+                {
+                    "regime_atr_slope": round(fv.atr_slope, 6),
+                    "regime_spread_slope": round(fv.spread_slope, 6),
+                    "regime_momentum_slope": round(fv.momentum_slope, 6),
+                    "regime_vol_rank_slope": round(fv.vol_rank_slope, 6),
+                    "regime_trend_valid_ratio": round(fv.trend_valid_ratio, 4),
+                    "regime_atr_cv": round(fv.atr_cv, 6),
+                }
+            )
         else:
-            ctx.update({
-                "regime_atr_slope": 0.0, "regime_spread_slope": 0.0,
-                "regime_momentum_slope": 0.0, "regime_vol_rank_slope": 0.0,
-                "regime_trend_valid_ratio": 0.5, "regime_atr_cv": 0.0,
-            })
+            ctx.update(
+                {
+                    "regime_atr_slope": 0.0,
+                    "regime_spread_slope": 0.0,
+                    "regime_momentum_slope": 0.0,
+                    "regime_vol_rank_slope": 0.0,
+                    "regime_trend_valid_ratio": 0.5,
+                    "regime_atr_cv": 0.0,
+                }
+            )
 
         return ctx
 
@@ -319,7 +331,7 @@ class RegimeTransitionEngine:
     def conviction_modifier(
         self,
         instrument: str,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> float:
         """Return a signed ±0.20 conviction adjustment.
 
@@ -334,20 +346,16 @@ class RegimeTransitionEngine:
             toward −``_MAX_CONVICTION_BOOST``.
         """
         now = now if now is not None else time.time()
-        pm  = self.predict(instrument, now)
-        p   = pm.probabilities
+        pm = self.predict(instrument, now)
+        p = pm.probabilities
 
-        bull_mass = sum(
-            p.get(t.value, 0.0) for t in _BULLISH_CONVICTION_TARGETS
-        )
-        bear_mass = sum(
-            p.get(t.value, 0.0) for t in _BEARISH_CONVICTION_TARGETS
-        )
-        net_signal = bull_mass - bear_mass   # −1..+1
+        bull_mass = sum(p.get(t.value, 0.0) for t in _BULLISH_CONVICTION_TARGETS)
+        bear_mass = sum(p.get(t.value, 0.0) for t in _BEARISH_CONVICTION_TARGETS)
+        net_signal = bull_mass - bear_mass  # −1..+1
 
         # Scale by concentration (1 − entropy) and by data confidence
-        concentration = 1.0 - pm.entropy     # 0 = uniform, 1 = spike
-        confidence    = pm.confidence
+        concentration = 1.0 - pm.entropy  # 0 = uniform, 1 = spike
+        confidence = pm.confidence
 
         # Without data, entropy=1 → concentration=0 → modifier is only the
         # uncertainty drag, which is also zero (confidence=0). Net = 0.0.
@@ -375,7 +383,7 @@ class RegimeTransitionEngine:
     def attention_signal(
         self,
         instrument: str,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> float:
         """Return a 0-1 salience score for the attention allocator.
 
@@ -387,20 +395,20 @@ class RegimeTransitionEngine:
         pass it directly to the ``AttentionScoreAllocator``.
         """
         now = now if now is not None else time.time()
-        pm  = self.predict(instrument, now)
+        pm = self.predict(instrument, now)
 
         # Raw salience = concentration × confidence
         concentration = 1.0 - pm.entropy
-        salience      = concentration * pm.confidence
+        salience = concentration * pm.confidence
 
         # Recency of last transition: if a transition was very recent, this
         # symbol is already in a transition — attention should be high.
-        last  = self._memory.last_transition(instrument)
+        last = self._memory.last_transition(instrument)
         if last is not None:
-            age_h       = last.age_hours(now)
+            age_h = last.age_hours(now)
             # Decay from 1.0 at age=0h to ~0.14 at age=48h (half-life ≈ 20h)
             recent_boost = max(0.0, 1.0 - age_h / 48.0)
-            salience     = min(1.0, salience + 0.3 * recent_boost)
+            salience = min(1.0, salience + 0.3 * recent_boost)
 
         return round(min(1.0, max(0.0, salience)), 4)
 
@@ -409,7 +417,7 @@ class RegimeTransitionEngine:
     def risk_appetite_modifier(
         self,
         instrument: str,
-        now:        float | None = None,
+        now: float | None = None,
     ) -> float:
         """Return a −1..+1 risk appetite adjustment.
 
@@ -429,23 +437,23 @@ class RegimeTransitionEngine:
         to be informative.
         """
         now = now if now is not None else time.time()
-        pm  = self.predict(instrument, now)
-        p   = pm.probabilities
+        pm = self.predict(instrument, now)
+        p = pm.probabilities
 
         scale = pm.confidence * (1.0 - pm.entropy * 0.5)
 
-        vol_expand   = p.get(TransitionTarget.VOL_EXPANSION.value,   0.0)
+        vol_expand = p.get(TransitionTarget.VOL_EXPANSION.value, 0.0)
         vol_contract = p.get(TransitionTarget.VOL_CONTRACTION.value, 0.0)
-        trend_form   = p.get(TransitionTarget.TREND_FORMATION.value,  0.0)
-        breakout     = p.get(TransitionTarget.BREAKOUT.value,         0.0)
-        trend_exh    = p.get(TransitionTarget.TREND_EXHAUSTION.value, 0.0)
+        trend_form = p.get(TransitionTarget.TREND_FORMATION.value, 0.0)
+        breakout = p.get(TransitionTarget.BREAKOUT.value, 0.0)
+        trend_exh = p.get(TransitionTarget.TREND_EXHAUSTION.value, 0.0)
 
         raw = (
-            vol_contract * abs(_MAX_RISK_BOOST)      # calmer → loosen
-            + trend_form * 0.10                       # trending emerging → slight positive
-            + breakout   * 0.10                       # breakout → slight positive
-            - vol_expand * abs(_MAX_RISK_DRAG)        # expansion → tighten strongly
-            - trend_exh  * 0.10                       # exhaustion → tighten slightly
+            vol_contract * abs(_MAX_RISK_BOOST)  # calmer → loosen
+            + trend_form * 0.10  # trending emerging → slight positive
+            + breakout * 0.10  # breakout → slight positive
+            - vol_expand * abs(_MAX_RISK_DRAG)  # expansion → tighten strongly
+            - trend_exh * 0.10  # exhaustion → tighten slightly
         )
         raw = raw * scale
 

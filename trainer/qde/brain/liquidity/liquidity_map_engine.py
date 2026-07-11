@@ -29,7 +29,6 @@ from trainer.qde.brain.liquidity.liquidity_event_detector import LiquidityEventD
 from trainer.qde.brain.liquidity.liquidity_memory import (
     LevelSide,
     LevelStatus,
-    LiquidityEventType,
     LiquidityMemory,
     OHLCBar,
 )
@@ -37,11 +36,11 @@ from trainer.qde.brain.liquidity.liquidity_tracker import LiquidityTracker
 
 # ── Tuneable defaults ─────────────────────────────────────────────────────────
 
-_TOUCH_TOL_PCT     = 0.001   # 0.1%: counts as "touching" a level
-_DENSITY_RADIUS    = 0.02    # 2%: radius for density calculations
-_BLOCKING_DISTANCE = 0.01    # 1%: range used by conviction modifier
-_SWEEP_BOOST       = 0.08    # conviction boost when recent sweeps exist
-_MAX_CONVICTION_MOD = 0.25   # cap on conviction_modifier magnitude
+_TOUCH_TOL_PCT = 0.001  # 0.1%: counts as "touching" a level
+_DENSITY_RADIUS = 0.02  # 2%: radius for density calculations
+_BLOCKING_DISTANCE = 0.01  # 1%: range used by conviction modifier
+_SWEEP_BOOST = 0.08  # conviction boost when recent sweeps exist
+_MAX_CONVICTION_MOD = 0.25  # cap on conviction_modifier magnitude
 
 
 class LiquidityMapEngine:
@@ -59,33 +58,33 @@ class LiquidityMapEngine:
 
     def __init__(
         self,
-        bar_history_depth:   int   = 500,
-        max_levels:          int   = 300,
-        touch_tol_pct:       float = _TOUCH_TOL_PCT,
-        density_radius:      float = _DENSITY_RADIUS,
-        blocking_distance:   float = _BLOCKING_DISTANCE,
+        bar_history_depth: int = 500,
+        max_levels: int = 300,
+        touch_tol_pct: float = _TOUCH_TOL_PCT,
+        density_radius: float = _DENSITY_RADIUS,
+        blocking_distance: float = _BLOCKING_DISTANCE,
         sweep_recency_boost: float = _SWEEP_BOOST,
-        max_conviction_mod:  float = _MAX_CONVICTION_MOD,
+        max_conviction_mod: float = _MAX_CONVICTION_MOD,
         # Detector parameters — defaults match the detector's own defaults.
-        swing_lookback:      int   = 5,
-        equal_tol_pct:       float = 0.001,
-        cluster_tol_pct:     float = 0.003,
-        min_cluster_size:    int   = 3,
+        swing_lookback: int = 5,
+        equal_tol_pct: float = 0.001,
+        cluster_tol_pct: float = 0.003,
+        min_cluster_size: int = 3,
     ) -> None:
-        self._memory    = LiquidityMemory(bar_history_depth, max_levels)
-        self._detector  = LiquidityEventDetector(
+        self._memory = LiquidityMemory(bar_history_depth, max_levels)
+        self._detector = LiquidityEventDetector(
             swing_lookback=swing_lookback,
             equal_tol_pct=equal_tol_pct,
             cluster_tol_pct=cluster_tol_pct,
             min_cluster_size=min_cluster_size,
         )
-        self._tracker   = LiquidityTracker()
+        self._tracker = LiquidityTracker()
 
-        self._touch_tol    = touch_tol_pct
-        self._density_rad  = density_radius
-        self._block_dist   = blocking_distance
-        self._sweep_boost  = sweep_recency_boost
-        self._max_mod      = max_conviction_mod
+        self._touch_tol = touch_tol_pct
+        self._density_rad = density_radius
+        self._block_dist = blocking_distance
+        self._sweep_boost = sweep_recency_boost
+        self._max_mod = max_conviction_mod
 
     # ── Ingestion ─────────────────────────────────────────────────────────
 
@@ -119,8 +118,8 @@ class LiquidityMapEngine:
 
     def _run_detection(self, instrument: str, now: float | None = None) -> None:
         bars = self._memory.bars(instrument)
-        mp   = self._memory.map_for(instrument)
-        ts   = now if now is not None else time.time()
+        mp = self._memory.map_for(instrument)
+        ts = now if now is not None else time.time()
 
         new_levels, new_events = self._detector.scan(instrument, bars, mp, now=ts)
 
@@ -183,9 +182,9 @@ class LiquidityMapEngine:
         liq_level_type_counts     dict  — counts per LiquidityLevelType
         liq_last_event_type       str   — most recent event type or ""
         """
-        mp    = self._memory.map_for(instrument)
+        mp = self._memory.map_for(instrument)
         price = current_price or (mp.last_bar.close if mp.last_bar else 0.0)
-        now   = time.time()
+        now = time.time()
 
         if price <= 0.0:
             return self._empty_context()
@@ -194,89 +193,79 @@ class LiquidityMapEngine:
         nb = self._tracker.nearest_below(mp, price)
 
         active_lvls = [lv for lv in mp.levels.values() if lv.is_active()]
-        intact_cnt  = sum(1 for lv in active_lvls if lv.status == LevelStatus.INTACT)
-        swept_cnt   = sum(1 for lv in mp.levels.values() if lv.sweep_count > 0)
+        intact_cnt = sum(1 for lv in active_lvls if lv.status == LevelStatus.INTACT)
+        swept_cnt = sum(1 for lv in mp.levels.values() if lv.sweep_count > 0)
 
         last_ev = self._tracker.most_recent_event(mp)
 
         return {
             "liq_total_active_levels": len(active_lvls),
-            "liq_intact_count":        intact_cnt,
-            "liq_swept_count":         swept_cnt,
-            "liq_density_above":       round(
+            "liq_intact_count": intact_cnt,
+            "liq_swept_count": swept_cnt,
+            "liq_density_above": round(
                 self._tracker.density_above(mp, price, self._density_rad), 4
             ),
-            "liq_density_below":       round(
+            "liq_density_below": round(
                 self._tracker.density_below(mp, price, self._density_rad), 4
             ),
-            "liq_density_asymmetry":   round(
+            "liq_density_asymmetry": round(
                 self._tracker.density_asymmetry(mp, price, self._density_rad), 4
             ),
-            "liq_nearest_above_pct":   round(
-                self._tracker.void_above(mp, price), 5
-            ),
-            "liq_nearest_below_pct":   round(
-                self._tracker.void_below(mp, price), 5
-            ),
-            "liq_void_above_pct":      round(
-                self._tracker.void_above(mp, price), 5
-            ),
-            "liq_void_below_pct":      round(
-                self._tracker.void_below(mp, price), 5
-            ),
-            "liq_structural_density":  round(
+            "liq_nearest_above_pct": round(self._tracker.void_above(mp, price), 5),
+            "liq_nearest_below_pct": round(self._tracker.void_below(mp, price), 5),
+            "liq_void_above_pct": round(self._tracker.void_above(mp, price), 5),
+            "liq_void_below_pct": round(self._tracker.void_below(mp, price), 5),
+            "liq_structural_density": round(
                 self._tracker.structural_density_score(mp, price, self._density_rad), 4
             ),
-            "liq_sweep_recency_score": round(
-                self._tracker.sweep_recency_score(mp, now=now), 4
-            ),
-            "liq_recent_sweeps_1h":    self._tracker.recent_sweep_count(
+            "liq_sweep_recency_score": round(self._tracker.sweep_recency_score(mp, now=now), 4),
+            "liq_recent_sweeps_1h": self._tracker.recent_sweep_count(
                 mp, lookback_seconds=3600, now=now
             ),
-            "liq_nearest_above_type":  na.level_type.value if na else "",
-            "liq_nearest_below_type":  nb.level_type.value if nb else "",
-            "liq_targets_above":       self._tracker.where_may_liquidity_exist_next(
+            "liq_nearest_above_type": na.level_type.value if na else "",
+            "liq_nearest_below_type": nb.level_type.value if nb else "",
+            "liq_targets_above": self._tracker.where_may_liquidity_exist_next(
                 mp, price, direction=+1
             ),
-            "liq_targets_below":       self._tracker.where_may_liquidity_exist_next(
+            "liq_targets_below": self._tracker.where_may_liquidity_exist_next(
                 mp, price, direction=-1
             ),
-            "liq_level_type_counts":   self._tracker.level_type_counts(mp),
-            "liq_last_event_type":     last_ev.event_type.value if last_ev else "",
+            "liq_level_type_counts": self._tracker.level_type_counts(mp),
+            "liq_last_event_type": last_ev.event_type.value if last_ev else "",
         }
 
     @staticmethod
     def _empty_context() -> dict:
         return {
             "liq_total_active_levels": 0,
-            "liq_intact_count":        0,
-            "liq_swept_count":         0,
-            "liq_density_above":       0.0,
-            "liq_density_below":       0.0,
-            "liq_density_asymmetry":   0.0,
-            "liq_nearest_above_pct":   0.05,
-            "liq_nearest_below_pct":   0.05,
-            "liq_void_above_pct":      0.05,
-            "liq_void_below_pct":      0.05,
-            "liq_structural_density":  0.0,
+            "liq_intact_count": 0,
+            "liq_swept_count": 0,
+            "liq_density_above": 0.0,
+            "liq_density_below": 0.0,
+            "liq_density_asymmetry": 0.0,
+            "liq_nearest_above_pct": 0.05,
+            "liq_nearest_below_pct": 0.05,
+            "liq_void_above_pct": 0.05,
+            "liq_void_below_pct": 0.05,
+            "liq_structural_density": 0.0,
             "liq_sweep_recency_score": 0.0,
-            "liq_recent_sweeps_1h":    0,
-            "liq_nearest_above_type":  "",
-            "liq_nearest_below_type":  "",
-            "liq_targets_above":       [],
-            "liq_targets_below":       [],
-            "liq_level_type_counts":   {},
-            "liq_last_event_type":     "",
+            "liq_recent_sweeps_1h": 0,
+            "liq_nearest_above_type": "",
+            "liq_nearest_below_type": "",
+            "liq_targets_above": [],
+            "liq_targets_below": [],
+            "liq_level_type_counts": {},
+            "liq_last_event_type": "",
         }
 
     # ── Integration point 2: conviction modifier ──────────────────────────
 
     def conviction_modifier(
         self,
-        instrument:     str,
-        current_price:  float,
-        direction:      int,
-        distance_pct:   float | None = None,
+        instrument: str,
+        current_price: float,
+        direction: int,
+        distance_pct: float | None = None,
     ) -> float:
         """Structural ± modifier on hypothesis conviction.
 
@@ -300,19 +289,17 @@ class LiquidityMapEngine:
             return 0.0
 
         dist = distance_pct if distance_pct is not None else self._block_dist
-        mp   = self._memory.map_for(instrument)
-        now  = time.time()
+        mp = self._memory.map_for(instrument)
+        now = time.time()
 
         # How many intact levels are blocking the intended direction?
-        blocking = self._tracker.blocking_count(
-            mp, current_price, direction, distance_pct=dist
-        )
+        blocking = self._tracker.blocking_count(mp, current_price, direction, distance_pct=dist)
         # Clearance: 0 blocking → 1.0; ≥4 blocking → ~0.0
         clearance = max(0.0, 1.0 - blocking / 4.0)
 
         # Sweep recency: a recent sweep indicates resolved liquidity nearby.
         sweep_score = self._tracker.sweep_recency_score(mp, now=now)
-        sweep_adj   = sweep_score * self._sweep_boost
+        sweep_adj = sweep_score * self._sweep_boost
 
         # Density asymmetry penalty: if density heavily favours opposing side,
         # reduce the modifier slightly.
@@ -329,7 +316,7 @@ class LiquidityMapEngine:
 
     def narrative_context(
         self,
-        instrument:    str,
+        instrument: str,
         current_price: float | None = None,
     ) -> dict:
         """Structural context dict for narrative enrichment.
@@ -355,46 +342,45 @@ class LiquidityMapEngine:
         liq_daily_high_intact   bool  — intact daily high in map
         liq_daily_low_intact    bool  — intact daily low in map
         """
-        mp    = self._memory.map_for(instrument)
+        mp = self._memory.map_for(instrument)
         price = current_price or (mp.last_bar.close if mp.last_bar else 0.0)
-        now   = time.time()
+        now = time.time()
 
         near_tol = 0.003  # 0.3% for "near a level" check
 
         equal_highs = sum(
-            1 for lv in mp.levels.values()
+            1
+            for lv in mp.levels.values()
             if lv.level_type == LiquidityLevelType.EQUAL_HIGH and lv.is_active()
         )
         equal_lows = sum(
-            1 for lv in mp.levels.values()
+            1
+            for lv in mp.levels.values()
             if lv.level_type == LiquidityLevelType.EQUAL_LOW and lv.is_active()
         )
         stop_clusters = sum(
-            1 for lv in mp.levels.values()
-            if lv.level_type == LiquidityLevelType.STOP_CLUSTER
+            1 for lv in mp.levels.values() if lv.level_type == LiquidityLevelType.STOP_CLUSTER
         )
         trap_count = sum(
-            1 for lv in mp.levels.values()
-            if lv.level_type == LiquidityLevelType.BREAKOUT_TRAP
+            1 for lv in mp.levels.values() if lv.level_type == LiquidityLevelType.BREAKOUT_TRAP
         )
 
         last_sweep = self._tracker.most_recent_sweep(mp)
-        recent_sweep = (
-            last_sweep is not None
-            and (now - last_sweep.detected_at) < 2 * 3600
-        )
+        recent_sweep = last_sweep is not None and (now - last_sweep.detected_at) < 2 * 3600
         sweep_side = ""
         if last_sweep and recent_sweep:
             lv = mp.levels.get(last_sweep.level_id)
             sweep_side = lv.side.value if lv else ""
 
         near_high = price > 0 and any(
-            lv.side == LevelSide.HIGH and lv.is_active()
+            lv.side == LevelSide.HIGH
+            and lv.is_active()
             and abs(lv.price - price) / max(price, 1e-9) <= near_tol
             for lv in mp.levels.values()
         )
         near_low = price > 0 and any(
-            lv.side == LevelSide.LOW and lv.is_active()
+            lv.side == LevelSide.LOW
+            and lv.is_active()
             and abs(lv.price - price) / max(price, 1e-9) <= near_tol
             for lv in mp.levels.values()
         )
@@ -411,33 +397,32 @@ class LiquidityMapEngine:
 
         def _has_intact(lt: LiquidityLevelType) -> bool:
             return any(
-                lv.level_type == lt and lv.status == LevelStatus.INTACT
-                for lv in mp.levels.values()
+                lv.level_type == lt and lv.status == LevelStatus.INTACT for lv in mp.levels.values()
             )
 
         return {
-            "liq_equal_high_count":    equal_highs,
-            "liq_equal_low_count":     equal_lows,
-            "liq_stop_cluster_count":  stop_clusters,
+            "liq_equal_high_count": equal_highs,
+            "liq_equal_low_count": equal_lows,
+            "liq_stop_cluster_count": stop_clusters,
             "liq_breakout_trap_count": trap_count,
-            "liq_recent_sweep":        recent_sweep,
-            "liq_sweep_side":          sweep_side,
-            "liq_near_high_level":     near_high,
-            "liq_near_low_level":      near_low,
-            "liq_density_imbalance":   imbalance,
-            "liq_weekly_high_intact":  _has_intact(LiquidityLevelType.WEEKLY_HIGH),
-            "liq_weekly_low_intact":   _has_intact(LiquidityLevelType.WEEKLY_LOW),
-            "liq_daily_high_intact":   _has_intact(LiquidityLevelType.DAILY_HIGH),
-            "liq_daily_low_intact":    _has_intact(LiquidityLevelType.DAILY_LOW),
+            "liq_recent_sweep": recent_sweep,
+            "liq_sweep_side": sweep_side,
+            "liq_near_high_level": near_high,
+            "liq_near_low_level": near_low,
+            "liq_density_imbalance": imbalance,
+            "liq_weekly_high_intact": _has_intact(LiquidityLevelType.WEEKLY_HIGH),
+            "liq_weekly_low_intact": _has_intact(LiquidityLevelType.WEEKLY_LOW),
+            "liq_daily_high_intact": _has_intact(LiquidityLevelType.DAILY_HIGH),
+            "liq_daily_low_intact": _has_intact(LiquidityLevelType.DAILY_LOW),
         }
 
     # ── Integration point 4: opportunity ranking signal ───────────────────
 
     def opportunity_rank_signal(
         self,
-        instrument:    str,
+        instrument: str,
         current_price: float,
-        direction:     int,
+        direction: int,
     ) -> float:
         """0-1 structural quality signal for opportunity ranking.
 
@@ -457,7 +442,7 @@ class LiquidityMapEngine:
         if direction == 0 or current_price <= 0.0:
             return 0.0
 
-        mp  = self._memory.map_for(instrument)
+        mp = self._memory.map_for(instrument)
         now = time.time()
 
         # Structural clearance in intended direction (1% window)
@@ -481,18 +466,14 @@ class LiquidityMapEngine:
             if dist <= 0.005:
                 proximity_bonus = 0.2 * (1.0 - dist / 0.005)
 
-        raw = (
-            clearance_score * 0.55
-            + sweep_score    * 0.25
-            + proximity_bonus * 0.20
-        )
+        raw = clearance_score * 0.55 + sweep_score * 0.25 + proximity_bonus * 0.20
         return max(0.0, min(1.0, raw))
 
     # ── Integration point 5: execution timing signal ──────────────────────
 
     def execution_timing_signal(
         self,
-        instrument:    str,
+        instrument: str,
         current_price: float,
     ) -> float:
         """0-1 structural timing quality at current price.
@@ -516,7 +497,7 @@ class LiquidityMapEngine:
         # Find the nearest level on either side
         above_pct = self._tracker.void_above(mp, current_price)
         below_pct = self._tracker.void_below(mp, current_price)
-        nearest   = min(above_pct, below_pct)
+        nearest = min(above_pct, below_pct)
 
         # Strength of the nearest level
         na = self._tracker.nearest_above(mp, current_price)

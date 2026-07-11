@@ -42,9 +42,9 @@ from trainer.qde.brain.attention.attention_api import (
     rank_symbols,
 )
 from trainer.qde.brain.attention.attention_memory import (
-    AttentionMemory,
     DEFAULT_SNAPSHOT_DEPTH,
     DEFAULT_TRANSITION_DEPTH,
+    AttentionMemory,
 )
 from trainer.qde.brain.attention.attention_types import (
     TIER_RESOURCES,
