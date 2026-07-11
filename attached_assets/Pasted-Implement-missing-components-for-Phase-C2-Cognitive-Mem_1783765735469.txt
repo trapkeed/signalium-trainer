@@ -1,0 +1,114 @@
+Implement missing components for Phase C2: Cognitive Memory Layer.
+
+IMPORTANT:
+- Do not redesign existing infrastructure.
+- Extend existing systems only where functionality is missing.
+- Reuse memory/, lifecycle/, qde/, research/, and mlops/ infrastructure wherever possible.
+- Avoid duplication.
+
+Goal:
+Transform QDE from a prediction model into a persistent cognitive entity with long-term market memory.
+
+Implement:
+
+1. Working Memory
+- Short-term rolling memory of recent market activity.
+- Maintain:
+  - last N candles
+  - recent volatility evolution
+  - liquidity events
+  - trend development
+  - failed breakouts
+  - session transitions
+  - spread evolution
+  - correlation shifts
+
+Retention:
+- configurable by timeframe
+- default:
+  M1 -> 500 candles
+  M5 -> 300 candles
+  M15 -> 200 candles
+  H1 -> 150 candles
+  H4 -> 100 candles
+
+2. Episodic Memory
+Store complete historical market experiences.
+
+Each episode must contain:
+- symbol
+- timestamp
+- raw features
+- portfolio state
+- active hypotheses
+- chosen action
+- confidence
+- reasoning
+- outcome
+- trade result
+- regime context
+- session context
+
+3. Semantic Memory
+Store learned market concepts.
+
+Examples:
+- breakout after compression
+- failed liquidity sweep
+- trend continuation after pullback
+- mean reversion after expansion
+
+These concepts should emerge automatically through clustering and pattern discovery.
+
+4. Memory Indexing
+Support retrieval by:
+- symbol
+- session
+- volatility state
+- similarity search
+- market structure
+- portfolio state
+
+5. Recency weighting
+Recent experiences should matter more than old experiences.
+
+Implement configurable memory decay:
+weight = e^(-lambda * age)
+
+6. Similarity Recall
+Given a new situation the QDE should retrieve:
+
+"What happened the last time I saw something similar?"
+
+Return:
+- nearest episodes
+- outcomes
+- historical confidence
+- average reward
+
+7. Regime Transition Memory
+Store sequences leading to transitions.
+
+Examples:
+- trend → volatility
+- volatility → compression
+- compression → expansion
+
+The QDE should learn transition probabilities.
+
+8. Persistent Storage
+All memories survive restart.
+
+9. Create:
+trainer/brain/memory/
+trainer/brain/episodic/
+trainer/brain/semantic/
+
+10. Expose APIs for:
+- write_memory()
+- recall()
+- retrieve_similar()
+- transition_statistics()
+
+This phase creates memory only.
+No reasoning or decisions yet.
