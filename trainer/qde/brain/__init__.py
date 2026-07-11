@@ -66,6 +66,19 @@ from trainer.qde.brain.conviction_engine import (
     is_trade_worthy,
 )
 from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateEngine, DebateVerdict
+from trainer.qde.brain.decision import (
+    CONVICTION_ACTION_THRESHOLD,
+    CONVICTION_MONITOR_THRESHOLD,
+    CognitiveAction,
+    CognitiveDecision,
+    ConfidenceReport,
+    DecisionAPI,
+    DecisionInput,
+    DecisionMemoryBridge,
+    DecisionReasoning,
+    ReasoningEngine,
+    compute_decision,
+)
 from trainer.qde.brain.debate import (
     DebateAPI,
     DebateMemoryBridge,
@@ -280,6 +293,18 @@ __all__ = [
     "MetacognitiveAssessment",
     "SelfAwarenessEngine",
     "SelfAwarenessState",
+    # ── Conscious Decision Engine (Phase C6) ──────────────────────────────
+    "CognitiveAction",
+    "DecisionInput",
+    "CognitiveDecision",
+    "DecisionReasoning",
+    "ConfidenceReport",
+    "DecisionMemoryBridge",
+    "ReasoningEngine",
+    "DecisionAPI",
+    "compute_decision",
+    "CONVICTION_ACTION_THRESHOLD",
+    "CONVICTION_MONITOR_THRESHOLD",
     # ── Cognitive memory layer (Phase C2) ─────────────────────────────────
     # memory: timeframe-aware structured working memory store
     "WorkingMemoryStore",

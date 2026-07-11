@@ -68,6 +68,7 @@
 - [S28 decision traceability design](s28-decision-traceability-design.md) — lineage resolver marks per-hop resolved:bool against real records; replay uses injected inference_fn to stay torch-independent; new admin features need explicit per-role Visibility grants
 - [S29 trainer security additions](s29-security-additions.md) — artifact encryption/secure-load, inference request signing+replay+rate-limit+abuse-detection, dataset write-once protection; ArtifactRecord.new() uses `extra` not `metadata`
 - [Confidence vs conviction vs uncertainty](conviction-uncertainty-distinction.md) — brain_context was a previously-inert seam now read by qde_inference; uncertainty>=0.75 hard-rejects trades
+- [C6 decision engine design](c6-decision-engine-design.md) — hold_horizon=0 valid for new hyp; conviction is structural not raw confidence; debate_store needs real OC/IE objects not dicts; grep for QDEDecision must skip docstrings
 
 
 - [Metacognition/self-awareness caution vs expansion](qde-metacognition-self-awareness.md) — caution's neutral point is 0, not 0.5; expansion needs a separate positive-performance signal, not just low caution
