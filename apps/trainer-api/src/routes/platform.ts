@@ -13,14 +13,17 @@
 
 import { Router, type IRouter } from "express";
 import { platformAuth } from "../middlewares/platform_auth.js";
+import inferenceRouter from "./inference.js";
 
 const platformRouter: IRouter = Router();
 
 // Apply JWT auth to every route in this router.
 platformRouter.use(platformAuth);
 
-// Routes are added by tasks #11 (inference) and #12 (research lab).
-// The router is intentionally empty here — the middleware boundary is
-// what this task establishes.
+// Inference endpoints: POST /, POST /qde/inference,
+// POST /qde/review-position, POST /qde/portfolio-review
+platformRouter.use(inferenceRouter);
+
+// Research Lab contract routes are added by task #12.
 
 export default platformRouter;

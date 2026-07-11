@@ -616,3 +616,139 @@ def observer_dashboard_guard_trips(granularity: str = "day", limit: int = 2000) 
 @app.get("/healthz")
 def health() -> dict:
     return {"status": "ok", "service": "qde-lifecycle"}
+
+
+# ── Platform-Facing Inference Endpoints ───────────────────────────────────────
+# Accept the Signalium Platform's flat telemetry format and return simplified
+# decisions. Called by the Express trainer-api on behalf of the platform.
+
+
+class PlatformDecideRequest(BaseModel):
+    """Flat telemetry from the Signalium Platform (POST / on the trainer)."""
+
+    symbol: str
+    balance: float = 0.0
+    equity: float = 0.0
+    margin: float = 0.0
+    freeMargin: float = 0.0
+    openPositions: int = 0
+    floatingPnl: float = 0.0
+    entryPrice: float = 0.0
+    currentPrice: float = 0.0
+    spread: float = 0.0
+    drawdown: float = 0.0
+    tradeAgeSeconds: float = 0.0
+
+
+class PlatformInferenceRequest(BaseModel):
+    """Market signal request from the platform."""
+
+    symbol: str
+    currentPrice: float = 0.0
+    spread: float = 0.0
+    volatility: float = 0.01
+    momentum: float = 0.0
+    balance: float = 0.0
+    equity: float = 0.0
+    openPositions: int = 0
+
+
+class PlatformPortfolioReviewRequest(BaseModel):
+    positions: list[PlatformDecideRequest] = []
+
+
+def _normalize_action(action: str) -> str:
+    """Map internal QDE action names to platform contract names."""
+    if action == "MOVE_TO_BREAKEVEN":
+        return "BREAKEVEN"
+    return action
+
+
+def _build_position_telemetry(pos: PlatformDecideRequest) -> "PositionTelemetry":
+    """Construct a PositionTelemetry from flat platform telemetry fields."""
+    equity = pos.equity if pos.equity > 0 else 1.0
+    unrealised_pct = pos.floatingPnl / equity
+    return PositionTelemetry(
+        instrument=pos.symbol,
+        position=PositionMetrics(
+            entry_price=pos.entryPrice,
+            current_price=pos.currentPrice,
+            unrealised_pnl=pos.floatingPnl,
+            unrealised_pct=unrealised_pct,
+            time_in_trade_h=pos.tradeAgeSeconds / 3600.0,
+        ),
+        market=MarketContext(
+            price=pos.currentPrice,
+            spread=pos.spread,
+            # Derive a rough risk proxy from drawdown (10% drawdown = max risk signal)
+            news_risk=min(pos.drawdown / 10.0, 1.0) if pos.drawdown > 8.5 else 0.0,
+        ),
+        heads=QDEOutputHeads(
+            instrument=pos.symbol,
+            direction=Direction.FLAT,
+            # No trained model yet: all signal heads default to zero
+        ),
+        free_margin_pct=pos.freeMargin / equity if pos.freeMargin > 0 else 1.0,
+    )
+
+
+@app.post("/qde/platform/decide")
+def platform_decide(req: PlatformDecideRequest) -> dict:
+    """Accept flat platform telemetry and return { action, reasoning }."""
+    try:
+        telemetry = _build_position_telemetry(req)
+        decision = _position_manager.review(telemetry)
+        return {
+            "action": _normalize_action(decision.action.value),
+            "reasoning": decision.reasoning,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/qde/platform/inference")
+def platform_inference(req: PlatformInferenceRequest) -> dict:
+    """Return a market direction/signal for a symbol."""
+    # Without a trained model the brain has no directional signal —
+    # return FLAT with an explicit reasoning string.
+    return {
+        "direction": "FLAT",
+        "confidence": 0.0,
+        "risk_signal": 0.0,
+        "size_signal": 0.0,
+        "entry_urgency": 0.0,
+        "exit_horizon": 0.5,
+        "reasoning": (
+            f"No trained model active for {req.symbol} — defaulting to FLAT stance."
+        ),
+    }
+
+
+@app.post("/qde/platform/portfolio-review")
+def platform_portfolio_review(req: PlatformPortfolioReviewRequest) -> dict:
+    """Batch review of all open positions."""
+    if not req.positions:
+        return {"decisions": [], "reasoning": "No open positions to review."}
+    decisions = []
+    for pos in req.positions:
+        try:
+            telemetry = _build_position_telemetry(pos)
+            decision = _position_manager.review(telemetry)
+            decisions.append(
+                {
+                    "symbol": pos.symbol,
+                    "action": _normalize_action(decision.action.value),
+                    "reasoning": decision.reasoning,
+                    "confidence": decision.confidence,
+                }
+            )
+        except Exception as exc:
+            decisions.append(
+                {
+                    "symbol": pos.symbol,
+                    "action": "HOLD",
+                    "reasoning": f"Review error: {exc} — defaulting to HOLD.",
+                    "confidence": 0.0,
+                }
+            )
+    return {"decisions": decisions}
