@@ -70,6 +70,7 @@
 - [Confidence vs conviction vs uncertainty](conviction-uncertainty-distinction.md) — brain_context was a previously-inert seam now read by qde_inference; uncertainty>=0.75 hard-rejects trades
 - [C6 decision engine design](c6-decision-engine-design.md) — hold_horizon=0 valid for new hyp; conviction is structural not raw confidence; debate_store needs real OC/IE objects not dicts; grep for QDEDecision must skip docstrings
 - [C8 QDE Command Protocol](c8-protocol-design.md) — trainer/protocol/ is the QDE→EA boundary; payload always plain dict; position_id mandatory for CLOSE/PARTIAL_CLOSE/MOVE_SL/MOVE_TP/ADD; str(StrEnum) changed in Python 3.11+
+- [Symbol Translation Layer](symbol-translation-layer.md) — trainer.symbols is the canonical enforcement facade; assert_canonical() at 4 boundaries; is_canonical ≠ translatable (GOLD translates but isn't canonical)
 
 
 - [Metacognition/self-awareness caution vs expansion](qde-metacognition-self-awareness.md) — caution's neutral point is 0, not 0.5; expansion needs a separate positive-performance signal, not just low caution

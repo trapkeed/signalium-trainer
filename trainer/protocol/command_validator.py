@@ -113,6 +113,20 @@ def _check_envelope(
             f"position_id is required for {cmd.action.value} commands."
         )
 
+    # ── canonical symbol enforcement ─────────────────────────────────────
+    # Commands carry a canonical symbol in the envelope; broker-decorated
+    # spellings (e.g. "EURUSD.r") must never reach the EA.
+    if cmd.symbol and cmd.symbol.strip():
+        try:
+            from trainer.symbols import is_canonical
+            if not is_canonical(cmd.symbol):
+                errors.append(
+                    f"symbol {cmd.symbol!r} is not a canonical symbol. "
+                    f"Translate via trainer.symbols.translate() before issuing commands."
+                )
+        except ImportError:
+            pass  # translation layer unavailable — skip canonical check
+
     # ── created_at sanity ────────────────────────────────────────────────
     if cmd.created_at > now + 5.0:
         warnings.append("created_at is more than 5 s in the future — clock skew?")

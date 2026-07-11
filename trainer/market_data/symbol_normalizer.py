@@ -189,6 +189,20 @@ class SymbolNormalizer:
     def is_enabled(self, canonical: str) -> bool:
         return self._enabled.get(canonical.upper(), False)
 
+    def is_canonical_symbol(self, symbol: str) -> bool:
+        """``True`` iff *symbol* is an exact match for a registered canonical symbol.
+
+        This is a pure membership check — it does **not** attempt alias
+        resolution or structural stripping.  ``"EURUSD"`` returns ``True``;
+        ``"EURUSD.r"`` and ``"GOLD"`` return ``False`` even though both can
+        be translated to a canonical form via ``normalize()`` / ``resolve()``.
+        """
+        return symbol.upper() in self._symbols
+
+    def canonical_symbols(self) -> list[str]:
+        """Sorted list of all registered canonical symbol names."""
+        return sorted(self._symbols)
+
     def list_symbols(self) -> list[dict[str, Any]]:
         return [
             {"symbol": s, "asset_class": cls, "enabled": self._enabled.get(s, False)}

@@ -22,6 +22,11 @@ class TradeOutcomePath:
 
     `direction` is `1` for long, `-1` for short — matching the convention
     already used by `trainer.validation.trading.TradeResult`.
+
+    ``instrument`` **must** be a canonical symbol (e.g. ``"EURUSD"``, not
+    ``"EURUSD.r"``).  The constructor enforces this via
+    ``trainer.symbols.assert_canonical`` so broker-decorated strings never
+    reach the label-generation pipeline.
     """
 
     instrument: str
@@ -29,6 +34,10 @@ class TradeOutcomePath:
     entry_price: float
     entry_time: float = 0.0
     future_bars: list[OHLCBar] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        from trainer.symbols import assert_canonical
+        assert_canonical(self.instrument)
 
     def favorable_excursion(self, bar: OHLCBar) -> float:
         """Non-negative favorable price distance reached within `bar`."""

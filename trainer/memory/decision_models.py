@@ -227,7 +227,12 @@ class DecisionRecord:
         tags: list[str] | None = None,
         trade_id: str = "",
         lineage_id: str = "",
-    ) -> DecisionRecord:
+    ) -> "DecisionRecord":
+        # Canonical-symbol boundary guard — memory must never store broker
+        # symbols.  Raises SymbolTranslationError for non-canonical inputs
+        # (e.g. "EURUSD.r").  Canonical inputs (e.g. "EURUSD") pass silently.
+        from trainer.symbols import assert_canonical
+        assert_canonical(instrument)
         return cls(
             decision_id=str(uuid.uuid4()),
             decision_type=decision_type,

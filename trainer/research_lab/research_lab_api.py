@@ -544,6 +544,13 @@ class ResearchLabAPI:
         regime_breakdown: dict[str, Any] | None = None,
         notes: str = "",
     ) -> ApiResponse:
+        # Research records must only reference canonical symbols — broker
+        # spellings must be normalised before reaching this boundary.
+        try:
+            from trainer.symbols import batch_assert_canonical
+            batch_assert_canonical(instruments)
+        except ImportError:
+            pass
         try:
             exp = self._db.get_experiment(experiment_id)
             if not exp:
