@@ -80,3 +80,4 @@
 - [C2 cognitive memory layer](c2-cognitive-memory-layer.md) — 3 new packages under trainer/qde/brain/; existing WorkingMemory/LongTermMemory untouched; transition_statistics() added to TransitionMemory in-place
 - [C3 narrative enhancements](c3-narrative-enhancements.md) — 5 new files under narrative/; probability distribution stored full-precision (round only in to_dict()); NarrativeAPI is the C3 façade
 - [C4 hypothesis set design](c4-hypothesis-set-design.md) — HypothesisAPI wraps engine (never reimplements); weaken auto-invalidates at ≤0.15 confidence; invalidate_hypothesis handles already-terminal hypotheses gracefully (records failure, returns True)
+- [C5 debate subpackage design](c5-debate-subpackage-design.md) — debate_engine/conviction_engine/thesis_manager are untouched; C5 adds only quality/overconfidence/ignored-evidence/store/api; to_dict() rounds to 4dp so round-trip tests need 1e-4 tolerance

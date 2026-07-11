@@ -66,6 +66,20 @@ from trainer.qde.brain.conviction_engine import (
     is_trade_worthy,
 )
 from trainer.qde.brain.debate_engine import DEFAULT_DOMINANCE_MARGIN, DebateEngine, DebateVerdict
+from trainer.qde.brain.debate import (
+    DebateAPI,
+    DebateMemoryBridge,
+    DebateQualityScore,
+    DebateRecord,
+    HIGH_CONVICTION_THRESHOLD,
+    IGNORED_EVIDENCE_MIN_CONVICTION,
+    IgnoredEvidenceRecord,
+    IgnoredEvidenceTracker,
+    OverconfidenceEvent,
+    OverconfidenceTracker,
+    make_debate_record,
+    measure_quality,
+)
 from trainer.qde.brain.forgetting_engine import ForgettingEngine, ForgettingReport
 from trainer.qde.brain.hypothesis_engine import HypothesisEngine
 from trainer.qde.brain.hypothesis_lifecycle import (
