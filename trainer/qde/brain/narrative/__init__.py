@@ -86,6 +86,22 @@ from trainer.qde.brain.narrative.narrative_store import (
     SymbolNarrative,
     _DEFAULT_MAX_AGE,
 )
+from trainer.qde.brain.narrative.continuity import (
+    ContinuityEngine,
+    HORIZON_ORDER,
+    HORIZON_WINDOWS,
+    LineageEntry,
+    LineageEventType,
+    NarrativeHorizon,
+    NarrativeLineage,
+    NarrativeStory,
+    SessionSnapshot,
+    StoryNode,
+    StoryStrength,
+    evaluate_story_strength,
+    retrieve_story,
+    update_narrative,
+)
 
 __all__ = [
     # ── Existing (Phase C3-agnostic) ──────────────────────────────────────
@@ -128,4 +144,23 @@ __all__ = [
     "NarrativeMemoryBridge",
     "NarrativeMemoryContext",
     "NarrativePortfolioContext",
+    # ── Phase C14 additions ───────────────────────────────────────────────
+    # Horizon enum + constants
+    "NarrativeHorizon",
+    "HORIZON_WINDOWS",
+    "HORIZON_ORDER",
+    # Data types
+    "StoryNode",
+    "LineageEventType",
+    "LineageEntry",
+    "NarrativeLineage",
+    "SessionSnapshot",
+    "NarrativeStory",
+    "StoryStrength",
+    # Public callables (spec)
+    "update_narrative",
+    "retrieve_story",
+    "evaluate_story_strength",
+    # Stateful wrapper
+    "ContinuityEngine",
 ]
