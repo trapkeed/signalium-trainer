@@ -1,0 +1,91 @@
+root@server1:/opt/signalium-trainer# # Create wrapper scripts
+cat > /opt/signalium-trainer/deploy/scripts/start-qde.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/signalium-trainer
+source .venv/bin/activate
+exec uvicorn trainer.qde.qde_server:app --port 8001 --host 127.0.0.1 --workers 1
+EOF
+
+cat > /opt/signalium-trainer/deploy/scripts/start-research-lab.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/signalium-trainer
+source .venv/bin/activate
+exec uvicorn trainer.research_lab.research_lab_server:app --port 8002 --host 127.0.0.1 --workers 1
+EOF
+
+chmod +x /opt/signalium-trainer/deploy/scripts/start-qde.sh
+chmod +x /opt/signalium-trainer/deploy/scripts/start-research-lab.sh
+
+# Delete the broken PM2 entries and restart with wrapper scripts
+pm2 delete signalium-qde signalium-research-lab
+
+pm2 start /opt/signalium-trainer/deploy/scripts/start-qde.sh \
+  --name signalium-qde \
+  --interpreter bash
+
+pm2 start /opt/signalium-trainer/deploy/scripts/start-research-lab.sh \
+  --name signalium-research-lab \
+  --interpreter bash
+
+pm2 save
+
+sleep 5
+curl -s http://127.0.0.1:8001/health && echo "" && curl -s http://127.0.0.1:8002/health
+[PM2] Applying action deleteProcessId on app [signalium-qde](ids: [ 8 ])
+[PM2] [signalium-qde](8) ✓
+[PM2] Applying action deleteProcessId on app [signalium-research-lab](ids: [ 9 ])
+[PM2] [signalium-research-lab](9) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 112.5mb  │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 126.2mb  │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 281.6mb  │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 40.1mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 21.6mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+[PM2] Starting /opt/signalium-trainer/deploy/scripts/start-qde.sh in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 112.5mb  │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 125.9mb  │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 281.6mb  │
+│ 10 │ signalium-qde      │ fork     │ 0    │ online    │ 0%       │ 4.8mb    │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 40.1mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 21.6mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+[PM2] Starting /opt/signalium-trainer/deploy/scripts/start-research-lab.sh in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 111.9mb  │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 125.9mb  │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 282.1mb  │
+│ 10 │ signalium-qde      │ fork     │ 0    │ online    │ 100%     │ 34.1mb   │
+│ 11 │ signalium-researc… │ fork     │ 0    │ online    │ 0%       │ 1.1mb    │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 40.1mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 21.0mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+root@server1:/opt/signalium-trainer#
