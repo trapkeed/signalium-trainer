@@ -1,0 +1,53 @@
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+root@server1:/opt/signalium-trainer# curl -s http://127.0.0.1:8001/health && echo "" && curl -s http://127.0.0.1:8002/health
+root@server1:/opt/signalium-trainer# pm2 logs signalium-qde --lines 20 --nostream && pm2 logs signalium-research-lab --lines 20 --nostream
+[TAILING] Tailing last 20 lines for [signalium-qde] process (change the value with --lines option)
+/root/.pm2/logs/signalium-qde-out.log last 20 lines:
+/root/.pm2/logs/signalium-qde-error.log last 20 lines:
+8|signaliu |   File "/opt/signalium-trainer/trainer/research_lab/decision_traceability.py", line 29, in <module>
+8|signaliu |     from trainer.traceability.hasher import hash_config
+8|signaliu |   File "/opt/signalium-trainer/trainer/traceability/__init__.py", line 16, in <module>
+8|signaliu |     from trainer.traceability.context import InferenceContext
+8|signaliu |   File "/opt/signalium-trainer/trainer/traceability/context.py", line 20, in <module>
+8|signaliu |     import torch
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/__init__.py", line 1934, in <module>
+8|signaliu |     from torch import storage as storage  # usort: skip
+8|signaliu |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/storage.py", line 27, in <module>
+8|signaliu |     import numpy as np
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__init__.py", line 109, in <module>
+8|signaliu |     from numpy.__config__ import show_config
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__config__.py", line 4, in <module>
+8|signaliu |     from numpy._core._multiarray_umath import (
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/__init__.py", line 24, in <module>
+8|signaliu |     from . import multiarray
+8|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+8|signaliu |     from . import _multiarray_umath, overrides
+8|signaliu | ImportError: cannot load module more than once per process
+
+[TAILING] Tailing last 20 lines for [signalium-research-lab] process (change the value with --lines option)
+/root/.pm2/logs/signalium-research-lab-out.log last 20 lines:
+/root/.pm2/logs/signalium-research-lab-error.log last 20 lines:
+9|signaliu |   File "/opt/signalium-trainer/trainer/research_lab/decision_traceability.py", line 29, in <module>
+9|signaliu |     from trainer.traceability.hasher import hash_config
+9|signaliu |   File "/opt/signalium-trainer/trainer/traceability/__init__.py", line 16, in <module>
+9|signaliu |     from trainer.traceability.context import InferenceContext
+9|signaliu |   File "/opt/signalium-trainer/trainer/traceability/context.py", line 20, in <module>
+9|signaliu |     import torch
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/__init__.py", line 1934, in <module>
+9|signaliu |     from torch import storage as storage  # usort: skip
+9|signaliu |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/storage.py", line 27, in <module>
+9|signaliu |     import numpy as np
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__init__.py", line 109, in <module>
+9|signaliu |     from numpy.__config__ import show_config
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__config__.py", line 4, in <module>
+9|signaliu |     from numpy._core._multiarray_umath import (
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/__init__.py", line 24, in <module>
+9|signaliu |     from . import multiarray
+9|signaliu |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+9|signaliu |     from . import _multiarray_umath, overrides
+9|signaliu | ImportError: cannot load module more than once per process
+
+root@server1:/opt/signalium-trainer#
