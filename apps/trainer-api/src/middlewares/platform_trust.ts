@@ -29,6 +29,7 @@ function allowedOrigins(): string[] {
   return [
     "https://signaliumai.com",
     "https://www.signaliumai.com",
+    "https://trainer.signaliumai.com",
     "http://localhost:3000",
     "http://localhost:5173",
   ];
