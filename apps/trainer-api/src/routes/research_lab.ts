@@ -37,12 +37,18 @@ router.use("/admin/research", requirePlatformOrigin, adminAuth);
 
 // ── Proxy helpers ─────────────────────────────────────────────────────────────
 
-function forwardToken(req: Request): Record<string, string> {
-  const authHeader = req.headers["authorization"] as string | undefined;
-  const xAdmin = req.headers["x-admin-token"] as string | undefined;
-  if (authHeader) return { Authorization: authHeader, "Content-Type": "application/json" };
-  if (xAdmin) return { Authorization: `Bearer ${xAdmin}`, "Content-Type": "application/json" };
-  return { "Content-Type": "application/json" };
+/**
+ * Build auth headers for upstream calls to the Python Research Lab service.
+ *
+ * The incoming request carries a platform JWT (validated by adminAuth), but
+ * the Python RL service expects the internal RESEARCH_LAB_ADMIN_TOKEN — the
+ * platform JWT must never be forwarded. Use the static internal token instead.
+ */
+function forwardToken(_req: Request): Record<string, string> {
+  const token = process.env["RESEARCH_LAB_ADMIN_TOKEN"];
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
 }
 
 async function proxyGet(path: string, req: Request, res: Response): Promise<void> {

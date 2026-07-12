@@ -1,76 +1,103 @@
 import type { Request, Response, NextFunction } from "express";
+import { createRemoteJWKSet, jwtVerify, errors as joseErrors } from "jose";
 import { logger } from "../lib/logger";
 
 /**
- * Admin-only authentication middleware for Research Lab endpoints.
+ * Admin-only authentication middleware for Research Lab and QDE lifecycle endpoints.
  *
- * Requires one of:
- *   Authorization: Bearer <RESEARCH_LAB_ADMIN_TOKEN>
- *   X-Admin-Token: <RESEARCH_LAB_ADMIN_TOKEN>
+ * Verifies the incoming request carries a valid JWT signed by the Signalium
+ * platform. The platform mints short-lived JWTs via its own SSO system and
+ * presents them as:
  *
- * Set RESEARCH_LAB_ADMIN_TOKEN in the environment.
- * If the env var is not set, all admin requests are rejected (fail-closed).
+ *   Authorization: Bearer <signed-jwt>
+ *
+ * The public key is fetched once from SIGNALIUM_JWKS_URL and cached
+ * indefinitely in-process (jose rotates the key automatically on verification
+ * failure, so key roll-overs are handled transparently).
+ *
+ * Required env var:
+ *   SIGNALIUM_JWKS_URL  — JWKS endpoint published by the platform
+ *                         e.g. https://signaliumai.com/sso/jwks
+ *
+ * Error responses:
+ *   503  SIGNALIUM_JWKS_URL not configured
+ *   401  No Authorization header / empty Bearer token
+ *   403  JWT invalid, expired, or signature mismatch
  */
-export function adminAuth(req: Request, res: Response, next: NextFunction): void {
-  const configuredToken = process.env["RESEARCH_LAB_ADMIN_TOKEN"];
 
-  if (!configuredToken) {
+// ---------------------------------------------------------------------------
+// JWKS cache — one remote keyset per process lifetime
+// ---------------------------------------------------------------------------
+
+let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
+  const url = process.env["SIGNALIUM_JWKS_URL"];
+  if (!url) return null;
+  if (!_jwks) {
+    _jwks = createRemoteJWKSet(new URL(url));
+  }
+  return _jwks;
+}
+
+// ---------------------------------------------------------------------------
+// Middleware
+// ---------------------------------------------------------------------------
+
+export async function adminAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const jwks = getJwks();
+
+  if (!jwks) {
     logger.warn(
       { url: req.url },
-      "adminAuth: RESEARCH_LAB_ADMIN_TOKEN not configured — denying request",
+      "adminAuth: SIGNALIUM_JWKS_URL not configured — denying request",
     );
     res.status(503).json({
       success: false,
-      error: "Research Lab is not configured. Set RESEARCH_LAB_ADMIN_TOKEN.",
+      error: "Trainer is not configured. Set SIGNALIUM_JWKS_URL.",
     });
     return;
   }
 
-  // Accept token from Authorization header (Bearer) or X-Admin-Token header
+  // Extract Bearer token
   const authHeader = req.headers["authorization"] ?? "";
-  const tokenFromBearer = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : null;
-  const tokenFromHeader = req.headers["x-admin-token"] as string | undefined;
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-  const providedToken = tokenFromBearer ?? tokenFromHeader ?? null;
-
-  if (!providedToken) {
-    logger.warn({ url: req.url }, "adminAuth: no token provided");
+  if (!token) {
+    logger.warn({ url: req.url }, "adminAuth: no Bearer token provided");
     res.status(401).json({
       success: false,
-      error:
-        "Unauthorized. Provide Authorization: Bearer <token> or X-Admin-Token: <token>.",
+      error: "Unauthorized. Provide Authorization: Bearer <platform-jwt>.",
     });
     return;
   }
 
-  // Constant-time comparison to prevent timing attacks
-  if (!timingSafeEqual(providedToken, configuredToken)) {
-    logger.warn({ url: req.url }, "adminAuth: invalid token");
-    res.status(403).json({ success: false, error: "Forbidden. Invalid admin token." });
-    return;
-  }
-
-  next();
-}
-
-/**
- * Constant-time string comparison that avoids early exit on mismatch.
- * Not cryptographically perfect in JS but prevents trivial timing leaks.
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    // Still iterate to avoid length-timing side channel
-    let diff = 0;
-    for (let i = 0; i < a.length; i++) {
-      diff |= (a.charCodeAt(i) ^ (b.charCodeAt(i % b.length) || 0));
+  // Verify signature + expiry against the platform JWKS
+  try {
+    await jwtVerify(token, jwks);
+    next();
+  } catch (err) {
+    if (err instanceof joseErrors.JWTExpired) {
+      logger.warn({ url: req.url }, "adminAuth: JWT expired");
+      res.status(403).json({ success: false, error: "Forbidden. JWT has expired." });
+    } else if (
+      err instanceof joseErrors.JWSInvalid ||
+      err instanceof joseErrors.JWSSignatureVerificationFailed ||
+      err instanceof joseErrors.JWTClaimValidationFailed
+    ) {
+      logger.warn({ url: req.url, err: String(err) }, "adminAuth: JWT validation failed");
+      res.status(403).json({ success: false, error: "Forbidden. Invalid JWT." });
+    } else {
+      // JWKS fetch failure or unexpected error — treat as misconfiguration
+      logger.error({ url: req.url, err: String(err) }, "adminAuth: JWKS verification error");
+      res.status(503).json({
+        success: false,
+        error: "Could not verify JWT. JWKS endpoint may be unreachable.",
+      });
     }
-    return false;
   }
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
 }
