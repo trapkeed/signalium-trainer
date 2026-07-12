@@ -1,0 +1,44 @@
+root@server1:/opt/signalium-trainer# cat > /opt/signalium-trainer/deploy/scripts/start-research-lab.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/signalium-trainer
+set -a; source .env; set +a
+source .venv/bin/activate
+exec uvicorn trainer.research_lab.research_lab_server:app --port 8002 --host 127.0.0.1 --workers 1
+EOF
+
+cat > /opt/signalium-trainer/deploy/scripts/start-qde.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd /opt/signalium-trainer
+set -a; source .env; set +a
+source .venv/bin/activate
+exec uvicorn trainer.qde.qde_server:app --port 8001 --host 127.0.0.1 --workers 1
+EOF
+
+pm2 restart signalium-qde signalium-research-lab
+sleep 5
+curl -s -H "Authorization: Bearer f6199c25ce9376b214fcac747cc06964833f6a217f343572da8635bfa6b459f4" http://127.0.0.1:8002/research/healthz
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [signalium-qde](ids: [ 10 ])
+[PM2] [signalium-qde](10) ✓
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [signalium-research-lab](ids: [ 11 ])
+[PM2] [signalium-research-lab](11) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 34.9mb   │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 54.9mb   │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 120.1mb  │
+│ 10 │ signalium-qde      │ fork     │ 413  │ online    │ 97.1%    │ 443.5mb  │
+│ 11 │ signalium-researc… │ fork     │ 461  │ online    │ 0%       │ 4.5mb    │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 22.0mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 20.7mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+{"detail":"Unauthorized: No Signalium token presented"}root@server1:/opt/signalium-trainer#
