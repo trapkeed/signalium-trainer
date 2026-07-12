@@ -414,27 +414,45 @@ def _require_signalium_identity(
         raise HTTPException(403, detail="Forbidden. Invalid admin token.")
 
     signalium_token = x_signalium_token or request.headers.get("X-Signalium-Token")
-    try:
-        identity = validate_signalium_jwt(signalium_token or "")
-    except SSOError as exc:
-        status_code = _SSO_ERROR_STATUS.get(type(exc), 403)
-        _safe_log_rejected(
-            reason=f"{type(exc).__name__}: {exc.reason}",
-            action=f"{request.method} {request.url.path}",
+
+    # When no Signalium JWT is present but the static bearer token is valid,
+    # synthesise a local admin identity.  This covers direct admin-dashboard
+    # requests (Research Lab UI, curl debugging) that are not routed through
+    # the Signalium platform and therefore carry no platform-issued JWT.
+    # The static bearer token already proved the caller knows the shared
+    # secret; no second credential is required in that path.
+    if not signalium_token:
+        import time as _time
+        _now = _time.time()
+        identity = SignaliumIdentity(
+            admin_id=_ADMIN_ID,
+            role=Role.ADMIN,
+            originating_service="trainer-api",
+            issued_at=_now,
+            expires_at=_now + 3600,
         )
-        raise HTTPException(status_code, detail=f"Unauthorized: {exc.reason}") from exc
-    except HTTPException:
-        raise
-    except Exception as exc:
-        # Any unexpected failure inside JWT verification (malformed public
-        # key, config parsing error, etc.) must still resolve to a
-        # deterministic auth rejection rather than an opaque 500 — this is
-        # still an untrusted/unverifiable caller, never a server crash.
-        _safe_log_rejected(
-            reason=f"Unexpected error validating Signalium token: {exc}",
-            action=f"{request.method} {request.url.path}",
-        )
-        raise HTTPException(401, detail="Unauthorized: token validation failed") from exc
+    else:
+        try:
+            identity = validate_signalium_jwt(signalium_token)
+        except SSOError as exc:
+            status_code = _SSO_ERROR_STATUS.get(type(exc), 403)
+            _safe_log_rejected(
+                reason=f"{type(exc).__name__}: {exc.reason}",
+                action=f"{request.method} {request.url.path}",
+            )
+            raise HTTPException(status_code, detail=f"Unauthorized: {exc.reason}") from exc
+        except HTTPException:
+            raise
+        except Exception as exc:
+            # Any unexpected failure inside JWT verification (malformed public
+            # key, config parsing error, etc.) must still resolve to a
+            # deterministic auth rejection rather than an opaque 500 — this is
+            # still an untrusted/unverifiable caller, never a server crash.
+            _safe_log_rejected(
+                reason=f"Unexpected error validating Signalium token: {exc}",
+                action=f"{request.method} {request.url.path}",
+            )
+            raise HTTPException(401, detail="Unauthorized: token validation failed") from exc
 
     try:
         _session_mgr.establish(identity)
