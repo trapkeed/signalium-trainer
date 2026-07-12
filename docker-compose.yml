@@ -1,0 +1,142 @@
+# =============================================================================
+# Signalium Trainer — production docker-compose
+# =============================================================================
+#
+# Services
+# --------
+#   trainer-api     Node.js Express API (port 3000 → host $TRAINER_API_PORT)
+#   research-lab    Python FastAPI Research Lab (internal port 8002, no host binding)
+#   qde             QDE inference server      (internal port 8001, no host binding)
+#
+# Quick start
+# -----------
+#   cp .env.example .env          # then fill in every required value
+#   docker compose up --build -d
+#
+# Secrets
+# -------
+# All secrets are read from the host environment or a .env file at the repo
+# root.  Never commit real values — .env is gitignored.
+#
+# The single RESEARCH_LAB_ADMIN_TOKEN is shared between trainer-api and
+# research-lab via the shared_secrets block below — change it in one place
+# and both services see the new value on the next `docker compose up`.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Trainer API — Node.js
+  # ---------------------------------------------------------------------------
+  trainer-api:
+    build:
+      context: .
+      dockerfile: apps/trainer-api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${TRAINER_API_PORT:-3000}:${PORT:-3000}"
+    environment:
+      NODE_ENV: production
+      PORT: "${PORT:-3000}"
+
+      # ── Inbound auth (platform → trainer) ──────────────────────────────────
+      # JWKS endpoint the trainer uses to verify platform JWTs.
+      SIGNALIUM_JWKS_URL: "${SIGNALIUM_JWKS_URL}"
+
+      # ── Internal service URLs ───────────────────────────────────────────────
+      # Point at Docker service names — do NOT use localhost here.
+      RESEARCH_LAB_API_URL: "http://research-lab:8002"
+      QDE_API_URL: "http://qde:8001"
+
+      # ── Shared secrets ──────────────────────────────────────────────────────
+      RESEARCH_LAB_ADMIN_TOKEN: "${RESEARCH_LAB_ADMIN_TOKEN}"
+      SESSION_SECRET: "${SESSION_SECRET}"
+
+      # ── Outbound (trainer → platform) ───────────────────────────────────────
+      SIGNALIUM_PLATFORM_API_KEY: "${SIGNALIUM_PLATFORM_API_KEY:-}"
+      SIGNALIUM_PLATFORM_BASE_URL: "${SIGNALIUM_PLATFORM_BASE_URL:-}"
+
+      # ── Optional ────────────────────────────────────────────────────────────
+      PLATFORM_ALLOWED_ORIGINS: "${PLATFORM_ALLOWED_ORIGINS:-}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    networks:
+      - backend
+    depends_on:
+      research-lab:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Research Lab — Python FastAPI
+  # ---------------------------------------------------------------------------
+  research-lab:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.research-lab
+    restart: unless-stopped
+    # Not exposed to the host — only reachable by trainer-api on the backend network.
+    expose:
+      - "8002"
+    environment:
+      # ── Required ────────────────────────────────────────────────────────────
+      RESEARCH_LAB_ADMIN_TOKEN: "${RESEARCH_LAB_ADMIN_TOKEN}"
+
+      # ── Storage ─────────────────────────────────────────────────────────────
+      # Override to persist the SQLite database outside the container.
+      RESEARCH_LAB_DB_PATH: "${RESEARCH_LAB_DB_PATH:-/app/data/research_lab.db}"
+
+      # ── Signalium SSO (for audit-trail enrichment) ──────────────────────────
+      # Optional but recommended: set so the Python server can validate
+      # X-Signalium-Token JWTs and record the verified identity in audit logs.
+      # HS256 (default):
+      SIGNALIUM_JWT_SECRET: "${SIGNALIUM_JWT_SECRET:-}"
+      # RS256 (alternative — set SIGNALIUM_JWT_ALGORITHM=RS256 to activate):
+      SIGNALIUM_JWT_PUBLIC_KEY: "${SIGNALIUM_JWT_PUBLIC_KEY:-}"
+      SIGNALIUM_JWT_ALGORITHM: "${SIGNALIUM_JWT_ALGORITHM:-HS256}"
+
+      # ── Scheduler ───────────────────────────────────────────────────────────
+      RESEARCH_LAB_SCHEDULER_ENABLED: "${RESEARCH_LAB_SCHEDULER_ENABLED:-false}"
+      RESEARCH_LAB_SCHEDULER_POLL_S: "${RESEARCH_LAB_SCHEDULER_POLL_S:-3600}"
+    volumes:
+      - research_lab_data:/app/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # QDE inference server — placeholder
+  # ---------------------------------------------------------------------------
+  # Uncomment and configure when the QDE server image is available.
+  # qde:
+  #   image: signalium/qde-server:latest
+  #   restart: unless-stopped
+  #   expose:
+  #     - "8001"
+  #   environment:
+  #     QDE_ADMIN_TOKEN: "${QDE_ADMIN_TOKEN}"
+  #   networks:
+  #     - backend
+
+# ---------------------------------------------------------------------------
+# Named volumes
+# ---------------------------------------------------------------------------
+volumes:
+  research_lab_data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  backend:
+    driver: bridge

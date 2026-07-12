@@ -3,13 +3,17 @@ import { spawn } from "child_process";
 import app from "./app";
 import { logger } from "./lib/logger";
 
-// ── Research Lab sidecar ──────────────────────────────────────────────────────
-// The Python Research Lab FastAPI server runs on a private port alongside the
-// Node API.  Auto-start it in production, or when explicitly enabled for local
-// testing via RESEARCH_LAB_AUTOSTART=true.
-const _shouldStartRL =
-  process.env["NODE_ENV"] === "production" ||
-  process.env["RESEARCH_LAB_AUTOSTART"] === "true";
+// ── Research Lab sidecar (dev / Replit only) ──────────────────────────────────
+// In production the Research Lab runs as a dedicated container (see
+// docker-compose.yml and docker/Dockerfile.research-lab).  The sidecar here is
+// a convenience for local development where spawning a second process is easier
+// than standing up a second container.  Enable it explicitly:
+//
+//   RESEARCH_LAB_AUTOSTART=true   # in .env or docker-compose.override.yml
+//
+// Never set NODE_ENV=production as the trigger — that environment runs a
+// Node-only container that has no Python interpreter.
+const _shouldStartRL = process.env["RESEARCH_LAB_AUTOSTART"] === "true";
 
 if (_shouldStartRL) {
   const rlPort = process.env["RESEARCH_LAB_PORT"] ?? "8002";
