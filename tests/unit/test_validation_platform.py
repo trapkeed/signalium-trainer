@@ -31,6 +31,7 @@ import uuid
 
 import numpy as np
 import pytest
+
 pytestmark = pytest.mark.requires_torch
 import torch
 import torch.nn as nn

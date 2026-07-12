@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 pytestmark = pytest.mark.requires_torch
 import torch
 

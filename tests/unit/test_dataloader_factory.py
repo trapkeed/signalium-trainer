@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 pytestmark = pytest.mark.requires_torch
 
 from tests.mocks.dataset import MockDataset

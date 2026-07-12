@@ -428,6 +428,7 @@ def _require_signalium_identity(
         # when present (who exactly performed the action) but is never a hard
         # requirement for access.
         import time as _time
+
         _now = _time.time()
         identity = SignaliumIdentity(
             admin_id=_ADMIN_ID,

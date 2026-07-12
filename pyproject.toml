@@ -103,6 +103,13 @@ select = ["E", "F", "W", "I"]
 # F821: undefined name — forward references and TYPE_CHECKING guards produce false positives
 ignore = ["E501", "F841", "E741", "F821"]
 
+[tool.ruff.lint.per-file-ignores]
+# E402: module-level imports not at top — test files intentionally place
+# `pytestmark = pytest.mark.requires_torch` before torch imports so the
+# marker is visible to the collector even when torch stubs are injected.
+"tests/**/*.py" = ["E402"]
+"conftest.py" = ["E402"]
+
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
@@ -116,3 +123,6 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "--cov=trainer --cov-report=term-missing --cov-report=html --timeout=120"
 filterwarnings = ["ignore::DeprecationWarning"]
+# Keep pytest temp dirs off the workspace filesystem to avoid inode exhaustion.
+tmp_path_retention_policy = "none"
+tmp_path_retention_count = 0
