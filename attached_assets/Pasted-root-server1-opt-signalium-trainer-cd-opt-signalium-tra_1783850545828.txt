@@ -1,0 +1,58 @@
+root@server1:/opt/signalium-trainer# cd /opt/signalium-trainer
+git checkout FETCH_HEAD -- apps/trainer-api/build.mjs
+git checkout FETCH_HEAD -- apps/trainer-api/src/
+NODE_ENV= pnpm install --no-frozen-lockfile
+pnpm --filter @workspace/trainer-api run build
+pm2 reload signalium-trainer-api
+Scope: all 6 workspace projects
+✔ The modules directories will be removed and reinstalled from scratch. Proceed? (Y/n) · true
+
+Lockfile is up to date, resolution step is skipped
+Packages: +211
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 211, reused 211, downloaded 0, added 211, done
+
+devDependencies:
++ prettier 3.8.4
++ typescript 5.9.3
+
+. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_u…
+└─ Done in 55ms
+Done in 6.6s using pnpm v9.15.9
+
+> @workspace/trainer-api@0.0.0 build /opt/signalium-trainer/apps/trainer-api
+> node ./build.mjs
+
+✘ [ERROR] Could not resolve "@workspace/api-zod"
+
+    src/routes/health.ts:2:36:
+      2 │ import { HealthCheckResponse } from "@workspace/api-zod";
+        ╵                                     ~~~~~~~~~~~~~~~~~~~~
+
+  The module "./src/index.ts" was not found on the file system:
+
+    node_modules/@workspace/api-zod/package.json:7:9:
+      7 │     ".": "./src/index.ts"
+        ╵          ~~~~~~~~~~~~~~~~
+
+  You can mark the path "@workspace/api-zod" as external to exclude it from
+  the bundle, which will remove this error and leave the unresolved path in
+  the bundle.
+
+1 error
+Error: Build failed with 1 error:
+src/routes/health.ts:2:36: ERROR: Could not resolve "@workspace/api-zod"
+    at failureErrorWithLog (/opt/signalium-trainer/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1467:15)
+    at /opt/signalium-trainer/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:926:25
+    at /opt/signalium-trainer/node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/lib/main.js:1345:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  errors: [Getter/Setter],
+  warnings: [Getter/Setter]
+}
+/opt/signalium-trainer/apps/trainer-api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/trainer-api@0.0.0 build: `node ./build.mjs`
+Exit status 1
+Use --update-env to update environment variables
+[PM2] Applying action reloadProcessId on app [signalium-trainer-api](ids: [ 7 ])
+[PM2] [signalium-trainer-api](7) ✓
+root@server1:/opt/signalium-trainer#
