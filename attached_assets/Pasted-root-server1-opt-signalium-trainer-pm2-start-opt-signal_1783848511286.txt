@@ -1,0 +1,52 @@
+root@server1:/opt/signalium-trainer# pm2 start "/opt/signalium-trainer/.venv/bin/uvicorn trainer.qde.qde_server:app --port 8001 --host 127.0.0.1" \
+  --name signalium-qde \
+  --cwd /opt/signalium-trainer \
+  --interpreter none
+
+pm2 start "/opt/signalium-trainer/.venv/bin/uvicorn trainer.research_lab.research_lab_server:app --port 8002 --host 127.0.0.1" \
+  --name signalium-research-lab \
+  --cwd /opt/signalium-trainer \
+  --interpreter none
+
+pm2 save
+
+curl -s http://127.0.0.1:8001/health
+curl -s http://127.0.0.1:8002/health
+[PM2] Starting /usr/bin/bash in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 198.0mb  │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 225.5mb  │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 307.2mb  │
+│ 8  │ signalium-qde      │ fork     │ 0    │ online    │ 0%       │ 5.5mb    │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 59.5mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 35.9mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+[PM2] Starting /usr/bin/bash in fork_mode (1 instance)
+[PM2] Done.
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 3  │ 123scrapper-api    │ fork     │ 1    │ online    │ 0%       │ 197.5mb  │
+│ 2  │ motocheck-api      │ fork     │ 1    │ online    │ 0%       │ 224.7mb  │
+│ 6  │ signalium-api      │ fork     │ 11   │ online    │ 0%       │ 307.2mb  │
+│ 8  │ signalium-qde      │ fork     │ 0    │ online    │ 100%     │ 26.9mb   │
+│ 9  │ signalium-researc… │ fork     │ 0    │ online    │ 0%       │ 4.4mb    │
+│ 7  │ signalium-trainer… │ fork     │ 9    │ online    │ 0%       │ 59.5mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+Module
+┌────┬────────────────────┬──────────┬──────────┬──────────┐
+│ id │ name               │ status   │ cpu      │ mem      │
+├────┼────────────────────┼──────────┼──────────┼──────────┤
+│ 0  │ pm2-logrotate      │ online   │ 0%       │ 35.9mb   │
+└────┴────────────────────┴──────────┴──────────┴──────────┘
+[PM2] Saving current process list...
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+root@server1:/opt/signalium-trainer#
