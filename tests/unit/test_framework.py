@@ -7,6 +7,7 @@ ModelFactory, enhanced ModelRegistry, and MetricsEngine.
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 import torch
 
 from trainer.framework import (

@@ -15,6 +15,7 @@ Covers:
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 import torch
 import torch.nn as nn
 

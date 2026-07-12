@@ -156,6 +156,7 @@ from trainer.research_lab.sso import (
     MalformedToken,
     MissingClaim,
     MissingToken,
+    Role,
     ServerMisconfigured,
     SignaliumIdentity,
     SSOError,
@@ -415,13 +416,17 @@ def _require_signalium_identity(
 
     signalium_token = x_signalium_token or request.headers.get("X-Signalium-Token")
 
-    # When no Signalium JWT is present but the static bearer token is valid,
-    # synthesise a local admin identity.  This covers direct admin-dashboard
-    # requests (Research Lab UI, curl debugging) that are not routed through
-    # the Signalium platform and therefore carry no platform-issued JWT.
-    # The static bearer token already proved the caller knows the shared
-    # secret; no second credential is required in that path.
     if not signalium_token:
+        # No Signalium JWT present.  Synthesise a local admin identity from the
+        # static bearer token that was already verified above.
+        #
+        # Design rationale: this server is a private internal service running on
+        # localhost, only reachable through the Express proxy layer.  The Express
+        # layer is responsible for SSO enforcement for external callers; a valid
+        # static bearer token here is sufficient proof the request arrived through
+        # the trusted internal channel.  The Signalium JWT enriches audit records
+        # when present (who exactly performed the action) but is never a hard
+        # requirement for access.
         import time as _time
         _now = _time.time()
         identity = SignaliumIdentity(

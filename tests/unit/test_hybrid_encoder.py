@@ -19,6 +19,7 @@ Test coverage:
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 import torch
 
 from trainer.models.quant_v1.hybrid import (

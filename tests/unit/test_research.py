@@ -303,6 +303,8 @@ class TestLeaderboard:
 
 
 class TestWalkForwardValidator:
+    pytestmark = pytest.mark.requires_torch
+
     @pytest.fixture()
     def data(self) -> tuple[torch.Tensor, torch.Tensor]:
         n = 200
@@ -356,6 +358,8 @@ class TestWalkForwardValidator:
 
 
 class TestRollingWindowValidator:
+    pytestmark = pytest.mark.requires_torch
+
     @pytest.fixture()
     def data(self) -> tuple[torch.Tensor, torch.Tensor]:
         n = 150

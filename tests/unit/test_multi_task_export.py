@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 
 from trainer.config.schema import TrainerConfig
 from trainer.models.quant_v1.config import (

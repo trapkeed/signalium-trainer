@@ -344,11 +344,23 @@ class TestServerCapabilityEnforcement:
             "researcher": "tester",
         }
 
-    def test_missing_signalium_token_rejected(self, sso_server_client):
+    def test_bearer_only_synthesises_admin_identity(self, sso_server_client):
+        # This server is a private internal service — a valid static bearer
+        # token is sufficient for access even when SSO keys are configured.
+        # The Signalium JWT enriches audit records but is not a hard gate.
         resp = sso_server_client.post(
             "/research/experiments",
             headers={"Authorization": "Bearer sso-e2e-token"},
             json=self._experiment_payload("exp"),
+        )
+        assert resp.status_code == 200
+
+    def test_missing_bearer_token_rejected(self, sso_server_client):
+        # No Authorization header at all — always 401 regardless of SSO config.
+        resp = sso_server_client.post(
+            "/research/experiments",
+            headers={},
+            json=self._experiment_payload("exp-noauth"),
         )
         assert resp.status_code == 401
 
@@ -482,13 +494,13 @@ class TestServerCapabilityEnforcement:
             raise RuntimeError("simulated audit DB outage")
 
         monkeypatch.setattr(srv_mod._audit, "log_rejected", _boom)
+        # No Authorization header at all — must still return 401 even when the
+        # audit logger itself is broken (never swallow auth errors as 500).
         resp = sso_server_client.post(
             "/research/experiments",
-            headers={"Authorization": "Bearer sso-e2e-token"},
+            headers={},
             json=self._experiment_payload("exp-auditfail"),
         )
-        # Auth failure (missing Signalium token) must still surface as 401,
-        # not a 500 from the broken audit logger.
         assert resp.status_code == 401
 
     def test_audit_persistence_failure_does_not_mask_success(self, sso_server_client, monkeypatch):

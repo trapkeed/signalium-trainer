@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from collections import Counter
 
+import pytest
+pytestmark = pytest.mark.requires_torch
+
 from torch.utils.data import WeightedRandomSampler
 
 from trainer.models.quant_v1.config import BalancingConfig, BalancingStrategy

@@ -9,6 +9,7 @@ prediction_timestamp, model_version).
 from __future__ import annotations
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 import torch
 
 from trainer.config.schema import TrainerConfig

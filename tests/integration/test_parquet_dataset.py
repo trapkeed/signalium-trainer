@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+pytestmark = pytest.mark.requires_torch
 import torch
 
 from tests.mocks.dataset import make_parquet_dataset
