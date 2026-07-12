@@ -51,12 +51,15 @@ export function requireResearchLabAuthorization(
     }
 
     try {
+      const signaliumToken = req.headers["x-signalium-token"];
+      const rlHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${configuredToken}`,
+      };
+      if (signaliumToken) rlHeaders["X-Signalium-Token"] = Array.isArray(signaliumToken) ? signaliumToken[0]! : signaliumToken;
       const upstream = await fetch(`${RL_BASE}/research/lifecycle/consume`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${configuredToken}`,
-        },
+        headers: rlHeaders,
         body: JSON.stringify({ version_id: versionId, action }),
       });
       const data = (await upstream.json()) as { success?: boolean; error?: string };

@@ -42,12 +42,16 @@ router.use("/admin/research", requirePlatformOrigin, adminAuth);
  *
  * The incoming request carries a platform JWT (validated by adminAuth), but
  * the Python RL service expects the internal RESEARCH_LAB_ADMIN_TOKEN — the
- * platform JWT must never be forwarded. Use the static internal token instead.
+ * platform JWT must never be forwarded as the Authorization bearer.
+ * However, the Python server also requires the X-Signalium-Token JWT for
+ * identity resolution, so we forward that header through unchanged.
  */
-function forwardToken(_req: Request): Record<string, string> {
+function forwardToken(req: Request): Record<string, string> {
   const token = process.env["RESEARCH_LAB_ADMIN_TOKEN"];
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  const signaliumToken = req.headers["x-signalium-token"];
+  if (signaliumToken) headers["X-Signalium-Token"] = Array.isArray(signaliumToken) ? signaliumToken[0]! : signaliumToken;
   return headers;
 }
 
