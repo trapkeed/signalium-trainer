@@ -34,12 +34,15 @@ nano .env          # fill in your values (see comments inside)
 
 Minimum required variables:
 
-| Variable | Description |
-|---|---|
-| `PORT` | Port the Trainer API listens on (e.g. `3000`) |
-| `RESEARCH_LAB_ADMIN_TOKEN` | Secret token for the Research Lab admin API |
-| `SIGNALIUM_PLATFORM_API_KEY` | API key for outbound platform calls (optional — disables push if unset) |
-| `SESSION_SECRET` | Random secret for session signing |
+| Variable | Required | Description |
+|---|---|---|
+| `PORT` | ✅ | Port the Trainer API listens on (e.g. `3000`) |
+| `SIGNALIUM_JWKS_URL` | ✅ | Platform JWKS endpoint for verifying inbound admin JWTs |
+| `RESEARCH_LAB_ADMIN_TOKEN` | ✅ | Shared secret for internal trainer → Python RL service calls |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `RESEARCH_LAB_API_URL` | ✅ | Python Research Lab service URL (default `http://localhost:8002`) |
+| `QDE_API_URL` | ✅ | QDE service URL (default `http://localhost:8001`) |
+| `SIGNALIUM_PLATFORM_API_KEY` | optional | API key for outbound push calls to the platform. Leave blank to disable push (trainer still starts). |
 
 ---
 

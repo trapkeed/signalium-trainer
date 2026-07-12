@@ -37,10 +37,11 @@ Access requires passing **two independent authentication checks**:
 
 | Layer | Component | Mechanism | Failure Behaviour |
 |---|---|---|---|
-| 1 (outer) | Express `adminAuth` middleware | Bearer token or `X-Admin-Token` vs. `RESEARCH_LAB_ADMIN_TOKEN` | 401/403, request rejected |
+| 1 (outer) | Express `adminAuth` middleware | `Authorization: Bearer <platform-jwt>` verified against `SIGNALIUM_JWKS_URL` (ES256, `iss=signalium`, `aud=signalium-trainer`) | 401/403, request rejected |
 | 2 (inner) | FastAPI `_require_admin` dependency | Bearer token vs. `RESEARCH_LAB_ADMIN_TOKEN` | 403, request rejected |
 
-Both layers are **fail-closed**: if `RESEARCH_LAB_ADMIN_TOKEN` is not set in the environment, all admin requests are rejected with 503. There is no insecure fallback.
+Layer 1 is **fail-closed**: the platform JWT must be present, unexpired, and signed by the platform's JWKS endpoint. There is no static-token fallback and no `X-Admin-Token` path.
+Layer 2 is **fail-closed**: if `RESEARCH_LAB_ADMIN_TOKEN` is not set in the environment, all internal trainer→Research Lab calls are rejected with 503.
 
 The token check uses constant-time comparison at the Express layer to prevent timing side-channel attacks.
 
