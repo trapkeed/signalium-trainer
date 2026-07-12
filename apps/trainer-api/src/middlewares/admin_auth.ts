@@ -1,69 +1,33 @@
 import type { Request, Response, NextFunction } from "express";
-import { createRemoteJWKSet, jwtVerify, errors as joseErrors } from "jose";
-import { logger } from "../lib/logger";
+import { verifyPlatformJwt, JwtVerifyError } from "../lib/jwt_verify.js";
+import { logger } from "../lib/logger.js";
 
 /**
  * Admin-only authentication middleware for Research Lab and QDE lifecycle endpoints.
  *
  * Verifies the incoming request carries a valid JWT signed by the Signalium
- * platform. The platform mints short-lived JWTs via its own SSO system and
+ * platform. The platform mints short-lived ES256 JWTs via its own SSO system and
  * presents them as:
  *
  *   Authorization: Bearer <signed-jwt>
  *
- * The public key is fetched once from SIGNALIUM_JWKS_URL and cached
- * indefinitely in-process (jose rotates the key automatically on verification
- * failure, so key roll-overs are handled transparently).
- *
- * Required env var:
- *   SIGNALIUM_JWKS_URL  — JWKS endpoint published by the platform
- *                         e.g. https://signaliumai.com/sso/jwks
+ * Verification enforces:
+ *   - Algorithm must be ES256
+ *   - Signature valid against the platform JWKS (SIGNALIUM_JWKS_URL, with 10-min cache)
+ *   - iss === "signalium"
+ *   - aud === "signalium-trainer"
+ *   - exp is in the future
  *
  * Error responses:
- *   503  SIGNALIUM_JWKS_URL not configured
- *   401  No Authorization header / empty Bearer token
- *   403  JWT invalid, expired, or signature mismatch
+ *   401  No Authorization header / empty Bearer token / expired token
+ *   403  Wrong issuer, wrong audience, or invalid/malformed JWT
+ *   503  JWKS endpoint unreachable (propagated from jwks_client)
  */
-
-// ---------------------------------------------------------------------------
-// JWKS cache — one remote keyset per process lifetime
-// ---------------------------------------------------------------------------
-
-let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-
-function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
-  const url = process.env["SIGNALIUM_JWKS_URL"];
-  if (!url) return null;
-  if (!_jwks) {
-    _jwks = createRemoteJWKSet(new URL(url));
-  }
-  return _jwks;
-}
-
-// ---------------------------------------------------------------------------
-// Middleware
-// ---------------------------------------------------------------------------
-
 export async function adminAuth(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const jwks = getJwks();
-
-  if (!jwks) {
-    logger.warn(
-      { url: req.url },
-      "adminAuth: SIGNALIUM_JWKS_URL not configured — denying request",
-    );
-    res.status(503).json({
-      success: false,
-      error: "Trainer is not configured. Set SIGNALIUM_JWKS_URL.",
-    });
-    return;
-  }
-
-  // Extract Bearer token
   const authHeader = req.headers["authorization"] ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
@@ -76,28 +40,32 @@ export async function adminAuth(
     return;
   }
 
-  // Verify signature + expiry against the platform JWKS
   try {
-    await jwtVerify(token, jwks);
+    await verifyPlatformJwt(token);
     next();
   } catch (err) {
-    if (err instanceof joseErrors.JWTExpired) {
-      logger.warn({ url: req.url }, "adminAuth: JWT expired");
-      res.status(403).json({ success: false, error: "Forbidden. JWT has expired." });
-    } else if (
-      err instanceof joseErrors.JWSInvalid ||
-      err instanceof joseErrors.JWSSignatureVerificationFailed ||
-      err instanceof joseErrors.JWTClaimValidationFailed
-    ) {
-      logger.warn({ url: req.url, err: String(err) }, "adminAuth: JWT validation failed");
-      res.status(403).json({ success: false, error: "Forbidden. Invalid JWT." });
-    } else {
-      // JWKS fetch failure or unexpected error — treat as misconfiguration
-      logger.error({ url: req.url, err: String(err) }, "adminAuth: JWKS verification error");
-      res.status(503).json({
-        success: false,
-        error: "Could not verify JWT. JWKS endpoint may be unreachable.",
-      });
+    if (err instanceof JwtVerifyError) {
+      const isUnauthenticated =
+        err.kind === "MISSING_TOKEN" || err.kind === "EXPIRED";
+
+      logger.warn(
+        { url: req.url, kind: err.kind, message: err.message },
+        "adminAuth: JWT verification failed",
+      );
+
+      if (isUnauthenticated) {
+        res.status(401).json({ success: false, error: err.message });
+      } else {
+        res.status(403).json({ success: false, error: `Forbidden. ${err.message}` });
+      }
+      return;
     }
+
+    // Unexpected error (e.g. JWKS fetch failure) — surface as 503
+    logger.error({ url: req.url, err: String(err) }, "adminAuth: unexpected JWT error");
+    res.status(503).json({
+      success: false,
+      error: `Could not verify JWT: ${String(err)}`,
+    });
   }
 }
