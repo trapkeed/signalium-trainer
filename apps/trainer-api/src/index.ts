@@ -13,11 +13,15 @@ const _shouldStartRL =
 
 if (_shouldStartRL) {
   const rlPort = process.env["RESEARCH_LAB_PORT"] ?? "8002";
-  // Uvicorn must run from the workspace root so Python can resolve the
-  // `trainer` package.  REPL_HOME is set by Replit to the workspace root;
-  // fall back to two directories up from the package dir for Docker.
-  const workspaceRoot =
-    process.env["REPL_HOME"] ?? new URL("../../..", import.meta.url).pathname;
+  // Uvicorn must run from the project root so Python can resolve the `trainer`
+  // package (it is not installed into site-packages; it is loaded from the
+  // source tree).  The compiled file lives at:
+  //   <root>/apps/trainer-api/dist/index.mjs
+  // so three levels up is always the project root, in any environment.
+  // Override with RESEARCH_LAB_ROOT if your deployment layout differs.
+  const projectRoot =
+    process.env["RESEARCH_LAB_ROOT"] ??
+    new URL("../../..", import.meta.url).pathname;
 
   const rl = spawn(
     "uvicorn",
@@ -30,7 +34,7 @@ if (_shouldStartRL) {
       "--workers",
       "1",
     ],
-    { stdio: "inherit", env: process.env, cwd: workspaceRoot },
+    { stdio: "inherit", env: process.env, cwd: projectRoot },
   );
   rl.on("error", (err) =>
     logger.error({ err }, "Research Lab server failed to start"),
