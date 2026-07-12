@@ -17,16 +17,22 @@ import subprocess
 import sys
 from typing import Any
 
-import torch
+try:
+    import torch as _torch
+
+    _TORCH_AVAILABLE = True
+except Exception:  # noqa: BLE001 — broken .so or not installed
+    _torch = None  # type: ignore[assignment]
+    _TORCH_AVAILABLE = False
 
 
 def _pytorch_version() -> str:
-    return torch.__version__
+    return _torch.__version__ if _TORCH_AVAILABLE else "unavailable"
 
 
 def _cuda_version() -> str | None:
-    if torch.cuda.is_available():
-        return torch.version.cuda or "unknown"
+    if _TORCH_AVAILABLE and _torch.cuda.is_available():
+        return _torch.version.cuda or "unknown"
     return None
 
 
@@ -51,12 +57,14 @@ def _git_commit(short: bool = True) -> str:
         return "unknown"
 
 
-def _device_name(device: torch.device) -> str:
-    """Human-readable device name for a torch.device."""
+def _device_name(device: Any) -> str:
+    """Human-readable device name for a torch.device (or plain string fallback)."""
+    if not _TORCH_AVAILABLE:
+        return str(device)
     if device.type == "cuda":
         try:
             idx = device.index or 0
-            return torch.cuda.get_device_name(idx)
+            return _torch.cuda.get_device_name(idx)
         except Exception:
             return f"cuda:{device.index}"
     if device.type == "mps":
@@ -64,12 +72,14 @@ def _device_name(device: torch.device) -> str:
     return "cpu"
 
 
-def _memory_used_mb(device: torch.device) -> float:
+def _memory_used_mb(device: Any) -> float:
     """Approximate current memory consumption in MB."""
+    if not _TORCH_AVAILABLE:
+        return 0.0
     if device.type == "cuda":
         try:
             idx = device.index or 0
-            return torch.cuda.memory_allocated(idx) / (1024**2)
+            return _torch.cuda.memory_allocated(idx) / (1024**2)
         except Exception:
             return 0.0
     return 0.0
@@ -88,7 +98,7 @@ class InferenceContext:
 
     def __init__(
         self,
-        device: torch.device,
+        device: Any,
         inference_engine_version: str = "1.0.0",
     ) -> None:
         self._device = device
@@ -100,7 +110,7 @@ class InferenceContext:
         self._device_name = _device_name(device)
 
     @property
-    def device(self) -> torch.device:
+    def device(self) -> Any:
         return self._device
 
     @property
