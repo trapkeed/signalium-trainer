@@ -60,8 +60,13 @@ ENV NODE_ENV=production
 # Default 3000 matches .env.example.
 EXPOSE 3000
 
+# node:22-slim has no curl/wget — use Node itself to probe the health endpoint.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+    CMD node -e "\
+const http = require('http'); \
+const port = process.env.PORT || 3000; \
+http.get('http://localhost:' + port + '/health', r => process.exit(r.statusCode === 200 ? 0 : 1)) \
+    .on('error', () => process.exit(1));"
 
 WORKDIR /app/apps/trainer-api
 CMD ["node", "--enable-source-maps", "dist/index.mjs"]
