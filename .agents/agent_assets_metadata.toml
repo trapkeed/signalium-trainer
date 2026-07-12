@@ -54,3 +54,9 @@ id = "20iAwNoInfUM92RNXZ5x8"
 uri = "file://docs/qde/research_lab_final_architecture.md"
 type = "text"
 title = "Research Lab Final Architecture Report"
+
+[[outputs]]
+id = "0UIWn3wIHxWdJgUHGO09g"
+uri = "file://signalium-trainer-release.tar.gz"
+type = "unspecified"
+title = "signalium-trainer-release.tar.gz"
