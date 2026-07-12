@@ -1,0 +1,42 @@
+[PM2] Successfully saved in /root/.pm2/dump.pm2
+root@server1:/opt/signalium-trainer# curl -s http://127.0.0.1:8001/health && echo "" && curl -s http://127.0.0.1:8002/health
+root@server1:/opt/signalium-trainer# pm2 logs signalium-qde --lines 15 --nostream && pm2 logs signalium-research-lab --lines 15 --nostream
+[TAILING] Tailing last 15 lines for [signalium-qde] process (change the value with --lines option)
+/root/.pm2/logs/signalium-qde-out.log last 15 lines:
+/root/.pm2/logs/signalium-qde-error.log last 15 lines:
+10|signali |     import torch
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/__init__.py", line 1934, in <module>
+10|signali |     from torch import storage as storage  # usort: skip
+10|signali |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/storage.py", line 27, in <module>
+10|signali |     import numpy as np
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__init__.py", line 109, in <module>
+10|signali |     from numpy.__config__ import show_config
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__config__.py", line 4, in <module>
+10|signali |     from numpy._core._multiarray_umath import (
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/__init__.py", line 24, in <module>
+10|signali |     from . import multiarray
+10|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+10|signali |     from . import _multiarray_umath, overrides
+10|signali | ImportError: cannot load module more than once per process
+
+[TAILING] Tailing last 15 lines for [signalium-research-lab] process (change the value with --lines option)
+/root/.pm2/logs/signalium-research-lab-out.log last 15 lines:
+/root/.pm2/logs/signalium-research-lab-error.log last 15 lines:
+11|signali |     import torch
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/__init__.py", line 1934, in <module>
+11|signali |     from torch import storage as storage  # usort: skip
+11|signali |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/torch/storage.py", line 27, in <module>
+11|signali |     import numpy as np
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__init__.py", line 109, in <module>
+11|signali |     from numpy.__config__ import show_config
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/__config__.py", line 4, in <module>
+11|signali |     from numpy._core._multiarray_umath import (
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/__init__.py", line 24, in <module>
+11|signali |     from . import multiarray
+11|signali |   File "/opt/signalium-trainer/.venv/lib/python3.12/site-packages/numpy/_core/multiarray.py", line 11, in <module>
+11|signali |     from . import _multiarray_umath, overrides
+11|signali | ImportError: cannot load module more than once per process
+
+root@server1:/opt/signalium-trainer#
