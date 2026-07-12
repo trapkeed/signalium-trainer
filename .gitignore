@@ -120,6 +120,7 @@ logs/
 # Secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 secrets/
@@ -133,3 +134,4 @@ runpod_*.json
 
 # Generated documentation artifacts
 *.pdf
+*.tar.gz
