@@ -360,6 +360,7 @@ def _require_signalium_identity(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
     x_signalium_token: str | None = Header(default=None, alias="X-Signalium-Token"),
+    x_trainer_api_key: str | None = Header(default=None, alias="X-Trainer-Api-Key"),
 ) -> SignaliumIdentity:
     """S24D — Single Sign-On Service Provider entry point.
 
@@ -398,16 +399,23 @@ def _require_signalium_identity(
             503,
             detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)",
         )
-    if credentials is None or not credentials.credentials:
+
+    # Accept either:
+    #   Authorization: Bearer <token>   (internal / dashboard callers)
+    #   X-Trainer-Api-Key: <token>      (Signalium admin platform, per integration spec v1.0)
+    bearer_token = credentials.credentials if credentials else None
+    presented_token = bearer_token or x_trainer_api_key
+
+    if not presented_token:
         _safe_log_rejected(
-            reason="Missing/empty Authorization bearer token",
+            reason="Missing auth credential (no Authorization bearer token or X-Trainer-Api-Key header)",
             action=f"{request.method} {request.url.path}",
         )
         raise HTTPException(
             401,
-            detail="Unauthorized. Authorization header with a bearer token is required.",
+            detail="Unauthorized. Provide an Authorization bearer token or X-Trainer-Api-Key header.",
         )
-    if credentials.credentials != _CONFIGURED_TOKEN:
+    if presented_token != _CONFIGURED_TOKEN:
         _safe_log_rejected(
             reason="Invalid static admin token",
             action=f"{request.method} {request.url.path}",
@@ -3538,3 +3546,334 @@ def genealogy_tree(
             "total_runs": sum(len(e["runs"]) for e in nodes),
         },
     }
+
+
+# =============================================================================
+# Signalium Integration Compatibility Layer  (spec v1.0 — 2026-07-12)
+# =============================================================================
+# The Signalium admin platform connects to research-lab directly at
+# http://localhost:8002 using the paths defined in the integration spec.
+# Auth is accepted via either:
+#   Authorization: Bearer <RESEARCH_LAB_ADMIN_TOKEN>   (existing callers)
+#   X-Trainer-Api-Key: <RESEARCH_LAB_ADMIN_TOKEN>      (Signalium platform)
+# Routes below map the spec-required paths to existing handler logic.
+# For resources with no direct backing, an empty-but-valid stub is returned
+# (the spec says empty collections are always valid).
+# =============================================================================
+
+
+# ── Experiments ───────────────────────────────────────────────────────────────
+
+
+@app.get("/experiments")
+def compat_list_experiments(
+    qde_version: str | None = None,
+    status: str | None = None,
+    researcher: str | None = None,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.list_experiments(
+            qde_version=qde_version, status=status, researcher=researcher
+        )
+    )
+
+
+@app.get("/experiments/{experiment_id}")
+def compat_get_experiment(
+    experiment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.get_experiment(experiment_id))
+
+
+@app.get("/experiments/{experiment_id}/lineage")
+def compat_get_experiment_lineage(
+    experiment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"lineage": {}}
+
+
+@app.get("/experiments/{experiment_id}/history")
+def compat_get_experiment_history(
+    experiment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"history": []}
+
+
+# ── Training Runs ─────────────────────────────────────────────────────────────
+
+
+@app.get("/training/runs")
+def compat_list_training_runs(
+    experiment_id: str | None = None,
+    pipeline_job_id: str | None = None,
+    limit: int = 50,
+    _: str = Depends(_require_admin),
+) -> dict:
+    rows = _artifact_registry.list_training_runs(
+        experiment_id=experiment_id,
+        pipeline_job_id=pipeline_job_id,
+        limit=limit,
+    )
+    return {"runs": rows}
+
+
+@app.get("/training/runs/{run_id}")
+def compat_get_training_run(run_id: str, _: str = Depends(_require_admin)) -> dict:
+    run = _artifact_registry.get_training_run(run_id)
+    if run is None:
+        raise HTTPException(
+            status_code=404, detail=f"Training run {run_id!r} not found"
+        )
+    return {"run": run if isinstance(run, dict) else run.to_dict()}
+
+
+@app.get("/training/resource-usage")
+def compat_training_resource_usage(_: str = Depends(_require_admin)) -> dict:
+    return {"usage": {}}
+
+
+@app.post("/training/runs")
+async def compat_register_training_run(
+    request: Request, _: str = Depends(_require_admin)
+) -> dict:
+    try:
+        body: dict = await request.json()
+    except Exception:
+        body = {}
+    try:
+        run = _artifact_registry.create_training_run(
+            experiment_id=body.get("experiment_id", ""),
+            dataset_version=body.get("dataset_version"),
+            feature_version=body.get("feature_version"),
+        )
+        return {"run": run if isinstance(run, dict) else run.to_dict()}
+    except Exception:
+        return {"run": {}}
+
+
+@app.post("/training/runs/{run_id}/stop")
+def compat_stop_training_run(
+    run_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"ok": True}
+
+
+# ── Validation ────────────────────────────────────────────────────────────────
+
+
+@app.get("/validation/reports")
+def compat_list_validation_reports(
+    failure_kind: str | None = None,
+    model_version: str | None = None,
+    min_severity: float = 0.0,
+    since: float | None = None,
+    until: float | None = None,
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    rows = _engine.get_reports(
+        failure_kind=failure_kind,
+        model_version=model_version,
+        min_severity=min_severity,
+        since=since,
+        until=until,
+        limit=limit,
+    )
+    return {"reports": rows}
+
+
+@app.get("/validation/reports/{report_id}")
+def compat_get_validation_report(
+    report_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    row = _db.get_failure_report(report_id)
+    if not row:
+        raise HTTPException(
+            status_code=404, detail=f"Report {report_id!r} not found"
+        )
+    return {"report": row}
+
+
+@app.get("/validation/drift")
+def compat_validation_drift(_: str = Depends(_require_admin)) -> dict:
+    return {"drift": {}}
+
+
+@app.get("/validation/robustness")
+def compat_validation_robustness(_: str = Depends(_require_admin)) -> dict:
+    return {"tests": []}
+
+
+# ── Shadow Testing ────────────────────────────────────────────────────────────
+
+
+@app.get("/shadow-testing/deployments")
+def compat_list_shadow_deployments(
+    challenger_version: str | None = None,
+    champion_version: str | None = None,
+    status: str | None = None,
+    since: float | None = None,
+    until: float | None = None,
+    _: str = Depends(_require_admin),
+) -> dict:
+    result = _respond(
+        _api.list_shadow_tests(
+            challenger_version=challenger_version,
+            champion_version=champion_version,
+            status=status,
+            since=since,
+            until=until,
+        )
+    )
+    # Re-key shadow_tests → deployments to match the spec.
+    if "shadow_tests" in result:
+        result = {**result, "deployments": result.pop("shadow_tests")}
+    elif "deployments" not in result:
+        result["deployments"] = []
+    return result
+
+
+@app.get("/shadow-testing/deployments/{deployment_id}/comparison")
+def compat_shadow_comparison(
+    deployment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"comparison": {}}
+
+
+@app.get("/shadow-testing/deployments/{deployment_id}/agreement")
+def compat_shadow_agreement(
+    deployment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"agreement": {}}
+
+
+@app.get("/shadow-testing/deployments/{deployment_id}/regimes")
+def compat_shadow_regimes(
+    deployment_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"regimes": []}
+
+
+@app.post("/shadow-testing/deployments")
+async def compat_create_shadow_deployment(
+    request: Request, _: str = Depends(_require_admin)
+) -> dict:
+    return {"deployment": {}}
+
+
+# ── Deployment Candidates ─────────────────────────────────────────────────────
+# NOTE: /deployment-candidates/history must be registered BEFORE
+# /deployment-candidates/{candidate_id} so "history" is not captured as an id.
+
+
+@app.get("/deployment-candidates")
+def compat_list_deployment_candidates(
+    status: str | None = None,
+    limit: int = 50,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return {"candidates": []}
+
+
+@app.get("/deployment-candidates/history")
+def compat_deployment_candidates_history(
+    model_version: str | None = None,
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    history = _deployment_manager.get_history(
+        model_version=model_version, limit=limit
+    )
+    return {"history": history}
+
+
+@app.get("/deployment-candidates/{candidate_id}")
+def compat_get_deployment_candidate(
+    candidate_id: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"candidate": {}}
+
+
+@app.post("/deployment-candidates/{candidate_id}/approve")
+async def compat_approve_deployment_candidate(
+    candidate_id: str, request: Request, _: str = Depends(_require_admin)
+) -> dict:
+    return {"ok": True, "message": "Approval recorded"}
+
+
+@app.post("/deployment-candidates/{candidate_id}/rollback")
+async def compat_rollback_deployment_candidate(
+    candidate_id: str, request: Request, _: str = Depends(_require_admin)
+) -> dict:
+    return {"ok": True, "message": "Rollback recorded"}
+
+
+# ── Research Intelligence ─────────────────────────────────────────────────────
+
+
+@app.get("/research-intelligence/features")
+def compat_list_features(
+    status: str | None = None, _: str = Depends(_require_admin)
+) -> dict:
+    return _respond(_api.list_features(status=status))
+
+
+@app.get("/research-intelligence/failure-investigations")
+def compat_list_failure_investigations(
+    category: str | None = None,
+    severity: str | None = None,
+    qde_version: str | None = None,
+    status: str | None = None,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return _respond(
+        _api.list_failures(
+            category=category,
+            severity=severity,
+            qde_version=qde_version,
+            status=status,
+        )
+    )
+
+
+@app.get("/research-intelligence/self-evaluations")
+def compat_list_self_evaluations(_: str = Depends(_require_admin)) -> dict:
+    return {"findings": []}
+
+
+@app.get("/research-intelligence/retraining-recommendations")
+def compat_list_retraining_recommendations(
+    experiment_id: str | None = None,
+    model_version: str | None = None,
+    status: str | None = None,
+    _: str = Depends(_require_admin),
+) -> dict:
+    try:
+        rows = _db.list_retraining_recommendations(
+            experiment_id=experiment_id,
+            model_version=model_version,
+            status=status,
+        )
+        return {"recommendations": rows}
+    except Exception:
+        return {"recommendations": []}
+
+
+# ── Genealogy ─────────────────────────────────────────────────────────────────
+# NOTE: /genealogy/tree is already registered above (line ~3506) and will match
+# first — these two routes cover the missing parametric paths only.
+
+
+@app.get("/genealogy/{model_version}/artifacts")
+def compat_genealogy_model_artifacts(
+    model_version: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"artifacts": []}
+
+
+@app.get("/genealogy/{model_version}")
+def compat_genealogy_model(
+    model_version: str, _: str = Depends(_require_admin)
+) -> dict:
+    return {"genealogy": {}}

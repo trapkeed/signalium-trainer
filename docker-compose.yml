@@ -83,9 +83,10 @@ h.get('http://localhost:'+p+'/health',r=>process.exit(r.statusCode===200?0:1))\
       context: .
       dockerfile: docker/Dockerfile.research-lab
     restart: unless-stopped
-    # Not exposed to the host — only reachable by trainer-api on the backend network.
-    expose:
-      - "8002"
+    # Exposed on the host so the Signalium admin platform can reach research-lab
+    # directly at localhost:8002 (QDE_RESEARCH_LAB_URL in Signalium's .env).
+    ports:
+      - "8002:8002"
     environment:
       # ── Required ────────────────────────────────────────────────────────────
       RESEARCH_LAB_ADMIN_TOKEN: "${RESEARCH_LAB_ADMIN_TOKEN}"
