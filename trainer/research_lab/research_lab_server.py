@@ -3847,3 +3847,66 @@ def compat_genealogy_model_artifacts(model_version: str, _: str = Depends(_requi
 @app.get("/genealogy/{model_version}")
 def compat_genealogy_model(model_version: str, _: str = Depends(_require_admin)) -> dict:
     return {"genealogy": {}}
+
+
+# ── Datasets (flat compat paths) ──────────────────────────────────────────────
+
+
+@app.get("/datasets")
+def compat_list_datasets(
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    rows = _db.list_datasets(limit=limit) if hasattr(_db, "list_datasets") else []
+    return {"datasets": rows}
+
+
+@app.get("/datasets/{dataset_id}")
+def compat_get_dataset(dataset_id: str, _: str = Depends(_require_admin)) -> dict:
+    row = _db.get_dataset(dataset_id) if hasattr(_db, "get_dataset") else None
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Dataset {dataset_id!r} not found")
+    return {"dataset": row}
+
+
+# ── Memory, Reflections, Research Reports, Active Models ─────────────────────
+
+
+@app.get("/memory")
+def compat_list_memory(
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return {"entries": []}
+
+
+@app.get("/reflections")
+def compat_list_reflections(
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return {"reflections": []}
+
+
+@app.get("/research-reports")
+def compat_list_research_reports(
+    limit: int = 100,
+    _: str = Depends(_require_admin),
+) -> dict:
+    return {"reports": []}
+
+
+@app.get("/research-reports/{report_id}")
+def compat_get_research_report(report_id: str, _: str = Depends(_require_admin)) -> dict:
+    raise HTTPException(status_code=404, detail=f"Research report {report_id!r} not found")
+
+
+@app.get("/models/active")
+def compat_list_active_models(_: str = Depends(_require_admin)) -> dict:
+    """Return the currently active model versions."""
+    try:
+        current = _deployment_manager.get_current_deployment()
+        models = [current] if current else []
+    except Exception:
+        models = []
+    return {"models": models}
