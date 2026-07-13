@@ -1,0 +1,71 @@
+# =============================================================================
+# .dockerignore — keep Docker build contexts lean
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Large runtime / training data directories
+data/
+checkpoints/
+exports/
+logs/
+mlruns/
+.torch/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+.pythonlibs/
+
+# Node artifacts
+node_modules/
+apps/*/node_modules/
+packages/*/node_modules/
+artifacts/*/node_modules/
+.pnpm-store/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Docker overrides (local-only)
+docker-compose.override.yml
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# CI
+.github/
+.replit
+replit.nix
+
+# Test output
+htmlcov/
+.coverage
+coverage.xml
+junit*.xml
+pytest-of-*/
+tmp*.db
+tmp*.db-shm
+tmp*.db-wal
+
+# Compiled TS output (rebuilt inside the container)
+apps/trainer-api/dist/
+artifacts/*/dist/
