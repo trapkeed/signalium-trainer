@@ -553,6 +553,22 @@ app.router.dependencies.append(Depends(_require_admin))
 
 
 @app.middleware("http")
+async def _liveness_bypass(request: Request, call_next: Any) -> Any:
+    """Short-circuit GET /health before auth dependencies run.
+
+    The router-level ``_require_admin`` dependency covers every registered
+    route, so a route-level ``@app.get("/health")`` would still be blocked
+    by the auth check.  Middleware runs *before* the router resolves
+    dependencies, making it the correct place for a no-auth liveness probe.
+    """
+    if request.url.path == "/health":
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({"status": "ok", "service": "research-lab"})
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def _audit_log_middleware(request: Request, call_next: Any) -> Any:
     """S24D §3 — logs every successfully authenticated research action.
 
@@ -947,12 +963,6 @@ def _respond(response: Any) -> dict:
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
-
-
-@app.get("/health")
-def liveness() -> dict:
-    """Public liveness probe — no auth required. Used by Docker health checks."""
-    return {"status": "ok", "service": "research-lab"}
 
 
 @app.get("/research/healthz")
