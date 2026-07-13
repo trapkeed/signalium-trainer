@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
 LABEL maintainer="Signalium <engineering@signalium.io>"
 LABEL description="Signalium Trainer — GPU training container"
