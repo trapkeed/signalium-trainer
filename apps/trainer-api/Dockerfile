@@ -26,7 +26,7 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY apps/trainer-api/ ./apps/trainer-api/
-COPY packages/ ./packages/ 2>/dev/null || true
+COPY packages/ ./packages/
 
 WORKDIR /build/apps/trainer-api
 RUN pnpm run build
