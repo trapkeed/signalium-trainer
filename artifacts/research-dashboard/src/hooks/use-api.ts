@@ -78,3 +78,58 @@ export const useFeatures = (status?: string) => useQuery({
   queryKey: ["features", status],
   queryFn: () => api.listFeatures(status)
 });
+
+// Experiments
+export const useExperiments = (params?: { qde_version?: string; status?: string; researcher?: string }) => useQuery({
+  queryKey: ["experiments", params],
+  queryFn: () => api.listExperiments(params),
+  refetchInterval: 30000,
+});
+
+export const useExperiment = (experimentId: string) => useQuery({
+  queryKey: ["experiment", experimentId],
+  queryFn: () => api.getExperiment(experimentId),
+  enabled: !!experimentId,
+});
+
+export const useApproveExperiment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ experimentId, reason }: { experimentId: string; reason?: string }) =>
+      api.approveExperiment(experimentId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["experiments"] });
+    },
+  });
+};
+
+export const useRejectExperiment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ experimentId, reason }: { experimentId: string; reason: string }) =>
+      api.rejectExperiment(experimentId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["experiments"] });
+    },
+  });
+};
+
+// Shadow Tests
+export const useShadowTests = (params?: { challenger_version?: string; status?: string }) => useQuery({
+  queryKey: ["shadow-tests", params],
+  queryFn: () => api.listShadowTests(params),
+  refetchInterval: 30000,
+});
+
+export const useShadowTest = (testId: string) => useQuery({
+  queryKey: ["shadow-test", testId],
+  queryFn: () => api.getShadowTest(testId),
+  enabled: !!testId,
+});
+
+// Deployments
+export const useDeployments = () => useQuery({
+  queryKey: ["deployments"],
+  queryFn: () => api.listDeployments(),
+  refetchInterval: 30000,
+});

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { Activity, AlertTriangle, CheckSquare, GitMerge, LineChart, Target, Box, Database, LogOut } from "lucide-react";
+import { Activity, AlertTriangle, CheckSquare, GitMerge, LineChart, Target, Box, Database, LogOut, FlaskConical, Eye, PackageCheck, Network } from "lucide-react";
 import { useCurrentDeployment, useHealthStatus } from "@/hooks/use-api";
 
 const NAV_ITEMS = [
@@ -13,6 +13,10 @@ const NAV_ITEMS = [
   { path: "/lineage", label: "Lineage", icon: Database },
   { path: "/features", label: "Features", icon: Box },
   { path: "/approvals", label: "Approvals", icon: CheckSquare },
+  { path: "/experiments-lab", label: "Experiments", icon: FlaskConical },
+  { path: "/shadow", label: "Shadow Tests", icon: Eye },
+  { path: "/candidates", label: "Candidates", icon: PackageCheck },
+  { path: "/model-tree", label: "Model Tree", icon: Network },
 ];
 
 export function Shell({ children }: { children: ReactNode }) {

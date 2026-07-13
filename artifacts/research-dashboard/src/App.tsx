@@ -11,6 +11,10 @@ import Promotions from '@/pages/Promotions';
 import Lineage from '@/pages/Lineage';
 import Features from '@/pages/Features';
 import Approvals from '@/pages/Approvals';
+import ExperimentsLab from '@/pages/ExperimentsLab';
+import ShadowTests from '@/pages/ShadowTests';
+import DeploymentCandidates from '@/pages/DeploymentCandidates';
+import ModelTree from '@/pages/ModelTree';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +36,10 @@ function ProtectedRoutes() {
         <Route path="/lineage" component={Lineage} />
         <Route path="/features" component={Features} />
         <Route path="/approvals" component={Approvals} />
+        <Route path="/experiments-lab" component={ExperimentsLab} />
+        <Route path="/shadow" component={ShadowTests} />
+        <Route path="/candidates" component={DeploymentCandidates} />
+        <Route path="/model-tree" component={ModelTree} />
         <Route>
           <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
             <h1 className="text-4xl font-bold text-muted-foreground font-mono">404</h1>

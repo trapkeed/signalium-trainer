@@ -332,3 +332,60 @@ export const getShadowComparison = (testId: string) =>
   get<{ success: boolean; comparison: ShadowComparison }>("/shadow/comparison", {
     test_id: testId,
   });
+
+// ── Experiments (Research Lab) ────────────────────────────────────────────────
+
+export interface Experiment {
+  experiment_id: string;
+  name?: string;
+  status: string;
+  researcher?: string;
+  qde_version?: string;
+  hypothesis?: string;
+  notes?: string;
+  created_at: number;
+  updated_at?: number;
+  [key: string]: unknown;
+}
+
+export const listExperiments = (params?: {
+  qde_version?: string;
+  status?: string;
+  researcher?: string;
+}) => get<{ success: boolean; experiments: Experiment[] }>("/experiments", params);
+
+export const getExperiment = (experimentId: string) =>
+  get<{ success: boolean; experiment: Experiment }>(`/experiments/${experimentId}`);
+
+export const approveExperiment = (experimentId: string, reason?: string) =>
+  post<{ success: boolean }>(`/experiments/${experimentId}/approve`, { reason });
+
+export const rejectExperiment = (experimentId: string, reason: string) =>
+  post<{ success: boolean }>(`/experiments/${experimentId}/reject`, { reason });
+
+// ── Shadow Tests ──────────────────────────────────────────────────────────────
+
+export interface ShadowTestRecord {
+  test_id: string;
+  challenger_version: string;
+  champion_version?: string;
+  status: string;
+  agreement_rate?: number;
+  rolling_sharpe?: number;
+  conclusion?: string;
+  created_at: number;
+  [key: string]: unknown;
+}
+
+export const listShadowTests = (params?: {
+  challenger_version?: string;
+  status?: string;
+}) => get<{ success: boolean; shadow_tests: ShadowTestRecord[] }>("/shadow-tests", params);
+
+export const getShadowTest = (testId: string) =>
+  get<{ success: boolean; test: ShadowTestRecord }>(`/shadow-tests/${testId}`);
+
+// ── Deployment History ────────────────────────────────────────────────────────
+
+export const listDeployments = () =>
+  get<{ success: boolean; deployments: DeploymentRecord[] }>("/deployments");
