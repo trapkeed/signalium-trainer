@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu24.04
 
 LABEL maintainer="Signalium <engineering@signalium.io>"
 LABEL description="Signalium Trainer — GPU training container"
@@ -7,13 +7,10 @@ ARG PYTHON_VERSION=3.12
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
         python${PYTHON_VERSION}-venv \
-        python${PYTHON_VERSION}-distutils \
+        python3-pip \
         git \
         curl \
         ca-certificates \
@@ -23,8 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
     && update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
 
-RUN python${PYTHON_VERSION} -m ensurepip --upgrade \
-    && python${PYTHON_VERSION} -m pip install --upgrade pip setuptools wheel
+RUN pip install --upgrade pip setuptools wheel
 
 WORKDIR /app
 
