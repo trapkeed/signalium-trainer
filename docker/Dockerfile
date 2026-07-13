@@ -7,14 +7,17 @@ ARG PYTHON_VERSION=3.12
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python${PYTHON_VERSION} \
-    python${PYTHON_VERSION}-dev \
-    python${PYTHON_VERSION}-venv \
-    python3-pip \
-    git \
-    curl \
-    ca-certificates \
-    build-essential \
+        software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        python${PYTHON_VERSION} \
+        python${PYTHON_VERSION}-dev \
+        python${PYTHON_VERSION}-venv \
+        python3-pip \
+        git \
+        curl \
+        ca-certificates \
+        build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
