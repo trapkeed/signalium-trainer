@@ -22,7 +22,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/trainer-api/package.json ./apps/trainer-api/
 # Copy any shared packages referenced by the API (add more as needed)
-RUN pnpm install --frozen-lockfile
+# --ignore-scripts bypasses ERR_PNPM_IGNORED_BUILDS when workspace package
+# directories aren't present yet in this layer; esbuild is rebuilt explicitly.
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild esbuild
 
 # Copy source and build
 COPY apps/trainer-api/ ./apps/trainer-api/
