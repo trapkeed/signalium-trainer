@@ -400,11 +400,15 @@ def _require_signalium_identity(
             detail="Research Lab not configured (RESEARCH_LAB_ADMIN_TOKEN not set)",
         )
 
-    # Accept either:
+    # Accept either auth mechanism:
+    #   X-Trainer-Api-Key: <token>      (Signalium admin platform, integration spec v1.0)
     #   Authorization: Bearer <token>   (internal / dashboard callers)
-    #   X-Trainer-Api-Key: <token>      (Signalium admin platform, per integration spec v1.0)
+    #
+    # X-Trainer-Api-Key takes priority: Signalium sends BOTH headers simultaneously —
+    # its Bearer is an internal service JWT (not the shared secret), so checking
+    # Bearer first would always produce a 403.
     bearer_token = credentials.credentials if credentials else None
-    presented_token = bearer_token or x_trainer_api_key
+    presented_token = x_trainer_api_key or bearer_token
 
     if not presented_token:
         _safe_log_rejected(
