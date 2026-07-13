@@ -240,7 +240,7 @@ describe("POST /experiments", () => {
 // ---------------------------------------------------------------------------
 
 describe("GET /training/runs", () => {
-  it("proxies to /artifacts/runs", async () => {
+  it("proxies to /training/runs", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -254,7 +254,7 @@ describe("GET /training/runs", () => {
     expect(res.status).toBe(200);
 
     const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/artifacts/runs");
+    expect(calledUrl).toContain("/training/runs");
     expect(calledUrl).toContain("experiment_id=exp-1");
     expect(calledUrl).toContain("limit=10");
   });
@@ -265,7 +265,7 @@ describe("GET /training/runs", () => {
 // ---------------------------------------------------------------------------
 
 describe("POST /training/runs", () => {
-  it("proxies body to /artifacts/runs", async () => {
+  it("proxies body to /training/runs", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -281,7 +281,7 @@ describe("POST /training/runs", () => {
     expect(res.status).toBe(201);
 
     const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/artifacts/runs");
+    expect(calledUrl).toContain("/training/runs");
   });
 });
 
@@ -290,7 +290,7 @@ describe("POST /training/runs", () => {
 // ---------------------------------------------------------------------------
 
 describe("POST /shadow-testing/deployments", () => {
-  it("proxies to /research/shadow-tests", async () => {
+  it("proxies to /shadow-testing/deployments", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -306,7 +306,7 @@ describe("POST /shadow-testing/deployments", () => {
     expect(res.status).toBe(201);
 
     const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/research/shadow-tests");
+    expect(calledUrl).toContain("/shadow-testing/deployments");
   });
 });
 
@@ -315,7 +315,7 @@ describe("POST /shadow-testing/deployments", () => {
 // ---------------------------------------------------------------------------
 
 describe("POST /deployment-candidates/:id/approve", () => {
-  it("proxies to /research/experiments/:id/approve with correct id", async () => {
+  it("proxies to /deployment-candidates/:id/approve with correct id", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -330,7 +330,7 @@ describe("POST /deployment-candidates/:id/approve", () => {
     expect(res.status).toBe(200);
 
     const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/research/experiments/exp-123/approve");
+    expect(calledUrl).toContain("/deployment-candidates/exp-123/approve");
   });
 
   it("returns 502 with { error } (no success field) when RL is down", async () => {
@@ -385,7 +385,7 @@ describe("GET /genealogy/tree", () => {
 // ---------------------------------------------------------------------------
 
 describe("GET /datasets", () => {
-  it("proxies to /research/datasets", async () => {
+  it("proxies to /datasets", async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -400,7 +400,7 @@ describe("GET /datasets", () => {
     expect(res.body).toHaveProperty("datasets");
 
     const [calledUrl] = mockFetch.mock.calls[0] as [string];
-    expect(calledUrl).toContain("/research/datasets");
+    expect(calledUrl).toContain("/datasets");
   });
 
   it("returns 502 with { error } (no success field) when RL is down", async () => {
