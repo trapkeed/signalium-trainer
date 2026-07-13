@@ -78,7 +78,7 @@ EXPOSE 8002
 # ---------------------------------------------------------------------------
 # Health check — hits the /health endpoint (no auth required)
 # ---------------------------------------------------------------------------
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=10s --start-period=120s --retries=5 \
     CMD curl -f http://localhost:8002/health || exit 1
 
 # ---------------------------------------------------------------------------
