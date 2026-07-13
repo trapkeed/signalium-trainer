@@ -949,6 +949,12 @@ def _respond(response: Any) -> dict:
 # ── Health ────────────────────────────────────────────────────────────────────
 
 
+@app.get("/health")
+def liveness() -> dict:
+    """Public liveness probe — no auth required. Used by Docker health checks."""
+    return {"status": "ok", "service": "research-lab"}
+
+
 @app.get("/research/healthz")
 def health(_: None = Depends(_require_admin)) -> dict:
     """Admin health check. Requires valid admin token."""
