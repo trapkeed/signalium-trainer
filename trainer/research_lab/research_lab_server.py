@@ -3573,30 +3573,22 @@ def compat_list_experiments(
     _: str = Depends(_require_admin),
 ) -> dict:
     return _respond(
-        _api.list_experiments(
-            qde_version=qde_version, status=status, researcher=researcher
-        )
+        _api.list_experiments(qde_version=qde_version, status=status, researcher=researcher)
     )
 
 
 @app.get("/experiments/{experiment_id}")
-def compat_get_experiment(
-    experiment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_get_experiment(experiment_id: str, _: str = Depends(_require_admin)) -> dict:
     return _respond(_api.get_experiment(experiment_id))
 
 
 @app.get("/experiments/{experiment_id}/lineage")
-def compat_get_experiment_lineage(
-    experiment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_get_experiment_lineage(experiment_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"lineage": {}}
 
 
 @app.get("/experiments/{experiment_id}/history")
-def compat_get_experiment_history(
-    experiment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_get_experiment_history(experiment_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"history": []}
 
 
@@ -3622,9 +3614,7 @@ def compat_list_training_runs(
 def compat_get_training_run(run_id: str, _: str = Depends(_require_admin)) -> dict:
     run = _artifact_registry.get_training_run(run_id)
     if run is None:
-        raise HTTPException(
-            status_code=404, detail=f"Training run {run_id!r} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Training run {run_id!r} not found")
     return {"run": run if isinstance(run, dict) else run.to_dict()}
 
 
@@ -3634,9 +3624,7 @@ def compat_training_resource_usage(_: str = Depends(_require_admin)) -> dict:
 
 
 @app.post("/training/runs")
-async def compat_register_training_run(
-    request: Request, _: str = Depends(_require_admin)
-) -> dict:
+async def compat_register_training_run(request: Request, _: str = Depends(_require_admin)) -> dict:
     try:
         body: dict = await request.json()
     except Exception:
@@ -3653,9 +3641,7 @@ async def compat_register_training_run(
 
 
 @app.post("/training/runs/{run_id}/stop")
-def compat_stop_training_run(
-    run_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_stop_training_run(run_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"ok": True}
 
 
@@ -3684,14 +3670,10 @@ def compat_list_validation_reports(
 
 
 @app.get("/validation/reports/{report_id}")
-def compat_get_validation_report(
-    report_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_get_validation_report(report_id: str, _: str = Depends(_require_admin)) -> dict:
     row = _db.get_failure_report(report_id)
     if not row:
-        raise HTTPException(
-            status_code=404, detail=f"Report {report_id!r} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Report {report_id!r} not found")
     return {"report": row}
 
 
@@ -3735,23 +3717,17 @@ def compat_list_shadow_deployments(
 
 
 @app.get("/shadow-testing/deployments/{deployment_id}/comparison")
-def compat_shadow_comparison(
-    deployment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_shadow_comparison(deployment_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"comparison": {}}
 
 
 @app.get("/shadow-testing/deployments/{deployment_id}/agreement")
-def compat_shadow_agreement(
-    deployment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_shadow_agreement(deployment_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"agreement": {}}
 
 
 @app.get("/shadow-testing/deployments/{deployment_id}/regimes")
-def compat_shadow_regimes(
-    deployment_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_shadow_regimes(deployment_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"regimes": []}
 
 
@@ -3782,16 +3758,12 @@ def compat_deployment_candidates_history(
     limit: int = 100,
     _: str = Depends(_require_admin),
 ) -> dict:
-    history = _deployment_manager.get_history(
-        model_version=model_version, limit=limit
-    )
+    history = _deployment_manager.get_history(model_version=model_version, limit=limit)
     return {"history": history}
 
 
 @app.get("/deployment-candidates/{candidate_id}")
-def compat_get_deployment_candidate(
-    candidate_id: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_get_deployment_candidate(candidate_id: str, _: str = Depends(_require_admin)) -> dict:
     return {"candidate": {}}
 
 
@@ -3813,9 +3785,7 @@ async def compat_rollback_deployment_candidate(
 
 
 @app.get("/research-intelligence/features")
-def compat_list_features(
-    status: str | None = None, _: str = Depends(_require_admin)
-) -> dict:
+def compat_list_features(status: str | None = None, _: str = Depends(_require_admin)) -> dict:
     return _respond(_api.list_features(status=status))
 
 
@@ -3866,14 +3836,10 @@ def compat_list_retraining_recommendations(
 
 
 @app.get("/genealogy/{model_version}/artifacts")
-def compat_genealogy_model_artifacts(
-    model_version: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_genealogy_model_artifacts(model_version: str, _: str = Depends(_require_admin)) -> dict:
     return {"artifacts": []}
 
 
 @app.get("/genealogy/{model_version}")
-def compat_genealogy_model(
-    model_version: str, _: str = Depends(_require_admin)
-) -> dict:
+def compat_genealogy_model(model_version: str, _: str = Depends(_require_admin)) -> dict:
     return {"genealogy": {}}
