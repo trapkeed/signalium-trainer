@@ -20,16 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
     && update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
 
-RUN pip install --upgrade pip setuptools wheel
+# Ubuntu 24.04 enforces PEP 668 — use --break-system-packages inside the container
+# since we own the entire environment and there is no risk of polluting the host.
+RUN pip install --break-system-packages --upgrade pip setuptools wheel
 
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[cuda]"
+RUN pip install --break-system-packages --no-cache-dir -e ".[cuda]"
 
 COPY . .
 
-RUN pip install --no-cache-dir -e "."
+RUN pip install --break-system-packages --no-cache-dir -e "."
 
 VOLUME ["/app/data", "/app/checkpoints", "/app/exports", "/app/logs", "/app/mlruns"]
 
