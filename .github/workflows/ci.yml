@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   # ── Node.js / TypeScript ────────────────────────────────────────────────────
@@ -182,3 +183,45 @@ jobs:
           echo "To build and test the GPU image locally:"
           echo "  docker build --tag signalium-trainer:gpu --file docker/Dockerfile ."
           echo "  docker run --gpus all --rm signalium-trainer:gpu trainer doctor"
+
+  # ── GPU image → GHCR (main branch only) ─────────────────────────────────────
+  #
+  # Builds docker/Dockerfile (CUDA 12.4 + cuDNN) and pushes to GHCR on every
+  # merge to main.  Tags:
+  #   ghcr.io/trapkeed/signalium-trainer:latest   ← always the newest main build
+  #   ghcr.io/trapkeed/signalium-trainer:<sha>    ← pin a specific commit on RunPod
+  #
+  # Authentication uses the built-in GITHUB_TOKEN — no PAT required.
+  # Make the package public once (GitHub → Packages → signalium-trainer →
+  # Package settings → Change visibility) so RunPod can pull without credentials.
+
+  docker-push:
+    name: Docker — Push GPU Image to GHCR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [node-build, test, docker-build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push GPU image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/trapkeed/signalium-trainer:latest
+            ghcr.io/trapkeed/signalium-trainer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
