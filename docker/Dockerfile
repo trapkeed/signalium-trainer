@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python${PYTHON_VERSION} \
         python${PYTHON_VERSION}-dev \
         python${PYTHON_VERSION}-venv \
-        python3-pip \
+        python${PYTHON_VERSION}-distutils \
         git \
         curl \
         ca-certificates \
@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
     && update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
 
-RUN pip install --upgrade pip setuptools wheel
+RUN python${PYTHON_VERSION} -m ensurepip --upgrade \
+    && python${PYTHON_VERSION} -m pip install --upgrade pip setuptools wheel
 
 WORKDIR /app
 
