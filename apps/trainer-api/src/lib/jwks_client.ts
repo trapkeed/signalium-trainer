@@ -27,7 +27,7 @@ interface JwksCache {
 
 const JWKS_URL =
   process.env["SIGNALIUM_JWKS_URL"] ??
-  "https://signaliumai.com/api/sso/jwks";
+  "https://signaliumai.com/sso/jwks";
 const JWKS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 let cache: JwksCache | null = null;
