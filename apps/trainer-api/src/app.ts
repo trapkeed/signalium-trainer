@@ -31,9 +31,12 @@ app.use(cors(platformCorsOptions()));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Platform contract: GET /health — no auth, returns { status: "ok" }
+// Platform contract: GET /health and GET /healthz — no auth, returns { status: "ok" }
 // Must be registered before the /api sub-router.
 app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+app.get("/healthz", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
